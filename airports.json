@@ -1,0 +1,252 @@
+{
+    "KVCT": {
+        "text": "Victoria",
+        "display": false,
+        "visits": 0
+    },
+    "KPKV": {
+        "text": 1,
+        "display": false,
+        "visits": 0
+    },
+    "KPSX": {
+        "text": 2,
+        "display": false,
+        "visits": 0
+    },
+    "KBYY": {
+        "text": 3,
+        "display": false,
+        "visits": 0
+    },
+    "KLBX": {
+        "text": 4,
+        "display": false,
+        "visits": 0
+    },
+    "KGLS": {
+        "text": "Galveston",
+        "display": false,
+        "visits": 0
+    },
+    "KLVJ": {
+        "text": "Lk Jackson",
+        "display": false,
+        "visits": 0
+    },
+    "KEFD": {
+        "text": "Ellington",
+        "display": false,
+        "visits": 0
+    },
+    "KHOU": {
+        "text": "Hobby",
+        "display": true,
+        "visits": 0
+    },
+    "KSGR": {
+        "text": 9,
+        "display": false,
+        "visits": 0
+    },
+    "KARM": {
+        "text": 10,
+        "display": false,
+        "visits": 0
+    },
+    "KELA": {
+        "text": 11,
+        "display": false,
+        "visits": 0
+    },
+    "KTME": {
+        "text": "Hou EXEC",
+        "display": false,
+        "visits": 0
+    },
+    "K11R": {
+        "text": 13,
+        "display": false,
+        "visits": 0
+    },
+    "KCLL": {
+        "text": "College Stn",
+        "display": true,
+        "visits": 0
+    },
+    "KLXY": {
+        "text": 15,
+        "display": false,
+        "visits": 0
+    },
+    "KPSN": {
+        "text": 16,
+        "display": false,
+        "visits": 0
+    },
+    "KDKR": {
+        "text": "Crockett",
+        "display": false,
+        "visits": 0
+    },
+    "KUTS": {
+        "text": "Huntsville",
+        "display": false,
+        "visits": 0
+    },
+    "KCXO": {
+        "text": "Conroe",
+        "display": true,
+        "visits": 0
+    },
+    "KDWH": {
+        "text": "Hooks",
+        "display": true,
+        "visits": 4
+    },
+    "KIAH": {
+        "text": "IAH",
+        "display": true,
+        "visits": 0
+    },
+    "KT78": {
+        "text": 22,
+        "display": false,
+        "visits": 0
+    },
+    "KBMT": {
+        "text": "Beaumont",
+        "display": false,
+        "visits": 0
+    },
+    "KBPT": {
+        "text": 24,
+        "display": false,
+        "visits": 0
+    },
+    "KORG": {
+        "text": 25,
+        "display": false,
+        "visits": 0
+    },
+    "KUXL": {
+        "text": 26,
+        "display": false,
+        "visits": 0
+    },
+    "KLCH": {
+        "text": "Lk Charles",
+        "display": false,
+        "visits": 0
+    },
+    "KCWF": {
+        "text": 28,
+        "display": false,
+        "visits": 0
+    },
+    "K3R7": {
+        "text": 29,
+        "display": false,
+        "visits": 0
+    },
+    "KLFT": {
+        "text": 30,
+        "display": false,
+        "visits": 0
+    },
+    "KHUM": {
+        "text": 31,
+        "display": false,
+        "visits": 0
+    },
+    "KAPS": {
+        "text": 32,
+        "display": false,
+        "visits": 0
+    },
+    "KREG": {
+        "text": 33,
+        "display": false,
+        "visits": 0
+    },
+    "KBTR": {
+        "text": "Baton Rouge",
+        "display": false,
+        "visits": 0
+    },
+    "KHZR": {
+        "text": 35,
+        "display": false,
+        "visits": 0
+    },
+    "KOPL": {
+        "text": 36,
+        "display": false,
+        "visits": 0
+    },
+    "KACP": {
+        "text": 37,
+        "display": false,
+        "visits": 0
+    },
+    "KPOE": {
+        "text": 38,
+        "display": false,
+        "visits": 0
+    },
+    "KDRI": {
+        "text": "De Ridder",
+        "display": false,
+        "visits": 0
+    },
+    "KJAS": {
+        "text": 40,
+        "display": false,
+        "visits": 0
+    },
+    "KLFK": {
+        "text": "Lufkin",
+        "display": false,
+        "visits": 0
+    },
+    "KOCH": {
+        "text": "Nac",
+        "display": false,
+        "visits": 0
+    },
+    "KJSO": {
+        "text": 43,
+        "display": false,
+        "visits": 0
+    },
+    "KRFI": {
+        "text": 44,
+        "display": false,
+        "visits": 0
+    },
+    "K4F2": {
+        "text": 45,
+        "display": false,
+        "visits": 0
+    },
+    "K3F3": {
+        "text": 46,
+        "display": false,
+        "visits": 0
+    },
+    "KIER": {
+        "text": "Natchitoches",
+        "display": false,
+        "visits": 0
+    },
+    "KAEX": {
+        "text": 48,
+        "display": false,
+        "visits": 0
+    },
+    "KHEZ": {
+        "text": "Natchez",
+        "display": false,
+        "visits": 0
+    }
+}

@@ -119,6 +119,6 @@ def none(disp):
 	draw1.text((x, top + 0), "NO DATA FND", font=fontLarge, fill=255) # StationID, Condition (VFR/IFR)
 	draw1.text((x, top + 20), "Check:", font=fontMed, fill=255)
 	draw1.text((x, top + 35), "internet", font=fontMed, fill=255)
-	draw1.text((x, top + 50), "airports lst", font=fontMed, fill=255)
+	draw1.text((x, top + 50), "airports.json lst", font=fontMed, fill=255)
 	disp.image(image1)
 	disp.show()
