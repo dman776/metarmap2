@@ -19,11 +19,7 @@ class Renderer(object):
     """
 
 
-    windCycle = False
-    displayTime = 0.0
-    displayAirportCounter = 0
-    # numAirports = len(displayList)
-    numAirports = 50
+
 
     def render(self):
         i = 0
@@ -116,6 +112,11 @@ class Renderer(object):
         self.__stations__ = metars.stations()
         self.__data__ = metars.data
         self.__config__ = config
+        self.windCycle = False
+        self.numAirports = len(self.__stations__)
+        # displayTime = 0.0
+        # displayAirportCounter = 0
+
 
 if __name__ == '__main__':
     print("Renderer")
