@@ -119,7 +119,8 @@ if __name__ == '__main__':
 
     # init neopixels
     pixels = None
-    bright = CONFIG.data().dimming.time_base.bright_start < datetime.now().time() < CONFIG.data().dimming.time_base.dim_start
+    # bright = CONFIG.data().dimming.time_base.bright_start < datetime.now().time() < CONFIG.data().dimming.time_base.dim_start
+    bright = False
     pixels = neopixel.NeoPixel(board.D18, CONFIG.data().led.count, brightness=CONFIG.data().led.brightness if (
             CONFIG.data().dimming.dynamic_base.enabled and bright == False) else CONFIG.data().led.brightness, pixel_order=LED_ORDER,
             auto_write=False)
