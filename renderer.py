@@ -98,7 +98,7 @@ class Renderer(object):
             for i in range(pixel_count):
                 pixel_index = (i * 256 // pixel_count) + j
                 color = wheel(pixel_index & 255)
-                self.__pixels__.set_led(i, color)
+                self.__pixels__[i] = color
             self.__renderer__.show()
 
     def __init__(self, pixels, metars: metar.METAR, config: Config):
