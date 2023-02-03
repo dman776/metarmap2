@@ -24,7 +24,6 @@ class Renderer(object):
     displayAirportCounter = 0
     # numAirports = len(displayList)
     numAirports = 50
-    pixels=[]
 
     def render(self):
         i = 0
@@ -66,10 +65,10 @@ class Renderer(object):
                     color = self.__config__.data().color.clear
 
             # print("Setting LED " + str(i) + " for " + airport + " to " + ("lightning " if lightningConditions else "") + ("windy " if windy else "") + (conditions["flightCategory"] if conditions != None else "None") + " " + str(color))
-            pixels[i] = color
+            self.__pixels__[i] = color
             i += 1
         # Update actual LEDs all at once
-        pixels.show()
+        self.__pixels__.show()
 
         # To get all airport codes in the displayList. I thought I needed this, but didn't. So into the magic comment garden it goes until needed:
         # for airport in [seq[0] for seq in displayList]:
