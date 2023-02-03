@@ -58,6 +58,7 @@ except Exception:
 # ---------------------------------------------------------------------------
 FADE_INSTEAD_OF_BLINK	= True			# Set to False if you want blinking
 BLINK_TOTALTIME_SECONDS	= 600
+LED_ORDER = neopixel.GRB        # fix in config
 # ---------------------------------------------------------------------------
 # ------------END OF CONFIGURATION-------------------------------------------
 # ---------------------------------------------------------------------------
@@ -118,9 +119,9 @@ if __name__ == '__main__':
 
     # init neopixels
     pixels = None
-    # pixels = neopixel.NeoPixel(board.D18, LED_COUNT, brightness=LED_BRIGHTNESS_DIM if (
-    #         ACTIVATE_DAYTIME_DIMMING and bright == False) else LED_BRIGHTNESS, pixel_order=LED_ORDER,
-    #         auto_write=False)
+    pixels = neopixel.NeoPixel(board.D18, CONFIG.data().led.count, brightness=CONFIG.data().led.brightness if (
+            CONFIG.data().dimming.dynamic_base.enabled and bright == False) else CONFIG.data().led.brightness pixel_order=LED_ORDER,
+            auto_write=False)
 
     renderer = renderer.Renderer(pixels, metars, CONFIG)
 
