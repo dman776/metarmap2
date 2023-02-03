@@ -11,7 +11,7 @@ import xml.etree.ElementTree as ET
 from pprint import pprint
 import json
 import lib.safe_logging as safe_logging
-from lib.config import Config
+# from lib.config import Config
 
 class METAR(object):
     """
@@ -125,12 +125,12 @@ class METAR(object):
         """
         return self.__stations__
 
-    def __init__(self, airports: dict, config: Config, fetch=False):
+    def __init__(self, airports: dict, cfg, fetch=False):
         """
         Creates a new METAR class.
         """
         self.__airports__ = airports
-        self.__config__ = config
+        self.__config__ = cfg
         self.__is_fetching__ = False
         self.__missing_stations__ = []
         self.__stations__ = []
@@ -144,7 +144,8 @@ if __name__ == '__main__':
                 '"KIAH": {"text": "IAH", "display": false, "visits": 0}}'
 
     airports = json.loads(airportstr)
-    metars = METAR(airports, fetch=True)
+    CONFIG = Config("config.json")
+    metars = METAR(airports, CONFIG, fetch=True)
     pprint(metars)
     pprint("missing: " + str(metars.missing_stations()))
     pprint("all: " + str(metars.stations()))

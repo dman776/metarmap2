@@ -36,7 +36,7 @@ class Config(object):
 
 if __name__ == '__main__':
     safe_logging.safe_log("Config")
-    config = Config("config.json")
+    config = Config("../config.json")
     pprint(config.data().led.brightness)
     pprint(config.data().color.cat.vfr.fade)
 
