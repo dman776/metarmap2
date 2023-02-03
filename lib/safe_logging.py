@@ -6,8 +6,15 @@ import inspect
 import traceback
 from datetime import datetime, timedelta
 
-import lib.logger
-from lib.logger import LOGGER
+try:
+    import lib.logger
+    from lib.logger import LOGGER
+    import lib.safe_logging as safe_logging
+except ModuleNotFoundError as e:
+    import logger
+    from logger import LOGGER
+    import safe_logging as safe_logging
+
 
 TAB_TEXT = ' ' * 4
 MODULE_NAME = '<module>'

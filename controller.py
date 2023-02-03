@@ -20,7 +20,6 @@
 # Green -> Pin 23(Physical)/SCLK/SPI
 #
 
-
 import threading
 import time
 from datetime import datetime
@@ -28,13 +27,18 @@ import json
 
 import webserver
 import renderer
-# from configuration import configuration, configuration_server
-# from data_sources import weather
-# from lib import colors as colors_lib
-from lib import logger, safe_logging
+from lib.config import Config
+
+from lib import logger, safe_logging, utils
 import metar as metar
 from lib.recurring_task import RecurringTask
 # from visualizers import visualizers
+
+try:
+    import board
+    import neopixel
+except:
+    pass
 
 thread_lock_object = threading.Lock()
 
@@ -81,6 +85,7 @@ WIND_BLINK_THRESHOLD	= 18			# Knots of windspeed
 ALWAYS_BLINK_FOR_GUSTS	= False			# Always animate for Gusts (regardless of speeds)
 # Blinking Speed in seconds
 BLINK_SPEED		= 1.0			# Float in seconds, e.g. 0.5 for half a second
+
 # Total blinking time in seconds.
 # For example set this to 300 to keep blinking for 5 minutes if you plan to run the script every 5 minutes to fetch the updated weather
 BLINK_TOTALTIME_SECONDS	= 600
@@ -138,33 +143,10 @@ def render_thread(metars):
             safe_logging.safe_log(ex)
 
 
-def get_sun_times():
-    import astral.geocoder
-    import astral.sun
-
-    try:
-        city = astral.geocoder.lookup(LOCATION, astral.geocoder.database())
-    except KeyError:
-        safe_logging.safe_log("Error: Location not recognized, please check list of supported cities and reconfigure")
-    else:
-        safe_logging.safe_log(city)
-        sun = astral.sun.sun(city.observer, date=datetime.now().date(), tzinfo=city.timezone)
-
-        DAWN = sun['dawn'].time()
-        SUNRISE = sun['sunrise'].time()
-        SUNSET = sun['sunset'].time()
-        DUSK = sun['dusk'].time()
-
-        safe_logging.safe_log("Dawn=" + DAWN.strftime('%H:%M') +
-                              " Sunrise=" + SUNRISE.strftime('%H:%M') +
-                              " Sunset=" + SUNSET.strftime('%H:%M') +
-                              " Dusk=" + DUSK.strftime('%H:%M'))
-
-    return DAWN, SUNRISE, SUNSET, DUSK
-
-
 if __name__ == '__main__':
     safe_logging.safe_log("Starting controller.py at " + datetime.now().strftime('%d/%m/%Y %H:%M'))
+    CONFIG = Config("config.json")
+
     # all_stations(weather.OFF)
 
     # load airports file
@@ -174,12 +156,11 @@ if __name__ == '__main__':
         data = f.read()
     airports = json.loads(data)
 
-
-    # get sunrise/sunset times
-    (DAWN, SUNRISE, SUNSET, DUSK) = get_sun_times()
+    # get sunrise/sunset times for dynamic dimming
+    (DAWN, SUNRISE, SUNSET, DUSK) = utils.get_sun_times(CONFIG)
 
     # setup for metars
-    metars = metar.METAR(airports, fetch=False)
+    metars = metar.METAR(airports, CONFIG, fetch=False)
 
     # init neopixels
     pixels = None
@@ -187,7 +168,8 @@ if __name__ == '__main__':
     #         ACTIVATE_DAYTIME_DIMMING and bright == False) else LED_BRIGHTNESS, pixel_order=LED_ORDER,
     #         auto_write=False)
 
-    renderer = renderer.Renderer(pixels, metars)
+    renderer = renderer.Renderer(pixels, metars, CONFIG)
+
     # renderer.test()
 
     # init display

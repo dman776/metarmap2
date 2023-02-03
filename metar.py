@@ -11,14 +11,11 @@ import xml.etree.ElementTree as ET
 from pprint import pprint
 import json
 import lib.safe_logging as safe_logging
-
-FUNCTION_A_COUNT = 0
-FUNCTION_B_COUNT = 0
-
+from lib.config import Config
 
 class METAR(object):
     """
-    Object to control and handle a recurring task.
+    Object to control and handle METARs.
     """
 
     def fetch(self):
@@ -80,7 +77,7 @@ class METAR(object):
 
             if metar.find('wind_gust_kt') is not None:
                 windGustSpeed = int(metar.find('wind_gust_kt').text)
-                # windGust = (True if (ALWAYS_BLINK_FOR_GUSTS or windGustSpeed > WIND_BLINK_THRESHOLD) else False)
+                windGust = (True if (self.__config__.data().wind.always_for_gusts or windGustSpeed > self.__config__.data().wind.threshold) else False)
             if metar.find('wind_speed_kt') is not None:
                 windSpeed = int(metar.find('wind_speed_kt').text)
             if metar.find('wind_dir_degrees') is not None:
@@ -128,11 +125,12 @@ class METAR(object):
         """
         return self.__stations__
 
-    def __init__(self, airports: dict, fetch=False):
+    def __init__(self, airports: dict, config: Config, fetch=False):
         """
         Creates a new METAR class.
         """
         self.__airports__ = airports
+        self.__config__ = config
         self.__is_fetching__ = False
         self.__missing_stations__ = []
         self.__stations__ = []

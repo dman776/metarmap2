@@ -9,7 +9,7 @@ from pprint import pprint
 import json
 import lib.safe_logging as safe_logging
 import metar
-import lib.colors as colors
+from lib.config import Config
 
 
 class Renderer(object):
@@ -26,57 +26,55 @@ class Renderer(object):
     pixels=[]
 
     def render(self):
-        while looplimit > 0:
-            i = 0
+        i = 0
 
-            # Set light color and status for all entries in airports.json list
-            for airport in list(self.__stations__):
-                # Skip NULL entries
-                if "NULL" in airport:
-                    i += 1
-                    continue
-
-                color = colors.CLEAR
-                conditions = self.__data__.get(airport, None)
-                windy = False
-                lightningConditions = False
-                if conditions != None:
-                    windy = True if (ACTIVATE_WINDCONDITION_ANIMATION and windCycle == True and (
-                                conditions["windSpeed"] > WIND_BLINK_THRESHOLD or conditions["windGust"] == True)) else False
-                    lightningConditions = True if (ACTIVATE_LIGHTNING_ANIMATION and windCycle == False and conditions[
-                        "lightning"] == True) else False
-                    if conditions["flightCategory"] == "VFR":
-                        color = colors.VFR if not (
-                                    windy or lightningConditions) else COLOR_LIGHTNING if lightningConditions else (
-                            COLOR_VFR_FADE if FADE_INSTEAD_OF_BLINK else COLOR_CLEAR) if windy else COLOR_CLEAR
-                    elif conditions["flightCategory"] == "MVFR":
-                        color = colors.MVFR if not (
-                                    windy or lightningConditions) else COLOR_LIGHTNING if lightningConditions else (
-                            COLOR_MVFR_FADE if FADE_INSTEAD_OF_BLINK else COLOR_CLEAR) if windy else COLOR_CLEAR
-                    elif conditions["flightCategory"] == "IFR":
-                        color = colors.IFR if not (
-                                    windy or lightningConditions) else COLOR_LIGHTNING if lightningConditions else (
-                            COLOR_IFR_FADE if FADE_INSTEAD_OF_BLINK else COLOR_CLEAR) if windy else COLOR_CLEAR
-                    elif conditions["flightCategory"] == "LIFR":
-                        color = colors.LIFR if not (
-                                    windy or lightningConditions) else COLOR_LIGHTNING if lightningConditions else (
-                            COLOR_LIFR_FADE if FADE_INSTEAD_OF_BLINK else COLOR_CLEAR) if windy else COLOR_CLEAR
-                    else:
-                        color = colors.CLEAR
-
-                # print("Setting LED " + str(i) + " for " + airport + " to " + ("lightning " if lightningConditions else "") + ("windy " if windy else "") + (conditions["flightCategory"] if conditions != None else "None") + " " + str(color))
-                pixels[i] = color
+        # Set light color and status for all entries in airports.json list
+        for airport in list(self.__stations__):
+            # Skip NULL entries
+            if "NULL" in airport:
                 i += 1
-            # Update actual LEDs all at once
-            # pixels.show()
+                continue
 
-            # To get all airport codes in the displayList. I thought I needed this, but didn't. So into the magic comment garden it goes until needed:
-            # for airport in [seq[0] for seq in displayList]:
+            color = self.__config__.data().color.clear
+            conditions = self.__data__.get(airport, None)
+            windy = False
+            lightningConditions = False
+            if conditions != None:
+                windy = True if (self.__config__.data().wind.animation and windCycle == True and (
+                            conditions["windSpeed"] > self.__config__.data().wind.threshold or conditions["windGust"] == True)) else False
+                lightningConditions = True if (self.__config__.data().lightning.animation and windCycle == False and conditions[
+                    "lightning"] == True) else False
+                if conditions["flightCategory"] == "VFR":
+                    color = self.__config__.data().color.cat.vfr.normal if not (
+                                windy or lightningConditions) else self.__config__.data().color.weather.lightning if lightningConditions else (
+                        self.__config__.data().color.cat.vfr.fade if FADE_INSTEAD_OF_BLINK else self.__config__.data().color.clear) if windy else self.__config__.data().color.clear
+                elif conditions["flightCategory"] == "MVFR":
+                    color = self.__config__.data().color.cat.mvfr.normal if not (
+                                windy or lightningConditions) else self.__config__.data().color.weather.lightning if lightningConditions else (
+                        self.__config__.data().color.cat.mvfr.normal if FADE_INSTEAD_OF_BLINK else self.__config__.data().color.clear) if windy else self.__config__.data().color.clear
+                elif conditions["flightCategory"] == "IFR":
+                    color = self.__config__.data().color.cat.ifr.normal if not (
+                                windy or lightningConditions) else COLOR_LIGHTNING if lightningConditions else (
+                        self.__config__.data().color.cat.ifr.fade if FADE_INSTEAD_OF_BLINK else self.__config__.data().color.clear) if windy else self.__config__.data().color.clear
+                elif conditions["flightCategory"] == "LIFR":
+                    color = self.__config__.data().color.cat.lifr.normal if not (
+                                windy or lightningConditions) else COLOR_LIGHTNING if lightningConditions else (
+                        self.__config__.data().color.cat.lifr.fade if FADE_INSTEAD_OF_BLINK else self.__config__.data().color.clear) if windy else self.__config__.data().color.clear
+                else:
+                    color = self.__config__.data().color.clear
 
-            # Switching between animation cycles
-            time.sleep(BLINK_SPEED)
-            windCycle = False if windCycle else True
-            looplimit -= 1
+            # print("Setting LED " + str(i) + " for " + airport + " to " + ("lightning " if lightningConditions else "") + ("windy " if windy else "") + (conditions["flightCategory"] if conditions != None else "None") + " " + str(color))
+            pixels[i] = color
+            i += 1
+        # Update actual LEDs all at once
+        # pixels.show()
+
+        # To get all airport codes in the displayList. I thought I needed this, but didn't. So into the magic comment garden it goes until needed:
+        # for airport in [seq[0] for seq in displayList]:
+
+        # Switching between animation cycles
+        time.sleep(self.__config__.data().blink.rate)
+        windCycle = False if windCycle else True
 
     def clear(self):
         return
@@ -85,10 +83,10 @@ class Renderer(object):
         return
 
     def test(self):
-        self.__pixels__.set_all(colors.VFR)
+        self.__pixels__.fill(colors.VFR)
         self.__pixels__.show()
         time.sleep(2.0)
-        self.__pixels__.set_all(colors.CLEAR)
+        self.__pixels__.fill(colors.CLEAR)
         self.__pixels__.show()
         return
 
@@ -123,7 +121,7 @@ class Renderer(object):
             b = int(255 - pos * 3)
         return r, g, b
 
-    def __init__(self, pixels, metars: metar.METAR):
+    def __init__(self, pixels, metars: metar.METAR, config: Config):
         """
         Creates a new renderer
         """
@@ -133,6 +131,7 @@ class Renderer(object):
         self.__pixels__ = pixels
         self.__stations__ = metars.stations()
         self.__data__ = metars.data
+        self.__config__ = config
 
 if __name__ == '__main__':
     print("Renderer")
