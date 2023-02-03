@@ -78,6 +78,8 @@ class Renderer(object):
         windCycle = False if windCycle else True
 
     def clear(self):
+        self.__pixels__.fill(self.__config__.data().color.clear)
+        self.__pixels__.show()
         return
 
     def update(self, data):
@@ -89,6 +91,7 @@ class Renderer(object):
         time.sleep(2.0)
         self.__pixels__.fill(self.__config__.data().color.clear)
         self.__pixels__.show()
+        time.sleep(1.0)
         return
 
     def rainbow_test(self):
@@ -100,6 +103,7 @@ class Renderer(object):
                 color = wheel(pixel_index & 255)
                 self.__pixels__[i] = color
             self.__pixels__.show()
+        self.clear()
 
     def __init__(self, pixels, metars: metar.METAR, config: Config):
         """
