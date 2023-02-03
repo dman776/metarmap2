@@ -83,10 +83,10 @@ class Renderer(object):
         return
 
     def test(self):
-        self.__pixels__.fill(colors.VFR)
+        self.__pixels__.fill(self.__config__.data().color.cat.vfr.normal)
         self.__pixels__.show()
         time.sleep(2.0)
-        self.__pixels__.fill(colors.CLEAR)
+        self.__pixels__.fill(self.__config__.data().color.clear)
         self.__pixels__.show()
         return
 
