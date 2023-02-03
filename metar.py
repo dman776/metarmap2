@@ -29,6 +29,7 @@ class METAR(object):
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.198 Safari/537.36 Edg/86.0.622.69'})
             content = urllib.request.urlopen(req).read()
             self.__is_fetching__ = False
+            self.lastFetchTime=datetime.datetime.now()
             safe_logging.safe_log("Fetching completed.")
             return self.__process__(content)
         except Exception as e:
@@ -135,6 +136,7 @@ class METAR(object):
         self.__missing_stations__ = []
         self.__stations__ = []
         self.data = {}
+        self.lastFetchTime = None
         if fetch:
             self.fetch()
 

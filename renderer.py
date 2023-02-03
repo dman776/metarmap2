@@ -38,6 +38,7 @@ class Renderer(object):
 
             color = self.__config__.data().color.clear
             conditions = self.__data__.get(airport, None)
+
             windy = False
             lightningConditions = False
             if conditions != None:

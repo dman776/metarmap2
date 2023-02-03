@@ -1,3 +1,5 @@
+import pprint
+
 import bottle
 from bottle import hook, route, run, request, abort, response, static_file
 import metar
@@ -19,8 +21,8 @@ class WebServer(object):
         Starts the server.
         """
         safe_log("localhost = {}:{}".format(self._host, self._port))
-        # threading.Thread(target=self.__httpd__.run, kwargs=dict(host=self.__local_ip__, port=self.__port__)).start()
-        self._app.run(host=self._host, port=self._port)
+        threading.Thread(target=self._app.run, kwargs=dict(host=self._host, port=self._port)).start()
+        # self._app.run(host=self._host, port=self._port)
 
     def stop(self):
         if self._app is not None:
@@ -32,6 +34,7 @@ class WebServer(object):
         self._app = bottle.Bottle()
         self._route()
         self._metarsObj = metars
+        bottle.TEMPLATE_PATH.insert(0,"./templates")
 
     def _route(self):
         self._app.route("/", method="GET", callback=self._index)
@@ -40,7 +43,7 @@ class WebServer(object):
         self._app.route("/fetch", method="GET", callback=self._fetch)
 
     def _index(self):
-        return "METAR Map (DQ)"
+        return bottle.template('index.tpl', metars=self._metarsObj)
 
     def _raw(self):
         buf = io.StringIO()
@@ -56,4 +59,4 @@ class WebServer(object):
         self._metarsObj.fetch()
         while self._metarsObj.is_fetching():
             pass
-        return "Fetched"
+        return bottle.template('index.tpl', metars=self._metarsObj)

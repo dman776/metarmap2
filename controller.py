@@ -58,7 +58,7 @@ except Exception:
 # ---------------------------------------------------------------------------
 FADE_INSTEAD_OF_BLINK	= True			# Set to False if you want blinking
 BLINK_TOTALTIME_SECONDS	= 600
-LED_ORDER = neopixel.GRB        # fix in config
+# LED_ORDER = neopixel.GRB        # fix in config
 # ---------------------------------------------------------------------------
 # ------------END OF CONFIGURATION-------------------------------------------
 # ---------------------------------------------------------------------------
@@ -86,16 +86,20 @@ def render_thread(metars):
             tic = time.perf_counter()
 
             # renderer.clear()
-            # renderer.render()
+            try:
+                renderer.render()
+            except Exception as e:
+                safe_logging.safe_log(e)
 
             # safe_logging.safe_log("KDWH is " + metars.data['KDWH']['flightCategory'])
-            time.sleep(0.1)
+            time.sleep(1.0)
 
             toc = time.perf_counter()
         except KeyboardInterrupt:
             quit()
         except Exception as ex:
-            safe_logging.safe_log(ex)
+            pass
+            # safe_logging.safe_log(ex)
 
 
 if __name__ == '__main__':
@@ -121,14 +125,14 @@ if __name__ == '__main__':
     pixels = None
     # bright = CONFIG.data().dimming.time_base.bright_start < datetime.now().time() < CONFIG.data().dimming.time_base.dim_start
     bright = False
-    pixels = neopixel.NeoPixel(board.D18, CONFIG.data().led.count, brightness=CONFIG.data().led.brightness if (
-            CONFIG.data().dimming.dynamic_base.enabled and bright == False) else CONFIG.data().led.brightness, pixel_order=LED_ORDER,
-            auto_write=False)
+    # pixels = neopixel.NeoPixel(board.D18, CONFIG.data().led.count, brightness=CONFIG.data().led.brightness if (
+    #         CONFIG.data().dimming.dynamic_base.enabled and bright == False) else CONFIG.data().led.brightness, pixel_order=LED_ORDER,
+    #         auto_write=False)
 
     renderer = renderer.Renderer(pixels, metars, CONFIG)
 
-    renderer.test()
-    renderer.rainbow_test()
+    # renderer.test()
+    # renderer.rainbow_test()
 
     # init display
     # init webserver
