@@ -125,9 +125,9 @@ if __name__ == '__main__':
     pixels = None
     # bright = CONFIG.data().dimming.time_base.bright_start < datetime.now().time() < CONFIG.data().dimming.time_base.dim_start
     bright = False
-    # pixels = neopixel.NeoPixel(CONFIG.data().led.pin, CONFIG.data().led.count, brightness=CONFIG.data().led.brightness if (
-    #         CONFIG.data().dimming.dynamic_base.enabled and bright == False) else CONFIG.data().led.brightness, pixel_order=CONFIG.data().led.order,
-    #         auto_write=False)
+    pixels = neopixel.NeoPixel(CONFIG.LED_PIN, CONFIG.data().led.count, brightness=CONFIG.data().led.brightness if (
+            CONFIG.data().dimming.dynamic_base.enabled and bright == False) else CONFIG.data().led.brightness, pixel_order=CONFIG.LED_ORDER,
+            auto_write=False)
 
     renderer = renderer.Renderer(pixels, metars, CONFIG)
 
