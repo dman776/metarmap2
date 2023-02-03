@@ -120,7 +120,7 @@ if __name__ == '__main__':
     # init neopixels
     pixels = None
     pixels = neopixel.NeoPixel(board.D18, CONFIG.data().led.count, brightness=CONFIG.data().led.brightness if (
-            CONFIG.data().dimming.dynamic_base.enabled and bright == False) else CONFIG.data().led.brightness pixel_order=LED_ORDER,
+            CONFIG.data().dimming.dynamic_base.enabled and bright == False) else CONFIG.data().led.brightness, pixel_order=LED_ORDER,
             auto_write=False)
 
     renderer = renderer.Renderer(pixels, metars, CONFIG)
