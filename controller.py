@@ -28,7 +28,7 @@ import json
 import lib.config
 import webserver
 import renderer
-from lib.config import Config
+import lib.config
 
 from lib import logger, safe_logging, utils
 import metar as metar
@@ -99,7 +99,7 @@ def render_thread(metars):
 
 if __name__ == '__main__':
     safe_logging.safe_log("Starting controller.py at " + datetime.now().strftime('%d/%m/%Y %H:%M'))
-    CONFIG = Config("config.json")
+    CONFIG = lib.config.Config("config.json")
 
     # all_stations(weather.OFF)
 
