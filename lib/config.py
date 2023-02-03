@@ -18,7 +18,7 @@ class Config(object):
         # self.post_process()
         return
 
-    def post_process(self):
+    # def post_process(self):
         # LED config
         # self.LED_PIN = eval("board.D" + str(self.__data__.led.pin))
         # self.LED_ORDER = eval("neopixel." + self.__data__.led.order)
