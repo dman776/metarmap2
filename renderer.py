@@ -68,7 +68,7 @@ class Renderer(object):
             pixels[i] = color
             i += 1
         # Update actual LEDs all at once
-        # pixels.show()
+        pixels.show()
 
         # To get all airport codes in the displayList. I thought I needed this, but didn't. So into the magic comment garden it goes until needed:
         # for airport in [seq[0] for seq in displayList]:
