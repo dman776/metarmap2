@@ -31,7 +31,7 @@ class Renderer(object):
                 i += 1
                 continue
 
-            color = self.__config__.data().color.clear
+            color = self.__config__.data().color.fog
             conditions = self.__data__.get(airport, None)
 
             windy = False
