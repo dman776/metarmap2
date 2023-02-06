@@ -61,6 +61,7 @@ class Renderer(object):
                     color = self.__config__.data().color.clear
 
             # print("Setting LED " + str(i) + " for " + airport + " to " + ("lightning " if lightningConditions else "") + ("windy " if windy else "") + (conditions["flightCategory"] if conditions != None else "None") + " " + str(color))
+            safe_logging.safe_log("Setting LED " + str(i) + " for " + airport + " to " + ("lightning " if lightningConditions else "") + ("windy " if windy else "") + (conditions["flightCategory"] if conditions != None else "None") + " " + str(color))
             self.__pixels__[i] = color
             i += 1
         # Update actual LEDs all at once
@@ -71,7 +72,7 @@ class Renderer(object):
 
         # Switching between animation cycles
         time.sleep(self.__config__.data().blink.rate)
-        windCycle = False if windCycle else True
+        # windCycle = False if windCycle else True
 
     def clear(self):
         self.__pixels__.fill(self.__config__.data().color.clear)
