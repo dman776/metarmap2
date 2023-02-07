@@ -81,7 +81,6 @@ def render_thread(metars):
     # last_visualizer = 0
 
     while True:
-        safe_logging.safe_log(".")
         try:
             delta_time = toc - tic
             tic = time.perf_counter()
