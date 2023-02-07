@@ -49,3 +49,6 @@ def get_sun_times(config):
                               " Dusk=" + DUSK.strftime('%H:%M'))
 
     return DAWN, SUNRISE, SUNSET, DUSK
+
+def find_in_list(akey, avalue, alist):
+    return list(filter(lambda alist: alist[akey] == avalue, alist))

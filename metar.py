@@ -7,11 +7,13 @@ import sys
 import time
 import datetime
 import urllib.request
-import xml.etree.ElementTree as ET
+# import xml.etree.ElementTree as ET
+import xmltodict
 from pprint import pprint
 import json
 import lib.safe_logging as safe_logging
-# from lib.config import Config
+from lib.config import Config
+import lib.utils as utils
 
 class METAR(object):
     """
@@ -46,7 +48,9 @@ class METAR(object):
     def __process__(self, content):
         safe_logging.safe_log("Processing...")
         # Retrieve flying conditions from the service response and store in a dictionary for each airport
-        root = ET.fromstring(content)
+        jcontent = xmltodict.parse(content)
+        metars = jcontent['response']['data']['METAR']
+
         self.data = {
             "NULL": {"raw": "", "flightCategory": "", "windDir": "", "windSpeed": 0, "windGustSpeed": 0, "windGust": False,
                      "lightning": False, "tempC": 0, "dewpointC": 0, "vis": 0, "altimHg": 0, "obs": "",
@@ -54,14 +58,21 @@ class METAR(object):
         self.data.pop("NULL")
         stationList = []
         missingCondList = []
-        for metar in root.iter('METAR'):
-            stationId = metar.find('station_id').text
-            if metar.find('flight_category') is None:
+
+        for airport in list(self.__airports__.keys()):
+            try:
+                metar = utils.find_in_list("station_id", airport, metars)[0]
+            except IndexError as e:
+                missingCondList.append(airport)
+                continue
+
+            stationId = metar['station_id']
+            if 'flight_category' not in metar:
                 print("Missing flight condition, skipping " + stationId)
                 missingCondList.append(stationId)
                 continue
-            rawMetar = metar.find('raw_text').text
-            flightCategory = metar.find('flight_category').text
+            rawMetar = metar['raw_text']
+            flightCategory = metar['flight_category']
             windDir = ""
             windSpeed = 0
             windGustSpeed = 0
@@ -73,35 +84,36 @@ class METAR(object):
             altimHg = 0.0
             obs = ""
             skyConditions = []
-            latitude = metar.find('latitude').text or ""
-            longitude = metar.find('longitude').text or ""
+            latitude = metar['latitude'] or ""
+            longitude = metar['longitude'] or ""
 
-            if metar.find('wind_gust_kt') is not None:
-                windGustSpeed = int(metar.find('wind_gust_kt').text)
+            if 'wind_gust_kt' in metar:
+                windGustSpeed = int(metar['wind_gust_kt'])
                 windGust = (True if (self.__config__.data().wind.always_for_gusts or windGustSpeed > self.__config__.data().wind.threshold) else False)
-            if metar.find('wind_speed_kt') is not None:
-                windSpeed = int(metar.find('wind_speed_kt').text)
-            if metar.find('wind_dir_degrees') is not None:
-                windDir = metar.find('wind_dir_degrees').text
-            if metar.find('temp_c') is not None:
-                tempC = int(round(float(metar.find('temp_c').text)))
-            if metar.find('dewpoint_c') is not None:
-                dewpointC = int(round(float(metar.find('dewpoint_c').text)))
-            if metar.find('visibility_statute_mi') is not None:
-                vis = int(round(float(metar.find('visibility_statute_mi').text)))
-            if metar.find('altim_in_hg') is not None:
-                altimHg = float(round(float(metar.find('altim_in_hg').text), 2))
-            if metar.find('wx_string') is not None:
-                obs = metar.find('wx_string').text
-            if metar.find('observation_time') is not None:
-                obsTime = datetime.datetime.fromisoformat(metar.find('observation_time').text.replace("Z", "+00:00"))
-            for skyIter in metar.iter("sky_condition"):
-                skyCond = {"cover": skyIter.get("sky_cover"),
-                           "cloudBaseFt": int(skyIter.get("cloud_base_ft_agl", default=0))}
+            if 'wind_speed_kt' in metar:
+                windSpeed = int(metar['wind_speed_kt'])
+            if 'wind_dir_degrees' in metar:
+                windDir = metar['wind_dir_degrees']
+            if 'temp_c' in metar:
+                tempC = int(round(float(metar['temp_c'])))
+            if 'dewpoint_c' in metar:
+                dewpointC = int(round(float(metar['dewpoint_c'])))
+            if 'visibility_statute_mi' in metar:
+                vis = int(round(float(metar['visibility_statute_mi'])))
+            if 'altim_in_hg' in metar:
+                altimHg = float(round(float(metar['altim_in_hg']), 2))
+            if 'wx_string'in metar:
+                obs = metar['wx_string']
+            if 'observation_time'in metar:
+                obsTime = datetime.datetime.fromisoformat(metar['observation_time'].replace("Z", "+00:00"))
+            if 'raw_text' in metar:
+                rawText = metar['raw_text']
+                lightning = True if 'LTG' in rawText else False
+
+            for skyIter in metar["sky_condition"]:
+                skyCond = {"cover": skyIter['@sky_cover'],
+                           "cloudBaseFt": int(skyIter['@cloud_base_ft_agl'])}
                 skyConditions.append(skyCond)
-            if metar.find('raw_text') is not None:
-                rawText = metar.find('raw_text').text
-                lightning = False if rawText.find('LTG') == -1 else True
 
             self.data[stationId] = {"raw": rawMetar, "flightCategory": flightCategory, "windDir": windDir, "windSpeed": windSpeed,
                                         "windGustSpeed": windGustSpeed, "windGust": windGust, "vis": vis, "obs": obs,
@@ -143,13 +155,14 @@ class METAR(object):
 
 if __name__ == '__main__':
     airportstr = '{"KDWH": {"text": "Hooks", "display": false, "visits": 0},'\
-                '"KIAH": {"text": "IAH", "display": false, "visits": 0}}'
+                '"KIAH": {"text": "IAH", "display": false, "visits": 0},'\
+                '"KLVJ": {"text": "", "display": false, "visits": 0}}'
 
     airports = json.loads(airportstr)
     CONFIG = Config("config.json")
     metars = METAR(airports, CONFIG, fetch=True)
-    pprint(metars)
+    # pprint(metars)
     pprint("missing: " + str(metars.missing_stations()))
     pprint("all: " + str(metars.stations()))
-    pprint(metars.data, indent=4)
+    # pprint(metars.data, indent=4)
 

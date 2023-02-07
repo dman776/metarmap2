@@ -20,8 +20,11 @@ class Config(object):
 
     def post_process(self):
         # LED config
-        self.LED_PIN = eval("board.D" + str(self.__data__.led.pin))
-        self.LED_ORDER = eval("neopixel." + self.__data__.led.order)
+        try:
+            self.LED_PIN = eval("board.D" + str(self.__data__.led.pin))
+            self.LED_ORDER = eval("neopixel." + self.__data__.led.order)
+        except NameError as e:
+            pass
 
     def write(self):
         with open(self.__file__, 'w') as f:

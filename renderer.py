@@ -18,9 +18,6 @@ class Renderer(object):
     Object to control and handle a rendering Neopixels
     """
 
-
-
-
     def render(self):
         i = 0
 
