@@ -120,7 +120,7 @@ if __name__ == '__main__':
     (DAWN, SUNRISE, SUNSET, DUSK) = utils.get_sun_times(CONFIG)
 
     # setup for metars
-    metars = metar.METAR(airports, CONFIG, fetch=False)
+    metars = metar.METAR(airports, CONFIG, fetch=True)
 
     # init neopixels
     pixels = None
@@ -132,8 +132,8 @@ if __name__ == '__main__':
 
     renderer = renderer.Renderer(pixels, metars, CONFIG)
 
-    # renderer.test()
-    # renderer.rainbow_test()
+    renderer.test()
+    renderer.rainbow_test()
 
     # init display
     # init webserver

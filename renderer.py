@@ -25,13 +25,15 @@ class Renderer(object):
         i = 0
 
         # Set light color and status for all entries in airports.json list
+        safe_logging.safe_log(self.__stations__)
+
         for airport in list(self.__stations__):
             # Skip NULL entries
             if "NULL" in airport:
                 i += 1
                 continue
 
-            color = self.__config__.data().color.fog
+            color = self.__config__.data().color.clear
             conditions = self.__data__.get(airport, None)
 
             windy = False
@@ -61,7 +63,7 @@ class Renderer(object):
                     color = self.__config__.data().color.clear
 
             # print("Setting LED " + str(i) + " for " + airport + " to " + ("lightning " if lightningConditions else "") + ("windy " if windy else "") + (conditions["flightCategory"] if conditions != None else "None") + " " + str(color))
-            safe_logging.safe_log("Setting LED " + str(i) + " for " + airport + " to " + ("lightning " if lightningConditions else "") + ("windy " if windy else "") + (conditions["flightCategory"] if conditions != None else "None") + " " + str(color))
+            # safe_logging.safe_log("Setting LED " + str(i) + " for " + airport + " to " + ("lightning " if lightningConditions else "") + ("windy " if windy else "") + (conditions["flightCategory"] if conditions != None else "None") + " " + str(color))
             self.__pixels__[i] = color
             i += 1
         # Update actual LEDs all at once
@@ -85,14 +87,14 @@ class Renderer(object):
     def test(self):
         self.__pixels__.fill(self.__config__.data().color.cat.vfr.normal)
         self.__pixels__.show()
-        time.sleep(2.0)
+        time.sleep(0.5)
         self.__pixels__.fill(self.__config__.data().color.clear)
         self.__pixels__.show()
-        time.sleep(1.0)
+        time.sleep(0.5)
         return
 
     def rainbow_test(self):
-        pixel_count = 50
+        pixel_count = self.__config__.data().led.count
 
         for j in range(255):  # one cycle of all 256 colors in the wheel
             for i in range(pixel_count):
