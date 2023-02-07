@@ -130,7 +130,6 @@ if __name__ == '__main__':
             auto_write=False)
 
     renderer = renderer.Renderer(pixels, metars, CONFIG)
-
     renderer.test()
     renderer.rainbow_test()
 

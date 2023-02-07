@@ -106,15 +106,14 @@ class Renderer(object):
         """
         Creates a new renderer
         """
-        # neopixel obj
-        # stations
-        # data obj
+
         self.__pixels__ = pixels
         self.__stations__ = metars.stations()
         self.__data__ = metars.data
         self.__config__ = config
         self.windCycle = False
         self.numAirports = len(self.__stations__)
+        self.clear()
         # displayTime = 0.0
         # displayAirportCounter = 0
 
