@@ -25,8 +25,6 @@ class Renderer(object):
         i = 0
 
         # Set light color and status for all entries in airports.json list
-        safe_logging.safe_log(self.__stations__)
-
         for airport in list(self.__stations__):
             # Skip NULL entries
             if "NULL" in airport:
