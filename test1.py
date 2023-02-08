@@ -42,7 +42,7 @@ custom_color_chase = CustomColorChase(
 
 animations = AnimationSequence(
     comet,
-    one_pulse
+    one_pulse,
     # blink,
     # rainbow_sparkle,
     # chase,
