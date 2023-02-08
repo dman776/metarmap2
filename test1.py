@@ -22,7 +22,7 @@ num_pixels = 50
 pixels = neopixel.NeoPixel(pixel_pin, num_pixels, pixel_order=neopixel.GRB, auto_write=False)
 
 one_pix = PixelSubset(pixels, 1, 2)
-one_pulse = Pulse(one_pix, speed=0.1, period=3, color=AMBER)
+one_pulse = Pulse(one_pix, speed=0.05, period=1, color=WHITE)
 
 blink = Blink(pixels, speed=0.5, color=JADE)
 colorcycle = ColorCycle(pixels, speed=0.4, colors=[MAGENTA, ORANGE])
