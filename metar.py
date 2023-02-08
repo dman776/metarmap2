@@ -61,7 +61,7 @@ class METAR(object):
 
 
         for airport in list(self.__airports__.keys()):
-            safe_logging.safe_log(airport)
+            # safe_logging.safe_log(airport)
             station_id = ""
 
             try:
