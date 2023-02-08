@@ -23,8 +23,8 @@ pixels = neopixel.NeoPixel(pixel_pin, num_pixels, pixel_order=neopixel.GRB, auto
 
 one_pix = PixelSubset(pixels, 1, 2)
 one_pulse = Pulse(one_pix, speed=0.05, period=1, color=WHITE)
-two_pix = PixelSubset(pixels, 2, 3)
-two_sparkle = Sparkle(two_pix, speed=0.1, color=PURPLE, num_sparkles=10)
+# two_pix = PixelSubset(pixels, 2, 3)
+# two_sparkle = Sparkle(two_pix, speed=0.1, color=PURPLE, num_sparkles=10)
 
 
 blink = Blink(pixels, speed=0.5, color=JADE)
@@ -46,18 +46,17 @@ custom_color_chase = CustomColorChase(
 animations = AnimationSequence(
     comet,
     one_pulse,
-    two_sparkle,
-    # blink,
-    # rainbow_sparkle,
-    # chase,
-    # pulse,
-    # sparkle,
-    # rainbow,
-    # solid,
-    # rainbow_comet,
-    # sparkle_pulse,
-    # rainbow_chase,
-    # custom_color_chase,
+    blink,
+    rainbow_sparkle,
+    chase,
+    pulse,
+    sparkle,
+    rainbow,
+    solid,
+    rainbow_comet,
+    sparkle_pulse,
+    rainbow_chase,
+    custom_color_chase,
     advance_interval=5,
     auto_clear=True,
 )
