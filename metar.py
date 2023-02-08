@@ -59,18 +59,32 @@ class METAR(object):
         stationList = []
         missingCondList = []
 
+
         for airport in list(self.__airports__.keys()):
+            safe_logging.safe_log(airport)
+            station_id = ""
+
             try:
-                metar = utils.find_in_list("station_id", airport, metars)[0]
+                m = utils.find_in_list("station_id", airport, metars)
+                if len(m) > 0:
+                    metar = m[0]
+                else:
+                    missingCondList.append(airport)
+                    continue
+
             except IndexError as e:
                 missingCondList.append(airport)
                 continue
+            except Exception as e:
+                pprint(e)
 
             stationId = metar['station_id']
+
             if 'flight_category' not in metar:
                 print("Missing flight condition, skipping " + stationId)
                 missingCondList.append(stationId)
                 continue
+
             rawMetar = metar['raw_text']
             flightCategory = metar['flight_category']
             windDir = ""
@@ -86,6 +100,8 @@ class METAR(object):
             skyConditions = []
             latitude = metar['latitude'] or ""
             longitude = metar['longitude'] or ""
+
+
 
             if 'wind_gust_kt' in metar:
                 windGustSpeed = int(metar['wind_gust_kt'])
@@ -110,10 +126,18 @@ class METAR(object):
                 rawText = metar['raw_text']
                 lightning = True if 'LTG' in rawText else False
 
-            for skyIter in metar["sky_condition"]:
-                skyCond = {"cover": skyIter['@sky_cover'],
-                           "cloudBaseFt": int(skyIter['@cloud_base_ft_agl'])}
+            if "sky_condition" in metar:
+                skyCond = {}
+                if isinstance(metar['sky_condition'], list):
+                    for sc in metar['sky_condition']:
+                        skyCond = {"cover": sc['@sky_cover'],
+                               "cloudBaseFt": int(sc.get('@cloud_base_ft_agl', "0"))}
+                elif isinstance(metar['sky_condition'], dict):
+                    skyCond = {"cover": metar['sky_condition']['@sky_cover'],
+                               "cloudBaseFt": int(metar['sky_condition'].get('@cloud_base_ft_agl', "0"))}
                 skyConditions.append(skyCond)
+
+
 
             self.data[stationId] = {"raw": rawMetar, "flightCategory": flightCategory, "windDir": windDir, "windSpeed": windSpeed,
                                         "windGustSpeed": windGustSpeed, "windGust": windGust, "vis": vis, "obs": obs,
@@ -154,11 +178,15 @@ class METAR(object):
 
 
 if __name__ == '__main__':
-    airportstr = '{"KDWH": {"text": "Hooks", "display": false, "visits": 0},'\
-                '"KIAH": {"text": "IAH", "display": false, "visits": 0},'\
-                '"KLVJ": {"text": "", "display": false, "visits": 0}}'
+    # airportstr = '{"KDWH": {"text": "Hooks", "display": false, "visits": 0},'\
+    #             '"KIAH": {"text": "IAH", "display": false, "visits": 0},'\
+    #             '"KLVJ": {"text": "", "display": false, "visits": 0}}'
+    # airports = json.loads(airportstr)
 
-    airports = json.loads(airportstr)
+    with open('airports.json') as f:
+        data = f.read()
+    airports = json.loads(data)
+
     CONFIG = Config("config.json")
     metars = METAR(airports, CONFIG, fetch=True)
     # pprint(metars)
