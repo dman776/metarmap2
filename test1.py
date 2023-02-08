@@ -1,20 +1,20 @@
 import neopixel
 import board
 from adafruit_led_animation.animation.blink import Blink
-16from adafruit_led_animation.animation.sparklepulse import SparklePulse
-17from adafruit_led_animation.animation.comet import Comet
-18from adafruit_led_animation.animation.chase import Chase
-19from adafruit_led_animation.animation.pulse import Pulse
-20from adafruit_led_animation.animation.sparkle import Sparkle
-21from adafruit_led_animation.animation.rainbowchase import RainbowChase
-22from adafruit_led_animation.animation.rainbowsparkle import RainbowSparkle
-23from adafruit_led_animation.animation.rainbowcomet import RainbowComet
-24from adafruit_led_animation.animation.solid import Solid
-25from adafruit_led_animation.animation.colorcycle import ColorCycle
-26from adafruit_led_animation.animation.rainbow import Rainbow
-27from adafruit_led_animation.animation.customcolorchase import CustomColorChase
-28from adafruit_led_animation.sequence import AnimationSequence
-29from adafruit_led_animation.color import PURPLE, WHITE, AMBER, JADE, MAGENTA, ORANGE
+from adafruit_led_animation.animation.sparklepulse import SparklePulse
+from adafruit_led_animation.animation.comet import Comet
+from adafruit_led_animation.animation.chase import Chase
+from adafruit_led_animation.animation.pulse import Pulse
+from adafruit_led_animation.animation.sparkle import Sparkle
+from adafruit_led_animation.animation.rainbowchase import RainbowChase
+from adafruit_led_animation.animation.rainbowsparkle import RainbowSparkle
+from adafruit_led_animation.animation.rainbowcomet import RainbowComet
+from adafruit_led_animation.animation.solid import Solid
+from adafruit_led_animation.animation.colorcycle import ColorCycle
+from adafruit_led_animation.animation.rainbow import Rainbow
+from adafruit_led_animation.animation.customcolorchase import CustomColorChase
+from adafruit_led_animation.sequence import AnimationSequence
+from adafruit_led_animation.color import PURPLE, WHITE, AMBER, JADE, MAGENTA, ORANGE
 
 pixel_pin = board.D18
 num_pixels = 50
