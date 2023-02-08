@@ -33,27 +33,27 @@ class Renderer(object):
 
             windy = False
             lightningConditions = False
-            if conditions != None:
-                # windy = True if (self.__config__.data().wind.animation and self.windCycle == True and (
-                #             conditions["windSpeed"] > self.__config__.data().wind.threshold or conditions["windGust"] == True)) else False
-                # lightningConditions = True if (self.__config__.data().lightning.animation and self.windCycle == False and conditions[
-                #     "lightning"] == True) else False
+            if conditions is not None:
+                windy = True if (self.__config__.data().wind.animation and self.windCycle == True and (
+                             conditions["windSpeed"] > self.__config__.data().wind.threshold or conditions["windGust"] == True)) else False
+                lightningConditions = True if (self.__config__.data().lightning.animation and self.windCycle == False and conditions[
+                    "lightning"] == True) else False
                 if conditions["flightCategory"] == "VFR":
-                    color = self.__config__.data().color.cat.vfr.normal # if not (
-                        #         windy or lightningConditions) else self.__config__.data().color.weather.lightning if lightningConditions else (
-                        # self.__config__.data().color.cat.vfr.fade if FADE_INSTEAD_OF_BLINK else self.__config__.data().color.clear) if windy else self.__config__.data().color.clear
+                    color = self.__config__.data().color.cat.vfr.normal if not (
+                                windy or lightningConditions) else self.__config__.data().color.weather.lightning if lightningConditions else (
+                        self.__config__.data().color.cat.vfr.fade if not self.__config__.data().blink.enable else self.__config__.data().color.clear) if windy else self.__config__.data().color.clear
                 elif conditions["flightCategory"] == "MVFR":
-                    color = self.__config__.data().color.cat.mvfr.normal # if not (
-                        #         windy or lightningConditions) else self.__config__.data().color.weather.lightning if lightningConditions else (
-                        # self.__config__.data().color.cat.mvfr.normal if FADE_INSTEAD_OF_BLINK else self.__config__.data().color.clear) if windy else self.__config__.data().color.clear
+                    color = self.__config__.data().color.cat.mvfr.normal if not (
+                                windy or lightningConditions) else self.__config__.data().color.weather.lightning if lightningConditions else (
+                        self.__config__.data().color.cat.mvfr.normal if not self.__config__.data().blink.enable else self.__config__.data().color.clear) if windy else self.__config__.data().color.clear
                 elif conditions["flightCategory"] == "IFR":
-                    color = self.__config__.data().color.cat.ifr.normal # if not (
-                        #         windy or lightningConditions) else COLOR_LIGHTNING if lightningConditions else (
-                        # self.__config__.data().color.cat.ifr.fade if FADE_INSTEAD_OF_BLINK else self.__config__.data().color.clear) if windy else self.__config__.data().color.clear
+                    color = self.__config__.data().color.cat.ifr.normal if not (
+                            windy or lightningConditions) else self.__config__.data().color.weather.lightning if lightningConditions else (
+                        self.__config__.data().color.cat.ifr.fade if not self.__config__.data().blink.enable else self.__config__.data().color.clear) if windy else self.__config__.data().color.clear
                 elif conditions["flightCategory"] == "LIFR":
-                    color = self.__config__.data().color.cat.lifr.normal # if not (
-                        #         windy or lightningConditions) else COLOR_LIGHTNING if lightningConditions else (
-                        # self.__config__.data().color.cat.lifr.fade if FADE_INSTEAD_OF_BLINK else self.__config__.data().color.clear) if windy else self.__config__.data().color.clear
+                    color = self.__config__.data().color.cat.lifr.normal if not (
+                        windy or lightningConditions) else self.__config__.data().color.weather.lightning if lightningConditions else (
+                        self.__config__.data().color.cat.lifr.fade if not self.__config__.data().blink.enable else self.__config__.data().color.clear) if windy else self.__config__.data().color.clear
                 else:
                     color = self.__config__.data().color.clear
 
@@ -69,7 +69,7 @@ class Renderer(object):
 
         # Switching between animation cycles
         time.sleep(self.__config__.data().blink.rate)
-        # windCycle = False if windCycle else True
+        self.windCycle = False if self.windCycle else True
 
     def clear(self):
         self.__pixels__.fill(self.__config__.data().color.clear)
