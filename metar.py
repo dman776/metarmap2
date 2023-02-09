@@ -87,6 +87,7 @@ class METAR(object):
 
             rawMetar = metar['raw_text']
             flightCategory = metar['flight_category']
+            flightCategoryColor = self.__colors_by_category__(flightCategory)
             windDir = ""
             windSpeed = 0
             windGustSpeed = 0
@@ -137,18 +138,29 @@ class METAR(object):
                                "cloudBaseFt": int(metar['sky_condition'].get('@cloud_base_ft_agl', "0"))}
                 skyConditions.append(skyCond)
 
-
-
-            self.data[stationId] = {"raw": rawMetar, "flightCategory": flightCategory, "windDir": windDir, "windSpeed": windSpeed,
-                                        "windGustSpeed": windGustSpeed, "windGust": windGust, "vis": vis, "obs": obs,
-                                        "tempC": tempC, "dewpointC": dewpointC, "altimHg": altimHg,
-                                        "lightning": lightning, "skyConditions": skyConditions, "obsTime": obsTime,
-                                        "latitude": latitude, "longitude": longitude}
+            self.data[stationId] = {"raw": rawMetar,
+                                    "flightCategory": flightCategory,
+                                    "flightCategoryColor": flightCategoryColor,
+                                    "windDir": windDir, "windSpeed": windSpeed, "windGustSpeed": windGustSpeed,
+                                    "windGust": windGust, "vis": vis, "obs": obs,
+                                    "tempC": tempC, "dewpointC": dewpointC, "altimHg": altimHg,
+                                    "lightning": lightning, "skyConditions": skyConditions, "obsTime": obsTime,
+                                    "latitude": latitude, "longitude": longitude}
             stationList.append(stationId)
         self.__missing_stations__ = missingCondList
         self.__stations__ = stationList
         safe_logging.safe_log("Processing complete.")
         return
+
+    def __colors_by_category__(self, category):
+        if category == "VFR":
+            return self.__config__.data().color.cat.vfr
+        elif category == "MVFR":
+            return self.__config__.data().color.cat.mvfr
+        elif category == "IFR":
+            return self.__config__.data().color.cat.lifr
+        elif category == "LIFR":
+            return self.__config__.data().color.cat.lifr
 
     def missing_stations(self):
         """
