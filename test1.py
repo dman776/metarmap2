@@ -28,8 +28,8 @@ effect=[]
 try:
     for i in range(1, 49):
         pix[i] = PixelSubset(pixels, i, i+1)
-except Exception as e:
-    print(str(i) + " " + str(e))
+except IndexError as e:
+    print(str(i) + " " + str(e.with_traceback()))
 
 effect[1] = Pulse(pix[1], speed=0.05, period=1, color=WHITE)
 effect[2] = Pulse(pix[2], speed=0.07, period=1, color=YELLOW)
