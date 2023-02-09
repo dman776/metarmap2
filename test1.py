@@ -22,9 +22,11 @@ pixel_pin = board.D18
 num_pixels = 50
 pixels = neopixel.NeoPixel(pixel_pin, num_pixels, pixel_order=neopixel.GRB, auto_write=False)
 pix=[]
-for i in range(1, 49):
-    pix[i] = PixelSubset(pixels, i, i+1)
-
+try:
+    for i in range(1, 49):
+        pix[i] = PixelSubset(pixels, i, i)
+except Exception as e:
+    print(str(i) + " " + str(e))
 
 effect[1] = Pulse(pix[1], speed=0.05, period=1, color=WHITE)
 effect[2] = Pulse(pix[2], speed=0.07, period=1, color=YELLOW)
