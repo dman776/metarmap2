@@ -22,7 +22,7 @@ pixel_pin = board.D18
 num_pixels = 50
 pixels = neopixel.NeoPixel(pixel_pin, num_pixels, pixel_order=neopixel.GRB, auto_write=False)
 pix=[]
-for i in range(1, 50):
+for i in range(1, 49):
     pix[i] = PixelSubset(pixels, i, i+1)
 
 
