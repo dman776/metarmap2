@@ -137,7 +137,7 @@ if __name__ == '__main__':
     mf = RecurringTask(
         "metar_fetch",
         300,
-        metars.fetch(renderer.update_data(metars.data)),
+        metars.fetch(renderer.update_data(metars)),
         logger.LOGGER,
         True)
 
