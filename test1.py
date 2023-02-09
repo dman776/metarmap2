@@ -31,9 +31,14 @@ try:
 except IndexError as e:
     print(str(i) + " " + str(e.args))
 
-effect0 = Pulse(pix[0], speed=0.1, period=2, color=WHITE)
-effect1 = Pulse(pix[1], speed=0.1, period=1, color=YELLOW)
-effect2 = Solid(pix[2], color=GREEN)
+effect.append(Pulse(pix[0], speed=0.1, period=2, color=WHITE))
+effect.append(Pulse(pix[1], speed=0.1, period=1, color=YELLOW))
+effect.append(Solid(pix[2], color=GREEN))
+effect.append(Solid(pix[3], color=GREEN))
+effect.append(Solid(pix[4], color=BLUE))
+effect.append(Solid(pix[5], color=BLUE))
+effect.append(Solid(pix[6], color=RED))
+
 
 
 blink = Blink(pixels, speed=0.5, color=RED)
@@ -54,9 +59,7 @@ custom_color_chase = CustomColorChase(
 
 animations = AnimationSequence(
     AnimationGroup(
-        effect0,
-        effect1,
-        effect2,
+        effect
     ),
     # comet,
     # one_pulse,
