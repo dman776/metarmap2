@@ -15,16 +15,20 @@ from adafruit_led_animation.animation.colorcycle import ColorCycle
 from adafruit_led_animation.animation.rainbow import Rainbow
 from adafruit_led_animation.animation.customcolorchase import CustomColorChase
 from adafruit_led_animation.sequence import AnimationSequence
-from adafruit_led_animation.color import PURPLE, WHITE, AMBER, JADE, MAGENTA, ORANGE, BLUE, AQUA, RED, GREEN
+from adafruit_led_animation.group import AnimationGroup
+from adafruit_led_animation.color import PURPLE, WHITE, AMBER, JADE, MAGENTA, ORANGE, BLUE, AQUA, RED, GREEN, YELLOW
 
 pixel_pin = board.D18
 num_pixels = 50
 pixels = neopixel.NeoPixel(pixel_pin, num_pixels, pixel_order=neopixel.GRB, auto_write=False)
+pix=[]
+for i in range(1, 50):
+    pix[i] = PixelSubset(pixels, i, i+1)
 
-one_pix = PixelSubset(pixels, 1, 2)
-one_pulse = Pulse(one_pix, speed=0.05, period=1, color=WHITE)
-# two_pix = PixelSubset(pixels, 2, 3)
-# two_sparkle = Sparkle(two_pix, speed=0.1, color=PURPLE, num_sparkles=10)
+
+effect[1] = Pulse(pix[1], speed=0.05, period=1, color=WHITE)
+effect[2] = Pulse(pix[2], speed=0.07, period=1, color=YELLOW)
+effect[3] = Solid(pix[3], color=GREEN)
 
 
 blink = Blink(pixels, speed=0.5, color=RED)
@@ -44,19 +48,24 @@ custom_color_chase = CustomColorChase(
 )
 
 animations = AnimationSequence(
-    comet,
-    one_pulse,
-    blink,
-    rainbow_sparkle,
-    chase,
-    pulse,
-    sparkle,
-    rainbow,
-    solid,
-    rainbow_comet,
-    sparkle_pulse,
-    rainbow_chase,
-    custom_color_chase,
+    AnimationGroup(
+        effect[1],
+        effect[2],
+        effect[3],
+    ),
+    # comet,
+    # one_pulse,
+    # blink,
+    # rainbow_sparkle,
+    # chase,
+    # pulse,
+    # sparkle,
+    # rainbow,
+    # solid,
+    # rainbow_comet,
+    # sparkle_pulse,
+    # rainbow_chase,
+    # custom_color_chase,
     advance_interval=5,
     auto_clear=True,
 )
