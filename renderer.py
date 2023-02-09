@@ -12,6 +12,14 @@ import metar
 from lib.config import Config
 from lib.utils import wheel
 
+from adafruit_led_animation.helper import PixelSubset
+from adafruit_led_animation.animation.blink import Blink
+from adafruit_led_animation.animation.pulse import Pulse
+from adafruit_led_animation.animation.solid import Solid
+from adafruit_led_animation.animation.colorcycle import ColorCycle
+from adafruit_led_animation.animation.rainbowchase import RainbowChase
+from adafruit_led_animation.sequence import AnimationSequence, AnimateOnce
+from adafruit_led_animation.group import AnimationGroup
 
 class Renderer(object):
     """
@@ -79,25 +87,23 @@ class Renderer(object):
     def update(self, data):
         return
 
-    def test(self):
-        self.__pixels__.fill(self.__config__.data().color.cat.vfr.normal)
-        self.__pixels__.show()
-        time.sleep(0.5)
-        self.__pixels__.fill(self.__config__.data().color.clear)
-        self.__pixels__.show()
-        time.sleep(0.5)
+
+    def color_by_category(self, station):
         return
 
-    def rainbow_test(self):
+
+    def test(self):
         pixel_count = self.__config__.data().led.count
 
-        for j in range(255):  # one cycle of all 256 colors in the wheel
-            for i in range(pixel_count):
-                pixel_index = (i * 256 // pixel_count) + j
-                color = wheel(pixel_index & 255)
-                self.__pixels__[i] = color
-            self.__pixels__.show()
+        rc = RainbowChase(self.__pixels__, speed=0.1, size=4, spacing=2, step=8)
+        animations = AnimateOnce(rc)
+        while animations.animate():
+            pass
         self.clear()
+
+    def init_pixel_subsets(self):
+        for i in range(0, 49):
+            self.__pix__.append(PixelSubset(self.__pixels__, i, i + 1))
 
     def __init__(self, pixels, metars: metar.METAR, config: Config):
         """
@@ -105,11 +111,15 @@ class Renderer(object):
         """
 
         self.__pixels__ = pixels
-        self.__stations__ = metars.stations()
-        self.__data__ = metars.data
+        self.__stations__ = metars.stations()   # list of station ids
+        self.__data__ = metars.data             # all METAR data
         self.__config__ = config
         self.windCycle = False
         self.numAirports = len(self.__stations__)
+        self.__pix__ = []                       # individual pixel submap - used to address one pixel for effects
+        self.__effect__ = []                    # individual pixel effects - actual effects to be applied to a pixel
+
+        self.init_pixel_subsets()
         self.clear()
         # displayTime = 0.0
         # displayAirportCounter = 0

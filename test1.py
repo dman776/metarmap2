@@ -20,7 +20,7 @@ from adafruit_led_animation.color import PURPLE, WHITE, AMBER, JADE, MAGENTA, OR
 
 pixel_pin = board.D18
 num_pixels = 50
-pixels = neopixel.NeoPixel(pixel_pin, num_pixels, pixel_order=neopixel.GRB, auto_write=False)
+pixels = neopixel.NeoPixel(pixel_pin, num_pixels, pixel_order=neopixel.RGB, auto_write=False)
 
 pix=[]
 effect=[]
@@ -31,13 +31,28 @@ try:
 except IndexError as e:
     print(str(i) + " " + str(e.args))
 
-effect.append(Pulse(pix[0], speed=0.1, period=2, color=WHITE))
-effect.append(Pulse(pix[1], speed=0.1, period=1, color=YELLOW))
-effect.append(Solid(pix[2], color=GREEN))
-effect.append(Solid(pix[3], color=GREEN))
-effect.append(Solid(pix[4], color=BLUE))
-effect.append(Solid(pix[5], color=BLUE))
-effect.append(Solid(pix[6], color=RED))
+effect.append(Pulse(pix[0], speed=0.1, period=4, color=GREEN)) # VFR + gusts under 5
+effect.append(Pulse(pix[1], speed=0.1, period=3, color=GREEN)) # VFR + gusts 6-10
+effect.append(Pulse(pix[2], speed=0.1, period=2, color=GREEN)) # VFR + gusts 11-15
+effect.append(Pulse(pix[3], speed=0.1, period=1, color=GREEN)) # VFR + gusts 16-20
+effect.append(Pulse(pix[4], speed=0.1, period=0.5, color=GREEN)) # VFR + gusts 21+
+effect.append(Solid(pix[5], color=GREEN))   # VFR
+effect.append(Solid(pix[6], color=BLUE))    # MVFR
+effect.append(Solid(pix[7], color=RED))     # IFR
+effect.append(Solid(pix[8], color=PURPLE)) # LIFR
+effect.append(ColorCycle(pix[9], speed=0.5, colors=[BLUE, YELLOW])) # MVFR + lightning
+effect.append(Pulse(pix[10], speed=0.1, period=4, color=BLUE)) # MVFR + gusts under 5
+effect.append(Pulse(pix[11], speed=0.1, period=3, color=BLUE)) # MVFR + gusts 6-10
+effect.append(Pulse(pix[12], speed=0.1, period=2, color=BLUE)) # MVFR + gusts 11-15
+effect.append(Pulse(pix[13], speed=0.1, period=1, color=BLUE)) # MVFR + gusts 16-20
+effect.append(Pulse(pix[14], speed=0.1, period=0.5, color=BLUE)) # MVFR + gusts 21+
+effect.append(Pulse(pix[15], speed=0.1, period=4, color=RED)) # IFR + gusts under 5
+effect.append(Pulse(pix[16], speed=0.1, period=3, color=RED)) # IFR + gusts 6-10
+effect.append(Pulse(pix[17], speed=0.1, period=2, color=RED)) # IFR + gusts 11-15
+effect.append(Pulse(pix[18], speed=0.1, period=1, color=RED)) # IFR + gusts 16-20
+effect.append(Pulse(pix[19], speed=0.1, period=0.5, color=RED)) # IFR + gusts 21+
+
+
 
 
 
@@ -64,7 +79,21 @@ animations = AnimationSequence(
         effect[2],
         effect[3],
         effect[4],
-        effect[5]
+        effect[5],
+        effect[6],
+        effect[7],
+        effect[8],
+        effect[9],
+        effect[10],
+        effect[11],
+        effect[12],
+        effect[13],
+        effect[14],
+        effect[15],
+        effect[16],
+        effect[17],
+        effect[18],
+        effect[19]
     ),
     # comet,
     # one_pulse,
@@ -80,11 +109,12 @@ animations = AnimationSequence(
     # rainbow_chase,
     # custom_color_chase,
     advance_interval=5,
-    auto_clear=True,
+    auto_clear=False,
 )
 
 while True:
     animations.animate()
+    pixels.brightness = 0.5
 
 
 
