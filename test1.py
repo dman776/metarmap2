@@ -27,7 +27,7 @@ effect=[]
 
 try:
     for i in range(1, 49):
-        pix[i] = PixelSubset(pixels, i, i+1)
+        pix.append(PixelSubset(pixels, i, i+1))
 except IndexError as e:
     print(str(i) + " " + str(e.args))
 
