@@ -31,8 +31,8 @@ try:
 except IndexError as e:
     print(str(i) + " " + str(e.args))
 
-effect0 = Pulse(pix[0], speed=0.5, period=1, color=WHITE)
-effect1 = Pulse(pix[1], speed=0.1, period=0.5, color=YELLOW)
+effect0 = Pulse(pix[0], speed=0.1, period=2, color=WHITE)
+effect1 = Pulse(pix[1], speed=0.1, period=1, color=YELLOW)
 effect2 = Solid(pix[2], color=GREEN)
 
 
