@@ -15,7 +15,7 @@ from adafruit_led_animation.animation.colorcycle import ColorCycle
 from adafruit_led_animation.animation.rainbow import Rainbow
 from adafruit_led_animation.animation.customcolorchase import CustomColorChase
 from adafruit_led_animation.sequence import AnimationSequence
-from adafruit_led_animation.color import PURPLE, WHITE, AMBER, JADE, MAGENTA, ORANGE, BLUE, AQUA, RED
+from adafruit_led_animation.color import PURPLE, WHITE, AMBER, JADE, MAGENTA, ORANGE, BLUE, AQUA, RED, GREEN
 
 pixel_pin = board.D18
 num_pixels = 50
