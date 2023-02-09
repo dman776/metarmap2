@@ -24,7 +24,7 @@ pixels = neopixel.NeoPixel(pixel_pin, num_pixels, pixel_order=neopixel.GRB, auto
 pix=[]
 try:
     for i in range(1, 49):
-        pix[i] = PixelSubset(pixels, i, i)
+        pix[i] = PixelSubset(pixels, i, i+1)
 except Exception as e:
     print(str(i) + " " + str(e))
 
