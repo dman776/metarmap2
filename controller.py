@@ -82,20 +82,12 @@ def render_thread(metars):
 
     while True:
         try:
-            delta_time = toc - tic
-            tic = time.perf_counter()
-
-            # renderer.clear()
             try:
                 renderer.render()
             except Exception as e:
                 safe_logging.safe_log(e)
-
-            # safe_logging.safe_log("KDWH is " + metars.data['KDWH']['flightCategory'])
-            time.sleep(1.0)
-
-            toc = time.perf_counter()
         except KeyboardInterrupt:
+            renderer.clear()
             quit()
         except Exception as ex:
             pass

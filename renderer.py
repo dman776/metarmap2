@@ -36,7 +36,7 @@ class Renderer(object):
             AnimationGroup(
                 *visualizer.get_effects()
             ),
-            advance_interval=5,
+            # advance_interval=5,
             auto_clear=False,
         )
         while animations.animate():
