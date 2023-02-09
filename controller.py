@@ -33,7 +33,7 @@ import lib.config
 from lib import logger, safe_logging, utils
 import metar as metar
 from lib.recurring_task import RecurringTask
-# from visualizers import visualizers
+from renderer import Renderer as Renderer
 
 try:
     import board
@@ -62,6 +62,9 @@ BLINK_TOTALTIME_SECONDS	= 600
 # ---------------------------------------------------------------------------
 # ------------END OF CONFIGURATION-------------------------------------------
 # ---------------------------------------------------------------------------
+
+def update_data(data):
+    renderer.update_data(data)
 
 
 def render_thread(metars):
@@ -95,6 +98,7 @@ def render_thread(metars):
 
 
 if __name__ == '__main__':
+
     safe_logging.safe_log("Starting controller.py at " + datetime.now().strftime('%d/%m/%Y %H:%M'))
     CONFIG = lib.config.Config("config.json")
 
@@ -130,15 +134,12 @@ if __name__ == '__main__':
     # Start loading the METARs in the background
     safe_logging.safe_log("Get weather for all airports...")
 
-
-
     mf = RecurringTask(
         "metar_fetch",
         300,
-        metars.fetch(),
+        metars.fetch(renderer.update_data(metars.data)),
         logger.LOGGER,
         True)
-
 
 
     while metars.is_fetching():

@@ -20,7 +20,7 @@ class METAR(object):
     Object to control and handle METARs.
     """
 
-    def fetch(self):
+    def fetch(self, callback=None):
         try:
             self.__is_fetching__ = True
             safe_logging.safe_log("Fetching...")
@@ -33,11 +33,15 @@ class METAR(object):
             self.__is_fetching__ = False
             self.lastFetchTime=datetime.datetime.now()
             safe_logging.safe_log("Fetching completed.")
-            return self.__process__(content)
+            self.__process__(content)
         except Exception as e:
             print(e)
             self.__is_fetching__ = False
-            return None
+            if callback is not None:
+                safe_logging.safe_log("Calling callback function...")
+                callback()
+                safe_logging.safe_log("done.")
+        return
 
     def is_fetching(self):
         """

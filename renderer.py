@@ -13,11 +13,6 @@ from lib.config import Config
 from lib.utils import wheel
 
 from adafruit_led_animation.helper import PixelSubset
-from adafruit_led_animation.animation.blink import Blink
-from adafruit_led_animation.animation.pulse import Pulse
-from adafruit_led_animation.animation.solid import Solid
-from adafruit_led_animation.animation.colorcycle import ColorCycle
-from adafruit_led_animation.animation.rainbowchase import RainbowChase
 from adafruit_led_animation.animation.rainbowcomet import RainbowComet
 from adafruit_led_animation.sequence import AnimationSequence, AnimateOnce
 from adafruit_led_animation.group import AnimationGroup
@@ -42,8 +37,10 @@ class Renderer(object):
         while animations.animate():
             pass
 
-
-
+    def update_data(self, metars: metar):
+        safe_logging.safe_log("updating data in the renderer")
+        self.__data__ = metars.data
+        return
 
     def clear(self):
         self.__pixels__.fill(self.__config__.data().color.clear)
@@ -79,6 +76,7 @@ class Renderer(object):
         self.flight_category_colors = []
 
         self.init_pixel_subsets()
+
         self.clear()
         # displayTime = 0.0
         # displayAirportCounter = 0
