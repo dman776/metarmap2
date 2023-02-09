@@ -31,10 +31,10 @@ class Renderer(object):
 
     def render(self):
         i = 0
-        visualizer = FlightCategoryVisualizer(self.__stations__, self.__data__, self.__pix__)  # returns a list of effects
+        visualizer = FlightCategoryVisualizer(self.__stations__, self.__data__, self.__pix__)
         animations = AnimateOnce(
             AnimationGroup(
-                *visualizer
+                *visualizer.get_effects()
             ),
             advance_interval=5,
             auto_clear=False,

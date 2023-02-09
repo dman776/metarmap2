@@ -27,8 +27,11 @@ class FlightCategory(object):
     Returns a list of Effects on each pixel
     """
 
+    def get_effects(self):
+        return self.__effect__
+
     def __init__(self, stations, data, pix):
-        # visualizer = FlightCategoryVisualizer(self.__stations__, self.__data__, self.__pix__)  # returns a list of effects
+        # visualizer = FlightCategoryVisualizer(self.__stations__, self.__data__, self.__pix__)
         self.__stations__ = stations
         self.__data__ = data
         self.__pix__ = pix
@@ -106,4 +109,3 @@ class FlightCategory(object):
         # # Switching between animation cycles
         # time.sleep(self.__config__.data().blink.rate)
 
-        return self.__effect__
