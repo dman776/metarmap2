@@ -37,7 +37,7 @@ class Renderer(object):
         while animations.animate():
             pass
 
-    def update_data(self, metars: metar):
+    def update_data(self, metars: metar.METAR):
         safe_logging.safe_log("updating data in the renderer")
         self.__data__ = metars.data
         return
