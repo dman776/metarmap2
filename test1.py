@@ -59,7 +59,12 @@ custom_color_chase = CustomColorChase(
 
 animations = AnimationSequence(
     AnimationGroup(
-        effect
+        effect[1],
+        effect[2],
+        effect[3],
+        effect[4],
+        effect[5],
+        effect[6]
     ),
     # comet,
     # one_pulse,
