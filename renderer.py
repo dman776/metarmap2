@@ -22,6 +22,8 @@ from adafruit_led_animation.animation.rainbowcomet import RainbowComet
 from adafruit_led_animation.sequence import AnimationSequence, AnimateOnce
 from adafruit_led_animation.group import AnimationGroup
 
+from visualizers.flightcategory import FlightCategory as FlightCategoryVisualizer
+
 class Renderer(object):
     """
     Object to control and handle a rendering Neopixels
@@ -29,68 +31,24 @@ class Renderer(object):
 
     def render(self):
         i = 0
+        visualizer = FlightCategoryVisualizer(self.__stations__, self.__data__, self.__pix__)  # returns a list of effects
+        animations = AnimateOnce(
+            AnimationGroup(
+                *visualizer
+            ),
+            advance_interval=5,
+            auto_clear=False,
+        )
+        while animations.animate():
+            pass
 
-        # Set light color and status for all entries in airports.json list
-        for airport in list(self.__stations__):
-            # Skip NULL entries
-            if "NULL" in airport:
-                i += 1
-                continue
 
-            color = self.__config__.data().color.clear
-            conditions = self.__data__.get(airport, None)
 
-            windy = False
-            lightningConditions = False
-            # if conditions is not None:
-            #     windy = True if (self.__config__.data().wind.animation and self.windCycle == True and (
-            #                  conditions["windSpeed"] > self.__config__.data().wind.threshold or conditions["windGust"] == True)) else False
-            #     lightningConditions = True if (self.__config__.data().lightning.animation and self.windCycle == False and conditions[
-            #         "lightning"] == True) else False
-            #     if conditions["flightCategory"] == "VFR":
-            #         color = self.__config__.data().color.cat.vfr.normal if not (
-            #                     windy or lightningConditions) else self.__config__.data().color.weather.lightning if lightningConditions else (
-            #             self.__config__.data().color.cat.vfr.fade if not self.__config__.data().blink.enable else self.__config__.data().color.clear) if windy else self.__config__.data().color.clear
-            #     elif conditions["flightCategory"] == "MVFR":
-            #         color = self.__config__.data().color.cat.mvfr.normal if not (
-            #                     windy or lightningConditions) else self.__config__.data().color.weather.lightning if lightningConditions else (
-            #             self.__config__.data().color.cat.mvfr.normal if not self.__config__.data().blink.enable else self.__config__.data().color.clear) if windy else self.__config__.data().color.clear
-            #     elif conditions["flightCategory"] == "IFR":
-            #         color = self.__config__.data().color.cat.ifr.normal if not (
-            #                 windy or lightningConditions) else self.__config__.data().color.weather.lightning if lightningConditions else (
-            #             self.__config__.data().color.cat.ifr.fade if not self.__config__.data().blink.enable else self.__config__.data().color.clear) if windy else self.__config__.data().color.clear
-            #     elif conditions["flightCategory"] == "LIFR":
-            #         color = self.__config__.data().color.cat.lifr.normal if not (
-            #             windy or lightningConditions) else self.__config__.data().color.weather.lightning if lightningConditions else (
-            #             self.__config__.data().color.cat.lifr.fade if not self.__config__.data().blink.enable else self.__config__.data().color.clear) if windy else self.__config__.data().color.clear
-            #     else:
-            #         color = self.__config__.data().color.clear
-
-            # print("Setting LED " + str(i) + " for " + airport + " to " + ("lightning " if lightningConditions else "") + ("windy " if windy else "") + (conditions["flightCategory"] if conditions != None else "None") + " " + str(color))
-            # safe_logging.safe_log("Setting LED " + str(i) + " for " + airport + " to " + ("lightning " if lightningConditions else "") + ("windy " if windy else "") + (conditions["flightCategory"] if conditions != None else "None") + " " + str(color))
-            self.__pixels__[i] = conditions['flightCategoryColor']
-            i += 1
-        # Update actual LEDs all at once
-        self.__pixels__.show()
-
-        # To get all airport codes in the displayList. I thought I needed this, but didn't. So into the magic comment garden it goes until needed:
-        # for airport in [seq[0] for seq in displayList]:
-
-        # Switching between animation cycles
-        time.sleep(self.__config__.data().blink.rate)
-        self.windCycle = False if self.windCycle else True
 
     def clear(self):
         self.__pixels__.fill(self.__config__.data().color.clear)
         self.__pixels__.show()
         return
-
-    def update(self, data):
-        return
-
-
-
-
 
     def test(self):
         # rc = RainbowChase(self.__pixels__, speed=0.1, size=4, spacing=2, step=8)

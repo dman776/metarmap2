@@ -102,8 +102,6 @@ class METAR(object):
             latitude = metar['latitude'] or ""
             longitude = metar['longitude'] or ""
 
-
-
             if 'wind_gust_kt' in metar:
                 windGustSpeed = int(metar['wind_gust_kt'])
                 windGust = (True if (self.__config__.data().wind.always_for_gusts or windGustSpeed > self.__config__.data().wind.threshold) else False)
@@ -123,6 +121,7 @@ class METAR(object):
                 obs = metar['wx_string']
             if 'observation_time'in metar:
                 obsTime = datetime.datetime.fromisoformat(metar['observation_time'].replace("Z", "+00:00"))
+
             if 'raw_text' in metar:
                 rawText = metar['raw_text']
                 lightning = True if 'LTG' in rawText else False

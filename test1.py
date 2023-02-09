@@ -54,8 +54,6 @@ effect.append(Pulse(pix[19], speed=0.1, period=0.5, color=RED)) # IFR + gusts 21
 
 
 
-
-
 blink = Blink(pixels, speed=0.5, color=RED)
 colorcycle = ColorCycle(pixels, speed=0.4, colors=[BLUE, AQUA])
 comet = Comet(pixels, speed=0.01, color=PURPLE, tail_length=10, bounce=True)
@@ -74,26 +72,7 @@ custom_color_chase = CustomColorChase(
 
 animations = AnimationSequence(
     AnimationGroup(
-        effect[0],
-        effect[1],
-        effect[2],
-        effect[3],
-        effect[4],
-        effect[5],
-        effect[6],
-        effect[7],
-        effect[8],
-        effect[9],
-        effect[10],
-        effect[11],
-        effect[12],
-        effect[13],
-        effect[14],
-        effect[15],
-        effect[16],
-        effect[17],
-        effect[18],
-        effect[19]
+        *effect
     ),
     # comet,
     # one_pulse,
