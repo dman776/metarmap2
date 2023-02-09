@@ -26,14 +26,14 @@ pix=[]
 effect=[]
 
 try:
-    for i in range(1, 49):
+    for i in range(0, 49):
         pix[i] = PixelSubset(pixels, i, i+1)
 except IndexError as e:
-    print(str(i) + " " + str(e.with_traceback()))
+    print(str(i) + " " + str(e.args))
 
-effect[1] = Pulse(pix[1], speed=0.05, period=1, color=WHITE)
-effect[2] = Pulse(pix[2], speed=0.07, period=1, color=YELLOW)
-effect[3] = Solid(pix[3], color=GREEN)
+effect[0] = Pulse(pix[0], speed=0.05, period=1, color=WHITE)
+effect[1] = Pulse(pix[1], speed=0.07, period=1, color=YELLOW)
+effect[2] = Solid(pix[2], color=GREEN)
 
 
 blink = Blink(pixels, speed=0.5, color=RED)
