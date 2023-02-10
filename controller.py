@@ -34,6 +34,8 @@ from lib import logger, safe_logging, utils
 import metar as metar
 from lib.recurring_task import RecurringTask
 from renderer import Renderer as Renderer
+from adafruit_led_animation.helper import PixelSubset
+from visualizers.flightcategory import FlightCategory as FlightCategoryVisualizer
 
 try:
     import board
@@ -63,9 +65,14 @@ BLINK_TOTALTIME_SECONDS	= 600
 # ------------END OF CONFIGURATION-------------------------------------------
 # ---------------------------------------------------------------------------
 
-def update_data(data):
-    renderer.update_data(data)
+def update_data(adata):
+    renderer.update_data(adata)
 
+def init_pixel_subsets(apixels: neopixel):
+    p = []
+    for i in range(0, 49):
+        p.append(PixelSubset(apixels, i, i + 1))
+    return p
 
 def render_thread(metars):
     """
@@ -98,7 +105,6 @@ def render_thread(metars):
 
 
 if __name__ == '__main__':
-
     safe_logging.safe_log("Starting controller.py at " + datetime.now().strftime('%d/%m/%Y %H:%M'))
     CONFIG = lib.config.Config("config.json")
 
@@ -124,12 +130,14 @@ if __name__ == '__main__':
     pixels = neopixel.NeoPixel(CONFIG.LED_PIN, CONFIG.data().led.count, brightness=CONFIG.data().led.brightness if (
             CONFIG.data().dimming.dynamic_base.enabled and bright == False) else CONFIG.data().led.brightness, pixel_order=CONFIG.LED_ORDER,
             auto_write=False)
+    pix = init_pixel_subsets(pixels)
 
+    visualizer = FlightCategoryVisualizer(metars.stations, metars.data, pix, CONFIG)
     renderer = renderer.Renderer(pixels, metars, CONFIG)
+    renderer.visualizer(visualizer)
     renderer.test()
 
     # init display
-    # init webserver
 
     # Start loading the METARs in the background
     safe_logging.safe_log("Get weather for all airports...")
@@ -146,12 +154,6 @@ if __name__ == '__main__':
         pass
 
     # safe_logging.safe_log(metars.data)
-
-    # __test_all_leds__()
-
-    # Start up REST API Server to handle config requests
-    # rest_server = restserver.RESTServer()
-    # rest_server.run()
 
     # Start up Web Server to handle UI
     web_server = webserver.WebServer("0.0.0.0", 8080, metars)

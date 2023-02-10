@@ -26,10 +26,10 @@ class Renderer(object):
 
     def render(self):
         i = 0
-        visualizer = FlightCategoryVisualizer(self.__stations__, self.__data__, self.__pix__, self.__config__)
+        # visualizer = FlightCategoryVisualizer(self.__stations__, self.__data__, self.__pix__, self.__config__)
         animations = AnimateOnce(
             AnimationGroup(
-                *visualizer.get_effects()
+                *self.__vis__.get_effects()
             ),
             # advance_interval=5,
             auto_clear=False,
@@ -55,9 +55,12 @@ class Renderer(object):
             pass
         self.clear()
 
-    def init_pixel_subsets(self):
-        for i in range(0, 49):
-            self.__pix__.append(PixelSubset(self.__pixels__, i, i + 1))
+    def visualizer(self, vis):
+        self.__vis__ = vis
+
+    def visualizer(self):
+        return self.__vis__
+
 
     def __init__(self, pixels, metars: metar.METAR, config: Config):
         """
@@ -68,15 +71,12 @@ class Renderer(object):
         self.__stations__ = metars.stations()   # list of station ids
         self.__data__ = metars.data             # all METAR data
         self.__config__ = config
-        self.windCycle = False
+        # self.windCycle = False
         self.numAirports = len(self.__stations__)
         self.__pix__ = []                       # individual pixel submap - used to address one pixel for effects
-        self.__effect__ = []                    # individual pixel effects - actual effects to be applied to a pixel
-
-        self.flight_category_colors = []
-
-        self.init_pixel_subsets()
-
+        # self.__effect__ = []                    # individual pixel effects - actual effects to be applied to a pixel
+        self.__vis__ = None
+        # self.flight_category_colors = []
         self.clear()
         # displayTime = 0.0
         # displayAirportCounter = 0
