@@ -41,7 +41,6 @@ class FlightCategory(object):
         # loop over all stations
         i = 0
         for airport in list(self.__stations__):
-            safe_logging.safe_log("AIRPORT: " + airport)
             # Skip NULL entries
             if "NULL" in airport:
                 self.__effect__.append(Solid(self.__pix__[i], color=(0, 0, 0)))

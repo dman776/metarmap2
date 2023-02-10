@@ -49,7 +49,7 @@ class Renderer(object):
 
     def test(self):
         # rc = RainbowChase(self.__pixels__, speed=0.1, size=4, spacing=2, step=8)
-        rc = RainbowComet(self.__pixels__, speed=0.1, tail_length=7, bounce=True)
+        rc = RainbowComet(self.__pixels__, speed=0.05, tail_length=5, bounce=True)
         animations = AnimateOnce(rc)
         while animations.animate():
             pass
