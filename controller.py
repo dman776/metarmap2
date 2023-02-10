@@ -132,7 +132,7 @@ if __name__ == '__main__':
             auto_write=False)
     pix = init_pixel_subsets(pixels)
 
-    visualizer = FlightCategoryVisualizer(metars.stations, metars.data, pix, CONFIG)
+    visualizer = FlightCategoryVisualizer(metars.stations(), metars.data, pix, CONFIG)
     renderer = renderer.Renderer(pixels, metars, CONFIG)
     renderer.visualizer(visualizer)
     renderer.test()

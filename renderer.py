@@ -58,10 +58,6 @@ class Renderer(object):
     def visualizer(self, vis):
         self.__vis__ = vis
 
-    def visualizer(self):
-        return self.__vis__
-
-
     def __init__(self, pixels, metars: metar.METAR, config: Config):
         """
         Creates a new renderer
