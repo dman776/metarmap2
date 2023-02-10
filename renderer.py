@@ -26,7 +26,7 @@ class Renderer(object):
 
     def render(self):
         i = 0
-        visualizer = FlightCategoryVisualizer(self.__stations__, self.__data__, self.__pix__)
+        visualizer = FlightCategoryVisualizer(self.__stations__, self.__data__, self.__pix__, self.__config__)
         animations = AnimateOnce(
             AnimationGroup(
                 *visualizer.get_effects()

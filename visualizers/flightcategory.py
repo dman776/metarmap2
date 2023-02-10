@@ -30,11 +30,12 @@ class FlightCategory(object):
     def get_effects(self):
         return self.__effect__
 
-    def __init__(self, stations, data, pix):
+    def __init__(self, stations, data, pix, config):
         # visualizer = FlightCategoryVisualizer(self.__stations__, self.__data__, self.__pix__)
         self.__stations__ = stations
         self.__data__ = data
         self.__pix__ = pix
+        self.__config__ = config
         self.__effect__ = []
 
         # loop over all stations
