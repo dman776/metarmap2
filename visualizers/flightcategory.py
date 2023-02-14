@@ -51,30 +51,28 @@ class FlightCategory(object):
                 continue
 
             airport_data = self.__data__.get(airport, None)
-
+            if airport=="KLJV":
+                pprint(airport_data)
+                sys.exit()
             if airport_data is not None and len(airport_data.keys()) > 0:
-                try:
-                    if self.__config__.data().lightning.animation and airport_data['lightning'] is True:
-                        self.__effect__.append(ColorCycle(self.__pix__[i], speed=0.5,
-                                colors=[airport_data['flightCategoryColor'], YELLOW]))  # lightning
-                    elif self.__config__.data().wind.animation and airport_data['windGust'] is True:
-                        p = 0
-                        if 0 < airport_data['windGustSpeed'] <= 5:
-                            p = 4       # gusts 1-5
-                        elif 6 < airport_data['windGustSpeed'] <= 10:
-                            p = 3       # gusts 6-10
-                        elif 11 < airport_data['windGustSpeed'] <= 15:
-                            p = 2       # gusts 11-15
-                        elif 16 < airport_data['windGustSpeed'] <= 20:
-                            p = 1       # gusts 16-20
-                        elif airport_data['windGustSpeed'] >= 21:
-                            p = 0.5     # gusts 21+
-                        self.__effect__.append(Pulse(self.__pix__[i], speed=0.1, period=p, color=airport_data['flightCategoryColor']))
-                    else:
-                        self.__effect__.append(Solid(self.__pix__[i], color=airport_data['flightCategoryColor']))
-                except KeyError as e:
-                    self.__effect__.append(Solid(self.__pix__[i], color=(0, 0, 0)))
-
+                if self.__config__.data().lightning.animation and airport_data['lightning'] is True:
+                    self.__effect__.append(ColorCycle(self.__pix__[i], speed=0.5,
+                            colors=[airport_data['flightCategoryColor'], YELLOW]))  # lightning
+                elif self.__config__.data().wind.animation and airport_data['windGust'] is True:
+                    p = 0
+                    if 0 < airport_data['windGustSpeed'] <= 5:
+                        p = 4       # gusts 1-5
+                    elif 6 < airport_data['windGustSpeed'] <= 10:
+                        p = 3       # gusts 6-10
+                    elif 11 < airport_data['windGustSpeed'] <= 15:
+                        p = 2       # gusts 11-15
+                    elif 16 < airport_data['windGustSpeed'] <= 20:
+                        p = 1       # gusts 16-20
+                    elif airport_data['windGustSpeed'] >= 21:
+                        p = 0.5     # gusts 21+
+                    self.__effect__.append(Pulse(self.__pix__[i], speed=0.1, period=p, color=airport_data['flightCategoryColor']))
+                else:
+                    self.__effect__.append(Solid(self.__pix__[i], color=airport_data['flightCategoryColor']))
             else:       # airport not found in METAR data
                 self.__effect__.append(Solid(self.__pix__[i], color=(0, 0, 0)))
             i += 1
