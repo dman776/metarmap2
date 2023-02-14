@@ -73,13 +73,13 @@ class METAR(object):
                 if len(m) > 0:
                     metar = m[0]
                 else:
+                    self.data[airport] = {}
                     missingCondList.append(airport)
-                    pprint("m not found: " + airport)
-                    # continue
+                    continue
             except IndexError as e:
                 missingCondList.append(airport)
-                pprint("indexError: " + airport)
-                # continue
+                self.data[airport] = {}
+                continue
             except Exception as e:
                 pprint(e)
 
