@@ -11,7 +11,7 @@
 	<div class="col-md-12 order-md-1">
         <h4>{{metars.lastFetchTime}}</h4>
         <ul class="list-group">
-            % v = renderer.visualizer()
+            % v = renderer.visualizer
     	    %for e in v.__effect__:
             <li class="list-group-item d-flex align-items-center">{{e}}</li>
             %end

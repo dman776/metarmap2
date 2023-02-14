@@ -42,7 +42,8 @@ class FlightCategory(object):
 
         # loop over all stations
         i = 0
-        for airport in list(self.__stations__):
+        # for airport in list(self.__stations__):
+        for airport in list(self.__data__.keys()):
             # Skip NULL entries
             if "NULL" in airport:
                 self.__effect__.append(Solid(self.__pix__[i], color=(0, 0, 0)))
@@ -69,10 +70,7 @@ class FlightCategory(object):
                         p = 0.5     # gusts 21+
                     self.__effect__.append(Pulse(self.__pix__[i], speed=0.1, period=p, color=airport_data['flightCategoryColor']))
                 else:
-                    if 'flightCategoryColor' in airport_data:
-                        self.__effect__.append(Solid(self.__pix__[i], color=airport_data['flightCategoryColor']))
-                    else:
-                        self.__effect__.append(Solid(self.__pix__[i], color=(0, 0, 0)))
+                    self.__effect__.append(Solid(self.__pix__[i], color=airport_data['flightCategoryColor']))
 
             #     windy = True if (self.__config__.data().wind.animation and self.windCycle == True and (
             #                  conditions["windSpeed"] > self.__config__.data().wind.threshold or conditions["windGust"] == True)) else False
