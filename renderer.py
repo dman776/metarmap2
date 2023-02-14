@@ -54,6 +54,11 @@ class Renderer(object):
             pass
         if clear: self.clear()
 
+    @property
+    def visualizer(self):
+        return self.__vis__
+
+    @visualizer.setter
     def visualizer(self, vis):
         self.__vis__ = vis
 
