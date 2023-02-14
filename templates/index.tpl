@@ -12,7 +12,9 @@
 	<div class="col-md-12 order-md-1">
         <h4>{{metars.lastFetchTime}}</h4>
         <ul class="list-group">
+            % i = 0
     	    %for m in metars.data:
+                % i += 1
           <li class="list-group-item d-flex align-items-center\\
             %if metars.data[m]['flightCategory']=='VFR':
                 list-group-item-success">
