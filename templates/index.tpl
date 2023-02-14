@@ -15,7 +15,7 @@
             % i = 0
     	    %for m in metars.data:
           <li class="list-group-item d-flex align-items-center\\
-                %if len(metars.data[m].keys() > 0):
+                %if len(metars.data[m].keys()) > 0:
                     %if metars.data[m]['flightCategory']=='VFR':
                         list-group-item-success">
                     %elif metars.data[m]['flightCategory']=='MVFR':
