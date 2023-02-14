@@ -52,7 +52,7 @@ class FlightCategory(object):
 
             airport_data = self.__data__.get(airport, None)
 
-            pprint(airport_data, indent=2)
+            pprint(len(airport_data.keys()))
 
             if airport_data is not None and len(airport_data.keys()) > 0:
                 if self.__config__.data().lightning.animation and airport_data['lightning'] is True:
