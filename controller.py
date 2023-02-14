@@ -158,7 +158,7 @@ if __name__ == '__main__':
     # safe_logging.safe_log(metars.data)
 
     # Start up Web Server to handle UI
-    web_server = webserver.WebServer("0.0.0.0", 8080, metars)
+    web_server = webserver.WebServer("0.0.0.0", 8080, metars, renderer)
     web_server.run()
 
 
