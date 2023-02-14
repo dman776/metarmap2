@@ -4,6 +4,7 @@ import bottle
 from bottle import hook, route, run, request, abort, response, static_file
 import metar
 from renderer import Renderer
+from neopixel import NeoPixel
 from lib.safe_logging import safe_log
 import threading
 import io
@@ -36,7 +37,7 @@ class WebServer(object):
         self._route()
         self._metarsObj = metars
         self._renderer = renderer
-        self._pixels = renderer.pixels()
+        self._pixels: NeoPixel = renderer.pixels()
         bottle.TEMPLATE_PATH.insert(0,"./templates")
 
     def _route(self):
@@ -45,6 +46,7 @@ class WebServer(object):
         self._app.route("/raw/<code>", method="GET", callback=self._rawcode)
         self._app.route("/fetch", method="GET", callback=self._fetch)
         self._app.route("/debug", method="GET", callback=self._debug)
+        self._app.route("/brightness/<level>", method="GET", callback=self._brightness)
 
     def _index(self):
         return bottle.template('index.tpl', metars=self._metarsObj)
@@ -59,6 +61,7 @@ class WebServer(object):
     def _rawcode(self, code):
         return "<b>" + code + "</b>: " + self._metarsObj.data[code]['raw'] + "<br />"
 
+
     def _fetch(self):
         self._metarsObj.fetch()
         while self._metarsObj.is_fetching():
@@ -67,3 +70,7 @@ class WebServer(object):
 
     def _debug(self):
         return bottle.template('debug.tpl', metars=self._metarsObj, renderer=self._renderer)
+
+    def _brightness(self, level):
+        self._pixels.brightness = level
+        return bottle.template('index.tpl', metars=self._metarsObj)
