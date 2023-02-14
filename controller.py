@@ -71,8 +71,7 @@ def update_data(adata):
 
 def init_pixel_subsets(apixels: neopixel):
     p = []
-    for i in range(0, 49):
-        print("I: " + str(i))
+    for i in range(0, 50):
         p.append(PixelSubset(apixels, i, i + 1))
     return p
 
