@@ -98,8 +98,7 @@ def render_thread(metars):
             except Exception as e:
                 safe_logging.safe_log(e)
         except KeyboardInterrupt:
-            renderer.clear()
-            quit()
+            raise KeyboardInterrupt
         except Exception as ex:
             # pass
             safe_logging.safe_log(ex)
@@ -167,6 +166,10 @@ if __name__ == '__main__':
         try:
             render_thread(metars)
         except KeyboardInterrupt:
+            renderer.clear()
+            mf.stop()
+            web_server.stop()
+
             break
 
     web_server.stop()
