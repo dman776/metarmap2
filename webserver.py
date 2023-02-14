@@ -5,6 +5,11 @@ from bottle import hook, route, run, request, abort, response, static_file
 import metar
 from renderer import Renderer
 from neopixel import NeoPixel
+from adafruit_led_animation.helper import PixelSubset
+from adafruit_led_animation.animation.blink import Blink
+from adafruit_led_animation.animation.pulse import Pulse
+from adafruit_led_animation.color import PURPLE, WHITE, AMBER, JADE, MAGENTA, ORANGE, BLUE, AQUA, RED, GREEN, YELLOW
+
 from lib.safe_logging import safe_log
 import threading
 import io
@@ -47,6 +52,7 @@ class WebServer(object):
         self._app.route("/fetch", method="GET", callback=self._fetch)
         self._app.route("/debug", method="GET", callback=self._debug)
         self._app.route("/brightness/<level>", method="GET", callback=self._brightness)
+        self._app.route("/locate/<pixnum>", method="GET", callback=self._locate)
 
     def _index(self):
         return bottle.template('index.tpl', metars=self._metarsObj)
@@ -73,4 +79,9 @@ class WebServer(object):
 
     def _brightness(self, level):
         self._pixels.brightness = float(level)
+        return bottle.template('index.tpl', metars=self._metarsObj)
+
+    def _locate(self, pixnum):
+        pix = PixelSubset(self._pixels, pixnum, pixnum+1)
+        self._renderer.animate_once(Pulse(pix, speed=0.1, period=0.5, color=WHITE))
         return bottle.template('index.tpl', metars=self._metarsObj)
