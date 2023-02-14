@@ -43,10 +43,6 @@ class FlightCategory(object):
         # loop over all stations
         i = 0
         # for airport in list(self.__stations__):
-
-        pprint(self.__data__.keys())
-        sys.exit()
-
         for airport in list(self.__data__.keys()):
             # Skip NULL entries
             if "NULL" in airport:
@@ -56,9 +52,7 @@ class FlightCategory(object):
 
             airport_data = self.__data__.get(airport, None)
 
-            if airport=="KLJV":
-                pprint(airport_data)
-                sys.exit()
+            pprint(airport_data, indent=2)
 
             if airport_data is not None and len(airport_data.keys()) > 0:
                 if self.__config__.data().lightning.animation and airport_data['lightning'] is True:
