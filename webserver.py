@@ -83,5 +83,5 @@ class WebServer(object):
 
     def _locate(self, pixnum):
         pix = PixelSubset(self._pixels, int(pixnum), int(pixnum)+1)
-        self._renderer.animate_once(Pulse(pix, speed=0.1, period=0.5, color=WHITE))
+        self._renderer.animate_once(Pulse(pix, speed=0.1, period=0.5, color=WHITE), False)
         return bottle.template('index.tpl', metars=self._metarsObj)
