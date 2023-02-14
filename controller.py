@@ -35,6 +35,7 @@ import metar as metar
 from lib.recurring_task import RecurringTask
 from renderer import Renderer as Renderer
 from adafruit_led_animation.helper import PixelSubset
+from adafruit_led_animation.animation.rainbowchase import RainbowChase
 from visualizers.flightcategory import FlightCategory as FlightCategoryVisualizer
 
 try:
@@ -135,7 +136,8 @@ if __name__ == '__main__':
     visualizer = FlightCategoryVisualizer(metars.stations(), metars.data, pix, CONFIG)
     renderer = renderer.Renderer(pixels, metars, CONFIG)
     renderer.visualizer(visualizer)
-    renderer.test()
+    # test it
+    renderer.animate_once(RainbowChase(pixels, speed=0.1, size=4, spacing=2, step=8))
 
     # init display
 

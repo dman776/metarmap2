@@ -26,6 +26,8 @@ class FlightCategory(object):
     Object to handle FlightCategory
     Returns a list of Effects on each pixel
     """
+    def name(self):
+        return "FlightCategory"
 
     def get_effects(self):
         return self.__effect__

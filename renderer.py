@@ -13,7 +13,7 @@ from lib.config import Config
 from lib.utils import wheel
 
 from adafruit_led_animation.helper import PixelSubset
-from adafruit_led_animation.animation.rainbowcomet import RainbowComet
+
 from adafruit_led_animation.sequence import AnimationSequence, AnimateOnce
 from adafruit_led_animation.group import AnimationGroup
 
@@ -47,16 +47,18 @@ class Renderer(object):
         self.__pixels__.show()
         return
 
-    def test(self):
+    def animate_once(self, effect, clear=True):
         # rc = RainbowChase(self.__pixels__, speed=0.1, size=4, spacing=2, step=8)
-        rc = RainbowComet(self.__pixels__, speed=0.05, tail_length=5, bounce=True)
-        animations = AnimateOnce(rc)
+        animations = AnimateOnce(effect)
         while animations.animate():
             pass
-        self.clear()
+        if clear: self.clear()
 
     def visualizer(self, vis):
         self.__vis__ = vis
+
+    def pixels(self):
+        return self.__pixels__
 
     def __init__(self, pixels, metars: metar.METAR, config: Config):
         """
