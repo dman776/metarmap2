@@ -14,7 +14,6 @@
         <ul class="list-group">
             % i = 0
     	    %for m in metars.data:
-                % i += 1
           <li class="list-group-item d-flex align-items-center\\
             %if metars.data[m]['flightCategory']=='VFR':
                 list-group-item-success">
@@ -26,13 +25,14 @@
                 list-group-item-info">
             %end
 
-            <div class="col-1"><a class="btn btn-primary" href="/locate/{{i}}" role="button">Locate</a></div>
+            <div class="col-1"><a class="badge badge-primary" href="/locate/{{i}}" role="button">Locate</a></div>
             <div class="col-1">{{m}}</div>
             <div class="col-1"></div>
             <div class="col-1">{{metars.data[m]['flightCategory']}}</div>
             <div class="col-6">{{metars.data[m]['raw']}}</div>
             <div class="col-2">{{metars.data[m]['obsTime']}}</div>
           </li>
+            % i+=1
             %end
     	</ul>
 	</div>
