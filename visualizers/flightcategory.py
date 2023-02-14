@@ -53,50 +53,28 @@ class FlightCategory(object):
             airport_data = self.__data__.get(airport, None)
 
             if airport_data is not None:
-                if self.__config__.data().lightning.animation and airport_data['lightning'] is True:
-                    self.__effect__.append(ColorCycle(self.__pix__[i], speed=0.5,
-                            colors=[airport_data['flightCategoryColor'], YELLOW]))  # lightning
-                elif self.__config__.data().wind.animation and airport_data['windGust'] is True:
-                    p = 0
-                    if 0 < airport_data['windGustSpeed'] <= 5:
-                        p = 4       # gusts 1-5
-                    elif 6 < airport_data['windGustSpeed'] <= 10:
-                        p = 3       # gusts 6-10
-                    elif 11 < airport_data['windGustSpeed'] <= 15:
-                        p = 2       # gusts 11-15
-                    elif 16 < airport_data['windGustSpeed'] <= 20:
-                        p = 1       # gusts 16-20
-                    elif airport_data['windGustSpeed'] >= 21:
-                        p = 0.5     # gusts 21+
-                    self.__effect__.append(Pulse(self.__pix__[i], speed=0.1, period=p, color=airport_data['flightCategoryColor']))
-                else:
-                    self.__effect__.append(Solid(self.__pix__[i], color=airport_data['flightCategoryColor']))
+                try:
+                    if self.__config__.data().lightning.animation and airport_data['lightning'] is True:
+                        self.__effect__.append(ColorCycle(self.__pix__[i], speed=0.5,
+                                colors=[airport_data['flightCategoryColor'], YELLOW]))  # lightning
+                    elif self.__config__.data().wind.animation and airport_data['windGust'] is True:
+                        p = 0
+                        if 0 < airport_data['windGustSpeed'] <= 5:
+                            p = 4       # gusts 1-5
+                        elif 6 < airport_data['windGustSpeed'] <= 10:
+                            p = 3       # gusts 6-10
+                        elif 11 < airport_data['windGustSpeed'] <= 15:
+                            p = 2       # gusts 11-15
+                        elif 16 < airport_data['windGustSpeed'] <= 20:
+                            p = 1       # gusts 16-20
+                        elif airport_data['windGustSpeed'] >= 21:
+                            p = 0.5     # gusts 21+
+                        self.__effect__.append(Pulse(self.__pix__[i], speed=0.1, period=p, color=airport_data['flightCategoryColor']))
+                    else:
+                        self.__effect__.append(Solid(self.__pix__[i], color=airport_data['flightCategoryColor']))
+                except KeyError as e:
+                    self.__effect__.append(Solid(self.__pix__[i], color=(0, 0, 0)))
 
-            #     windy = True if (self.__config__.data().wind.animation and self.windCycle == True and (
-            #                  conditions["windSpeed"] > self.__config__.data().wind.threshold or conditions["windGust"] == True)) else False
-            #     lightningConditions = True if (self.__config__.data().lightning.animation and self.windCycle == False and conditions[
-            #         "lightning"] == True) else False
-        #     #         color = self.__config__.data().color.cat.vfr.normal if not (
-        #     #                     windy or lightningConditions) else self.__config__.data().color.weather.lightning if lightningConditions else (
-        #     #             self.__config__.data().color.cat.vfr.fade if not self.__config__.data().blink.enable else self.__config__.data().color.clear) if windy else self.__config__.data().color.clear
-        #     #     elif conditions["flightCategory"] == "MVFR":
-        #     #         color = self.__config__.data().color.cat.mvfr.normal if not (
-        #     #                     windy or lightningConditions) else self.__config__.data().color.weather.lightning if lightningConditions else (
-        #     #             self.__config__.data().color.cat.mvfr.normal if not self.__config__.data().blink.enable else self.__config__.data().color.clear) if windy else self.__config__.data().color.clear
-        #     #     elif conditions["flightCategory"] == "IFR":
-        #     #         color = self.__config__.data().color.cat.ifr.normal if not (
-        #     #                 windy or lightningConditions) else self.__config__.data().color.weather.lightning if lightningConditions else (
-        #     #             self.__config__.data().color.cat.ifr.fade if not self.__config__.data().blink.enable else self.__config__.data().color.clear) if windy else self.__config__.data().color.clear
-        #     #     elif conditions["flightCategory"] == "LIFR":
-        #     #         color = self.__config__.data().color.cat.lifr.normal if not (
-        #     #             windy or lightningConditions) else self.__config__.data().color.weather.lightning if lightningConditions else (
-        #     #             self.__config__.data().color.cat.lifr.fade if not self.__config__.data().blink.enable else self.__config__.data().color.clear) if windy else self.__config__.data().color.clear
-        #     #     else:
-        #     #         color = self.__config__.data().color.clear
-        #     # safe_logging.safe_log("Setting LED " + str(i) + " for " + airport + " to " + ("lightning " if lightningConditions else "") + ("windy " if windy else "") + (conditions["flightCategory"] if conditions != None else "None") + " " + str(color))
-        #
-        #     # flight category color for now
-        #     self.__pixels__[i] = airport_data['flightCategoryColor']
             else:
                 self.__effect__.append(Solid(self.__pix__[i], color=(0, 0, 0)))
             i += 1
