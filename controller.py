@@ -72,6 +72,7 @@ def update_data(adata):
 def init_pixel_subsets(apixels: neopixel):
     p = []
     for i in range(0, 49):
+        print("I: " + str(i))
         p.append(PixelSubset(apixels, i, i + 1))
     return p
 
@@ -131,6 +132,9 @@ if __name__ == '__main__':
             CONFIG.data().dimming.dynamic_base.enabled and bright == False) else CONFIG.data().led.brightness, pixel_order=CONFIG.LED_ORDER,
             auto_write=False)
     pix = init_pixel_subsets(pixels)
+    print(len(pix))
+    sys.exit()
+
 
     visualizer = FlightCategoryVisualizer(metars.data, pix, CONFIG)
     renderer = renderer.Renderer(pixels, metars, CONFIG)
