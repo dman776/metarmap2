@@ -69,7 +69,10 @@ class FlightCategory(object):
                         p = 0.5     # gusts 21+
                     self.__effect__.append(Pulse(self.__pix__[i], speed=0.1, period=p, color=airport_data['flightCategoryColor']))
                 else:
-                    self.__effect__.append(Solid(self.__pix__[i], color=airport_data['flightCategoryColor']))
+                    if 'flightCategoryColor' in airport_data:
+                        self.__effect__.append(Solid(self.__pix__[i], color=airport_data['flightCategoryColor']))
+                    else:
+                        self.__effect__.append(Solid(self.__pix__[i], color=(0, 0, 0)))
 
             #     windy = True if (self.__config__.data().wind.animation and self.windCycle == True and (
             #                  conditions["windSpeed"] > self.__config__.data().wind.threshold or conditions["windGust"] == True)) else False
