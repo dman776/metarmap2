@@ -52,7 +52,7 @@ class FlightCategory(object):
 
             airport_data = self.__data__.get(airport, None)
 
-            if airport_data is not None:
+            if airport_data is not None and len(airport_data.keys() > 0):
                 try:
                     if self.__config__.data().lightning.animation and airport_data['lightning'] is True:
                         self.__effect__.append(ColorCycle(self.__pix__[i], speed=0.5,
@@ -75,7 +75,7 @@ class FlightCategory(object):
                 except KeyError as e:
                     self.__effect__.append(Solid(self.__pix__[i], color=(0, 0, 0)))
 
-            else:
+            else:       # airport not found in METAR data
                 self.__effect__.append(Solid(self.__pix__[i], color=(0, 0, 0)))
             i += 1
 

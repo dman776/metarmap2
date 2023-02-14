@@ -165,7 +165,8 @@ class METAR(object):
             return self.__config__.data().color.cat.lifr
         elif category == "LIFR":
             return self.__config__.data().color.cat.lifr
-
+        else:
+            return self.__config__.data().color.clear
     def missing_stations(self):
         """
         Returns a list of missing stations from the fetch
