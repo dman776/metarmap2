@@ -138,7 +138,7 @@ if __name__ == '__main__':
     renderer.visualizer=visualizer
 
     # test it
-    renderer.animate_once(RainbowChase(pixels, speed=0.1, size=4, spacing=2, step=8))
+    renderer.animate_once(RainbowChase(pixels, speed=0.1, size=4, spacing=2, step=4))
 
     # init display
 
