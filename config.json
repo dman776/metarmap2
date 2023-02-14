@@ -34,7 +34,7 @@
   },
   "wind": {
     "animation": true,
-    "threshold": 18,
+    "threshold": 15,
     "always_for_gusts": false
   },
   "lightning": {
