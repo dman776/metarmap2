@@ -31,7 +31,7 @@
                     <div class="col-1">{{metars.data[m]['flightCategory']}}</div>
                     <div class="col-6">{{metars.data[m]['raw']}}</div>
                     <div class="col-2">{{metars.data[m]['obsTime']}}</div>
-                %else
+                %else:
                     ">
                     <div class="col-1"><a class="badge badge-primary" href="/locate/{{i}}" role="button">Locate</a></div>
                     <div class="col-1">{{m}}</div>
