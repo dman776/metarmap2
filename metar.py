@@ -87,11 +87,11 @@ class METAR(object):
             if 'flight_category' not in metar:
                 print("Missing flight condition, skipping " + stationId)
                 missingCondList.append(stationId)
-                continue
+                # continue
 
-            rawMetar = metar['raw_text']
-            flightCategory = metar['flight_category']
-            flightCategoryColor = self.__colors_by_category__(flightCategory)
+            rawMetar = metar['raw_text'] if 'raw_text' in metar else None
+            flightCategory = metar['flight_category'] if 'flight_category' in metar else None
+            flightCategoryColor = self.__colors_by_category__(flightCategory) if 'flight_category' in metar else None
             windDir = ""
             windSpeed = 0
             windGustSpeed = 0
