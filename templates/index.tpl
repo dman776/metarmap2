@@ -26,7 +26,7 @@
                 list-group-item-info">
             %end
 
-            <div class="col-1"><a class="btn btn-primary" href="/locate/{{m}}" role="button">Locate</a></div>
+            <div class="col-1"><a class="btn btn-primary" href="/locate/{{i}}" role="button">Locate</a></div>
             <div class="col-1">{{m}}</div>
             <div class="col-1"></div>
             <div class="col-1">{{metars.data[m]['flightCategory']}}</div>
