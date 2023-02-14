@@ -101,8 +101,8 @@ def render_thread(metars):
             renderer.clear()
             quit()
         except Exception as ex:
-            pass
-            # safe_logging.safe_log(ex)
+            # pass
+            safe_logging.safe_log(ex)
 
 
 if __name__ == '__main__':
