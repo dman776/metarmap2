@@ -8,7 +8,6 @@ import datetime
 from pprint import pprint
 import json
 
-import controller
 import lib.safe_logging as safe_logging
 # from lib.config import Config
 import lib
