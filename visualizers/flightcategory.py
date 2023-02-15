@@ -7,10 +7,13 @@ import time
 import datetime
 from pprint import pprint
 import json
-import lib.safe_logging as safe_logging
-from lib.config import Config
-import lib.utils as utils
 
+import controller
+import lib.safe_logging as safe_logging
+# from lib.config import Config
+import lib
+import lib.utils as utils
+from metar import METAR
 import neopixel
 import board
 
@@ -76,3 +79,24 @@ class FlightCategory(object):
             i += 1
 
 
+
+
+if __name__ == '__main__':
+    pass
+    # airportstr = '{"KDWH": {"text": "Hooks", "display": false, "visits": 0},'\
+    #             '"KIAH": {"text": "IAH", "display": false, "visits": 0},'\
+    #             '"KLVJ": {"text": "", "display": false, "visits": 0}}'
+    # airports = json.loads(airportstr)
+
+    # with open('airports.json') as f:
+    #     data = f.read()
+    # airports = json.loads(data)
+    #
+    # CONFIG = lib. Config("../config.json")
+    # metars = METAR(airports, CONFIG, fetch=True)
+    # pixels = neopixel.NeoPixel(CONFIG.LED_PIN, CONFIG.data().led.count, brightness=CONFIG.data().led.brightness if (
+    #         CONFIG.data().dimming.dynamic_base.enabled and bright == False) else CONFIG.data().led.brightness,
+    #                            pixel_order=CONFIG.LED_ORDER,
+    #                            auto_write=False)
+    # pix = controller.init_pixel_subsets(pixels)
+    # v = FlightCategory(metars, pix, CONFIG)

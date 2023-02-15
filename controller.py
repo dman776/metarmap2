@@ -114,29 +114,29 @@ if __name__ == '__main__':
     disp = Display()
     disp.on()
 
-    disp.message("METARMap", "config...")
+    # disp.message("METARMap", "config...")
     CONFIG = lib.config.Config("config.json")
 
     # all_stations(weather.OFF)
 
     # load airports file
-    disp.message("METARMap", "airports...")
+    # disp.message("METARMap", "airports...")
     # CONVERT TO METHOD to be called upon REST API
     # with open('/home/pi/airports.json') as f:
     with open('airports.json') as f:
         data = f.read()
     airports = json.loads(data)
 
-    disp.message("METARMap", "sun times...")
+    # disp.message("METARMap", "sun times...")
     # get sunrise/sunset times for dynamic dimming
     (DAWN, SUNRISE, SUNSET, DUSK) = utils.get_sun_times(CONFIG)
 
     # setup for metars
-    disp.message("METARMap", "metars...")
+    # disp.message("METARMap", "metars...")
     metars = metar.METAR(airports, CONFIG, fetch=True)
 
     # init neopixels
-    disp.message("METARMap", "pixels...")
+    # disp.message("METARMap", "pixels...")
     pixels = None
     # bright = CONFIG.data().dimming.time_base.bright_start < datetime.now().time() < CONFIG.data().dimming.time_base.dim_start
     bright = False
@@ -169,11 +169,12 @@ if __name__ == '__main__':
     # safe_logging.safe_log(metars.data)
 
     # Start up Web Server to handle UI
-    disp.message("METARMap", "webserver...")
+    # disp.message("METARMap", "webserver...")
     web_server = webserver.WebServer("0.0.0.0", 8080, metars, renderer)
     web_server.run()
 
-    disp.show_metar("KDWH", metar['KDWH'], 5)
+
+    # disp.show_metar("KDWH", metars.data['KDWH'], 5)
 
     while True:
         try:
