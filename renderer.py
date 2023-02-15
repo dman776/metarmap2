@@ -17,7 +17,6 @@ from adafruit_led_animation.helper import PixelSubset
 from adafruit_led_animation.sequence import AnimationSequence, AnimateOnce
 from adafruit_led_animation.group import AnimationGroup
 
-from visualizers.flightcategory import FlightCategory as FlightCategoryVisualizer
 
 class Renderer(object):
     """
