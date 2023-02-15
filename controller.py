@@ -28,6 +28,7 @@ import json
 import lib.config
 import webserver
 import renderer
+from display import Display
 import lib.config
 
 from lib import logger, safe_logging, utils
@@ -108,24 +109,34 @@ def render_thread(metars):
 
 if __name__ == '__main__':
     safe_logging.safe_log("Starting controller.py at " + datetime.now().strftime('%d/%m/%Y %H:%M'))
+
+    # init display
+    disp = Display()
+    disp.on()
+
+    disp.message("METARMap", "config...")
     CONFIG = lib.config.Config("config.json")
 
     # all_stations(weather.OFF)
 
     # load airports file
+    disp.message("METARMap", "airports...")
     # CONVERT TO METHOD to be called upon REST API
     # with open('/home/pi/airports.json') as f:
     with open('airports.json') as f:
         data = f.read()
     airports = json.loads(data)
 
+    disp.message("METARMap", "sun times...")
     # get sunrise/sunset times for dynamic dimming
     (DAWN, SUNRISE, SUNSET, DUSK) = utils.get_sun_times(CONFIG)
 
     # setup for metars
+    disp.message("METARMap", "metars...")
     metars = metar.METAR(airports, CONFIG, fetch=True)
 
     # init neopixels
+    disp.message("METARMap", "pixels...")
     pixels = None
     # bright = CONFIG.data().dimming.time_base.bright_start < datetime.now().time() < CONFIG.data().dimming.time_base.dim_start
     bright = False
@@ -140,7 +151,6 @@ if __name__ == '__main__':
     # test it
     renderer.animate_once(RainbowChase(pixels, speed=0.1, size=4, spacing=2, step=4))
 
-    # init display
 
     # Start loading the METARs in the background
     safe_logging.safe_log("Get weather for all airports...")
@@ -159,9 +169,11 @@ if __name__ == '__main__':
     # safe_logging.safe_log(metars.data)
 
     # Start up Web Server to handle UI
+    disp.message("METARMap", "webserver...")
     web_server = webserver.WebServer("0.0.0.0", 8080, metars, renderer)
     web_server.run()
 
+    disp.show_metar("KDWH", metar['KDWH'], 5)
 
     while True:
         try:
@@ -170,7 +182,7 @@ if __name__ == '__main__':
             renderer.clear()
             mf.stop()
             web_server.stop()
-
+            disp.off()
             break
 
     web_server.stop()
