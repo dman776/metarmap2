@@ -79,8 +79,6 @@ class FlightCategory(object):
             i += 1
 
 
-
-
 if __name__ == '__main__':
     pass
     # airportstr = '{"KDWH": {"text": "Hooks", "display": false, "visits": 0},'\
