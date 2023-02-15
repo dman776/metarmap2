@@ -29,7 +29,6 @@ class WebServer(object):
         """
         safe_log("localhost = {}:{}".format(self._host, self._port))
         threading.Thread(target=self._app.run, kwargs=dict(host=self._host, port=self._port)).start()
-        # self._app.run(host=self._host, port=self._port)
 
     def stop(self):
         if self._app is not None:

@@ -97,11 +97,13 @@ def render_thread(metars):
                 renderer.render()
             except Exception as e:
                 safe_logging.safe_log(e)
+                quit()
         except KeyboardInterrupt:
             raise KeyboardInterrupt
         except Exception as ex:
             # pass
             safe_logging.safe_log(ex)
+            quit()
 
 
 if __name__ == '__main__':

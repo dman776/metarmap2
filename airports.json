@@ -1,6 +1,6 @@
 {
     "KVCT": {
-        "text": "Victoria",
+        "text": 0,
         "display": false,
         "visits": 0
     },
@@ -25,22 +25,22 @@
         "visits": 0
     },
     "KGLS": {
-        "text": "Galveston",
+        "text": 5,
         "display": false,
         "visits": 0
     },
     "KLVJ": {
-        "text": "Pearland",
+        "text": 6,
         "display": false,
         "visits": 0
     },
     "KEFD": {
-        "text": "Ellington",
+        "text": 7,
         "display": false,
         "visits": 0
     },
     "KHOU": {
-        "text": "Hobby",
+        "text": 8,
         "display": true,
         "visits": 0
     },
@@ -60,7 +60,7 @@
         "visits": 0
     },
     "KTME": {
-        "text": "Hou EXEC",
+        "text": 12,
         "display": false,
         "visits": 0
     },
@@ -70,7 +70,7 @@
         "visits": 0
     },
     "KCLL": {
-        "text": "College Stn",
+        "text": 14,
         "display": true,
         "visits": 0
     },
@@ -85,27 +85,27 @@
         "visits": 0
     },
     "KDKR": {
-        "text": "Crockett",
+        "text": 17,
         "display": false,
         "visits": 0
     },
     "KUTS": {
-        "text": "Huntsville",
+        "text": 18,
         "display": false,
         "visits": 0
     },
     "KCXO": {
-        "text": "Conroe",
+        "text": 19,
         "display": true,
         "visits": 0
     },
     "KDWH": {
-        "text": "Hooks",
+        "text": 20,
         "display": true,
         "visits": 4
     },
     "KIAH": {
-        "text": "IAH",
+        "text": 21,
         "display": true,
         "visits": 0
     },
@@ -115,7 +115,7 @@
         "visits": 0
     },
     "KBMT": {
-        "text": "Beaumont",
+        "text": 23,
         "display": false,
         "visits": 0
     },
@@ -135,7 +135,7 @@
         "visits": 0
     },
     "KLCH": {
-        "text": "Lk Charles",
+        "text": 27,
         "display": false,
         "visits": 0
     },
@@ -170,7 +170,7 @@
         "visits": 0
     },
     "KBTR": {
-        "text": "Baton Rouge",
+        "text": 34,
         "display": false,
         "visits": 0
     },
@@ -195,7 +195,7 @@
         "visits": 0
     },
     "KDRI": {
-        "text": "De Ridder",
+        "text": 39,
         "display": false,
         "visits": 0
     },
@@ -205,12 +205,12 @@
         "visits": 0
     },
     "KLFK": {
-        "text": "Lufkin",
+        "text": 41,
         "display": false,
         "visits": 0
     },
     "KOCH": {
-        "text": "Nac",
+        "text": 42,
         "display": false,
         "visits": 0
     },
@@ -235,7 +235,7 @@
         "visits": 0
     },
     "KIER": {
-        "text": "Natchitoches",
+        "text": 47,
         "display": false,
         "visits": 0
     },
@@ -245,7 +245,7 @@
         "visits": 0
     },
     "KHEZ": {
-        "text": "Natchez",
+        "text": 49,
         "display": false,
         "visits": 0
     }

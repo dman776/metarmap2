@@ -66,6 +66,7 @@ def outputMetar1(disp, station, condition):
 	draw1.text((x, top + 20), condition["windDir"] + "@" + str(condition["windSpeed"]) + (("G" + str(condition["windGustSpeed"]) if condition["windGust"] else "") + "/" +str(condition["vis"]) + "SM "), font=fontMed, fill=255)
 	draw1.text((x, top + 35), str(condition["altimHg"]) + "Hg" + " " + str(condition["tempC"]) + "/" + str(condition["dewpointC"]) + "C", font=fontMed, fill=255)
 	draw1.text((x, top + 50), condition["obsTime"].astimezone(central).strftime("%H:%MC") + " " + condition["obsTime"].strftime("%H:%MZ"), font=fontSmall, fill=255)
+
 	disp.image(image1)
 	disp.show()
 	

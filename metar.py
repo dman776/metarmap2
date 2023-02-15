@@ -207,7 +207,7 @@ if __name__ == '__main__':
     CONFIG = Config("config.json")
     metars = METAR(airports, CONFIG, fetch=True)
     # pprint(metars)
-    pprint("missing: " + str(metars.missing_stations()))
-    pprint("all: " + str(metars.stations()))
-    # pprint(metars.data, indent=4)
+    # pprint("missing: " + str(metars.missing_stations()))
+    # pprint("all: " + str(metars.stations()))
+    # pprint(metars.data['KDWH'], indent=4)
 
