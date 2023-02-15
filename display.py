@@ -121,12 +121,12 @@ class Display(object):
         self.__disp__.image(image)
         self.__disp__.show()
 
-    def message(self, msg):
+    def message(self, title, msg):
         image = Image.new("1", (self.width, self.height))
         draw = ImageDraw.Draw(image)
         self.clear()
 
-        draw.text((x, padding + 0), "Message", font=fontLarge, fill=255)
+        draw.text((x, padding + 0), title, font=fontLarge, fill=255)
         draw.text((x, padding + 20), msg, font=fontMed, fill=255)
 
         self.__disp__.image(image)
@@ -136,7 +136,7 @@ class Display(object):
 if __name__ == '__main__':
     d = Display()
     d.on()
-    d.message("METARMap 2")
+    d.message("METARMap", "Loading...")
     time.sleep(2)
     d.show_metar("KDWH", {'altimHg': 30.0, 'dewpointC': 19, 'flightCategory': 'MVFR',
                 'latitude': '30.07', 'lightning': False, 'longitude': '-95.55',
