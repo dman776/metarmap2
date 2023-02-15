@@ -30,9 +30,7 @@ class Display(object):
     """
     Class to handle running an external OLED display
     """
-    def on(
-        self
-    ):
+    def on(self):
         """
         Starts the display.
         """
@@ -59,20 +57,19 @@ class Display(object):
         self.height = 64
         self.__i2c__ = busio.I2C(SCL, SDA)
         self.__disp__ = adafruit_ssd1306.SSD1306_I2C(128, 64, self.__i2c__)
-
+        self.__image__ = Image.new("1", (self.width, self.height))
+        self.__draw__ = ImageDraw.Draw(self.__image__)
 
     def page1(self, station, data):
-        image = Image.new("1", (self.width, self.height))
-        draw = ImageDraw.Draw(image)
         # Draw a black filled box to clear the image.
-        draw.rectangle((0, 0, self.width, self.height), outline=0, fill=0)
+        self.__draw__.rectangle((0, 0, self.width, self.height), outline=0, fill=0)
 
         top = padding
         bottom = self.height - padding
 
-        # draw.line([(x + 85, top + 18), (x + 85, bottom)], fill=255, width=1)
+        # self.__draw__.line([(x + 64, top + 18), (x + 64, bottom)], fill=255, width=1)
         # central = timezone('US/Central')
-        draw.text((x, top + 0), station[1:] + "-" + data["flightCategory"], font=fontLarge,
+        self.__draw__.text((x, top + 0), station[1:] + "-" + data["flightCategory"], font=fontLarge,
                    fill=255)  # StationID, Condition (VFR/IFR)
         # w, h = fontXSmall.getsize(str(station[1]))
         # draw1.text((self.width - w, top + 1), str(station[1]), font=fontXSmall, fill=255)  # Custom text ("HOME", "CNTRL" etc)
@@ -86,22 +83,20 @@ class Display(object):
         #            condition["obsTime"].astimezone(central).strftime("%H:%MC") + " " + condition["obsTime"].strftime(
         #                "%H:%MZ"), font=fontSmall, fill=255)
 
-        self.__disp__.image(image)
+        self.__disp__.image(self.__image__)
         self.__disp__.show()
 
 
     def page2(self, station, data):
-        image = Image.new("1", (self.width, self.height))
-        draw = ImageDraw.Draw(image)
-        draw.rectangle((0, 0, self.width, self.height), outline=0, fill=0)
+        self.__draw__.rectangle((0, 0, self.width, self.height), outline=0, fill=0)
         top = padding
         bottom = self.height - padding
 
-        draw.rectangle((0, 0, self.width, self.height), outline=0, fill=0)
-        draw.text((x, top + 0), station[1:] + "-" + data["flightCategory"], font=fontLarge,
+        self.__draw__.rectangle((0, 0, self.width, self.height), outline=0, fill=0)
+        self.__draw__.text((x, top + 0), station[1:] + "-" + data["flightCategory"], font=fontLarge,
                    fill=255)  # StationID, Condition (VFR/IFR)
         w, h = fontXSmall.getsize(str(station))
-        draw.text((self.width - w, top + 1), "TEST", font=fontXSmall, fill=255)  # Custom text ("HOME", "CNTRL" etc)
+        self.__draw__.text((self.width - w, top + 1), "TEST", font=fontXSmall, fill=255)  # Custom text ("HOME", "CNTRL" etc)
         #
         # yOff = 18
         # xOff = 0
@@ -118,18 +113,14 @@ class Display(object):
         #         xOff = 65
         #         NewLine = True
         # draw2.text((x, yOff + 12), condition["obs"], font=fontMed, fill=255)
-        self.__disp__.image(image)
+        self.__disp__.image(self.__image__)
         self.__disp__.show()
 
     def message(self, title, msg):
-        image = Image.new("1", (self.width, self.height))
-        draw = ImageDraw.Draw(image)
         self.clear()
-
-        draw.text((x, padding + 0), title, font=fontLarge, fill=255)
-        draw.text((x, padding + 20), msg, font=fontMed, fill=255)
-
-        self.__disp__.image(image)
+        self.__draw__.text((x, padding + 0), title, font=fontLarge, fill=255)
+        self.__draw__.text((x, padding + 20), msg, font=fontMed, fill=255)
+        self.__disp__.image(self.__image__)
         self.__disp__.show()
 
 
