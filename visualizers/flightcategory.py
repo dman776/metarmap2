@@ -33,6 +33,7 @@ class FlightCategory(object):
     Object to handle FlightCategory
     Returns a list of Effects on each pixel
     """
+    @property
     def name(self):
         return "Flight Category"
 
@@ -40,7 +41,7 @@ class FlightCategory(object):
         return self.__effect__
 
     def update_data(self, data):
-        safe_logging.safe_log("[v]" + "updating data in the visualizer")
+        safe_logging.safe_log("[v]updating data in the visualizer ({0})".format(self.name))
         self.__data__ = data
         self.__effect__ = []        # clear existing effects
         # loop over all stations

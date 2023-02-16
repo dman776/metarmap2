@@ -115,6 +115,7 @@ class Temperature(object):
     Object to handle Temp
     Returns a list of Effects on each pixel
     """
+    @property
     def name(self):
         return "Temperature"
 
@@ -122,7 +123,7 @@ class Temperature(object):
         return self.__effect__
 
     def update_data(self, data):
-        safe_logging.safe_log("[v]" + "updating data in the visualizer")
+        safe_logging.safe_log("[v]updating data in the visualizer ({0})".format(self.name))
         self.__data__ = data
         self.__effect__ = []  # clear existing effects
         # loop over all stations
