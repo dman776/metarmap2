@@ -57,7 +57,7 @@ class WebServer(object):
         self._app.route("/visualizer/next", method="GET", callback=self._visualizernext)
 
     def _index(self):
-        return bottle.template('index.tpl', metars=self._metarsObj)
+        return bottle.template('index.tpl', renderer=self._renderer)
 
     def _metars(self):
         return bottle.template('metars.tpl', metars=self._metarsObj)
@@ -77,19 +77,19 @@ class WebServer(object):
         self._metarsObj.fetch()
         while self._metarsObj.is_fetching():
             pass
-        return bottle.template('index.tpl', metars=self._metarsObj)
+        return bottle.template('index.tpl', renderer=self._renderer)
 
     def _debug(self):
         return bottle.template('debug.tpl', metars=self._metarsObj, renderer=self._renderer)
 
     def _brightness(self, level):
         self._pixels.brightness = float(level)
-        return bottle.template('index.tpl', metars=self._metarsObj)
+        return bottle.template('index.tpl', renderer=self._renderer)
 
     def _locate(self, pixnum):
         pix = PixelSubset(self._pixels, int(pixnum), int(pixnum)+1)
         self._renderer.animate_once(Pulse(pix, speed=0.1, period=1, color=WHITE), False)
-        return bottle.template('index.tpl', metars=self._metarsObj)
+        return bottle.template('metars.tpl', metars=self._metarsObj)
 
     def _visualizer(self, visnum):
         self._renderer.visualizer = int(visnum)
