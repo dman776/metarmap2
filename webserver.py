@@ -82,7 +82,7 @@ class WebServer(object):
         return bottle.template('debug.tpl', metars=self._metarsObj, renderer=self._renderer)
 
     def _brightness(self, level):
-        self._renderer.brightness = float(level)
+        self._renderer.brightness(float(level))
         return bottle.template('index.tpl', renderer=self._renderer)
 
     def _locate(self, pixnum):

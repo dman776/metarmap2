@@ -90,7 +90,6 @@ class Renderer(object):
             vnum = self.active_visualizer - 1
         self.visualizer = vnum
 
-    @property
     def brightness(self, level: float):
         if 0 < level <= 1:
             self.__pixels__.brightness = level
