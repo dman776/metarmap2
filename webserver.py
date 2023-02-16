@@ -55,6 +55,7 @@ class WebServer(object):
         self._app.route("/locate/<pixnum>", method="GET", callback=self._locate)
         self._app.route("/visualizer/<visnum>", method="GET", callback=self._visualizer)
         self._app.route("/visualizer/next", method="GET", callback=self._visualizernext)
+        self._app.route("/visualizer/previous", method="GET", callback=self._visualizerprevious)
 
     def _index(self):
         return bottle.template('index.tpl', renderer=self._renderer)
@@ -100,4 +101,8 @@ class WebServer(object):
 
     def _visualizernext(self):
         self._renderer.visualizer_next()
+        return bottle.template('index.tpl', renderer=self._renderer)
+
+    def _visualizerprevious(self):
+        self._renderer.visualizer_previous()
         return bottle.template('index.tpl', renderer=self._renderer)
