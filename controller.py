@@ -38,6 +38,7 @@ from lib.recurring_task import RecurringTask
 from renderer import Renderer as Renderer
 from adafruit_led_animation.helper import PixelSubset
 from adafruit_led_animation.animation.rainbowchase import RainbowChase
+from adafruit_led_animation.animation.rainbowcomet import RainbowComet
 from visualizers.flightcategory import FlightCategory as FlightCategoryVisualizer
 
 try:
@@ -154,7 +155,8 @@ if __name__ == '__main__':
     renderer.visualizer=visualizer
 
     # test it
-    renderer.animate_once(RainbowChase(pixels, speed=0.1, size=4, spacing=2, step=4))
+    #renderer.animate_once(RainbowChase(pixels, speed=0.1, size=4, spacing=2, step=4))
+    renderer.animate_once(RainbowComet(pixels, speed=0.1, tail_length=5, bounce=False))
 
 
     # Start loading the METARs in the background
@@ -166,7 +168,6 @@ if __name__ == '__main__':
         metars.fetch(renderer.update_data(metars)),
         logger.LOGGER,
         True)
-
 
     while metars.is_fetching():
         pass

@@ -23,6 +23,13 @@ from adafruit_led_animation.animation.colorcycle import ColorCycle
 from adafruit_led_animation.color import PURPLE, WHITE, AMBER, JADE, MAGENTA, ORANGE, BLUE, AQUA, RED, GREEN, YELLOW
 
 
+def lightning_pattern(cat):
+    lp = []
+    for i in range(1, 16):
+        lp.append(cat)
+    lp.append(YELLOW)
+    return lp
+
 class FlightCategory(object):
     """
     Object to handle FlightCategory
@@ -55,19 +62,21 @@ class FlightCategory(object):
             if len(airport_data.keys()) > 0:
                 if airport_data is not None:
                     if self.__config__.data().lightning.animation and airport_data['lightning'] is True:
-                        self.__effect__.append(ColorCycle(self.__pix__[i], speed=0.5, colors=[airport_data['flightCategoryColor'], YELLOW]))  # lightning
+                        self.__effect__.append(ColorCycle(self.__pix__[i], speed=0.01, colors=lightning_pattern(airport_data['flightCategoryColor'])))  # lightning
                     elif self.__config__.data().wind.animation and airport_data['windGust'] is True:
                         p = 10
-                        if airport_data['windGustSpeed'] in range(0, 6):
-                            p = 5       # gusts 1-5
-                        elif airport_data['windGustSpeed'] in range(6, 11):
-                            p = 4       # gusts 6-10
+                        if airport_data['windGustSpeed'] in range(0, 11):
+                            p = 10       # gusts 1-5
                         elif airport_data['windGustSpeed'] in range(11, 16):
-                            p = 3       # gusts 11-15
+                            p = 8       # gusts 6-10
                         elif airport_data['windGustSpeed'] in range(16, 21):
-                            p = 2       # gusts 16-20
-                        elif airport_data['windGustSpeed'] > 20:
+                            p = 6       # gusts 11-15
+                        elif airport_data['windGustSpeed'] in range(21, 26):
+                            p = 4       # gusts 16-20
+                        elif airport_data['windGustSpeed'] in range(26, 31):
                             p = 1     # gusts 21+
+                        elif airport_data['windGustSpeed'] > 30:
+                            p = 0.5
                         # pprint(airport + ": " + str(airport_data['windGustSpeed']) + " P=" + str(p))
                         self.__effect__.append(Pulse(self.__pix__[i], speed=0.1, period=p, color=airport_data['flightCategoryColor']))
                     else:
@@ -80,6 +89,7 @@ class FlightCategory(object):
 
 
 if __name__ == '__main__':
+    # pprint(lightning_pattern(BLUE))
     pass
     # airportstr = '{"KDWH": {"text": "Hooks", "display": false, "visits": 0},'\
     #             '"KIAH": {"text": "IAH", "display": false, "visits": 0},'\
