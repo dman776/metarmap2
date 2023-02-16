@@ -10,22 +10,17 @@ import json
 
 import lib.safe_logging as safe_logging
 # from lib.config import Config
-import lib
 import lib.utils as utils
 import lib.colors as colors_lib
 from metar import METAR
-import neopixel
-import board
 
-from adafruit_led_animation.animation.blink import Blink
-from adafruit_led_animation.animation.pulse import Pulse
 from adafruit_led_animation.animation.solid import Solid
-from adafruit_led_animation.animation.colorcycle import ColorCycle
-from adafruit_led_animation.color import PURPLE, WHITE, AMBER, JADE, MAGENTA, ORANGE, BLUE, AQUA, RED, GREEN, YELLOW
+
 
 HIGH_PRESSURE = 30.2
 STANDARD_PRESSURE = 29.92
 LOW_PRESSURE = 29.8
+
 
 def get_color_by_pressure(inches_of_mercury: float) -> list:
     """
@@ -76,13 +71,10 @@ class Pressure(object):
     def get_effects(self):
         return self.__effect__
 
-    def __init__(self, data, pix, config):
-        self.__stations__ = data.keys()
+    def update_data(self, data):
+        safe_logging.safe_log("[v]" + "updating data in the visualizer")
         self.__data__ = data
-        self.__pix__ = pix
-        self.__config__ = config
-        self.__effect__ = []
-
+        self.__effect__ = []  # clear existing effects
         # loop over all stations
         i = 0
         # for airport in list(self.__stations__):
@@ -98,8 +90,16 @@ class Pressure(object):
                 if airport_data is not None:
                     pcolor = get_color_by_pressure(airport_data['altimHg'])
                     self.__effect__.append(Solid(self.__pix__[i], color=pcolor))
-                else:       # airport key not found in metar data
+                else:  # airport key not found in metar data
                     self.__effect__.append(Solid(self.__pix__[i], color=[0, 0, 0]))
-            else:       # airport data is empty METAR data
+            else:  # airport data is empty METAR data
                 self.__effect__.append(Solid(self.__pix__[i], color=[0, 0, 0]))
             i += 1
+
+    def __init__(self, data, pix, config):
+        self.__stations__ = data.keys()
+        self.__data__ = data
+        self.__pix__ = pix
+        self.__config__ = config
+        self.__effect__ = []
+        self.update_data(data)

@@ -13,14 +13,11 @@ import lib.safe_logging as safe_logging
 import lib
 import lib.utils as utils
 from metar import METAR
-import neopixel
-import board
 
-from adafruit_led_animation.animation.blink import Blink
-from adafruit_led_animation.animation.pulse import Pulse
+
 from adafruit_led_animation.animation.solid import Solid
 from adafruit_led_animation.animation.colorcycle import ColorCycle
-from adafruit_led_animation.color import PURPLE, WHITE, AMBER, JADE, MAGENTA, ORANGE, BLUE, AQUA, RED, GREEN, YELLOW
+from adafruit_led_animation.color import YELLOW
 
 
 def lightning_pattern(cat):
@@ -77,4 +74,3 @@ class FlightCategory(object):
         self.__config__ = config
         self.__effect__ = []
         self.update_data(data)
-

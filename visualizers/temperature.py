@@ -121,13 +121,10 @@ class Temperature(object):
     def get_effects(self):
         return self.__effect__
 
-    def __init__(self, data, pix, config):
-        self.__stations__ = data.keys()
+    def update_data(self, data):
+        safe_logging.safe_log("[v]" + "updating data in the visualizer")
         self.__data__ = data
-        self.__pix__ = pix
-        self.__config__ = config
-        self.__effect__ = []
-
+        self.__effect__ = []  # clear existing effects
         # loop over all stations
         i = 0
         # for airport in list(self.__stations__):
@@ -143,8 +140,16 @@ class Temperature(object):
                 if airport_data is not None:
                     tcolor = get_color_by_temperature_celsius(airport_data['tempC'])
                     self.__effect__.append(Solid(self.__pix__[i], color=tcolor))
-                else:       # airport key not found in metar data
+                else:  # airport key not found in metar data
                     self.__effect__.append(Solid(self.__pix__[i], color=[0, 0, 0]))
-            else:       # airport data is empty METAR data
+            else:  # airport data is empty METAR data
                 self.__effect__.append(Solid(self.__pix__[i], color=[0, 0, 0]))
             i += 1
+
+    def __init__(self, data, pix, config):
+        self.__stations__ = data.keys()
+        self.__data__ = data
+        self.__pix__ = pix
+        self.__config__ = config
+        self.__effect__ = []
+        self.update_data(data)
