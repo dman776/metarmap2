@@ -119,8 +119,8 @@ def load_suntimes():
     (DAWN, SUNRISE, SUNSET, DUSK) = utils.get_sun_times(CONFIG)
 
 
-def set_brightness(level):
-    renderer.brightness(level)
+# def set_brightness(level):
+#     renderer.brightness(level)
 
 
 # =====================================================================================================
@@ -179,11 +179,11 @@ if __name__ == '__main__':
     # Start up METAR update thread
     schedule.every(10).minutes.do(update_data)
 
-    schedule.every().day.at('00:00').do(load_suntimes)
-    schedule.every().day.at(SUNSET.strftime("%H:%M")).do(set_brightness, level=0.25)
-    schedule.every().day.at(DUSK.strftime("%H:%M")).do(set_brightness, level=0.10)
-    schedule.every().day.at(DAWN.strftime("%H:%M")).do(set_brightness, level=0.25)
-    schedule.every().day.at(SUNRISE.strftime("%H:%M")).do(set_brightness, level=0.50)
+    # schedule.every().day.at('00:00').do(load_suntimes)
+    # schedule.every().day.at(SUNSET.strftime("%H:%M")).do(set_brightness, level=0.25)
+    # schedule.every().day.at(DUSK.strftime("%H:%M")).do(set_brightness, level=0.10)
+    # schedule.every().day.at(DAWN.strftime("%H:%M")).do(set_brightness, level=0.25)
+    # schedule.every().day.at(SUNRISE.strftime("%H:%M")).do(set_brightness, level=0.50)
 
     # Start up Web Server to handle UI
     # disp.message("METARMap", "webserver...")
