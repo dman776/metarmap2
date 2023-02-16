@@ -46,6 +46,7 @@ class WebServer(object):
 
     def _route(self):
         self._app.route("/", method="GET", callback=self._index)
+        self._app.route("/metars", method="GET", callback=self._metars)
         self._app.route("/raw", method="GET", callback=self._raw)
         self._app.route("/raw/<code>", method="GET", callback=self._rawcode)
         self._app.route("/fetch", method="GET", callback=self._fetch)
@@ -53,9 +54,13 @@ class WebServer(object):
         self._app.route("/brightness/<level>", method="GET", callback=self._brightness)
         self._app.route("/locate/<pixnum>", method="GET", callback=self._locate)
         self._app.route("/visualizer/<visnum>", method="GET", callback=self._visualizer)
+        self._app.route("/visualizer/next", method="GET", callback=self._visualizernext)
 
     def _index(self):
         return bottle.template('index.tpl', metars=self._metarsObj)
+
+    def _metars(self):
+        return bottle.template('metars.tpl', metars=self._metarsObj)
 
     def _raw(self):
         buf = io.StringIO()
@@ -87,5 +92,9 @@ class WebServer(object):
         return bottle.template('index.tpl', metars=self._metarsObj)
 
     def _visualizer(self, visnum):
-        self._renderer.visualizer = visnum
+        self._renderer.visualizer = int(visnum)
+        return bottle.template('index.tpl', metars=self._metarsObj)
+
+    def _visualizernext(self):
+        self._renderer.visualizer_next()
         return bottle.template('index.tpl', metars=self._metarsObj)

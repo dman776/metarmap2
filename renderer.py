@@ -55,12 +55,21 @@ class Renderer(object):
         if clear: self.clear()
 
     @property
+    # returns [number, name]
     def visualizer(self):
-        return self.__vis__
+        return self.active_visualizer, self.__visualizers__[self.active_visualizer].name()
 
     @visualizer.setter
     def visualizer(self, vis):
         self.__vis__ = self.__visualizers__[vis]
+        self.active_visualizer = vis
+
+    def visualizer_next(self):
+        totalnum = len(self.__visualizers__)
+        vnum = self.active_visualizer + 1
+        if vnum > totalnum:
+            vnum = 0
+        self.visualizer(vnum)
 
     def pixels(self):
         return self.__pixels__
@@ -80,6 +89,7 @@ class Renderer(object):
         # self.__effect__ = []                    # individual pixel effects - actual effects to be applied to a pixel
         self.__visualizers__ = visualizers
         self.__vis__ = visualizers[0]
+        self.active_visualizer = 0
         # self.flight_category_colors = []
         self.clear()
         # displayTime = 0.0
