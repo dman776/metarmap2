@@ -169,22 +169,9 @@ if __name__ == '__main__':
     # Start loading the METARs in the background
     safe_logging.safe_log("[c]" + "Get weather for all airports...")
 
-
-    upd_thread = RepeatTimer(10, update_data)
+    # Start up METAR update thread
+    upd_thread = RepeatTimer(600, update_data)      # update every 600 secs (10 mins)
     upd_thread.start()
-
-
-    # mf = RecurringTask(
-    #     "metar_fetch",
-    #     300,
-    #     metars.fetch(renderer.update_data(metars)),
-    #     logger.LOGGER,
-    #     True)
-
-    while metars.is_fetching():
-        pass
-
-    # safe_logging.safe_log(metars.data)
 
     # Start up Web Server to handle UI
     # disp.message("METARMap", "webserver...")
