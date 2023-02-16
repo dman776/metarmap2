@@ -32,6 +32,7 @@ from display import Display
 import lib.config
 
 from lib import logger, safe_logging, utils
+from lib import repeat_timer as RepeatTimer
 import traceback
 import metar as metar
 from lib.recurring_task import RecurringTask
@@ -154,16 +155,19 @@ if __name__ == '__main__':
     #renderer.animate_once(RainbowChase(pixels, speed=0.1, size=4, spacing=2, step=4))
     renderer.animate_once(RainbowComet(pixels, speed=0.05, tail_length=5, bounce=False))
 
-
     # Start loading the METARs in the background
     safe_logging.safe_log("[c]" + "Get weather for all airports...")
 
-    mf = RecurringTask(
-        "metar_fetch",
-        300,
-        metars.fetch(renderer.update_data(metars)),
-        logger.LOGGER,
-        True)
+    timer = RepeatTimer(30, renderer.update_data, args=(metars,))
+    timer.start()
+
+
+    # mf = RecurringTask(
+    #     "metar_fetch",
+    #     300,
+    #     metars.fetch(renderer.update_data(metars)),
+    #     logger.LOGGER,
+    #     True)
 
     while metars.is_fetching():
         pass
@@ -183,7 +187,8 @@ if __name__ == '__main__':
             render_thread(metars)
         except KeyboardInterrupt:
             renderer.clear()
-            mf.stop()
+            # mf.stop()
+            timer.cancel()
             web_server.stop()
             disp.off()
             break
