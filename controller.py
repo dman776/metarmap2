@@ -146,7 +146,7 @@ if __name__ == '__main__':
     # bright = CONFIG.data().dimming.time_base.bright_start < datetime.now().time() < CONFIG.data().dimming.time_base.dim_start
     bright = False
     pixels = neopixel.NeoPixel(CONFIG.LED_PIN, CONFIG.data().led.count, brightness=CONFIG.data().led.brightness if (
-            CONFIG.data().dimming.dynamic_base.enabled and bright == False) else CONFIG.data().led.brightness, pixel_order=CONFIG.LED_ORDER,
+            CONFIG.data().dimming.dynamic_base.enabled and bright is False) else CONFIG.data().led.brightness, pixel_order=CONFIG.LED_ORDER,
             auto_write=False)
     pix = init_pixel_subsets(pixels)
 
@@ -159,7 +159,7 @@ if __name__ == '__main__':
 
     # test it
     #renderer.animate_once(RainbowChase(pixels, speed=0.1, size=4, spacing=2, step=4))
-    renderer.animate_once(RainbowComet(pixels, speed=0.1, tail_length=5, bounce=False))
+    renderer.animate_once(RainbowComet(pixels, speed=0.05, tail_length=5, bounce=False))
 
 
     # Start loading the METARs in the background

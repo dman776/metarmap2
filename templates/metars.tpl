@@ -4,8 +4,7 @@
 </div>
 
 <div class="row">
-    <a class="btn btn-primary" href="/fetch" role="button">Fetch</a>&nbsp;
-    <a class="btn btn-primary" href="/debug" role="button">Debug</a>&nbsp;
+    <a class="btn btn-primary" href="/" role="button">Control</a>&nbsp;
 </div>
 
 <div class="row">
