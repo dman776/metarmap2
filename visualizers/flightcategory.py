@@ -37,7 +37,7 @@ class FlightCategory(object):
     Returns a list of Effects on each pixel
     """
     def name(self):
-        return "FlightCategory"
+        return "Flight Category"
 
     def get_effects(self):
         return self.__effect__

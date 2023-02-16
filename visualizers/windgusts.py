@@ -1,5 +1,5 @@
 """
-Module to handle visualizing Wind data
+Module to handle visualizing WindGust data
 """
 
 import sys
@@ -24,13 +24,13 @@ from adafruit_led_animation.color import PURPLE, WHITE, AMBER, JADE, MAGENTA, OR
 
 
 
-class Wind(object):
+class WindGusts(object):
     """
     Object to handle Wind
     Returns a list of Effects on each pixel
     """
     def name(self):
-        return "Wind"
+        return "Wind Gusts"
 
     def get_effects(self):
         return self.__effect__
