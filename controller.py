@@ -88,24 +88,21 @@ def init_pixel_subsets(apixels: neopixel):
         p.append(PixelSubset(apixels, i, i + 1))
     return p
 
-def render_thread(metars):
-    """
-    Main logic loop for rendering the lights.
-    """
-
-    print("Starting rendering thread")
-    display = True
-
-    while True:
-        try:
-            try:
-                renderer.render()
-            except Exception as e:
-                safe_logging.safe_log("[c]" + str(traceback.print_exc()))
-        except KeyboardInterrupt:
-            raise KeyboardInterrupt
-        except Exception as ex:
-            safe_logging.safe_log("[c]" + ex)
+# def render_thread(metars):
+#     """
+#     Main logic loop for rendering
+#     """
+#     print("Starting rendering thread")
+#     while True:
+#         try:
+#             try:
+#                 renderer.render()
+#             except Exception as e:
+#                 safe_logging.safe_log("[c]" + str(traceback.print_exc()))
+#         except KeyboardInterrupt:
+#             raise KeyboardInterrupt
+#         except Exception as ex:
+#             safe_logging.safe_log("[c]" + ex)
 
 
 def update_data():
@@ -179,18 +176,22 @@ if __name__ == '__main__':
     web_server.run()
 
 
-    # disp.show_metar("KDWH", metars.data['KDWH'], 5)
 
+    # ============== MAIN LOOP =====================
+    safe_logging.safe_log("[c]" + "Main loop...")
     while True:
         try:
-            render_thread(metars)
+            renderer.render()
+        except Exception as e:
+            safe_logging.safe_log("[c]" + e)
         except KeyboardInterrupt:
-            renderer.clear()
-            # mf.stop()
-            upd_thread.cancel()
-            web_server.stop()
-            disp.off()
             break
 
+    # Cleanup
+    safe_logging.safe_log("[c]" + "Cleaning up...")
+    upd_thread.cancel()
+    disp.stop()
+    renderer.clear()
     web_server.stop()
+    disp.off()
     GPIO.cleanup()

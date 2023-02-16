@@ -42,7 +42,7 @@ class WebServer(object):
         self._metarsObj = metars
         self._renderer = renderer
         self._pixels: NeoPixel = renderer.pixels()
-        bottle.TEMPLATE_PATH.insert(0,"./templates")
+        bottle.TEMPLATE_PATH.insert(0, "./templates")
 
     def _route(self):
         self._app.route("/", method="GET", callback=self._index)

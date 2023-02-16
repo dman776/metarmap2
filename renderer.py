@@ -62,7 +62,7 @@ class Renderer(object):
     @property
     # returns [number, name]
     def visualizer(self):
-        return self.active_visualizer, self.__visualizers__[self.active_visualizer].name()
+        return self.active_visualizer, self.__visualizers__[self.active_visualizer].name
 
     @visualizer.setter
     def visualizer(self, vis):
