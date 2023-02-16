@@ -110,10 +110,6 @@ def render_thread(metars):
 if __name__ == '__main__':
     safe_logging.safe_log("Starting controller.py at " + datetime.now().strftime('%d/%m/%Y %H:%M'))
 
-    # init display
-    disp = Display()
-    disp.on()
-
     # disp.message("METARMap", "config...")
     CONFIG = lib.config.Config("config.json")
 
@@ -134,6 +130,11 @@ if __name__ == '__main__':
     # setup for metars
     # disp.message("METARMap", "metars...")
     metars = metar.METAR(airports, CONFIG, fetch=True)
+
+    # init display
+    disp = Display(airports, metars)
+    disp.on()
+    disp.start()
 
     # init neopixels
     # disp.message("METARMap", "pixels...")
