@@ -65,7 +65,10 @@ class WebServer(object):
     def _raw(self):
         buf = io.StringIO()
         for s in self._metarsObj.data.keys():
-            buf.write("<b>" + s + "</b>: " + self._metarsObj.data[s]['raw'] + "<br />")
+            if 'raw' in self._metarsObj.data[s]:
+                buf.write("<b>" + s + "</b>: " + self._metarsObj.data[s]['raw'] + "<br />")
+            else:
+                buf.write("<b>" + s + "</b>: N/A<br />")
         buf.seek(0)
         return buf.read()
 
