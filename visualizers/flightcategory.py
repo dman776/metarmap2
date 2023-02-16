@@ -43,6 +43,7 @@ class FlightCategory(object):
         return self.__effect__
 
     def update_data(self, data):
+        safe_logging.safe_log("[v]" + "updating data in the visualizer")
         self.__data__ = data
         self.__effect__ = []        # clear existing effects
         # loop over all stations
