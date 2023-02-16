@@ -38,15 +38,15 @@ def get_sun_times(config):
         safe_logging.safe_log("[u]" + str(city))
         sun = astral.sun.sun(city.observer, date=datetime.now().date(), tzinfo=city.timezone)
 
-        DAWN = sun['dawn'].time()
-        SUNRISE = sun['sunrise'].time()
-        SUNSET = sun['sunset'].time()
-        DUSK = sun['dusk'].time()
+        DAWN = sun['dawn']
+        SUNRISE = sun['sunrise']
+        SUNSET = sun['sunset']
+        DUSK = sun['dusk']
 
-        safe_logging.safe_log("[u]" + "Dawn=" + DAWN.strftime('%H:%M') +
-                              " Sunrise=" + SUNRISE.strftime('%H:%M') +
-                              " Sunset=" + SUNSET.strftime('%H:%M') +
-                              " Dusk=" + DUSK.strftime('%H:%M'))
+        # safe_logging.safe_log("[u]" + "Dawn=" + DAWN.strftime('%H:%M') +
+        #                       " Sunrise=" + SUNRISE.strftime('%H:%M') +
+        #                       " Sunset=" + SUNSET.strftime('%H:%M') +
+        #                       " Dusk=" + DUSK.strftime('%H:%M'))
 
     return DAWN, SUNRISE, SUNSET, DUSK
 

@@ -20,6 +20,8 @@
 # Green -> Pin 23(Physical)/SCLK/SPI
 #
 
+import json
+import sys
 import threading
 import time
 from datetime import datetime
@@ -30,12 +32,11 @@ import webserver
 import renderer
 from display import Display
 import lib.config
+import schedule
 
 from lib import logger, safe_logging, utils
-# from lib import repeat_timer # as RepeatTimer
 import traceback
 import metar as metar
-from lib.recurring_task import RecurringTask
 from renderer import Renderer as Renderer
 from adafruit_led_animation.helper import PixelSubset
 from adafruit_led_animation.animation.rainbowchase import RainbowChase
@@ -61,14 +62,6 @@ except Exception:
     # when you try to set the board type
     pass
 
-
-class RepeatTimer(threading.Timer):
-    def run(self):
-        while not self.finished.wait(self.interval):
-            self.function(*self.args, **self.kwargs)
-
-
-
 # ---------------------------------------------------------------------------
 # ------------START OF CONFIGURATION-----------------------------------------
 # ---------------------------------------------------------------------------
@@ -79,8 +72,13 @@ BLINK_TOTALTIME_SECONDS	= 600
 # ------------END OF CONFIGURATION-------------------------------------------
 # ---------------------------------------------------------------------------
 
-def update_data(adata):
-    renderer.update_data(adata)
+# Globals
+DAWN = None
+SUNRISE = None
+SUNSET = None
+DUSK = None
+CONFIG = None
+
 
 def init_pixel_subsets(apixels: neopixel):
     p = []
@@ -110,31 +108,43 @@ def update_data():
     renderer.update_data(metars)
 
 
+def load_airports(file):
+    with open(file) as f:
+        fdata = f.read()
+    return json.loads(fdata)
+
+
+def load_suntimes():
+    global DAWN, SUNRISE, SUNSET, DUSK, CONFIG
+    (DAWN, SUNRISE, SUNSET, DUSK) = utils.get_sun_times(CONFIG)
+
+
+def set_brightness(level):
+    renderer.brightness(level)
+
+
+# =====================================================================================================
+# MAIN
+# =====================================================================================================
 if __name__ == '__main__':
     safe_logging.safe_log("[c]" + "Starting controller.py at " + datetime.now().strftime('%d/%m/%Y %H:%M'))
 
-    # disp.message("METARMap", "config...")
+    # disp.message("METARMAP", "config...")
     CONFIG = lib.config.Config("config.json")
 
-    # all_stations(weather.OFF)
-
     # load airports file
-    # disp.message("METARMap", "airports...")
-    # CONVERT TO METHOD to be called upon REST API
-    # with open('/home/pi/airports.json') as f:
-    with open('airports.json') as f:
-        data = f.read()
-    airports = json.loads(data)
+    airports = load_airports("airports.json")
 
     # disp.message("METARMap", "sun times...")
     # get sunrise/sunset times for dynamic dimming
-    (DAWN, SUNRISE, SUNSET, DUSK) = utils.get_sun_times(CONFIG)
+    # (DAWN, SUNRISE, SUNSET, DUSK) = utils.get_sun_times(CONFIG)
+    load_suntimes()
 
     # setup for metars
     # disp.message("METARMap", "metars...")
     metars = metar.METAR(airports, CONFIG, fetch=True)
 
-    # init display
+    # Init DISPLAY
     disp = Display(airports, metars)
     disp.on()
     disp.start()
@@ -167,8 +177,13 @@ if __name__ == '__main__':
     safe_logging.safe_log("[c]" + "Get weather for all airports...")
 
     # Start up METAR update thread
-    upd_thread = RepeatTimer(600, update_data)      # update every 600 secs (10 mins)
-    upd_thread.start()
+    schedule.every(10).minutes.do(update_data)
+
+    schedule.every().day.at('00:00').do(load_suntimes)
+    schedule.every().day.at(SUNSET.strftime("%H:%M")).do(set_brightness, level=0.25)
+    schedule.every().day.at(DUSK.strftime("%H:%M")).do(set_brightness, level=0.10)
+    schedule.every().day.at(DAWN.strftime("%H:%M")).do(set_brightness, level=0.25)
+    schedule.every().day.at(SUNRISE.strftime("%H:%M")).do(set_brightness, level=0.50)
 
     # Start up Web Server to handle UI
     # disp.message("METARMap", "webserver...")
@@ -182,6 +197,7 @@ if __name__ == '__main__':
     while True:
         try:
             renderer.render()
+            schedule.run_pending()
         except Exception as e:
             safe_logging.safe_log("[c]" + e)
         except KeyboardInterrupt:
