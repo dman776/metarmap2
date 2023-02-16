@@ -35,7 +35,7 @@ def get_sun_times(config):
     except KeyError:
         safe_logging.safe_log("Error: Location not recognized, please check list of supported cities and reconfigure")
     else:
-        safe_logging.safe_log("[u]" + city)
+        safe_logging.safe_log("[u]" + str(city))
         sun = astral.sun.sun(city.observer, date=datetime.now().date(), tzinfo=city.timezone)
 
         DAWN = sun['dawn'].time()
