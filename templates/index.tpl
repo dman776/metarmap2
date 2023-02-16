@@ -14,4 +14,7 @@
     <a class="btn btn-primary" href="/debug" role="button">Debug</a>&nbsp;
     <a class="btn btn-primary" href="/raw" role="button">Raw Metars</a>&nbsp;
 </div>
+<div class="row">
+    Current Visualizer: {{renderer.visualizer[1]}}
+</div>
 %include("footer.tpl")

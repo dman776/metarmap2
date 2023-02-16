@@ -66,10 +66,12 @@ class Renderer(object):
 
     def visualizer_next(self):
         totalnum = len(self.__visualizers__)
+        print("total visualizers: " + str(totalnum))
         vnum = self.active_visualizer + 1
-        if vnum > totalnum:
+        if vnum >= totalnum:
             vnum = 0
-        self.visualizer(vnum)
+        print("active num: " + str(vnum))
+        self.visualizer = vnum
 
     def pixels(self):
         return self.__pixels__

@@ -93,8 +93,8 @@ class WebServer(object):
 
     def _visualizer(self, visnum):
         self._renderer.visualizer = int(visnum)
-        return bottle.template('index.tpl', metars=self._metarsObj)
+        return bottle.template('index.tpl', renderer=self._renderer)
 
     def _visualizernext(self):
         self._renderer.visualizer_next()
-        return bottle.template('index.tpl', metars=self._metarsObj)
+        return bottle.template('index.tpl', renderer=self._renderer)
