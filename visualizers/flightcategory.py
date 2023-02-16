@@ -68,7 +68,7 @@ class FlightCategory(object):
                             p = 2       # gusts 16-20
                         elif airport_data['windGustSpeed'] > 20:
                             p = 1     # gusts 21+
-                        pprint(airport + ": " + str(airport_data['windGustSpeed']) + " P=" + str(p))
+                        # pprint(airport + ": " + str(airport_data['windGustSpeed']) + " P=" + str(p))
                         self.__effect__.append(Pulse(self.__pix__[i], speed=0.1, period=p, color=airport_data['flightCategoryColor']))
                     else:
                         self.__effect__.append(Solid(self.__pix__[i], color=airport_data['flightCategoryColor']))
