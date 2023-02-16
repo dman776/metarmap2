@@ -6,6 +6,7 @@
 <div class="row">
     <a class="btn btn-primary" href="/" role="button">Control</a>&nbsp;
     <a class="btn btn-primary" href="/metars" role="button">Metars</a>&nbsp;
+    <a class="btn btn-primary" href="/visualizer/previous" role="button">Prev Visualizer</a>&nbsp;
     <a class="btn btn-primary" href="/visualizer/next" role="button">Next Visualizer</a>&nbsp;
     <a class="btn btn-primary" href="/brightness/1" role="button">Brightness 100%</a>&nbsp;
     <a class="btn btn-primary" href="/brightness/0.5" role="button">Brightness 50%</a>&nbsp;
