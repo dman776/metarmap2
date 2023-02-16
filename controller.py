@@ -32,7 +32,7 @@ from display import Display
 import lib.config
 
 from lib import logger, safe_logging, utils
-from lib import repeat_timer as RepeatTimer
+# from lib import repeat_timer # as RepeatTimer
 import traceback
 import metar as metar
 from lib.recurring_task import RecurringTask
@@ -60,6 +60,12 @@ except Exception:
     # ws281x causes an exception
     # when you try to set the board type
     pass
+
+
+class RepeatTimer(threading.Timer):
+    def run(self):
+        while not self.finished.wait(self.interval):
+            self.function(*self.args, **self.kwargs)
 
 
 
@@ -100,6 +106,10 @@ def render_thread(metars):
             raise KeyboardInterrupt
         except Exception as ex:
             safe_logging.safe_log("[c]" + ex)
+
+
+def update_data():
+    renderer.update_data(metars)
 
 
 if __name__ == '__main__':
@@ -158,8 +168,9 @@ if __name__ == '__main__':
     # Start loading the METARs in the background
     safe_logging.safe_log("[c]" + "Get weather for all airports...")
 
-    timer = RepeatTimer(30, renderer.update_data, args=(metars,))
-    timer.start()
+
+    upd_thread = RepeatTimer(10, update_data)
+    upd_thread.start()
 
 
     # mf = RecurringTask(
@@ -188,7 +199,7 @@ if __name__ == '__main__':
         except KeyboardInterrupt:
             renderer.clear()
             # mf.stop()
-            timer.cancel()
+            upd_thread.cancel()
             web_server.stop()
             disp.off()
             break

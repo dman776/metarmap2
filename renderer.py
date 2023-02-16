@@ -41,7 +41,7 @@ class Renderer(object):
     def update_data(self, metars: metar.METAR):
         safe_logging.safe_log("[r]" + "updating data in the renderer")
         self.__data__ = metars.data
-        return
+        self.__vis__.update_data(self.__data__)
 
     def clear(self):
         self.__pixels__.fill(self.__config__.data().color.clear)
