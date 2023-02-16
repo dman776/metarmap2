@@ -34,6 +34,7 @@ class Renderer(object):
             # advance_interval=5,
             auto_clear=False,
         )
+        self.__animationloop__ = animations
         while animations.animate():
             pass
 
@@ -48,11 +49,15 @@ class Renderer(object):
         return
 
     def animate_once(self, effect, clear=True):
-        # rc = RainbowChase(self.__pixels__, speed=0.1, size=4, spacing=2, step=8)
+        if self.__animationloop__ is not None:
+            self.__animationloop__.freeze()
         animations = AnimateOnce(effect)
         while animations.animate():
             pass
-        if clear: self.clear()
+        if clear:
+            self.clear()
+        if self.__animationloop__ is not None:
+            self.__animationloop__.resume()
 
     @property
     # returns [number, name]
@@ -88,7 +93,7 @@ class Renderer(object):
         # self.windCycle = False
         self.numAirports = len(self.__stations__)
         self.__pix__ = []                       # individual pixel submap - used to address one pixel for effects
-        # self.__effect__ = []                    # individual pixel effects - actual effects to be applied to a pixel
+        self.__animationloop__: AnimateOnce = None
         self.__visualizers__ = visualizers
         self.__vis__ = visualizers[0]
         self.active_visualizer = 0

@@ -86,15 +86,7 @@ def render_thread(metars):
     """
 
     print("Starting rendering thread")
-
-    tic = time.perf_counter()
-    toc = time.perf_counter()
     display = True
-
-    # loaded_visualizers = visualizers.VisualizerManager.initialize_visualizers(
-    #     renderer,
-    #     stations)
-    # last_visualizer = 0
 
     while True:
         try:
@@ -102,14 +94,10 @@ def render_thread(metars):
                 renderer.render()
             except Exception as e:
                 safe_logging.safe_log("[c]" + str(traceback.print_exc()))
-                # safe_logging.safe_log(e)
-                quit()
         except KeyboardInterrupt:
             raise KeyboardInterrupt
         except Exception as ex:
-            # pass
             safe_logging.safe_log("[c]" + ex)
-            quit()
 
 
 if __name__ == '__main__':

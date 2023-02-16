@@ -16,24 +16,24 @@ OFF = "OFF"
 
 def get_colors() -> dict:
     """
-    Returns the RGB colors based on the config.
+    Returns the GRB colors based on the config.
     """
 
     return {
-        RED: (255, 0, 0),
-        LIGHT_RED: (255, 105, 180),
-        GREEN: (0, 255, 0),
+        RED: (0, 255, 0),
+        LIGHT_RED: (105, 255, 180),
+        GREEN: (255, 0, 0),
         BLUE: (0, 0, 255),
-        LIGHT_BLUE: (51, 255, 255),
-        MAGENTA: (255, 0, 255),
+        LIGHT_BLUE: (255, 51, 255),
+        MAGENTA: (0, 255, 255),
         OFF: (0, 0, 0),
         GRAY: (50, 50, 50),
         LIGHT_GRAY: (128, 128, 128),
         YELLOW: (255, 255, 0),
         DARK_YELLOW: (20, 20, 0),
         WHITE: (255, 255, 255),
-        PURPLE: (148, 0, 211),
-        ORANGE: (255, 126, 0)
+        PURPLE: (0, 148, 211),
+        ORANGE: (126, 255, 0)
     }
 
 
