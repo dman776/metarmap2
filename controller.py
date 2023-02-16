@@ -109,6 +109,7 @@ def render_thread(metars):
 
 
 def update_data():
+    metars.fetch()
     renderer.update_data(metars)
 
 
