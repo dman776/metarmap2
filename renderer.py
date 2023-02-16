@@ -17,6 +17,7 @@ from adafruit_led_animation.helper import PixelSubset
 from adafruit_led_animation.sequence import AnimationSequence, AnimateOnce
 from adafruit_led_animation.group import AnimationGroup
 from adafruit_led_animation.animation.pulse import Pulse
+from adafruit_led_animation.color import WHITE
 import adafruit_led_animation.animation
 
 
@@ -61,8 +62,8 @@ class Renderer(object):
             self.__animationloop__.resume()
 
     def locate(self, pixnum):
-        pix = PixelSubset(self._pixels, int(pixnum), int(pixnum) + 1)
-        self.animate_once(Pulse(pix, speed=0.1, period=1, color=WHITE), False)
+        pix = PixelSubset(self.__pixels__, int(pixnum), int(pixnum) + 1)
+        self.animate_once(Pulse(pix, speed=0.1, period=2, color=WHITE), False)
 
     @property
     # returns [number, name]
