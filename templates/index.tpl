@@ -15,7 +15,8 @@
 <div class="row">
     <a class="btn btn-primary" href="/visualizer/previous" role="button">&lt;</a>&nbsp;
     <a class="btn btn-primary" href="#" role="button">Visualizer</a>&nbsp;
-    <a class="btn btn-primary" href="/visualizer/next" role="button">&gt;</a>
+    <a class="btn btn-primary" href="/visualizer/next" role="button">&gt;</a>&nbsp;
+    Current Visualizer: {{renderer.visualizer[1]}}
 </div>
 <hr />
 <div class="row">
@@ -30,7 +31,4 @@
     <a class="btn btn-primary" href="/fetch" role="button">Fetch</a>&nbsp;
 </div>
 <hr />
-<div class="row">
-    Current Visualizer: {{renderer.visualizer[1]}}
-</div>
 %include("footer.tpl")
