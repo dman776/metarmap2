@@ -41,6 +41,7 @@ from adafruit_led_animation.animation.rainbowchase import RainbowChase
 from adafruit_led_animation.animation.rainbowcomet import RainbowComet
 from visualizers.flightcategory import FlightCategory as FlightCategoryVisualizer
 from visualizers.wind import Wind as WindVisualizer
+from visualizers.pressure import Pressure as PressureVisualizer
 
 try:
     import board
@@ -154,6 +155,7 @@ if __name__ == '__main__':
     visualizers = []
     visualizers.append(FlightCategoryVisualizer(metars.data, pix, CONFIG))
     visualizers.append(WindVisualizer(metars.data, pix, CONFIG))
+    visualizers.append(PressureVisualizer(metars.data, pix, CONFIG))
     renderer = renderer.Renderer(pixels, metars, CONFIG, visualizers)
     renderer.visualizer = 0
 
