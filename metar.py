@@ -73,6 +73,7 @@ class METAR(object):
                 if len(m) > 0:
                     metar = m[0]
                 else:
+                    # could not find an entry in the metars for the airport
                     self.data[airport] = {}
                     missingCondList.append(airport)
                     continue
@@ -86,13 +87,14 @@ class METAR(object):
             stationId = metar['station_id']
 
             if 'flight_category' not in metar:
-                print("Missing flight condition, skipping " + stationId)
+                safe_logging.safe_log("Missing flight category, skipping " + stationId)
                 missingCondList.append(stationId)
-                # continue
+                self.data[stationId] = {}
+                continue
 
             rawMetar = metar['raw_text'] if 'raw_text' in metar else None
             flightCategory = metar['flight_category'] if 'flight_category' in metar else None
-            flightCategoryColor = self.__colors_by_category__(flightCategory) if 'flight_category' in metar else None
+            flightCategoryColor = self.__colors_by_category__(flightCategory)
             windDir = ""
             windSpeed = 0
             windGustSpeed = 0
@@ -167,6 +169,7 @@ class METAR(object):
             return self.__config__.data().color.cat.lifr
         else:
             return self.__config__.data().color.clear
+
     def missing_stations(self):
         """
         Returns a list of missing stations from the fetch

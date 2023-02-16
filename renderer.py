@@ -16,6 +16,7 @@ from adafruit_led_animation.helper import PixelSubset
 
 from adafruit_led_animation.sequence import AnimationSequence, AnimateOnce
 from adafruit_led_animation.group import AnimationGroup
+import adafruit_led_animation.animation
 
 
 class Renderer(object):

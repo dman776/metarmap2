@@ -47,34 +47,35 @@ class FlightCategory(object):
         for airport in list(self.__data__.keys()):
             # Skip NULL entries
             if "NULL" in airport:
-                self.__effect__.append(Solid(self.__pix__[i], color=(0, 0, 0)))
+                self.__effect__.append(Solid(self.__pix__[i], color=[0, 0, 0]))
                 i += 1
                 continue
             airport_data = self.__data__.get(airport, None)
+
             if len(airport_data.keys()) > 0:
                 if airport_data is not None:
                     if self.__config__.data().lightning.animation and airport_data['lightning'] is True:
-                        self.__effect__.append(ColorCycle(self.__pix__[i], speed=0.5,
-                                colors=[airport_data['flightCategoryColor'], YELLOW]))  # lightning
+                        self.__effect__.append(ColorCycle(self.__pix__[i], speed=0.5, colors=[airport_data['flightCategoryColor'], YELLOW]))  # lightning
                     elif self.__config__.data().wind.animation and airport_data['windGust'] is True:
-                        p = 0
-                        if 0 < airport_data['windGustSpeed'] <= 5:
-                            p = 4       # gusts 1-5
-                        elif 6 < airport_data['windGustSpeed'] <= 10:
-                            p = 3       # gusts 6-10
-                        elif 11 < airport_data['windGustSpeed'] <= 15:
-                            p = 2       # gusts 11-15
-                        elif 16 < airport_data['windGustSpeed'] <= 20:
-                            p = 1       # gusts 16-20
-                        elif airport_data['windGustSpeed'] >= 21:
-                            p = 0.5     # gusts 21+
+                        p = 10
+                        if airport_data['windGustSpeed'] in range(0, 6):
+                            p = 5       # gusts 1-5
+                        elif airport_data['windGustSpeed'] in range(6, 11):
+                            p = 4       # gusts 6-10
+                        elif airport_data['windGustSpeed'] in range(11, 16):
+                            p = 3       # gusts 11-15
+                        elif airport_data['windGustSpeed'] in range(16, 21):
+                            p = 2       # gusts 16-20
+                        elif airport_data['windGustSpeed'] > 20:
+                            p = 1     # gusts 21+
+                        pprint(airport + ": " + str(airport_data['windGustSpeed']) + " P=" + str(p))
                         self.__effect__.append(Pulse(self.__pix__[i], speed=0.1, period=p, color=airport_data['flightCategoryColor']))
                     else:
                         self.__effect__.append(Solid(self.__pix__[i], color=airport_data['flightCategoryColor']))
-                else:       # airport is None??
-                    self.__effect__.append(Solid(self.__pix__[i], color=(0, 0, 0)))
-            else:       # airport not found in METAR data
-                self.__effect__.append(Solid(self.__pix__[i], color=(0, 0, 0)))
+                else:       # airport key not found in metar data
+                    self.__effect__.append(Solid(self.__pix__[i], color=[0, 0, 0]))
+            else:       # airport data is empty METAR data
+                self.__effect__.append(Solid(self.__pix__[i], color=[0, 0, 0]))
             i += 1
 
 

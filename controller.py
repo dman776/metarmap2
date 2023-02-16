@@ -32,6 +32,7 @@ from display import Display
 import lib.config
 
 from lib import logger, safe_logging, utils
+import traceback
 import metar as metar
 from lib.recurring_task import RecurringTask
 from renderer import Renderer as Renderer
@@ -97,7 +98,8 @@ def render_thread(metars):
             try:
                 renderer.render()
             except Exception as e:
-                safe_logging.safe_log(e)
+                safe_logging.safe_log(str(traceback.print_exc()))
+                # safe_logging.safe_log(e)
                 quit()
         except KeyboardInterrupt:
             raise KeyboardInterrupt

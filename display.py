@@ -100,21 +100,23 @@ class Display(object):
         top = padding
         bottom = self.height - padding
 
-        # self.__draw__.line([(x + 64, top + 18), (x + 64, bottom)], fill=255, width=1)
-        # central = timezone('US/Central')
-        self.__draw__.text((x, top + 0), station[1:] + "-" + data["flightCategory"], font=fontLarge,
-                           fill=255)  # StationID, Condition (VFR/IFR)
+        central = timezone('US/Central')
+        # StationID, Condition (VFR/IFR)
+        self.__draw__.text((x, top + 0), station[1:] + " " + data["flightCategory"], font=fontLarge, fill=255)
+
         # w, h = fontXSmall.getsize(str(station[1]))
         # draw1.text((self.width - w, top + 1), str(station[1]), font=fontXSmall, fill=255)  # Custom text ("HOME", "CNTRL" etc)
-        #
-        # draw1.text((x, top + 20), condition["windDir"] + "@" + str(condition["windSpeed"]) + (
-        #             ("G" + str(condition["windGustSpeed"]) if condition["windGust"] else "") + "/" + str(
-        #         condition["vis"]) + "SM "), font=fontMed, fill=255)
-        # draw1.text((x, top + 35), str(condition["altimHg"]) + "Hg" + " " + str(condition["tempC"]) + "/" + str(
-        #     condition["dewpointC"]) + "C", font=fontMed, fill=255)
-        # draw1.text((x, top + 50),
-        #            condition["obsTime"].astimezone(central).strftime("%H:%MC") + " " + condition["obsTime"].strftime(
-        #                "%H:%MZ"), font=fontSmall, fill=255)
+
+        line = "{0:03d}@{1:02d}".format(int(data["windDir"]), int(data["windSpeed"])) + \
+               ("G{0:2d}".format(int(data["windGustSpeed"])) if data["windGust"] else "") + \
+               " {0}SM".format(data['vis'])
+        self.__draw__.text((x, top + 20), line, font=fontMed, fill=255)
+
+        self.__draw__.text((x, top + 35), str(data["altimHg"]) + "Hg" + " " + str(data["tempC"]) + "/" +
+                           str(data["dewpointC"]) + "C", font=fontMed, fill=255)
+
+        self.__draw__.text((x, top + 50), data["obsTime"].astimezone(central).strftime("%H:%MC") + " " +
+                           data["obsTime"].strftime("%H:%MZ"), font=fontSmall, fill=255)
 
         self.__disp__.image(self.__image__)
         self.__disp__.show()
@@ -134,7 +136,7 @@ class Display(object):
         # yOff = 18
         # xOff = 0
         # NewLine = False
-        # for skyIter in condition["skyConditions"]:
+        # for skyIter in data["skyConditions"]:
         #     draw2.text((x + xOff, top + yOff),
         #                skyIter["cover"] + ("@" + str(skyIter["cloudBaseFt"]) if skyIter["cloudBaseFt"] > 0 else ""),
         #                font=fontSmall, fill=255)
