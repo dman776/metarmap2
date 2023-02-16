@@ -40,6 +40,7 @@ from adafruit_led_animation.helper import PixelSubset
 from adafruit_led_animation.animation.rainbowchase import RainbowChase
 from adafruit_led_animation.animation.rainbowcomet import RainbowComet
 from visualizers.flightcategory import FlightCategory as FlightCategoryVisualizer
+from visualizers.wind import Wind as WindVisualizer
 
 try:
     import board
@@ -150,9 +151,10 @@ if __name__ == '__main__':
     pix = init_pixel_subsets(pixels)
 
     # NEED to periodically update visualizer, renderer, webserver, disp with new METAR data
-    visualizer = FlightCategoryVisualizer(metars.data, pix, CONFIG)
+    windvisualizer = FlightCategoryVisualizer(metars.data, pix, CONFIG)
+    fcvisualizer = WindVisualizer(metars.data, pix, CONFIG)
     renderer = renderer.Renderer(pixels, metars, CONFIG)
-    renderer.visualizer=visualizer
+    renderer.visualizer = windvisualizer
 
     # test it
     #renderer.animate_once(RainbowChase(pixels, speed=0.1, size=4, spacing=2, step=4))
