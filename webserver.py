@@ -52,6 +52,7 @@ class WebServer(object):
         self._app.route("/debug", method="GET", callback=self._debug)
         self._app.route("/brightness/<level>", method="GET", callback=self._brightness)
         self._app.route("/locate/<pixnum>", method="GET", callback=self._locate)
+        self._app.route("/visualizer/<visnum>", method="GET", callback=self._visualizer)
 
     def _index(self):
         return bottle.template('index.tpl', metars=self._metarsObj)
@@ -83,4 +84,8 @@ class WebServer(object):
     def _locate(self, pixnum):
         pix = PixelSubset(self._pixels, int(pixnum), int(pixnum)+1)
         self._renderer.animate_once(Pulse(pix, speed=0.1, period=1, color=WHITE), False)
+        return bottle.template('index.tpl', metars=self._metarsObj)
+
+    def _visualizer(self, visnum):
+        self._renderer.visualizer = visnum
         return bottle.template('index.tpl', metars=self._metarsObj)

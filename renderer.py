@@ -60,12 +60,12 @@ class Renderer(object):
 
     @visualizer.setter
     def visualizer(self, vis):
-        self.__vis__ = vis
+        self.__vis__ = self.__visualizers__[vis]
 
     def pixels(self):
         return self.__pixels__
 
-    def __init__(self, pixels, metars: metar.METAR, config: Config):
+    def __init__(self, pixels, metars: metar.METAR, config: Config, visualizers):
         """
         Creates a new renderer
         """
@@ -78,7 +78,8 @@ class Renderer(object):
         self.numAirports = len(self.__stations__)
         self.__pix__ = []                       # individual pixel submap - used to address one pixel for effects
         # self.__effect__ = []                    # individual pixel effects - actual effects to be applied to a pixel
-        self.__vis__ = None
+        self.__visualizers__ = visualizers
+        self.__vis__ = visualizers[0]
         # self.flight_category_colors = []
         self.clear()
         # displayTime = 0.0

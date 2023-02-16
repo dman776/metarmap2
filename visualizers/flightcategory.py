@@ -30,6 +30,7 @@ def lightning_pattern(cat):
     lp.append(YELLOW)
     return lp
 
+
 class FlightCategory(object):
     """
     Object to handle FlightCategory

@@ -151,10 +151,11 @@ if __name__ == '__main__':
     pix = init_pixel_subsets(pixels)
 
     # NEED to periodically update visualizer, renderer, webserver, disp with new METAR data
-    windvisualizer = FlightCategoryVisualizer(metars.data, pix, CONFIG)
-    fcvisualizer = WindVisualizer(metars.data, pix, CONFIG)
-    renderer = renderer.Renderer(pixels, metars, CONFIG)
-    renderer.visualizer = windvisualizer
+    visualizers = []
+    visualizers.append(FlightCategoryVisualizer(metars.data, pix, CONFIG))
+    visualizers.append(WindVisualizer(metars.data, pix, CONFIG))
+    renderer = renderer.Renderer(pixels, metars, CONFIG, visualizers)
+    renderer.visualizer = 0
 
     # test it
     #renderer.animate_once(RainbowChase(pixels, speed=0.1, size=4, spacing=2, step=4))
