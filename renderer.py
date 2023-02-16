@@ -16,6 +16,7 @@ from adafruit_led_animation.helper import PixelSubset
 
 from adafruit_led_animation.sequence import AnimationSequence, AnimateOnce
 from adafruit_led_animation.group import AnimationGroup
+from adafruit_led_animation.animation.pulse import Pulse
 import adafruit_led_animation.animation
 
 
@@ -59,6 +60,10 @@ class Renderer(object):
         if self.__animationloop__ is not None:
             self.__animationloop__.resume()
 
+    def locate(self, pixnum):
+        pix = PixelSubset(self._pixels, int(pixnum), int(pixnum) + 1)
+        self.animate_once(Pulse(pix, speed=0.1, period=1, color=WHITE), False)
+
     @property
     # returns [number, name]
     def visualizer(self):
@@ -83,6 +88,10 @@ class Renderer(object):
         else:
             vnum = self.active_visualizer - 1
         self.visualizer = vnum
+
+    def brightness(self, level: float):
+        if 0 < level <= 1:
+            self.__pixels__.brightness = level
 
     def pixels(self):
         return self.__pixels__

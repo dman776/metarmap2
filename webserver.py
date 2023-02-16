@@ -5,11 +5,6 @@ from bottle import hook, route, run, request, abort, response, static_file
 import metar
 from renderer import Renderer
 from neopixel import NeoPixel
-from adafruit_led_animation.helper import PixelSubset
-from adafruit_led_animation.animation.blink import Blink
-from adafruit_led_animation.animation.pulse import Pulse
-from adafruit_led_animation.color import PURPLE, WHITE, AMBER, JADE, MAGENTA, ORANGE, BLUE, AQUA, RED, GREEN, YELLOW
-
 from lib.safe_logging import safe_log
 import threading
 import io
@@ -87,12 +82,11 @@ class WebServer(object):
         return bottle.template('debug.tpl', metars=self._metarsObj, renderer=self._renderer)
 
     def _brightness(self, level):
-        self._pixels.brightness = float(level)
+        self._renderer.brightness = float(level)
         return bottle.template('index.tpl', renderer=self._renderer)
 
     def _locate(self, pixnum):
-        pix = PixelSubset(self._pixels, int(pixnum), int(pixnum)+1)
-        self._renderer.animate_once(Pulse(pix, speed=0.1, period=1, color=WHITE), False)
+        self._renderer.locate(pixnum)
         return bottle.template('metars.tpl', metars=self._metarsObj)
 
     def _visualizer(self, visnum):
