@@ -98,19 +98,19 @@ def render_thread(metars):
             try:
                 renderer.render()
             except Exception as e:
-                safe_logging.safe_log(str(traceback.print_exc()))
+                safe_logging.safe_log("[c]" + str(traceback.print_exc()))
                 # safe_logging.safe_log(e)
                 quit()
         except KeyboardInterrupt:
             raise KeyboardInterrupt
         except Exception as ex:
             # pass
-            safe_logging.safe_log(ex)
+            safe_logging.safe_log("[c]" + ex)
             quit()
 
 
 if __name__ == '__main__':
-    safe_logging.safe_log("Starting controller.py at " + datetime.now().strftime('%d/%m/%Y %H:%M'))
+    safe_logging.safe_log("[c]" + "Starting controller.py at " + datetime.now().strftime('%d/%m/%Y %H:%M'))
 
     # disp.message("METARMap", "config...")
     CONFIG = lib.config.Config("config.json")
@@ -147,6 +147,8 @@ if __name__ == '__main__':
             CONFIG.data().dimming.dynamic_base.enabled and bright == False) else CONFIG.data().led.brightness, pixel_order=CONFIG.LED_ORDER,
             auto_write=False)
     pix = init_pixel_subsets(pixels)
+
+    # NEED to periodically update visualizer, renderer, webserver, disp with new METAR data
     visualizer = FlightCategoryVisualizer(metars.data, pix, CONFIG)
     renderer = renderer.Renderer(pixels, metars, CONFIG)
     renderer.visualizer=visualizer
@@ -156,7 +158,7 @@ if __name__ == '__main__':
 
 
     # Start loading the METARs in the background
-    safe_logging.safe_log("Get weather for all airports...")
+    safe_logging.safe_log("[c]" + "Get weather for all airports...")
 
     mf = RecurringTask(
         "metar_fetch",

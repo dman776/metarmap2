@@ -23,7 +23,7 @@ class METAR(object):
     def fetch(self, callback=None):
         try:
             self.__is_fetching__ = True
-            safe_logging.safe_log("Fetching...")
+            safe_logging.safe_log("[m]" + "Fetching...")
             url = "https://www.aviationweather.gov/adds/dataserver_current/httpparam?dataSource=metars&requestType=retrieve&format=xml&hoursBeforeNow=5&mostRecentForEachStation=true&stationString=" + \
                   ",".join(
                       [item for item in list(self.__airports__.keys()) if "NULL" not in item])
@@ -32,15 +32,15 @@ class METAR(object):
             content = urllib.request.urlopen(req).read()
             self.__is_fetching__ = False
             self.lastFetchTime=datetime.datetime.now()
-            safe_logging.safe_log("Fetching completed.")
+            safe_logging.safe_log("[m]" + "Fetching completed.")
             self.__process__(content)
         except Exception as e:
             print(e)
             self.__is_fetching__ = False
             if callback is not None:
-                safe_logging.safe_log("Calling callback function...")
+                safe_logging.safe_log("[m]" + "Calling callback function...")
                 callback()
-                safe_logging.safe_log("done.")
+                safe_logging.safe_log("[m]" + "done.")
         return
 
     def is_fetching(self):
@@ -50,7 +50,7 @@ class METAR(object):
         return self.__is_fetching__
 
     def __process__(self, content):
-        safe_logging.safe_log("Processing...")
+        safe_logging.safe_log("[m]" + "Processing...")
         # Retrieve flying conditions from the service response and store in a dictionary for each airport
         jcontent = xmltodict.parse(content)
         metars = jcontent['response']['data']['METAR']
@@ -82,7 +82,7 @@ class METAR(object):
                 self.data[airport] = {}
                 continue
             except Exception as e:
-                pprint(e)
+                safe_logging.safe_log("[m]" + e)
 
             stationId = metar['station_id']
 
@@ -155,7 +155,7 @@ class METAR(object):
             stationList.append(stationId)
         self.__missing_stations__ = missingCondList
         self.__stations__ = stationList
-        safe_logging.safe_log("Processing complete.")
+        safe_logging.safe_log("[m]" + "Processing complete.")
         return
 
     def __colors_by_category__(self, category):
