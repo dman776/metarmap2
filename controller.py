@@ -26,6 +26,7 @@ import threading
 import time
 from datetime import datetime
 import json
+from pprint import pprint
 
 import lib.config
 import webserver
@@ -115,12 +116,22 @@ def load_airports(file):
 
 
 def load_suntimes():
+    # load with config values for levels
     global DAWN, SUNRISE, SUNSET, DUSK, CONFIG
     (DAWN, SUNRISE, SUNSET, DUSK) = utils.get_sun_times(CONFIG)
+    # clear schedule/set schedule
+    # clear by tag
+    schedule.clear("suntimes")
+    schedule.every().day.at(SUNSET.strftime("%H:%M")).do(set_brightness, level=0.10).tag("suntimes")
+    schedule.every().day.at(DUSK.strftime("%H:%M")).do(set_brightness, level=0.01).tag("suntimes")
+    schedule.every().day.at(DAWN.strftime("%H:%M")).do(set_brightness, level=0.10).tag("suntimes")
+    schedule.every().day.at(SUNRISE.strftime("%H:%M")).do(set_brightness, level=0.50).tag("suntimes")
+    for j in schedule.get_jobs("suntimes"):
+        safe_logging.safe_log("[c]" + str(j) + " next run: " + str(j.next_run))
 
 
-# def set_brightness(level):
-#     renderer.brightness(level)
+def set_brightness(level):
+    renderer.brightness(level)
 
 
 # =====================================================================================================
@@ -179,11 +190,9 @@ if __name__ == '__main__':
     # Start up METAR update thread
     schedule.every(10).minutes.do(update_data)
 
-    # schedule.every().day.at('00:00').do(load_suntimes)
-    # schedule.every().day.at(SUNSET.strftime("%H:%M")).do(set_brightness, level=0.25)
-    # schedule.every().day.at(DUSK.strftime("%H:%M")).do(set_brightness, level=0.10)
-    # schedule.every().day.at(DAWN.strftime("%H:%M")).do(set_brightness, level=0.25)
-    # schedule.every().day.at(SUNRISE.strftime("%H:%M")).do(set_brightness, level=0.50)
+    # setup up scheduler to load sun times and dim the map appropriately
+    load_suntimes()
+    schedule.every().day.at('00:00').do(load_suntimes)
 
     # Start up Web Server to handle UI
     # disp.message("METARMap", "webserver...")
