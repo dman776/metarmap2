@@ -73,9 +73,8 @@ class Pressure(Visualizer):
         return "Pressure"
 
     def update_data(self, data):
-        safe_logging.safe_log("[v]updating data in the visualizer ({0})".format(self.name))
-        self.__data__ = data
-        self.__effect__ = []  # clear existing effects
+        super().update_data(data)
+
         # loop over all stations
         i = 0
         # for airport in list(self.__stations__):
