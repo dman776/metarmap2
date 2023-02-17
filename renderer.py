@@ -25,6 +25,22 @@ class Renderer(object):
     """
     Object to control and handle a rendering Neopixels
     """
+    def __init__(self, pixels, metars: metar.METAR, config: Config, visualizers):
+        """
+        Creates a new renderer
+        """
+        self.__pixels__ = pixels
+        self.__stations__ = metars.stations()   # list of station ids
+        self.__data__ = metars.data             # all METAR data
+        self.__config__ = config
+        # self.windCycle = False
+        self.numAirports = len(self.__stations__)
+        self.__pix__ = []                       # individual pixel submap - used to address one pixel for effects
+        self.__animationloop__: AnimateOnce = None
+        self.__visualizers__ = visualizers
+        self.__vis__ = visualizers[0]
+        self.active_visualizer = 0
+        self.clear()
 
     def render(self):
         i = 0
@@ -97,26 +113,7 @@ class Renderer(object):
     def pixels(self):
         return self.__pixels__
 
-    def __init__(self, pixels, metars: metar.METAR, config: Config, visualizers):
-        """
-        Creates a new renderer
-        """
 
-        self.__pixels__ = pixels
-        self.__stations__ = metars.stations()   # list of station ids
-        self.__data__ = metars.data             # all METAR data
-        self.__config__ = config
-        # self.windCycle = False
-        self.numAirports = len(self.__stations__)
-        self.__pix__ = []                       # individual pixel submap - used to address one pixel for effects
-        self.__animationloop__: AnimateOnce = None
-        self.__visualizers__ = visualizers
-        self.__vis__ = visualizers[0]
-        self.active_visualizer = 0
-        # self.flight_category_colors = []
-        self.clear()
-        # displayTime = 0.0
-        # displayAirportCounter = 0
 
 
 if __name__ == '__main__':
