@@ -152,9 +152,11 @@ if __name__ == '__main__':
     metars = metar.METAR(airports, config, fetch=True)
 
     # Init DISPLAY
-    disp = Display(airports, metars)
-    disp.on()
-    disp.start()
+    disp: Display
+    if config.data().display_screen.enabled:
+        disp = Display(airports, metars)
+        disp.on()
+        disp.start()
 
     # init neopixels
     # bright = CONFIG.data().dimming.time_base.bright_start < datetime.now().time() < CONFIG.data().dimming.time_base.dim_start
@@ -200,8 +202,9 @@ if __name__ == '__main__':
     # Cleanup
     safe_logging.safe_log("[c]" + "Cleaning up...")
     schedule.clear()
-    disp.stop()
-    disp.off()
+    if config.data().display_screen.enabled:
+        disp.stop()
+        disp.off()
     renderer.clear()
     web_server.stop()
     GPIO.cleanup()

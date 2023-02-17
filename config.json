@@ -14,8 +14,8 @@
     "city": "Houston"
   },
   "display_screen": {
-    "enabled": false,
-    "delay": 6.0
+    "enabled": true,
+    "delay": 5.0
   },
   "color": {
     "cat": {
