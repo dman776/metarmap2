@@ -116,16 +116,14 @@ def load_airports(file):
 
 
 def load_suntimes():
-    # load with config values for levels
     global DAWN, SUNRISE, SUNSET, DUSK, config
     (DAWN, SUNRISE, SUNSET, DUSK) = utils.get_sun_times(config)
     # clear schedule/set schedule
-    # clear by tag
     schedule.clear("suntimes")
-    schedule.every().day.at(SUNSET.strftime("%H:%M")).do(set_brightness, level=0.10).tag("suntimes")
-    schedule.every().day.at(DUSK.strftime("%H:%M")).do(set_brightness, level=0.01).tag("suntimes")
-    schedule.every().day.at(DAWN.strftime("%H:%M")).do(set_brightness, level=0.10).tag("suntimes")
-    schedule.every().day.at(SUNRISE.strftime("%H:%M")).do(set_brightness, level=0.50).tag("suntimes")
+    schedule.every().day.at(SUNSET.strftime("%H:%M")).do(set_brightness, level=config.data().led.brightness.dimmed).tag("suntimes")
+    schedule.every().day.at(DUSK.strftime("%H:%M")).do(set_brightness, level=config.data().led.brightness.off).tag("suntimes")
+    schedule.every().day.at(DAWN.strftime("%H:%M")).do(set_brightness, level=config.data().led.brightness.dimmed).tag("suntimes")
+    schedule.every().day.at(SUNRISE.strftime("%H:%M")).do(set_brightness, level=config.data().led.brightness.normal).tag("suntimes")
     for j in schedule.get_jobs("suntimes"):
         safe_logging.safe_log("[c]" + str(j) + " next run: " + str(j.next_run))
 
@@ -159,12 +157,10 @@ if __name__ == '__main__':
     disp.start()
 
     # init neopixels
-    pixels = None
     # bright = CONFIG.data().dimming.time_base.bright_start < datetime.now().time() < CONFIG.data().dimming.time_base.dim_start
     bright = False
-    pixels = neopixel.NeoPixel(config.LED_PIN, config.data().led.count, brightness=config.data().led.brightness if (
-            config.data().dimming.dynamic_base.enabled and bright is False) else config.data().led.brightness, pixel_order=config.LED_ORDER,
-                               auto_write=False)
+    pixels = neopixel.NeoPixel(config.LED_PIN, config.data().led.count, brightness=config.data().led.brightness.normal,
+                               pixel_order=config.LED_ORDER, auto_write=False)
     pix = init_pixel_subsets(pixels)
 
     # NEED to periodically update visualizer, renderer, webserver, disp with new METAR data
@@ -177,10 +173,10 @@ if __name__ == '__main__':
     renderer = renderer.Renderer(pixels, metars, config, visualizers)
     renderer.visualizer = 0
 
-    # test pattern on pixels
-    # TODO: add configuration option
-    #renderer.animate_once(RainbowChase(pixels, speed=0.1, size=4, spacing=2, step=4))
-    renderer.animate_once(RainbowComet(pixels, speed=0.05, tail_length=5, bounce=False))
+    # test pattern on pixels?
+    if config.data().led.inittest:
+        renderer.animate_once(RainbowComet(pixels, speed=0.05, tail_length=5, bounce=False))
+        # renderer.animate_once(RainbowChase(pixels, speed=0.1, size=4, spacing=2, step=4))
 
     # Job Scheduler setup --------------
     schedule.every(10).minutes.do(update_data)          # Start up METAR update thread

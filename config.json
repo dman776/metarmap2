@@ -3,7 +3,19 @@
     "count": 50,
     "pin": 18,
     "order": "GRB",
-    "brightness": 0.5
+    "brightness": {
+      "normal": 0.5,
+      "dimmed": 0.1,
+      "off": 0.01
+    },
+    "inittest": true
+  },
+  "geo": {
+    "city": "Houston"
+  },
+  "display_screen": {
+    "enabled": false,
+    "delay": 6.0
   },
   "color": {
     "cat": {
@@ -43,21 +55,5 @@
   "blink": {
     "enable":true,
     "rate": 1.0
-  },
-  "dimming": {
-    "time_base": {
-      "enabled": false,
-      "bright_start": [7, 0],
-      "dim_start": [19, 45]
-    },
-    "dynamic_base": {
-      "enabled": true,
-      "location": "Houston"
-    },
-    "brightness": 0.1
-  },
-  "display_screen": {
-    "enabled": false,
-    "delay": 6.0
   }
 }
