@@ -21,10 +21,11 @@
 <hr />
 <div class="row">
     <a class="btn btn-primary" href="/brightness/1" role="button">Brightness 100%</a>&nbsp;
-    <a class="btn btn-primary" href="/brightness/0.75" role="button">Brightness 75%</a>&nbsp;
-    <a class="btn btn-primary" href="/brightness/0.5" role="button">Brightness 50%</a>&nbsp;
-    <a class="btn btn-primary" href="/brightness/0.25" role="button">Brightness 25%</a>&nbsp;
-    <a class="btn btn-primary" href="/brightness/0.1" role="button">Brightness 10%</a>&nbsp;
+    <a class="btn btn-primary" href="/brightness/0.75" role="button">75%</a>&nbsp;
+    <a class="btn btn-primary" href="/brightness/0.5" role="button">50%</a>&nbsp;
+    <a class="btn btn-primary" href="/brightness/0.25" role="button">25%</a>&nbsp;
+    <a class="btn btn-primary" href="/brightness/0.1" role="button">10%</a>&nbsp;
+    <a class="btn btn-primary" href="/brightness/0.01" role="button">1%</a>&nbsp;
 </div>
 <hr />
 <div class="row">
