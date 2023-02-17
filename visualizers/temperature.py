@@ -16,7 +16,7 @@ import lib.colors as colors_lib
 from metar import METAR
 import neopixel
 import board
-from visualizer import Visualizer
+from visualizers.visualizer import Visualizer
 
 from adafruit_led_animation.animation.blink import Blink
 from adafruit_led_animation.animation.pulse import Pulse
