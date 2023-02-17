@@ -16,6 +16,7 @@ import lib.colors as colors_lib
 from metar import METAR
 import neopixel
 import board
+from visualizer import Visualizer
 
 from adafruit_led_animation.animation.blink import Blink
 from adafruit_led_animation.animation.pulse import Pulse
@@ -110,11 +111,21 @@ def get_color_by_temperature_celsius(temperature_celsius: float) -> list:
     return colors_by_name[colors_lib.RED]
 
 
-class Temperature(object):
+class Temperature(Visualizer):
     """
     Object to handle Temp
     Returns a list of Effects on each pixel
     """
+
+    def __init__(self, data, pix, config):
+        super().__init__(data, pix, config)
+
+        # self.__data__ = data
+        # self.__pix__ = pix
+        # self.__config__ = config
+        # self.__effect__ = []
+        # self.update_data(data)
+
     @property
     def name(self):
         return "Temperature"
@@ -147,10 +158,4 @@ class Temperature(object):
                 self.__effect__.append(Solid(self.__pix__[i], color=[0, 0, 0]))
             i += 1
 
-    def __init__(self, data, pix, config):
-        self.__stations__ = data.keys()
-        self.__data__ = data
-        self.__pix__ = pix
-        self.__config__ = config
-        self.__effect__ = []
-        self.update_data(data)
+

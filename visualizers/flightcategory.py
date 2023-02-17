@@ -69,7 +69,6 @@ class FlightCategory(object):
             i += 1
 
     def __init__(self, data, pix, config):
-        self.__stations__ = data.keys()
         self.__data__ = data
         self.__pix__ = pix
         self.__config__ = config
