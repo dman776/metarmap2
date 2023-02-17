@@ -207,8 +207,8 @@ if __name__ == '__main__':
         data = f.read()
     airports = json.loads(data)
 
-    CONFIG = Config("config.json")
-    metars = METAR(airports, CONFIG, fetch=True)
+    config = Config("config.json")
+    metars = METAR(airports, config, fetch=True)
     # pprint(metars)
     # pprint("missing: " + str(metars.missing_stations()))
     # pprint("all: " + str(metars.stations()))

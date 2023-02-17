@@ -64,6 +64,7 @@ class Display(object):
         self.__airports__ = airports
         self.__data__ = data
         self.__thread__ = threading.Thread(target=self.loop)
+        self.__thread__.daemon = True
 
     """
     method to start the looping thread
@@ -76,7 +77,7 @@ class Display(object):
     """
     def stop(self):
         self.event.set()
-        self.__thread__.join()
+        # self.__thread__.join()
 
     def loop(self):
         while not self.event.is_set():
@@ -161,12 +162,12 @@ class Display(object):
 
 
 if __name__ == '__main__':
-    CONFIG = lib.config.Config("config.json")
+    config = lib.config.Config("config.json")
     with open('airports.json') as f:
         data = f.read()
     airports = json.loads(data)
 
-    data = metar.METAR(airports, CONFIG, True)
+    data = metar.METAR(airports, config, True)
 
     d = Display(airports, data)
     d.on()

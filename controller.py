@@ -78,7 +78,7 @@ DAWN = None
 SUNRISE = None
 SUNSET = None
 DUSK = None
-CONFIG = None
+config = None
 
 
 def init_pixel_subsets(apixels: neopixel):
@@ -117,8 +117,8 @@ def load_airports(file):
 
 def load_suntimes():
     # load with config values for levels
-    global DAWN, SUNRISE, SUNSET, DUSK, CONFIG
-    (DAWN, SUNRISE, SUNSET, DUSK) = utils.get_sun_times(CONFIG)
+    global DAWN, SUNRISE, SUNSET, DUSK, config
+    (DAWN, SUNRISE, SUNSET, DUSK) = utils.get_sun_times(config)
     # clear schedule/set schedule
     # clear by tag
     schedule.clear("suntimes")
@@ -141,19 +141,17 @@ if __name__ == '__main__':
     safe_logging.safe_log("[c]" + "Starting controller.py at " + datetime.now().strftime('%d/%m/%Y %H:%M'))
 
     # disp.message("METARMAP", "config...")
-    CONFIG = lib.config.Config("config.json")
+    config = lib.config.Config("config.json")
 
     # load airports file
     airports = load_airports("airports.json")
 
-    # disp.message("METARMap", "sun times...")
     # get sunrise/sunset times for dynamic dimming
-    # (DAWN, SUNRISE, SUNSET, DUSK) = utils.get_sun_times(CONFIG)
     load_suntimes()
 
-    # setup for metars
-    # disp.message("METARMap", "metars...")
-    metars = metar.METAR(airports, CONFIG, fetch=True)
+    # Start loading the METARs in the background
+    safe_logging.safe_log("[c]" + "Get weather for all airports...")
+    metars = metar.METAR(airports, config, fetch=True)
 
     # Init DISPLAY
     disp = Display(airports, metars)
@@ -161,45 +159,36 @@ if __name__ == '__main__':
     disp.start()
 
     # init neopixels
-    # disp.message("METARMap", "pixels...")
     pixels = None
     # bright = CONFIG.data().dimming.time_base.bright_start < datetime.now().time() < CONFIG.data().dimming.time_base.dim_start
     bright = False
-    pixels = neopixel.NeoPixel(CONFIG.LED_PIN, CONFIG.data().led.count, brightness=CONFIG.data().led.brightness if (
-            CONFIG.data().dimming.dynamic_base.enabled and bright is False) else CONFIG.data().led.brightness, pixel_order=CONFIG.LED_ORDER,
-            auto_write=False)
+    pixels = neopixel.NeoPixel(config.LED_PIN, config.data().led.count, brightness=config.data().led.brightness if (
+            config.data().dimming.dynamic_base.enabled and bright is False) else config.data().led.brightness, pixel_order=config.LED_ORDER,
+                               auto_write=False)
     pix = init_pixel_subsets(pixels)
 
     # NEED to periodically update visualizer, renderer, webserver, disp with new METAR data
     visualizers = []
-    visualizers.append(FlightCategoryVisualizer(metars.data, pix, CONFIG))
-    visualizers.append(WindGustsVisualizer(metars.data, pix, CONFIG))
-    visualizers.append(PressureVisualizer(metars.data, pix, CONFIG))
-    visualizers.append(TemperatureVisualizer(metars.data, pix, CONFIG))
+    visualizers.append(FlightCategoryVisualizer(metars.data, pix, config))
+    visualizers.append(WindGustsVisualizer(metars.data, pix, config))
+    visualizers.append(PressureVisualizer(metars.data, pix, config))
+    visualizers.append(TemperatureVisualizer(metars.data, pix, config))
 
-    renderer = renderer.Renderer(pixels, metars, CONFIG, visualizers)
+    renderer = renderer.Renderer(pixels, metars, config, visualizers)
     renderer.visualizer = 0
 
-    # test it
+    # test pattern on pixels
+    # TODO: add configuration option
     #renderer.animate_once(RainbowChase(pixels, speed=0.1, size=4, spacing=2, step=4))
     renderer.animate_once(RainbowComet(pixels, speed=0.05, tail_length=5, bounce=False))
 
-    # Start loading the METARs in the background
-    safe_logging.safe_log("[c]" + "Get weather for all airports...")
-
-    # Start up METAR update thread
-    schedule.every(10).minutes.do(update_data)
-
-    # setup up scheduler to load sun times and dim the map appropriately
-    load_suntimes()
-    schedule.every().day.at('00:00').do(load_suntimes)
+    # Job Scheduler setup --------------
+    schedule.every(10).minutes.do(update_data)          # Start up METAR update thread
+    schedule.every().day.at('00:00').do(load_suntimes)  # load sun times and dim the map appropriately
 
     # Start up Web Server to handle UI
-    # disp.message("METARMap", "webserver...")
     web_server = webserver.WebServer("0.0.0.0", 8080, metars, renderer)
     web_server.run()
-
-
 
     # ============== MAIN LOOP =====================
     safe_logging.safe_log("[c]" + "Main loop...")
@@ -214,9 +203,9 @@ if __name__ == '__main__':
 
     # Cleanup
     safe_logging.safe_log("[c]" + "Cleaning up...")
-    upd_thread.cancel()
+    schedule.clear()
     disp.stop()
+    disp.off()
     renderer.clear()
     web_server.stop()
-    disp.off()
     GPIO.cleanup()

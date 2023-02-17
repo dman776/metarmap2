@@ -23,11 +23,13 @@ class WebServer(object):
         Starts the server.
         """
         safe_log("localhost = {}:{}".format(self._host, self._port))
-        threading.Thread(target=self._app.run, kwargs=dict(host=self._host, port=self._port)).start()
+        self._thread = threading.Thread(target=self._app.run, kwargs=dict(host=self._host, port=self._port))
+        self._thread.daemon = True
+        self._thread.start()
 
     def stop(self):
         if self._app is not None:
-            self._app = None
+            self._app.close()
 
     def __init__(self, host, port, metars: metar.METAR, renderer: Renderer):
         self._port = port
@@ -37,6 +39,7 @@ class WebServer(object):
         self._metarsObj = metars
         self._renderer = renderer
         self._pixels: NeoPixel = renderer.pixels()
+        self._thread = None
         bottle.TEMPLATE_PATH.insert(0, "./templates")
 
     def _route(self):
