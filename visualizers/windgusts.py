@@ -13,8 +13,7 @@ import lib.safe_logging as safe_logging
 import lib
 import lib.utils as utils
 from metar import METAR
-import neopixel
-import board
+from visualizers.visualizer import Visualizer
 
 from adafruit_led_animation.animation.blink import Blink
 from adafruit_led_animation.animation.pulse import Pulse
@@ -23,18 +22,17 @@ from adafruit_led_animation.animation.colorcycle import ColorCycle
 from adafruit_led_animation.color import PURPLE, WHITE, AMBER, JADE, MAGENTA, ORANGE, BLUE, AQUA, RED, GREEN, YELLOW
 
 
-
-class WindGusts(object):
+class WindGusts(Visualizer):
     """
     Object to handle Wind
     Returns a list of Effects on each pixel
     """
+    def __init__(self, data, pix, config):
+        super().__init__(data, pix, config)
+
     @property
     def name(self):
         return "Wind Gusts"
-
-    def get_effects(self):
-        return self.__effect__
 
     def update_data(self, data):
         safe_logging.safe_log("[v]updating data in the visualizer ({0})".format(self.name))
@@ -76,9 +74,3 @@ class WindGusts(object):
                 self.__effect__.append(Solid(self.__pix__[i], color=[0, 0, 0]))
             i += 1
 
-    def __init__(self, data, pix, config):
-        self.__data__ = data
-        self.__pix__ = pix
-        self.__config__ = config
-        self.__effect__ = []
-        self.update_data(data)

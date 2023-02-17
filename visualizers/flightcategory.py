@@ -13,7 +13,7 @@ import lib.safe_logging as safe_logging
 import lib
 import lib.utils as utils
 from metar import METAR
-
+from visualizers.visualizer import Visualizer
 
 from adafruit_led_animation.animation.solid import Solid
 from adafruit_led_animation.animation.colorcycle import ColorCycle
@@ -28,17 +28,17 @@ def lightning_pattern(cat):
     return lp
 
 
-class FlightCategory(object):
+class FlightCategory(Visualizer):
     """
     Object to handle FlightCategory
     Returns a list of Effects on each pixel
     """
+    def __init__(self, data, pix, config):
+        super().__init__(data, pix, config)
+
     @property
     def name(self):
         return "Flight Category"
-
-    def get_effects(self):
-        return self.__effect__
 
     def update_data(self, data):
         safe_logging.safe_log("[v]updating data in the visualizer ({0})".format(self.name))
@@ -68,9 +68,4 @@ class FlightCategory(object):
                 self.__effect__.append(Solid(self.__pix__[i], color=[0, 0, 0]))
             i += 1
 
-    def __init__(self, data, pix, config):
-        self.__data__ = data
-        self.__pix__ = pix
-        self.__config__ = config
-        self.__effect__ = []
-        self.update_data(data)
+

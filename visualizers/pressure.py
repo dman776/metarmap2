@@ -13,7 +13,7 @@ import lib.safe_logging as safe_logging
 import lib.utils as utils
 import lib.colors as colors_lib
 from metar import METAR
-
+from visualizers.visualizer import Visualizer
 from adafruit_led_animation.animation.solid import Solid
 
 
@@ -60,17 +60,17 @@ def get_color_by_pressure(inches_of_mercury: float) -> list:
             STANDARD_PRESSURE))
 
 
-class Pressure(object):
+class Pressure(Visualizer):
     """
     Object to handle Wind
     Returns a list of Effects on each pixel
     """
+    def __init__(self, data, pix, config):
+        super().__init__(data, pix, config)
+
     @property
     def name(self):
         return "Pressure"
-
-    def get_effects(self):
-        return self.__effect__
 
     def update_data(self, data):
         safe_logging.safe_log("[v]updating data in the visualizer ({0})".format(self.name))
@@ -97,9 +97,3 @@ class Pressure(object):
                 self.__effect__.append(Solid(self.__pix__[i], color=[0, 0, 0]))
             i += 1
 
-    def __init__(self, data, pix, config):
-        self.__data__ = data
-        self.__pix__ = pix
-        self.__config__ = config
-        self.__effect__ = []
-        self.update_data(data)
