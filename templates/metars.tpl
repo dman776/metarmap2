@@ -4,7 +4,7 @@
 </div>
 
 <div class="row">
-    <a class="btn btn-primary" href="/" role="button">Control</a>&nbsp;
+    <a class="btn btn-primary" href="/" role="button">Home</a>&nbsp;
 </div>
 
 <div class="row">

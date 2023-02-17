@@ -15,6 +15,7 @@ import lib.colors as colors_lib
 from metar import METAR
 from visualizers.visualizer import Visualizer
 from adafruit_led_animation.animation.solid import Solid
+from adafruit_led_animation.animation.blink import Blink
 
 def get_color_by_visibility(vis: float) -> list:
     """
@@ -35,7 +36,7 @@ def get_color_by_visibility(vis: float) -> list:
         return colors_by_name[colors_lib.WHITE]
     else:
         return colors_lib.get_color_mix(
-            colors_by_name[colors_lib.WHITE], colors_by_name[colors_lib.OFF],
+            colors_by_name[colors_lib.OFF], colors_by_name[colors_lib.WHITE],
             utils.get_proportion_between_floats(0, vis, 10))
 
 
@@ -70,8 +71,8 @@ class Visibility(Visualizer):
                     pcolor = get_color_by_visibility(airport_data['vis'])
                     self.__effect__.append(Solid(self.__pix__[i], color=pcolor))
                 else:  # airport key not found in metar data
-                    self.__effect__.append(Solid(self.__pix__[i], color=colors_lib.RED))
+                    self.__effect__.append(Solid(self.__pix__[i], color=colors_lib.get_colors()['RED']))
             else:  # airport data is empty METAR data
-                self.__effect__.append(Solid(self.__pix__[i], color=colors_lib.RED))
+                self.__effect__.append(Blink(self.__pix__[i], speed=1, color=colors_lib.get_colors()['RED']))
             i += 1
 
