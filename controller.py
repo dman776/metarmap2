@@ -46,6 +46,7 @@ from visualizers.flightcategory import FlightCategory as FlightCategoryVisualize
 from visualizers.windgusts import WindGusts as WindGustsVisualizer
 from visualizers.pressure import Pressure as PressureVisualizer
 from visualizers.temperature import Temperature as TemperatureVisualizer
+from visualizers.visibility import Visibility as VisibilityVisualizer
 
 try:
     import board
@@ -171,6 +172,7 @@ if __name__ == '__main__':
     visualizers.append(WindGustsVisualizer(metars.data, pix, config))
     visualizers.append(PressureVisualizer(metars.data, pix, config))
     visualizers.append(TemperatureVisualizer(metars.data, pix, config))
+    visualizers.append(VisibilityVisualizer(metars.data, pix, config))
 
     renderer = renderer.Renderer(pixels, metars, config, visualizers)
     renderer.visualizer = 0
