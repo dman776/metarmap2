@@ -29,7 +29,7 @@ import io
 offset = -3
 x = 0
 
-ICON_INFO = "\uf338"
+ICON_INFO = "\uf05a"
 ICON_WIND = '\uf72e'
 ICON_VISIBILITY = "\uf0c2"
 ICON_PRESSURE = "\uf338"
@@ -145,7 +145,7 @@ class Display(object):
             self.__oled__.text(ICON_WIND, 4)
             self.__oled__.text("{0}SM".format(data['vis']), 5)
             self.__oled__.text(ICON_VISIBILITY, 6)
-            self.__oled__.text(data['altimHg'], 7)
+            self.__oled__.text("{0:2.2f}".format(data['altimHg']), 7)
             self.__oled__.text(ICON_PRESSURE, 8)
             self.__oled__.show()
         except Exception as e:
@@ -159,9 +159,9 @@ class Display(object):
             self.__oled__.layout = self.__page_layouts__[2]
             self.__oled__.text(station)
             self.__oled__.text(data["flightCategory"], 2)
-            self.__oled__.text("{0}C / {1}F".format(data['tempC'], utils.celsius_to_fahrenheit(data['tempC'])), 3)
+            self.__oled__.text("{0}C / {1:.0f}F".format(data['tempC'], utils.celsius_to_fahrenheit(data['tempC'])), 3)
             self.__oled__.text(ICON_TEMP, 4)
-            self.__oled__.text("{0}C / {1}F".format(data['dewpointC'], utils.celsius_to_fahrenheit(data['dewpointC'])), 5)
+            self.__oled__.text("{0}C / {1:.0f}F".format(data['dewpointC'], utils.celsius_to_fahrenheit(data['dewpointC'])), 5)
             self.__oled__.text(ICON_DEWPOINT, 6)
             self.__oled__.text("{0} {1}".format(data["obsTime"].astimezone(central).strftime("%H:%MC"), data["obsTime"].strftime("%H:%MZ")), 7)
             self.__oled__.text(ICON_DATE, 8)
