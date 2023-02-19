@@ -16,8 +16,8 @@
     <a class="btn btn-primary" href="/visualizer/previous" role="button">&lt;</a>&nbsp;
     <a class="btn btn-primary" href="#" role="button">Visualizer</a>&nbsp;
     <a class="btn btn-primary" href="/visualizer/next" role="button">&gt;</a>&nbsp;
-    Current Visualizer: {{renderer.visualizer[0].name}}<br />
-    {{renderer.visualizer[0].description}}
+    Current Visualizer: {{renderer.visualizer[1].name}}<br />
+    {{renderer.visualizer[1].description}}
 </div>
 <hr />
 <div class="row">
