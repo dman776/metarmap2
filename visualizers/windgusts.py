@@ -34,6 +34,12 @@ class WindGusts(Visualizer):
     def name(self):
         return "Wind Gusts"
 
+    @property
+    def description(self):
+        return """
+            Display the wind gusts.
+        """
+
     def update_data(self, data):
         super().update_data(data)
 

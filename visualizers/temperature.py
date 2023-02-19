@@ -95,6 +95,12 @@ class Temperature(Visualizer):
     def name(self):
         return "Temperature"
 
+    @property
+    def description(self):
+        return """
+            Display the current temp.
+        """
+
     def update_data(self, data):
         super().update_data(data)
 

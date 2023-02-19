@@ -72,6 +72,12 @@ class Pressure(Visualizer):
     def name(self):
         return "Pressure"
 
+    @property
+    def description(self):
+        return """
+            Display the pressure.
+        """
+
     def update_data(self, data):
         super().update_data(data)
 

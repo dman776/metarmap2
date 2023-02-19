@@ -52,6 +52,12 @@ class Visibility(Visualizer):
     def name(self):
         return "Visibility"
 
+    @property
+    def description(self):
+        return """
+            Display the visibility.
+        """
+
     def update_data(self, data):
         super().update_data(data)
 

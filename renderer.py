@@ -82,7 +82,7 @@ class Renderer(object):
         self.animate_once(Pulse(pix, speed=0.1, period=2, color=WHITE), False)
 
     @property
-    # returns [number, name]
+    # returns [number, visualizer]
     def visualizer(self):
         return self.active_visualizer, self.__visualizers__[self.active_visualizer]
 
