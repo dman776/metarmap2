@@ -43,7 +43,7 @@ def define_page_layouts():
     # Message/Info
     pl.append({
         1: BigLine(0, offset, size=20),  # TITLE
-        2: BigLine(110, offset, font="FontAwesomeSolid.ttf", size=14),  # msg ico
+        2: BigLine(110, offset, font="FontAwesomeSolid.ttf", size=12),  # msg ico
         3: BigLine(0, 19 + offset),  # line 1
         4: BigLine(0, 36 + offset),  # line 2
         5: BigLine(0, 52 + offset),  # line 3
@@ -53,24 +53,36 @@ def define_page_layouts():
     pl.append({
         1: BigLine(0, offset, size=20),  # AIRPORT
         2: BigLine(90, offset, size=16),  # CAT
-        3: BigLine(0, 19 + offset),  # wind
-        4: BigLine(110, 19 + offset, font="FontAwesomeSolid.ttf", size=14),  # wind ico
-        5: BigLine(0, 36 + offset),  # vis
-        6: BigLine(110, 36 + offset, font="FontAwesomeSolid.ttf", size=14),  # vis ico
-        7: BigLine(0, 52 + offset),  # pressure
-        8: BigLine(116, 52 + offset, font="FontAwesomeSolid.ttf", size=14)  # pressure ico
+        # 3: BigLine(0, 19 + offset),  # wind
+        # 4: BigLine(110, 19 + offset, font="FontAwesomeSolid.ttf", size=14),  # wind ico
+        # 5: BigLine(0, 36 + offset),  # vis
+        # 6: BigLine(110, 36 + offset, font="FontAwesomeSolid.ttf", size=14),  # vis ico
+        # 7: BigLine(0, 52 + offset),  # pressure
+        # 8: BigLine(116, 52 + offset, font="FontAwesomeSolid.ttf", size=14)  # pressure ico
+        3: BigLine(20, 19 + offset),  # wind
+        4: BigLine(0, 19 + offset, font="FontAwesomeSolid.ttf", size=14),  # wind ico
+        5: BigLine(20, 36 + offset),  # vis
+        6: BigLine(0, 36 + offset, font="FontAwesomeSolid.ttf", size=14),  # vis ico
+        7: BigLine(20, 52 + offset),  # pressure
+        8: BigLine(6, 52 + offset, font="FontAwesomeSolid.ttf", size=14)  # pressure ico
     })
 
     # Page station, cat, temp, dew, time
     pl.append({
         1: BigLine(0, offset, size=20),  # AIRPORT
         2: BigLine(90, offset, size=16),  # CAT
-        3: BigLine(0, 19 + offset),  # temp
-        4: BigLine(110, 19 + offset, font="FontAwesomeSolid.ttf", size=14),  # temp ico
-        5: BigLine(0, 36 + offset),  # dew
-        6: BigLine(110, 36 + offset, font="FontAwesomeSolid.ttf", size=14),  # dew ico
-        7: BigLine(0, 52 + offset),  # time
-        8: BigLine(110, 52 + offset, font="FontAwesomeSolid.ttf", size=14)  # time ico
+        # 3: BigLine(0, 19 + offset),  # temp
+        # 4: BigLine(110, 19 + offset, font="FontAwesomeSolid.ttf", size=14),  # temp ico
+        # 5: BigLine(0, 36 + offset),  # dew
+        # 6: BigLine(110, 36 + offset, font="FontAwesomeSolid.ttf", size=14),  # dew ico
+        # 7: BigLine(0, 52 + offset),  # time
+        # 8: BigLine(110, 52 + offset, font="FontAwesomeSolid.ttf", size=14)  # time ico
+        3: BigLine(20, 19 + offset),  # temp
+        4: BigLine(0, 19 + offset, font="FontAwesomeSolid.ttf", size=14),  # temp ico
+        5: BigLine(20, 36 + offset),  # dew
+        6: BigLine(0, 36 + offset, font="FontAwesomeSolid.ttf", size=14),  # dew ico
+        7: BigLine(20, 52 + offset),  # time
+        8: BigLine(0, 52 + offset, font="FontAwesomeSolid.ttf", size=14)  # time ico
     })
     return pl
 
