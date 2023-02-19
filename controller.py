@@ -117,20 +117,22 @@ def load_airports(file):
     return json.loads(fdata)
 
 
-def load_suntimes():
+def sched_load_suntimes():
+    safe_logging.safe_log("[sched]load suntimes")
     global DAWN, SUNRISE, SUNSET, DUSK, config
     (DAWN, SUNRISE, SUNSET, DUSK) = utils.get_sun_times(config)
     # clear schedule/set schedule
     schedule.clear("suntimes")
-    schedule.every().day.at(SUNSET.strftime("%H:%M")).do(set_brightness, level=config.data().led.brightness.dimmed).tag("suntimes")
-    schedule.every().day.at(DUSK.strftime("%H:%M")).do(set_brightness, level=config.data().led.brightness.off).tag("suntimes")
-    schedule.every().day.at(DAWN.strftime("%H:%M")).do(set_brightness, level=config.data().led.brightness.dimmed).tag("suntimes")
-    schedule.every().day.at(SUNRISE.strftime("%H:%M")).do(set_brightness, level=config.data().led.brightness.normal).tag("suntimes")
+    schedule.every().day.at(SUNSET.strftime("%H:%M")).do(sched_set_brightness, level=config.data().led.brightness.dimmed).tag("suntimes")
+    schedule.every().day.at(DUSK.strftime("%H:%M")).do(sched_set_brightness, level=config.data().led.brightness.off).tag("suntimes")
+    schedule.every().day.at(DAWN.strftime("%H:%M")).do(sched_set_brightness, level=config.data().led.brightness.dimmed).tag("suntimes")
+    schedule.every().day.at(SUNRISE.strftime("%H:%M")).do(sched_set_brightness, level=config.data().led.brightness.normal).tag("suntimes")
     for j in schedule.get_jobs("suntimes"):
         safe_logging.safe_log("[c]" + str(j) + " next run: " + str(j.next_run))
 
 
-def set_brightness(level):
+def sched_set_brightness(level):
+    safe_logging.safe_log("[sched]set brightness: " + str(level))
     renderer.brightness(level)
 
 
@@ -147,7 +149,7 @@ if __name__ == '__main__':
     airports = load_airports("airports.json")
 
     # get sunrise/sunset times for dynamic dimming
-    load_suntimes()
+    sched_load_suntimes()
 
     # Start loading the METARs in the background
     safe_logging.safe_log("[c]" + "Get weather for all airports...")
@@ -187,7 +189,7 @@ if __name__ == '__main__':
 
     # Job Scheduler setup --------------
     schedule.every(10).minutes.do(update_data)          # Start up METAR update thread
-    schedule.every().day.at('00:00').do(load_suntimes)  # load sun times and dim the map appropriately
+    schedule.every().day.at('00:00').do(sched_load_suntimes)  # load sun times and dim the map appropriately
 
     # Start up Web Server to handle UI
     web_server = webserver.WebServer("0.0.0.0", 8080, metars, renderer)
