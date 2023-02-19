@@ -4,12 +4,14 @@ from pprint import pprint
 import datetime
 
 import lib.config
+from lib import utils
+
 import metar
 from PIL import Image, ImageDraw, ImageFont
 try:
     from board import SCL, SDA
     import busio
-    # from PIL import Image, ImageDraw, ImageFont
+    from oled_text import OledText, Layout64, BigLine, SmallLine
     import adafruit_ssd1306
     import time
     from pytz import timezone
@@ -23,13 +25,54 @@ from lib.safe_logging import safe_log
 import threading
 import io
 
-fontLarge = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf', 20)
-fontMed = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf', 15)
-fontSmall = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf', 12)
-fontXSmall = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf', 11)
 
-padding = -3
+offset = -3
 x = 0
+
+ICON_INFO = "\uf338"
+ICON_WIND = '\uf72e'
+ICON_VISIBILITY = "\uf0c2"
+ICON_PRESSURE = "\uf338"
+ICON_TEMP = "\uf76b"
+ICON_DEWPOINT = "\uf73d"
+ICON_DATE = "\uf017"
+
+
+def define_page_layouts():
+    pl = []
+    # Message/Info
+    pl.append({
+        1: BigLine(0, offset, size=20),  # TITLE
+        2: BigLine(110, offset, font="FontAwesomeSolid.ttf", size=14),  # msg ico
+        3: BigLine(0, 19 + offset),  # line 1
+        4: BigLine(0, 36 + offset),  # line 2
+        5: BigLine(0, 52 + offset),  # line 3
+    })
+
+    # Page station, cat, wind, vis, pressure
+    pl.append({
+        1: BigLine(0, offset, size=20),  # AIRPORT
+        2: BigLine(90, offset, size=16),  # CAT
+        3: BigLine(0, 19 + offset),  # wind
+        4: BigLine(110, 19 + offset, font="FontAwesomeSolid.ttf", size=14),  # wind ico
+        5: BigLine(0, 36 + offset),  # vis
+        6: BigLine(110, 36 + offset, font="FontAwesomeSolid.ttf", size=14),  # vis ico
+        7: BigLine(0, 52 + offset),  # pressure
+        8: BigLine(116, 52 + offset, font="FontAwesomeSolid.ttf", size=14)  # pressure ico
+    })
+
+    # Page station, cat, temp, dew, time
+    pl.append({
+        1: BigLine(0, offset, size=20),  # AIRPORT
+        2: BigLine(90, offset, size=16),  # CAT
+        3: BigLine(0, 19 + offset),  # temp
+        4: BigLine(110, 19 + offset, font="FontAwesomeSolid.ttf", size=14),  # temp ico
+        5: BigLine(0, 36 + offset),  # dew
+        6: BigLine(110, 36 + offset, font="FontAwesomeSolid.ttf", size=14),  # dew ico
+        7: BigLine(0, 52 + offset),  # time
+        8: BigLine(110, 52 + offset, font="FontAwesomeSolid.ttf", size=14)  # time ico
+    })
+    return pl
 
 
 class Display(object):
@@ -38,29 +81,15 @@ class Display(object):
     """
     lock = threading.Lock()
 
-    def on(self):
-        """
-        Starts the display.
-        """
-        if self.__disp__ is not None:
-            self.__disp__.poweron()
-
-    def off(self):
-        if self.__disp__ is not None:
-            self.__disp__.poweroff()
-
-    def clear(self):
-        self.__disp__.fill(0)
-        self.__disp__.show()
-
     def __init__(self, airports, data):
         self.width = 128
         self.height = 64
+
         self.event = threading.Event()
         self.__i2c__ = busio.I2C(SCL, SDA)
-        self.__disp__ = adafruit_ssd1306.SSD1306_I2C(128, 64, self.__i2c__)
-        self.__image__ = Image.new("1", (self.width, self.height))
-        self.__draw__ = ImageDraw.Draw(self.__image__)
+        self.__oled__ = OledText(self.__i2c__, self.width, self.height)
+        self.__oled__.auto_show = False
+        self.__page_layouts__ = define_page_layouts()
         self.__airports__ = airports
         self.__data__ = data
         self.__thread__ = threading.Thread(target=self.loop)
@@ -77,7 +106,6 @@ class Display(object):
     """
     def stop(self):
         self.event.set()
-        # self.__thread__.join()
 
     def loop(self):
         while not self.event.is_set():
@@ -92,47 +120,54 @@ class Display(object):
             self.page2(sta, dat)
             time.sleep(delay)
 
-    # threading.Thread(target=self._app.run, kwargs=dict(host=self._host, port=self._port)).start()
+    def message(self, title, icon="", line1="", line2="", line3=""):
+        with self.lock:
+            try:
+                self.__oled__.layout = self.__page_layouts__[0]
+                self.__oled__.text(title)
+                self.__oled__.text(icon, 2)
+                self.__oled__.text(line1, 3)
+                self.__oled__.text(line2, 4)
+                self.__oled__.text(line3, 5)
+                self.__oled__.show()
+            except Exception as e:
+                safe_log("[d]: " + str(e))
 
     def page1(self, station, data):
-        # Draw a black filled box to clear the image.
-        self.__draw__.rectangle((0, 0, self.width, self.height), outline=0, fill=0)
-
-        top = padding
-        bottom = self.height - padding
-
-        central = timezone('US/Central')
-        # StationID, Condition (VFR/IFR)
-        self.__draw__.text((x, top + 0), station[1:] + " " + data["flightCategory"], font=fontLarge, fill=255)
-
-        # w, h = fontXSmall.getsize(str(station[1]))
-        # draw1.text((self.width - w, top + 1), str(station[1]), font=fontXSmall, fill=255)  # Custom text ("HOME", "CNTRL" etc)
-
-        line = "{0:03d}@{1:02d}".format(int(data["windDir"]), int(data["windSpeed"])) + \
-               ("G{0:2d}".format(int(data["windGustSpeed"])) if data["windGust"] else "") + \
-               " {0}SM".format(data['vis'])
-        self.__draw__.text((x, top + 20), line, font=fontMed, fill=255)
-
-        self.__draw__.text((x, top + 35), str(data["altimHg"]) + "Hg" + " " + str(data["tempC"]) + "/" +
-                           str(data["dewpointC"]) + "C", font=fontMed, fill=255)
-
-        self.__draw__.text((x, top + 50), data["obsTime"].astimezone(central).strftime("%H:%MC") + " " +
-                           data["obsTime"].strftime("%H:%MZ"), font=fontSmall, fill=255)
-
-        self.__disp__.image(self.__image__)
-        self.__disp__.show()
+        try:
+            self.__oled__.layout = self.__page_layouts__[1]
+            self.__oled__.text(station)
+            self.__oled__.text(data["flightCategory"], 2)
+            windline = "{0:03d}@{1:02d}".format(int(data["windDir"]), int(data["windSpeed"])) + \
+                       ("G{0:2d}".format(int(data["windGustSpeed"])) if data["windGust"] else "")
+            self.__oled__.text(windline, 3)
+            self.__oled__.text(ICON_WIND, 4)
+            self.__oled__.text("{0}SM".format(data['vis']), 5)
+            self.__oled__.text(ICON_VISIBILITY, 6)
+            self.__oled__.text(data['altimHg'], 7)
+            self.__oled__.text(ICON_PRESSURE, 8)
+            self.__oled__.show()
+        except Exception as e:
+            safe_log(station + ": " + str(e))
 
     def page2(self, station, data):
-        self.__draw__.rectangle((0, 0, self.width, self.height), outline=0, fill=0)
-        top = padding
-        bottom = self.height - padding
+        # TODO: change to CONFIG value
+        central = timezone('US/Central')
 
-        self.__draw__.rectangle((0, 0, self.width, self.height), outline=0, fill=0)
-        self.__draw__.text((x, top + 0), station[1:] + "-" + data["flightCategory"], font=fontLarge,
-                           fill=255)  # StationID, Condition (VFR/IFR)
-        w, h = fontXSmall.getsize(str(station))
-        self.__draw__.text((self.width - w, top + 1), "TEST", font=fontXSmall,
-                           fill=255)  # Custom text ("HOME", "CNTRL" etc)
+        try:
+            self.__oled__.layout = self.__page_layouts__[2]
+            self.__oled__.text(station)
+            self.__oled__.text(data["flightCategory"], 2)
+            self.__oled__.text("{0}C / {1}F".format(data['tempC'], utils.celsius_to_fahrenheit(data['tempC'])), 3)
+            self.__oled__.text(ICON_TEMP, 4)
+            self.__oled__.text("{0}C / {1}F".format(data['dewpointC'], utils.celsius_to_fahrenheit(data['dewpointC'])), 5)
+            self.__oled__.text(ICON_DEWPOINT, 6)
+            self.__oled__.text("{0} {1}".format(data["obsTime"].astimezone(central).strftime("%H:%MC"), data["obsTime"].strftime("%H:%MZ")), 7)
+            self.__oled__.text(ICON_DATE, 8)
+            self.__oled__.show()
+        except Exception as e:
+            safe_log(station + ": " + str(e))
+
         #
         # yOff = 18
         # xOff = 0
@@ -149,47 +184,5 @@ class Display(object):
         #         xOff = 65
         #         NewLine = True
         # draw2.text((x, yOff + 12), condition["obs"], font=fontMed, fill=255)
-        self.__disp__.image(self.__image__)
-        self.__disp__.show()
-
-    def message(self, title, msg):
-        with self.lock:
-            self.clear()
-            self.__draw__.text((x, padding + 0), title, font=fontLarge, fill=255)
-            self.__draw__.text((x, padding + 20), msg, font=fontMed, fill=255)
-            self.__disp__.image(self.__image__)
-            self.__disp__.show()
 
 
-if __name__ == '__main__':
-    config = lib.config.Config("config.json")
-    with open('airports.json') as f:
-        data = f.read()
-    airports = json.loads(data)
-
-    data = metar.METAR(airports, config, True)
-
-    d = Display(airports, data)
-    d.on()
-    d.message("METARMap", "Loading...")
-    time.sleep(2)
-
-    d.start()       # start looping
-
-    time.sleep(20)
-    d.stop()
-
-    # d.show_metar("KDWH", {'altimHg': 30.0, 'dewpointC': 19, 'flightCategory': 'MVFR',
-    #                       'latitude': '30.07', 'lightning': False, 'longitude': '-95.55',
-    #                       'obs': '', 'obsTime': datetime.datetime(2023, 2, 8, 14, 53, tzinfo=datetime.timezone.utc),
-    #                       'raw': 'KDWH 081453Z 18007G21KT 10SM BKN012 OVC020 22/19 A3000 RMK AO2 SLP155 T02220194 51011',
-    #                       'skyConditions': [{'cloudBaseFt': 2000, 'cover': 'OVC'}],
-    #                       'tempC': 22,
-    #                       'vis': 10,
-    #                       'windDir': '180',
-    #                       'windGust': True,
-    #                       'windGustSpeed': 21,
-    #                       'windSpeed': 7},
-    #              5)
-
-    d.off()

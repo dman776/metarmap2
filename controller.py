@@ -28,6 +28,7 @@ from datetime import datetime
 import json
 from pprint import pprint
 
+import display
 import lib.config
 import webserver
 import renderer
@@ -156,8 +157,10 @@ if __name__ == '__main__':
     disp: Display
     if config.data().display_screen.enabled:
         disp = Display(airports, metars)
-        disp.on()
-        disp.start()
+        disp.message("METARMAP", display.ICON_INFO,
+                     "Starting",
+                     "up the",
+                     "map...")
 
     # init neopixels
     # bright = CONFIG.data().dimming.time_base.bright_start < datetime.now().time() < CONFIG.data().dimming.time_base.dim_start
@@ -192,6 +195,9 @@ if __name__ == '__main__':
 
     # ============== MAIN LOOP =====================
     safe_logging.safe_log("[c]" + "Main loop...")
+    if config.data().display_screen.enabled:
+        disp.start()
+
     while True:
         try:
             renderer.render()
@@ -206,7 +212,6 @@ if __name__ == '__main__':
     schedule.clear()
     if config.data().display_screen.enabled:
         disp.stop()
-        disp.off()
     renderer.clear()
     web_server.stop()
     GPIO.cleanup()

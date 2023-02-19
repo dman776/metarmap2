@@ -25,20 +25,6 @@ from adafruit_led_animation.animation.colorcycle import ColorCycle
 from adafruit_led_animation.color import PURPLE, WHITE, AMBER, JADE, MAGENTA, ORANGE, BLUE, AQUA, RED, GREEN, YELLOW
 
 
-def celsius_to_fahrenheit(temperature_celsius: float):
-    """
-    Converts a temperature in celsius to fahrenheit.
-    Args:
-        temperature_celsius (float): A temperature in C
-    Returns:
-        [type]: The temperature converted to F
-    """
-    if temperature_celsius is None:
-        return 0
-
-    return (temperature_celsius * (9.0 / 5.0)) + 32.0
-
-
 def get_color_by_temperature_celsius(temperature_celsius: float) -> list:
     """
     Given a temperature (in Celsius), return the color
@@ -58,7 +44,7 @@ def get_color_by_temperature_celsius(temperature_celsius: float) -> list:
     if temperature_celsius is None:
         return colors_by_name[colors_lib.OFF]
 
-    temperature_fahrenheit = celsius_to_fahrenheit(temperature_celsius)
+    temperature_fahrenheit = utils.celsius_to_fahrenheit(temperature_celsius)
 
     if temperature_fahrenheit < 0:
         return colors_by_name[colors_lib.WHITE]
