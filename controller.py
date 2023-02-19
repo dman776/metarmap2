@@ -156,8 +156,8 @@ if __name__ == '__main__':
     # Init DISPLAY
     disp: Display
     if config.data().display_screen.enabled:
-        disp = Display(airports, metars)
-        disp.message("METARMAP", display.ICON_INFO,
+        disp = Display(airports, metars, config)
+        disp.message("METAR", display.ICON_INFO,
                      "Starting",
                      "up the",
                      "map...")

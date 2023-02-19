@@ -81,7 +81,7 @@ class Display(object):
     """
     lock = threading.Lock()
 
-    def __init__(self, airports, data):
+    def __init__(self, airports, data, config):
         self.width = 128
         self.height = 64
 
@@ -92,6 +92,7 @@ class Display(object):
         self.__page_layouts__ = define_page_layouts()
         self.__airports__ = airports
         self.__data__ = data
+        self.__config__ = config
         self.__thread__ = threading.Thread(target=self.loop)
         self.__thread__.daemon = True
 
@@ -111,7 +112,7 @@ class Display(object):
         while not self.event.is_set():
             for airport in self.__airports__.keys():
                 if self.__airports__[airport]['display']:
-                    self.show_metar(airport, self.__data__.data[airport], 5)
+                    self.show_metar(airport, self.__data__.data[airport], self.__config__.data().display_screen.delay)
 
     def show_metar(self, sta, dat, delay):
         with self.lock:
