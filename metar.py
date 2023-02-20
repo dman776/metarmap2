@@ -111,7 +111,7 @@ class METAR(object):
 
             if 'wind_gust_kt' in metar:
                 windGustSpeed = int(metar['wind_gust_kt'])
-                windGust = (True if (self.__config__.data().wind.always_for_gusts or windGustSpeed > self.__config__.data().wind.threshold) else False)
+                windGust = (True if windGustSpeed > 0 else False)
             if 'wind_speed_kt' in metar:
                 windSpeed = int(metar['wind_speed_kt'])
             if 'wind_dir_degrees' in metar:
