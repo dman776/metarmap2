@@ -35,9 +35,30 @@ def get_color_by_visibility(vis: float) -> list:
     elif vis >= 10:
         return colors_by_name[colors_lib.WHITE]
     else:
-        return colors_lib.get_color_mix(
-            colors_by_name[colors_lib.OFF], colors_by_name[colors_lib.WHITE],
-            utils.get_proportion_between_floats(0, vis, 10))
+        # return colors_lib.get_color_mix(
+        #     colors_by_name[colors_lib.OFF], colors_by_name[colors_lib.WHITE],
+        #     utils.get_proportion_between_floats(0, vis, 10))
+        if vis in range(9, 10):
+            return [80, 80, 80]
+        elif vis in range(8, 9):
+            return [40, 40, 40]
+        elif vis in range(7, 8):
+            return [20, 20, 20]
+        elif vis in range(6, 7):
+            return [10, 10, 10]
+        elif vis in range(5, 6):
+            return [5, 5, 5]
+        elif vis in range(4, 5):
+            return [4, 4, 4]
+        elif vis in range(3, 4):
+            return [3, 3, 3]
+        elif vis in range(2, 3):
+            return [2, 2, 2]
+        elif vis in range(1, 2):
+            return [1, 1, 1]
+        elif vis in range(0, 1):
+            return [0, 0, 0]
+
 
 
 class Visibility(Visualizer):

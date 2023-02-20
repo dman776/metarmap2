@@ -31,26 +31,38 @@ try:
 except IndexError as e:
     print(str(i) + " " + str(e.args))
 
-effect.append(Pulse(pix[0], speed=0.1, period=4, color=GREEN)) # VFR + gusts under 5
-effect.append(Pulse(pix[1], speed=0.1, period=3, color=GREEN)) # VFR + gusts 6-10
-effect.append(Pulse(pix[2], speed=0.1, period=2, color=GREEN)) # VFR + gusts 11-15
-effect.append(Pulse(pix[3], speed=0.1, period=1, color=GREEN)) # VFR + gusts 16-20
-effect.append(Pulse(pix[4], speed=0.1, period=0.5, color=GREEN)) # VFR + gusts 21+
-effect.append(Solid(pix[5], color=GREEN))   # VFR
-effect.append(Solid(pix[6], color=BLUE))    # MVFR
-effect.append(Solid(pix[7], color=RED))     # IFR
-effect.append(Solid(pix[8], color=PURPLE)) # LIFR
-effect.append(ColorCycle(pix[9], speed=0.5, colors=[BLUE, YELLOW])) # MVFR + lightning
-effect.append(Pulse(pix[10], speed=0.1, period=4, color=BLUE)) # MVFR + gusts under 5
-effect.append(Pulse(pix[11], speed=0.1, period=3, color=BLUE)) # MVFR + gusts 6-10
-effect.append(Pulse(pix[12], speed=0.1, period=2, color=BLUE)) # MVFR + gusts 11-15
-effect.append(Pulse(pix[13], speed=0.1, period=1, color=BLUE)) # MVFR + gusts 16-20
-effect.append(Pulse(pix[14], speed=0.1, period=0.5, color=BLUE)) # MVFR + gusts 21+
-effect.append(Pulse(pix[15], speed=0.1, period=4, color=RED)) # IFR + gusts under 5
-effect.append(Pulse(pix[16], speed=0.1, period=3, color=RED)) # IFR + gusts 6-10
-effect.append(Pulse(pix[17], speed=0.1, period=2, color=RED)) # IFR + gusts 11-15
-effect.append(Pulse(pix[18], speed=0.1, period=1, color=RED)) # IFR + gusts 16-20
-effect.append(Pulse(pix[19], speed=0.1, period=0.5, color=RED)) # IFR + gusts 21+
+effect.append(Solid(pix[0], color=[255, 255, 255]))
+effect.append(Solid(pix[1], color=[80, 80, 80]))
+effect.append(Solid(pix[2], color=[40, 40, 40]))
+effect.append(Solid(pix[3], color=[20, 20, 20]))
+effect.append(Solid(pix[4], color=[10, 10, 10]))
+effect.append(Solid(pix[5], color=[5, 5, 5]))
+effect.append(Solid(pix[6], color=[3, 3, 3]))
+effect.append(Solid(pix[7], color=[2, 2, 2]))
+effect.append(Solid(pix[8], color=[1, 1, 1]))
+effect.append(Solid(pix[9], color=[0, 0, 0]))
+
+
+# effect.append(Pulse(pix[0], speed=0.1, period=4, color=GREEN)) # VFR + gusts under 5
+# effect.append(Pulse(pix[1], speed=0.1, period=3, color=GREEN)) # VFR + gusts 6-10
+# effect.append(Pulse(pix[2], speed=0.1, period=2, color=GREEN)) # VFR + gusts 11-15
+# effect.append(Pulse(pix[3], speed=0.1, period=1, color=GREEN)) # VFR + gusts 16-20
+# effect.append(Pulse(pix[4], speed=0.1, period=0.5, color=GREEN)) # VFR + gusts 21+
+# effect.append(Solid(pix[5], color=GREEN))   # VFR
+# effect.append(Solid(pix[6], color=BLUE))    # MVFR
+# effect.append(Solid(pix[7], color=RED))     # IFR
+# effect.append(Solid(pix[8], color=PURPLE)) # LIFR
+# effect.append(ColorCycle(pix[9], speed=0.5, colors=[BLUE, YELLOW])) # MVFR + lightning
+# effect.append(Pulse(pix[10], speed=0.1, period=4, color=BLUE)) # MVFR + gusts under 5
+# effect.append(Pulse(pix[11], speed=0.1, period=3, color=BLUE)) # MVFR + gusts 6-10
+# effect.append(Pulse(pix[12], speed=0.1, period=2, color=BLUE)) # MVFR + gusts 11-15
+# effect.append(Pulse(pix[13], speed=0.1, period=1, color=BLUE)) # MVFR + gusts 16-20
+# effect.append(Pulse(pix[14], speed=0.1, period=0.5, color=BLUE)) # MVFR + gusts 21+
+# effect.append(Pulse(pix[15], speed=0.1, period=4, color=RED)) # IFR + gusts under 5
+# effect.append(Pulse(pix[16], speed=0.1, period=3, color=RED)) # IFR + gusts 6-10
+# effect.append(Pulse(pix[17], speed=0.1, period=2, color=RED)) # IFR + gusts 11-15
+# effect.append(Pulse(pix[18], speed=0.1, period=1, color=RED)) # IFR + gusts 16-20
+# effect.append(Pulse(pix[19], speed=0.1, period=0.5, color=RED)) # IFR + gusts 21+
 
 
 
@@ -74,25 +86,24 @@ animations = AnimationSequence(
     AnimationGroup(
         *effect
     ),
-    comet,
-    blink,
-    rainbow_sparkle,
-    chase,
-    pulse,
-    sparkle,
-    rainbow,
-    solid,
-    rainbow_comet,
-    sparkle_pulse,
-    rainbow_chase,
-    custom_color_chase,
-    advance_interval=5,
+    # comet,
+    # blink,
+    # rainbow_sparkle,
+    # chase,
+    # pulse,
+    # sparkle,
+    # rainbow,
+    # solid,
+    # rainbow_comet,
+    # sparkle_pulse,
+    # rainbow_chase,
+    # custom_color_chase,
+    advance_interval=10,
     auto_clear=False,
 )
 
 while True:
     animations.animate()
-    pixels.brightness = 0.5
 
 
 
