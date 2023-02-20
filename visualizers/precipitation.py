@@ -16,7 +16,7 @@ from metar import METAR
 from visualizers.visualizer import Visualizer
 from adafruit_led_animation.animation.solid import Solid
 
-def get_color_by_obs(obs: string) -> list:
+def get_color_by_obs(obs: str) -> list:
     """
     Given an observation reading, return a RGB color to show on the map.
     Args:
