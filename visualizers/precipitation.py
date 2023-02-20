@@ -27,10 +27,9 @@ def get_color_by_obs(obs: str) -> list:
 
     colors_by_name = colors_lib.get_colors()
 
-    if obs is None:
+    if obs is None or obs == "":
         return colors_by_name[colors_lib.OFF]
-
-    if "FG" in obs:
+    elif "FG" in obs:
         return colors_by_name[colors_lib.GRAY]
     elif "HZ" in obs:
         return colors_by_name[1, 1, 1]
@@ -40,6 +39,7 @@ def get_color_by_obs(obs: str) -> list:
         return colors_by_name[colors_lib.BLUE]
     else:
         return colors_by_name[colors_lib.RED]
+
 
 class Precipitation(Visualizer):
     """
