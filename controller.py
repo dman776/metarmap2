@@ -44,12 +44,14 @@ from renderer import Renderer as Renderer
 from adafruit_led_animation.helper import PixelSubset
 from adafruit_led_animation.animation.rainbowchase import RainbowChase
 from adafruit_led_animation.animation.rainbowcomet import RainbowComet
+
 from visualizers.flightcategory import FlightCategory as FlightCategoryVisualizer
 from visualizers.wind import Wind as WindVisualizer
 from visualizers.windgusts import WindGusts as WindGustsVisualizer
 from visualizers.pressure import Pressure as PressureVisualizer
 from visualizers.temperature import Temperature as TemperatureVisualizer
 from visualizers.visibility import Visibility as VisibilityVisualizer
+from visualizers.precipitation import Precipitation as PrecipitationVisualizer
 
 try:
     import board
@@ -176,6 +178,7 @@ if __name__ == '__main__':
     visualizers.append(WindVisualizer(metars.data, pix, config))
     visualizers.append(WindGustsVisualizer(metars.data, pix, config))
     visualizers.append(PressureVisualizer(metars.data, pix, config))
+    visualizers.append(PrecipitationVisualizer(metars.data, pix, config))
     visualizers.append(TemperatureVisualizer(metars.data, pix, config))
     visualizers.append(VisibilityVisualizer(metars.data, pix, config))
 
@@ -188,8 +191,8 @@ if __name__ == '__main__':
         # renderer.animate_once(RainbowChase(pixels, speed=0.1, size=4, spacing=2, step=4))
 
     # Job Scheduler setup --------------
-    schedule.every(10).minutes.do(update_data)          # Start up METAR update thread
-    schedule.every().day.at('00:00').do(sched_load_suntimes)  # load sun times and dim the map appropriately
+    schedule.every(10).minutes.do(update_data)                  # Start up METAR update thread
+    schedule.every().day.at('00:00').do(sched_load_suntimes)    # load sun times and dim the map appropriately
 
     # Start up Web Server to handle UI
     web_server = webserver.WebServer("0.0.0.0", 80, metars, renderer)
@@ -205,7 +208,7 @@ if __name__ == '__main__':
             renderer.render()
             schedule.run_pending()
         except Exception as e:
-            safe_logging.safe_log("[c]" + e)
+            safe_logging.safe_log("[c]" + str(e))
         except KeyboardInterrupt:
             break
 

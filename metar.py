@@ -20,6 +20,20 @@ class METAR(object):
     Object to control and handle METARs.
     """
 
+    def __init__(self, airports: dict, cfg, fetch=False):
+        """
+        Creates a new METAR class.
+        """
+        self.__airports__ = airports
+        self.__config__ = cfg
+        self.__is_fetching__ = False
+        self.__missing_stations__ = []
+        self.__stations__ = []
+        self.data = {}
+        self.lastFetchTime = None
+        if fetch:
+            self.fetch()
+
     def fetch(self, callback=None):
         try:
             self.__is_fetching__ = True
@@ -182,35 +196,21 @@ class METAR(object):
         """
         return self.__stations__
 
-    def __init__(self, airports: dict, cfg, fetch=False):
-        """
-        Creates a new METAR class.
-        """
-        self.__airports__ = airports
-        self.__config__ = cfg
-        self.__is_fetching__ = False
-        self.__missing_stations__ = []
-        self.__stations__ = []
-        self.data = {}
-        self.lastFetchTime = None
-        if fetch:
-            self.fetch()
-
 
 if __name__ == '__main__':
-    # airportstr = '{"KDWH": {"text": "Hooks", "display": false, "visits": 0},'\
-    #             '"KIAH": {"text": "IAH", "display": false, "visits": 0},'\
-    #             '"KLVJ": {"text": "", "display": false, "visits": 0}}'
-    # airports = json.loads(airportstr)
+    airportstr = '{"KDWH": {"text": "Hooks", "display": false, "visits": 0},'\
+                '"KIAH": {"text": "IAH", "display": false, "visits": 0},'\
+                '"KLVJ": {"text": "", "display": false, "visits": 0}}'
+    airports = json.loads(airportstr)
 
-    with open('airports.json') as f:
-        data = f.read()
-    airports = json.loads(data)
+    # with open('airports.json') as f:
+    #     data = f.read()
+    # airports = json.loads(data)
 
     config = Config("config.json")
     metars = METAR(airports, config, fetch=True)
-    # pprint(metars)
-    # pprint("missing: " + str(metars.missing_stations()))
+    pprint(metars.data)
+    pprint("missing: " + str(metars.missing_stations()))
     # pprint("all: " + str(metars.stations()))
     # pprint(metars.data['KDWH'], indent=4)
 
