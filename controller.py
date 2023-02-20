@@ -162,10 +162,8 @@ if __name__ == '__main__':
     disp: Display
     if config.data().display_screen.enabled:
         disp = Display(airports, metars, config)
-        disp.message("METAR", display.ICON_INFO,
-                     "Starting",
-                     "up the",
-                     "map...")
+        disp.message("MAP", display.ICON_INFO,
+                     "Starting..")
 
     # init neopixels
     pixels = neopixel.NeoPixel(config.LED_PIN, config.data().led.count, brightness=config.data().led.brightness.normal,
@@ -218,4 +216,4 @@ if __name__ == '__main__':
         disp.stop()
     renderer.clear()
     web_server.stop()
-    GPIO.cleanup()
+    # GPIO.cleanup()
