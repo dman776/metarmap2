@@ -55,7 +55,7 @@ class WindGusts(Visualizer):
             airport_data = self.__data__.get(airport, None)
             if len(airport_data.keys()) > 0:
                 if airport_data is not None:
-                    if self.__config__.data().wind.animation and airport_data['windGust'] is True:
+                    if airport_data['windGust'] is True:
                         p = 10
                         if airport_data['windGustSpeed'] in range(0, 11):
                             p = 10  # gusts 1-5

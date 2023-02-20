@@ -24,11 +24,6 @@
       "ifr": [0, 255, 0],
       "lifr": [0, 125, 125]
     },
-    "standard": {
-      "red": [255, 0, 0],
-      "green": [0, 255, 0],
-      "blue": [0, 0, 255]
-    },
     "clear": [0, 0, 0],
     "weather": {
       "lightning": [255, 255, 0],
@@ -44,16 +39,7 @@
       }
     }
   },
-  "wind": {
-    "animation": true,
-    "threshold": 15,
-    "always_for_gusts": false
-  },
   "lightning": {
     "animation": true
-  },
-  "blink": {
-    "enable":true,
-    "rate": 1.0
   }
 }
