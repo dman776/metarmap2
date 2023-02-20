@@ -6,7 +6,7 @@ class Visualizer(object):
         self.__pix__ = pix
         self.__config__ = config
         self.__effect__ = []
-        self.update_data(data)
+        # self.update_data(data)
 
     def get_effects(self):
         return self.__effect__
