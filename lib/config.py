@@ -54,7 +54,7 @@ class Config(object):
 
     @property
     def suntimes(self):
-        return self.suntimes()
+        return self.suntimes
 
     @suntimes.setter
     def suntimes(self, suntimes):
