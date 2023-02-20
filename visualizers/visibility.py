@@ -30,9 +30,9 @@ def get_color_by_visibility(vis: float) -> list:
 
     if vis is None:
         return colors_by_name[colors_lib.RED]
-    elif vis < 0:
+    elif vis <= 0:
         return colors_by_name[colors_lib.OFF]
-    elif vis > 10:
+    elif vis >= 10:
         return colors_by_name[colors_lib.WHITE]
     else:
         return colors_lib.get_color_mix(

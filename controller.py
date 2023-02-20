@@ -44,6 +44,7 @@ from adafruit_led_animation.helper import PixelSubset
 from adafruit_led_animation.animation.rainbowchase import RainbowChase
 from adafruit_led_animation.animation.rainbowcomet import RainbowComet
 from visualizers.flightcategory import FlightCategory as FlightCategoryVisualizer
+from visualizers.wind import Wind as WindVisualizer
 from visualizers.windgusts import WindGusts as WindGustsVisualizer
 from visualizers.pressure import Pressure as PressureVisualizer
 from visualizers.temperature import Temperature as TemperatureVisualizer
@@ -174,6 +175,7 @@ if __name__ == '__main__':
     # NEED to periodically update visualizer, renderer, webserver, disp with new METAR data
     visualizers = []
     visualizers.append(FlightCategoryVisualizer(metars.data, pix, config))
+    visualizers.append(WindVisualizer(metars.data, pix, config))
     visualizers.append(WindGustsVisualizer(metars.data, pix, config))
     visualizers.append(PressureVisualizer(metars.data, pix, config))
     visualizers.append(TemperatureVisualizer(metars.data, pix, config))

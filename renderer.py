@@ -44,7 +44,6 @@ class Renderer(object):
 
     def render(self):
         i = 0
-        # visualizer = FlightCategoryVisualizer(self.__stations__, self.__data__, self.__pix__, self.__config__)
         animations = AnimateOnce(
             AnimationGroup(
                 *self.__vis__.get_effects()
@@ -89,6 +88,7 @@ class Renderer(object):
     @visualizer.setter
     def visualizer(self, vis):
         self.__vis__ = self.__visualizers__[vis]
+        self.__vis__.update_data(self.__data__)
         self.active_visualizer = vis
 
     def visualizer_next(self):
