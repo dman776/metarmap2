@@ -42,7 +42,7 @@ class Renderer(object):
         self.__visualizers__ = visualizers
         self.__vis__ = visualizers[0]
         self.active_visualizer = 0
-        self.adjust_brightness_for_time()
+        # self.adjust_brightness_for_time()
         self.clear()
 
     def render(self):
