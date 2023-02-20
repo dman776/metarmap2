@@ -119,9 +119,9 @@ def load_airports(file):
     return json.loads(fdata)
 
 
-def sched_load_suntimes(suntimes=config.suntimes):
+def sched_load_suntimes():
     safe_logging.safe_log("[sched]load suntimes")
-    (DAWN, SUNRISE, SUNSET, DUSK) = suntimes
+    (DAWN, SUNRISE, SUNSET, DUSK) = config.suntimes
 
     # clear schedule/set schedule
     schedule.clear("suntimes")
@@ -149,7 +149,7 @@ if __name__ == '__main__':
 
     # get sunrise/sunset times for dynamic dimming
     config.suntimes = utils.get_sun_times(config)
-    sched_load_suntimes(config.suntimes)
+    sched_load_suntimes()
 
     # load airports file
     airports = load_airports("airports.json")
