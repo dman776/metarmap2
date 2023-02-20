@@ -52,12 +52,7 @@ class Config(object):
     def data(self):
         return self.__data__
 
-    @property
-    def suntimes(self):
-        return self.suntimes
-
-    @suntimes.setter
-    def suntimes(self, suntimes):
+    def set_suntimes(self, suntimes):
         self.suntimes = suntimes
 
 
