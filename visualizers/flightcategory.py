@@ -20,11 +20,11 @@ from adafruit_led_animation.animation.colorcycle import ColorCycle
 from adafruit_led_animation.color import YELLOW
 
 
-def lightning_pattern(cat):
+def lightning_pattern(cat, color):
     lp = []
     for i in range(1, 16):
         lp.append(cat)
-    lp.append(YELLOW)
+    lp.append(color)
     return lp
 
 
@@ -65,7 +65,7 @@ class FlightCategory(Visualizer):
                 if airport_data is not None:
                     if self.__config__.data().lightning.animation and airport_data['lightning'] is True:
                         self.__effect__.append(ColorCycle(self.__pix__[i], speed=0.1, colors=lightning_pattern(
-                            airport_data['flightCategoryColor'])))  # lightning
+                            airport_data['flightCategoryColor'], self.__config__.data().color.weather.lightning)))  # lightning
                     else:
                         self.__effect__.append(Solid(self.__pix__[i], color=airport_data['flightCategoryColor']))
                 else:  # airport key not found in metar data
