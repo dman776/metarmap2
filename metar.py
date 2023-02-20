@@ -164,7 +164,7 @@ class METAR(object):
         elif category == "MVFR":
             return self.__config__.data().color.cat.mvfr
         elif category == "IFR":
-            return self.__config__.data().color.cat.lifr
+            return self.__config__.data().color.cat.ifr
         elif category == "LIFR":
             return self.__config__.data().color.cat.lifr
         else:
