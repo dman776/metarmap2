@@ -189,7 +189,7 @@ if __name__ == '__main__':
 
     # Job Scheduler setup --------------
     schedule.every(10).minutes.do(update_data)          # Start up METAR update thread
-    schedule.every().day.at('00:00').do(sched_load_suntimes)  # load sun times and dim the map appropriately
+    schedule.every().day.at('00:00').do(sched_load_suntimes(config.suntimes))  # load sun times and dim the map appropriately
 
     # Start up Web Server to handle UI
     web_server = webserver.WebServer("0.0.0.0", 8080, metars, renderer)
