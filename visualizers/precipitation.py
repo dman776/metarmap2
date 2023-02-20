@@ -30,14 +30,15 @@ def get_color_by_obs(obs: str) -> list:
     if obs is None or obs == "":
         return colors_by_name[colors_lib.OFF]
     elif "FG" in obs:
-        return colors_by_name[colors_lib.GRAY]
+        return [15, 15, 15]
     elif "HZ" in obs:
-        return colors_by_name[1, 1, 1]
+        return [5, 5, 5]
     elif "BR" in obs:
         return colors_by_name[colors_lib.LIGHT_BLUE]
     elif "RS" in obs:
         return colors_by_name[colors_lib.BLUE]
     else:
+        safe_logging.safe_log("[v]obs=" + str(obs))
         return colors_by_name[colors_lib.RED]
 
 

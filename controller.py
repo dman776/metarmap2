@@ -209,6 +209,7 @@ if __name__ == '__main__':
             schedule.run_pending()
         except Exception as e:
             safe_logging.safe_log("[c]" + str(e))
+            break
         except KeyboardInterrupt:
             break
 
