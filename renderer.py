@@ -46,8 +46,8 @@ class Renderer(object):
         self.clear()
 
     def render(self):
-        i = 0
-        if len(self.__vis__.get_effects()) > 0:
+        # i = 0
+        try:
             animations = AnimateOnce(
                 AnimationGroup(
                     *self.__vis__.get_effects()
@@ -58,6 +58,8 @@ class Renderer(object):
             self.__animationloop__ = animations
             while animations.animate():
                 pass
+        except Exception as e:
+            safe_logging("[r]render error: " + str(e))
 
     def update_data(self, metars: metar.METAR):
         safe_logging.safe_log("[r]" + "updating data in the renderer")
