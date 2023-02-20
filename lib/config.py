@@ -11,7 +11,20 @@ try:
 except:
     pass
 
+
 class Config(object):
+    def __init__(self, file):
+        """
+        Creates a new config object
+        """
+        self.__file__ = file
+        self.__data__ = {}
+        self.LED_PIN = None
+        self.LED_ORDER = None
+        self.suntimes = []
+        self.read()
+
+
     def read(self):
         with open(self.__file__, 'r') as f:
             self.__data__ = json.load(f, object_hook= lambda x: SimpleNamespace(**x))
@@ -39,24 +52,20 @@ class Config(object):
     def data(self):
         return self.__data__
 
-    def __init__(self, file):
-        """
-        Creates a new config object
-        """
-        self.__file__ = file
-        self.__data__ = {}
-        self.LED_PIN = None
-        self.LED_ORDER = None
-        self.read()
+    @property
+    def suntimes(self):
+        return self.suntimes()
+
+    @suntimes.setter
+    def suntimes(self, suntimes):
+        self.suntimes = suntimes
+
 
 
 if __name__ == '__main__':
     safe_logging.safe_log("[cfg]" + "Config")
     config = Config("../config.json")
-    # pprint(config.data().led.brightness)
-    # pprint(config.data().color.cat.vfr)
-    # pprint(config.LED_ORDER)
-    # pprint(config.LED_PIN)
+
 
 
 

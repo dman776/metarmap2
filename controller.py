@@ -78,10 +78,10 @@ BLINK_TOTALTIME_SECONDS	= 600
 # ---------------------------------------------------------------------------
 
 # Globals
-DAWN = None
-SUNRISE = None
-SUNSET = None
-DUSK = None
+# DAWN = None
+# SUNRISE = None
+# SUNSET = None
+# DUSK = None
 config = None
 
 
@@ -119,10 +119,10 @@ def load_airports(file):
     return json.loads(fdata)
 
 
-def sched_load_suntimes():
+def sched_load_suntimes(suntimes):
     safe_logging.safe_log("[sched]load suntimes")
-    global DAWN, SUNRISE, SUNSET, DUSK, config
-    (DAWN, SUNRISE, SUNSET, DUSK) = utils.get_sun_times(config)
+    (DAWN, SUNRISE, SUNSET, DUSK) = suntimes
+
     # clear schedule/set schedule
     schedule.clear("suntimes")
     schedule.every().day.at(SUNSET.strftime("%H:%M")).do(sched_set_brightness, level=config.data().led.brightness.dimmed).tag("suntimes")
@@ -147,11 +147,12 @@ if __name__ == '__main__':
     # disp.message("METARMAP", "config...")
     config = lib.config.Config("config.json")
 
+    # get sunrise/sunset times for dynamic dimming
+    config.suntimes = utils.get_sun_times(config)
+    sched_load_suntimes(config.suntimes)
+
     # load airports file
     airports = load_airports("airports.json")
-
-    # get sunrise/sunset times for dynamic dimming
-    sched_load_suntimes()
 
     # Start loading the METARs in the background
     safe_logging.safe_log("[c]" + "Get weather for all airports...")
@@ -167,13 +168,9 @@ if __name__ == '__main__':
                      "map...")
 
     # init neopixels
-    # bright = CONFIG.data().dimming.time_base.bright_start < datetime.now().time() < CONFIG.data().dimming.time_base.dim_start
-    bright = False
     pixels = neopixel.NeoPixel(config.LED_PIN, config.data().led.count, brightness=config.data().led.brightness.normal,
                                pixel_order=config.LED_ORDER, auto_write=False)
     pix = init_pixel_subsets(pixels)
-
-
 
     # NEED to periodically update visualizer, renderer, webserver, disp with new METAR data
     visualizers = []

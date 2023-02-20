@@ -119,7 +119,7 @@ class Renderer(object):
     def adjust_brightness_for_time(self):
         safe_logging.safe_log("[r]adjust brightness for time")
         right_now = datetime.now(pytz.utc)
-        (DAWN, SUNRISE, SUNSET, DUSK) = utils.get_sun_times(self.__config__)
+        (DAWN, SUNRISE, SUNSET, DUSK) = self.__config__.suntimes
 
         if DAWN < right_now < SUNRISE:
             self.brightness(self.__config__.data().led.brightness.dimmed)
