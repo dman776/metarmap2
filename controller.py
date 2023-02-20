@@ -24,7 +24,8 @@ import json
 import sys
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timezone
+import pytz
 import json
 from pprint import pprint
 
@@ -171,6 +172,8 @@ if __name__ == '__main__':
     pixels = neopixel.NeoPixel(config.LED_PIN, config.data().led.count, brightness=config.data().led.brightness.normal,
                                pixel_order=config.LED_ORDER, auto_write=False)
     pix = init_pixel_subsets(pixels)
+
+
 
     # NEED to periodically update visualizer, renderer, webserver, disp with new METAR data
     visualizers = []

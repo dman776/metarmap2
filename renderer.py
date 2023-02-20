@@ -4,13 +4,15 @@ Module to handle METAR fetching and processing
 
 import sys
 import time
-import datetime
+from datetime import datetime
+import pytz
 from pprint import pprint
 import json
 import lib.safe_logging as safe_logging
 import metar
 from lib.config import Config
 from lib.utils import wheel
+from lib import utils
 
 from adafruit_led_animation.helper import PixelSubset
 
@@ -113,7 +115,19 @@ class Renderer(object):
     def pixels(self):
         return self.__pixels__
 
+    def adjust_brightness_for_time(self):
+        safe_logging.safe_log("[r]adjust brightness for time")
+        right_now = datetime.now(pytz.utc)
+        (DAWN, SUNRISE, SUNSET, DUSK) = utils.get_sun_times(self.__config__)
 
+        if DAWN < right_now < SUNRISE:
+            self.brightness(self.__config__.data().led.brightness.dimmed)
+        elif SUNRISE < right_now < SUNSET:
+            self.brightness(self.__config__.data().led.brightness.normal)
+        elif SUNSET < right_now < DUSK:
+            self.brightness(self.__config__.data().led.brightness.dimmed)
+        else:
+            self.brightness(self.__config__.data().led.brightness.off)
 
 
 if __name__ == '__main__':
