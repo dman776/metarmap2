@@ -47,16 +47,17 @@ class Renderer(object):
 
     def render(self):
         i = 0
-        animations = AnimateOnce(
-            AnimationGroup(
-                *self.__vis__.get_effects()
-            ),
-            # advance_interval=5,
-            auto_clear=False,
-        )
-        self.__animationloop__ = animations
-        while animations.animate():
-            pass
+        if len(self.__vis__.get_effects()) > 0:
+            animations = AnimateOnce(
+                AnimationGroup(
+                    *self.__vis__.get_effects()
+                ),
+                # advance_interval=5,
+                auto_clear=False,
+            )
+            self.__animationloop__ = animations
+            while animations.animate():
+                pass
 
     def update_data(self, metars: metar.METAR):
         safe_logging.safe_log("[r]" + "updating data in the renderer")
