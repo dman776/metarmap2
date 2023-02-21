@@ -43,8 +43,9 @@ class FlightCategory(Visualizer):
     @property
     def description(self):
         return """
-            Display the flight category (ie. VFR, MVFR, IFR, LIFR)
-            where VFR=GREEN, MVFR=BLUE, IFR=RED, LIFR=PURPLE.  Lighting will be indicated by flashing YELLOW.
+            Display the flight category (ie. VFR, MVFR, IFR, LIFR)<br />
+            where VFR=GREEN, MVFR=BLUE, IFR=RED, LIFR=PURPLE.<br />
+            Lighting will be indicated by flashing YELLOW.
         """
 
     def update_data(self, data):
