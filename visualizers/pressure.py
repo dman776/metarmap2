@@ -77,9 +77,6 @@ class Pressure(Visualizer):
         return """
             Display the atmospheric pressure.
             <div class="w-100">
-            HIGH_PRESSURE = 30.2
-STANDARD_PRESSURE = 29.92
-LOW_PRESSURE = 29.8
             <ul>
                 <li>Less than 29.80=<font color='red'>RED</font></li>
                 <li>Greater than 30.20=<font color='blue'>BLUE</font></li>
