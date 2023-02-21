@@ -87,9 +87,6 @@ LOW_PRESSURE = 29.8
                 <li>Between 29.80 and 29.92 varies between <font color='red'>RED</font> and <font color='LightCoral'>LIGHT RED</font></li>
             </ul>
             </div>
-            <div class="w-100">
-            Lighting will be indicated by flashing <font color='gold'>YELLOW</font>.
-            </div>
         """
 
     def update_data(self, data):
