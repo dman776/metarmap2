@@ -75,7 +75,21 @@ class Pressure(Visualizer):
     @property
     def description(self):
         return """
-            Display the pressure.
+            Display the atmospheric pressure.
+            <div class="w-100">
+            HIGH_PRESSURE = 30.2
+STANDARD_PRESSURE = 29.92
+LOW_PRESSURE = 29.8
+            <ul>
+                <li>Less than 29.80=<font color='green'>RED</font></li>
+                <li>Greater than 30.20=<font color='blue'>BLUE</font></li>
+                <li>Between 29.92 and 30.20 varies between <font color='LightSkyBlue'>LIGHT BLUE</font> and <font color='blue'>BLUE</font></li>
+                <li>Between 29.80 and 29.92 varies between <font color='red'>RED</font> and <font color='LightCoral'>LIGHT RED</font></li>
+            </ul>
+            </div>
+            <div class="w-100">
+            Lighting will be indicated by flashing <font color='gold'>YELLOW</font>.
+            </div>
         """
 
     def update_data(self, data):
