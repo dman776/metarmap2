@@ -18,10 +18,8 @@
     <button class="btn btn-primary" disabled>Visualizer</button>&nbsp;
     <button type="button" class="btn btn-primary" onClick="window.location='/visualizer/next';">&gt;</button>
 </div>
-<div class="row">
-    Current Visualizer: {{renderer.visualizer[1].name}}<br />
-    {{!renderer.visualizer[1].description}}
-</div>
+<div class="row">{{renderer.visualizer[1].name}}</div>
+<div class="row">{{!renderer.visualizer[1].description}}</div>
 <hr />
 <div class="row">
     <label for="brightness" class="form-label">Brightness</label>&nbsp;
