@@ -53,7 +53,7 @@ class FlightCategory(Visualizer):
             </ul>
             </div>
             <div class="w-100">
-            Lighting will be indicated by flashing YELLOW.
+            Lighting will be indicated by flashing <font color='gold'>YELLOW</font>.
             </div>
         """
 
