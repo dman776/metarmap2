@@ -79,9 +79,9 @@ class Pressure(Visualizer):
             <div class="w-100">
             <ul>
                 <li>Less than 29.80=<font color='red'>RED</font></li>
-                <li>Greater than 30.20=<font color='blue'>BLUE</font></li>
-                <li>Between 29.92 and 30.20 varies between <font color='LightSkyBlue'>LIGHT BLUE</font> and <font color='blue'>BLUE</font></li>
                 <li>Between 29.80 and 29.92 varies between <font color='red'>RED</font> and <font color='LightCoral'>LIGHT RED</font></li>
+                <li>Between 29.92 and 30.20 varies between <font color='LightSkyBlue'>LIGHT BLUE</font> and <font color='blue'>BLUE</font></li>
+                <li>Greater than 30.20=<font color='blue'>BLUE</font></li>
             </ul>
             </div>
         """
