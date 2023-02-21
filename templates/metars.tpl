@@ -4,7 +4,7 @@
 </div>
 
 <div class="row">
-    <a class="btn btn-primary" href="/" role="button">Home</a>&nbsp;
+    <button type="button" class="btn btn-primary" onClick="window.location='/';">Home</button>&nbsp;
 </div>
 
 <div class="row">
@@ -24,14 +24,14 @@
                     %elif metars.data[m]['flightCategory'] == 'LIFR':
                         list-group-item-info">
                     %end
-                    <div class="col-1"><a class="badge badge-primary" href="/locate/{{i}}" role="button">Locate</a></div>
+                    <div class="col-1"><button type="button" class="badge badge-pill badge-primary" onClick="fetch('/locate/{{i}}');">Find</button></div>
                     <div class="col-1">{{m}}</div>
                     <div class="col-1">{{metars.data[m]['flightCategory']}}</div>
                     <div class="col-7">{{metars.data[m]['raw']}}</div>
                     <div class="col-2">{{metars.data[m]['obsTime']}}</div>
                 %else:
                     ">
-                    <div class="col-1"><a class="badge badge-primary" href="/locate/{{i}}" role="button">Locate</a></div>
+                    <div class="col-1"><button type="button" class="badge badge-pill badge-primary" onClick="fetch('/locate/{{i}}');">Find</button></div>
                     <div class="col-1">{{m}}</div>
                     <div class="col-1">-</div>
                     <div class="col-7">Not reporting METAR data</div>
