@@ -16,7 +16,9 @@
 <div class="row">
     <button type="button" class="btn btn-primary" onClick="window.location='/visualizer/previous';">&lt;</button>&nbsp;
     <button class="btn btn-primary" disabled>Visualizer</button>&nbsp;
-    <button type="button" class="btn btn-primary" onClick="window.location='/visualizer/next';">&gt;</button>&nbsp;
+    <button type="button" class="btn btn-primary" onClick="window.location='/visualizer/next';">&gt;</button>
+</div>
+<div class="row">
     Current Visualizer: {{renderer.visualizer[1].name}}<br />
     {{!renderer.visualizer[1].description}}
 </div>
