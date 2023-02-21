@@ -23,7 +23,7 @@
 <hr />
 <div class="row">
     <label for="brightness" class="form-label">Brightness</label>&nbsp;
-    <input type="range" class="form-range" min="0" max="1" step="0.01" id="brightness" onChange="fetch('/brightness/' + this.value);" />
+    <input type="range" class="form-range" min="0" max="1" step="0.01" id="brightness" onChange="fetch('/brightness/' + this.value);" value="{{renderer.pixels().brightness}}" />
 </div>
 <hr />
 %include("footer.tpl")

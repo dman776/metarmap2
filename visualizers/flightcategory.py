@@ -43,18 +43,7 @@ class FlightCategory(Visualizer):
     @property
     def description(self):
         return """
-            Display the flight category (ie. VFR, MVFR, IFR, LIFR).
-            <div class="w-100">
-            <ul>
-                <li>VFR=<font color='green'>GREEN</font></li>
-                <li>MVFR=<font color='blue'>BLUE</font></li>
-                <li>IFR=<font color='red'>RED</font></li>
-                <li>LIFR=<font color='purple'>PURPLE</font></li>
-            </ul>
-            </div>
-            <div class="w-100">
-            Lighting will be indicated by flashing <font color='gold'>YELLOW</font>.
-            </div>
+¡™
         """
 
     def update_data(self, data):
