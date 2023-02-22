@@ -93,7 +93,19 @@ class Wind(Visualizer):
     @property
     def description(self):
         return """
-            Display the current wind speeds.
+            Display the current wind speed.
+            <div class="w-100">
+            <ul>
+                <li>Calm=OFF</li>
+                <li>Between 0-5 KTS varies between OFF and <font color='Purple'>PURPLE</font></li>
+                <li>Between 5-10 KTS varies between <font color='purple'>PURPLE</font> and <font color='blue'>BLUE</font></li>
+                <li>Between 10-15 KTS varies between <font color='blue'>BLUE</font> and <font color='green'>GREEN</font></li>
+                <li>Between 15-20 KTS varies between <font color='green'>GREEN</font> and <font color='gold'>YELLOW</font></li>
+                <li>Between 20-25 KTS varies between <font color='gold'>YELLOW</font> and <font color='orange'>ORANGE</font></li>
+                <li>Between 25-30 KTS varies between <font color='orange'>ORANGE</font> and <font color='red'>RED</font></li>
+                <li>Greater than 30 KTS is <font color='red'>RED</font></li>
+            </ul>
+            </div>
         """
 
     def update_data(self, data):
