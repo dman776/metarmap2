@@ -123,6 +123,10 @@ class Renderer(object):
     def pixels(self):
         return self.__pixels__
 
+    @property
+    def config(self):
+        return self.__config__
+
     def adjust_brightness_for_time(self):
         safe_logging.safe_log("[r]adjust brightness for time")
         right_now = datetime.now(pytz.utc)

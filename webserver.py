@@ -38,6 +38,7 @@ class WebServer(object):
         self._route()
         self._metarsObj = metars
         self._renderer = renderer
+        self._config = renderer.config
         self._pixels: NeoPixel = renderer.pixels()
         self._thread = None
         bottle.TEMPLATE_PATH.insert(0, "./templates")
@@ -48,6 +49,7 @@ class WebServer(object):
         self._app.route("/raw", method="GET", callback=self._raw)
         self._app.route("/raw/<code>", method="GET", callback=self._rawcode)
         self._app.route("/fetch", method="GET", callback=self._fetch)
+        self._app.route("/config", method="GET", callback=self._get_config)
         self._app.route("/debug", method="GET", callback=self._debug)
         self._app.route("/brightness/<level>", method="GET", callback=self._brightness)
         self._app.route("/locate/<pixnum>", method="GET", callback=self._locate)
@@ -74,6 +76,8 @@ class WebServer(object):
     def _rawcode(self, code):
         return "<b>" + code + "</b>: " + self._metarsObj.data[code]['raw'] + "<br />"
 
+    def _get_config(self):
+        return bottle.template('config.tpl', renderer=self._renderer)
 
     def _fetch(self):
         self._metarsObj.fetch()
