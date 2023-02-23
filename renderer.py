@@ -27,7 +27,7 @@ class Renderer(object):
     """
     Object to control and handle a rendering Neopixels
     """
-    def __init__(self, pixels, metars: metar.METAR, config: Config, visualizers):
+    def __init__(self, pixels, pixel_subsets, metars: metar.METAR, config: Config, visualizers):
         """
         Creates a new renderer
         """
@@ -37,7 +37,7 @@ class Renderer(object):
         self.__config__ = config
         # self.windCycle = False
         self.numAirports = len(self.__stations__)
-        self.__pix__ = []                       # individual pixel submap - used to address one pixel for effects
+        self.__pix__ = pixel_subsets                       # individual pixel submap - used to address one pixel for effects
         self.__animationloop__: AnimateOnce = None
         self.__visualizers__ = visualizers
         self.__vis__ = visualizers[0]
@@ -83,8 +83,8 @@ class Renderer(object):
             self.__animationloop__.resume()
 
     def locate(self, pixnum):
-        pix = PixelSubset(self.__pixels__, int(pixnum), int(pixnum) + 1)
-        self.animate_once(Pulse(pix, speed=0.1, period=2, color=WHITE), False)
+        # pix = PixelSubset(self.__pixels__, int(pixnum), int(pixnum) + 1)
+        self.animate_once(Pulse(self.__pix__[pixnum], speed=0.1, period=2, color=WHITE), False)
 
     @property
     # returns [number, visualizer]

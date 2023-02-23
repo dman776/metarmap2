@@ -165,19 +165,19 @@ if __name__ == '__main__':
     # init neopixels
     pixels = neopixel.NeoPixel(config.LED_PIN, config.data().led.count, brightness=config.data().led.brightness.normal,
                                pixel_order=config.LED_ORDER, auto_write=False)
-    pix = init_pixel_subsets(pixels)
+    pix_subs = init_pixel_subsets(pixels)
 
     # NEED to periodically update visualizer, renderer, webserver, disp with new METAR data
     visualizers = []
-    visualizers.append(FlightCategoryVisualizer(metars.data, pix, config))
-    visualizers.append(WindVisualizer(metars.data, pix, config))
-    visualizers.append(WindGustsVisualizer(metars.data, pix, config))
-    visualizers.append(PressureVisualizer(metars.data, pix, config))
-    visualizers.append(PrecipitationVisualizer(metars.data, pix, config))
-    visualizers.append(TemperatureVisualizer(metars.data, pix, config))
-    visualizers.append(VisibilityVisualizer(metars.data, pix, config))
+    visualizers.append(FlightCategoryVisualizer(metars.data, pix_subs, config))
+    visualizers.append(WindVisualizer(metars.data, pix_subs, config))
+    visualizers.append(WindGustsVisualizer(metars.data, pix_subs, config))
+    visualizers.append(PressureVisualizer(metars.data, pix_subs, config))
+    visualizers.append(PrecipitationVisualizer(metars.data, pix_subs, config))
+    visualizers.append(TemperatureVisualizer(metars.data, pix_subs, config))
+    visualizers.append(VisibilityVisualizer(metars.data, pix_subs, config))
 
-    renderer = renderer.Renderer(pixels, metars, config, visualizers)
+    renderer = renderer.Renderer(pixels, pix_subs, metars, config, visualizers)
     renderer.visualizer = config.data().visualizer.active
 
     # Init DISPLAY
