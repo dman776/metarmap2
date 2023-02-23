@@ -120,11 +120,8 @@ class Display(object):
             for airport in self.__airports__.keys():
                 i = utils.index_in_list(airport, self.__airports__)
                 if self.__airports__[airport]['display']:
-                    # safe_log(str(i))
-                    # safe_log(len(self.__renderer__.__pix__))
-                    # px = self.__renderer__.__pix__[i]
-                    # safe_log(str(px))
-                    self.__renderer__.locate(i)
+                    if self.__config__.date().display.locate_active:
+                        self.__renderer__.locate(i)
                     self.show_metar(airport, self.__data__.data[airport], self.__config__.data().display_screen.delay)
 
     def show_metar(self, sta, dat, delay):

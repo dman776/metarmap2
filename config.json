@@ -15,7 +15,8 @@
   },
   "display_screen": {
     "enabled": true,
-    "delay": 5.0
+    "delay": 5.0,
+    "locate_active": true
   },
   "color": {
     "cat": {
