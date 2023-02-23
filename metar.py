@@ -80,7 +80,7 @@ class METAR(object):
 
         for airport in list(self.__airports__.keys()):
             # safe_logging.safe_log(airport)
-            station_id = ""
+            # station_id = ""
 
             try:
                 m = utils.find_in_list("station_id", airport, metars)
@@ -91,12 +91,12 @@ class METAR(object):
                     self.data[airport] = {}
                     missingCondList.append(airport)
                     continue
-            except IndexError as e:
+            except IndexError:
                 missingCondList.append(airport)
                 self.data[airport] = {}
                 continue
             except Exception as e:
-                safe_logging.safe_log("[m]" + e)
+                safe_logging.safe_log("[m]" + str(e))
 
             stationId = metar['station_id']
 

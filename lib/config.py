@@ -8,7 +8,7 @@ from types import SimpleNamespace
 try:
     import board
     import neopixel
-except:
+except ModuleNotFoundError:
     pass
 
 

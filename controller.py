@@ -56,7 +56,7 @@ from visualizers.precipitation import Precipitation as PrecipitationVisualizer
 try:
     import board
     import neopixel
-except:
+except ModuleNotFoundError:
     pass
 
 thread_lock_object = threading.Lock()
@@ -64,7 +64,7 @@ thread_lock_object = threading.Lock()
 try:
     import RPi.GPIO as GPIO
     GPIO.setmode(GPIO.BOARD)
-except Exception:
+except ModuleNotFoundError:
     # ws281x causes an exception
     # when you try to set the board type
     pass
@@ -183,7 +183,7 @@ if __name__ == '__main__':
     visualizers.append(VisibilityVisualizer(metars.data, pix, config))
 
     renderer = renderer.Renderer(pixels, metars, config, visualizers)
-    renderer.visualizer = 0
+    renderer.visualizer = config.data().visualizer.active
 
     # test pattern on pixels?
     if config.data().led.inittest:

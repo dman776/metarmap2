@@ -39,6 +39,9 @@
       }
     }
   },
+  "visualizer": {
+    "active": 0
+  },
   "lightning": {
     "animation": true
   }

@@ -1,13 +1,15 @@
-import os, sys
-import json
-from pprint import pprint
-import datetime
-
-import lib.config
+# import os, sys
+# import json
+# from pprint import pprint
+# import datetime
+#
+# import lib.config
 from lib import utils
 
-import metar
-from PIL import Image, ImageDraw, ImageFont
+# import metar
+# from PIL import Image, ImageDraw, ImageFont
+# import io
+
 try:
     from board import SCL, SDA
     import busio
@@ -23,7 +25,7 @@ except ImportError:
 
 from lib.safe_logging import safe_log
 import threading
-import io
+
 
 
 offset = -3

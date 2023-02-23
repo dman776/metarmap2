@@ -2,22 +2,22 @@
 Module to handle visualizing Flight Category data
 """
 
-import sys
-import time
-import datetime
-from pprint import pprint
-import json
-
-import lib.safe_logging as safe_logging
+# import sys
+# import time
+# import datetime
+# from pprint import pprint
+# import json
+#
+# import lib.safe_logging as safe_logging
 # from lib.config import Config
-import lib
-import lib.utils as utils
-from metar import METAR
+# import lib
+# import lib.utils as utils
+# from metar import METAR
 from visualizers.visualizer import Visualizer
 
 from adafruit_led_animation.animation.solid import Solid
 from adafruit_led_animation.animation.colorcycle import ColorCycle
-from adafruit_led_animation.color import YELLOW
+# from adafruit_led_animation.color import YELLOW
 
 
 def lightning_pattern(cat, color):

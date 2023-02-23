@@ -38,7 +38,7 @@ class Renderer(object):
         # self.windCycle = False
         self.numAirports = len(self.__stations__)
         self.__pix__ = []                       # individual pixel submap - used to address one pixel for effects
-        self.__animationloop__: AnimateOnce = None
+        self.__animationloop__: AnimateOnce
         self.__visualizers__ = visualizers
         self.__vis__ = visualizers[0]
         self.active_visualizer = 0
@@ -59,7 +59,7 @@ class Renderer(object):
             while animations.animate():
                 pass
         except Exception as e:
-            safe_logging("[r]render error: " + str(e))
+            safe_logging.safe_log("[r]render error: " + str(e))
 
     def update_data(self, metars: metar.METAR):
         safe_logging.safe_log("[r]" + "updating data in the renderer")

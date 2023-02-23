@@ -8,6 +8,8 @@ import datetime
 from pprint import pprint
 import json
 
+from adafruit_led_animation.animation.pulse import Pulse
+
 import lib.safe_logging as safe_logging
 # from lib.config import Config
 import lib.utils as utils
@@ -15,31 +17,47 @@ import lib.colors as colors_lib
 from metar import METAR
 from visualizers.visualizer import Visualizer
 from adafruit_led_animation.animation.solid import Solid
+from adafruit_led_animation.animation.blink import Blink
 
-def get_color_by_obs(obs: str) -> list:
+
+def get_effect_by_obs(pixel, obs: str):
     """
     Given an observation reading, return a RGB color to show on the map.
     Args:
+        pix (int): the pixel number
         obs (string): The observation reading from a metar.
     Returns:
-        list: The RGB color to show on the map for the station.
+        pixel effect
     """
+
+    # -RA = light color, slow pulse
+    #  RA = regular color, med pulse
+
+    # +RA = blink regular color, rapid pulse
 
     colors_by_name = colors_lib.get_colors()
 
     if obs is None or obs == "":
-        return colors_by_name[colors_lib.OFF]
+        return Solid(pixel, color=colors_by_name[colors_lib.OFF])
     elif "FG" in obs:
-        return [15, 15, 15]
+        # TODO: use config.colors.weather.fog
+        return Solid(pixel, color=[15, 15, 15])
     elif "HZ" in obs:
-        return [5, 5, 5]
+        # TODO: use config.colors.weather.haze
+        return Solid(pixel, color=[5, 5, 5])
     elif "BR" in obs:
-        return colors_by_name[colors_lib.LIGHT_BLUE]
-    elif "RS" in obs:
-        return colors_by_name[colors_lib.BLUE]
+        return Solid(pixel, color=[0, 0, 15])
+    elif "-DZ" in obs:
+        return Pulse(pixel, speed=0.1, period=4, color=[0, 0, 30])
+    elif "-RA" in obs:
+        return Pulse(pixel, speed=0.1, period=3, color=[0, 0, 60])
+    elif "RA" in obs:
+        return Pulse(pixel, speed=0.1, period=2, color=colors_by_name[colors_lib.BLUE])
+    elif "+RA" in obs:
+        return Blink(pixel, speed=1, color=colors_by_name[colors_lib.BLUE])
     else:
         safe_logging.safe_log("[v]obs=" + str(obs))
-        return colors_by_name[colors_lib.RED]
+        return Blink(pixel, speed=1, color=colors_by_name[colors_lib.RED])
 
 
 class Precipitation(Visualizer):
@@ -76,8 +94,8 @@ class Precipitation(Visualizer):
 
             if len(airport_data.keys()) > 0:
                 if airport_data is not None:
-                    pcolor = get_color_by_obs(airport_data['obs'])
-                    self.__effect__.append(Solid(self.__pix__[i], color=pcolor))
+                    p_eff = get_effect_by_obs(self.__pix__[i], airport_data['obs'])
+                    self.__effect__.append(p_eff)
                 else:  # airport key not found in metar data
                     self.__effect__.append(Solid(self.__pix__[i], color=[0, 0, 0]))
             else:  # airport data is empty METAR data

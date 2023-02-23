@@ -10,7 +10,7 @@
 <hr />
 <div class="row">
     <button type="button" class="btn btn-primary" onClick="window.location='/metars';">Metars</button>&nbsp;
-    <button type="button" class="btn btn-primary" onClick="window.location='/metars/raw';" role="button">Raw Metars</button>&nbsp;
+    <button type="button" class="btn btn-primary" onClick="window.location='/raw';" role="button">Raw Metars</button>&nbsp;
 </div>
 <hr />
 <div class="row">

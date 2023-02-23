@@ -98,7 +98,19 @@ class Temperature(Visualizer):
     @property
     def description(self):
         return """
-            Display the current temp.
+            Display the temperature.
+            <div class="w-100">
+            <ul>
+                <li>Less than 0=WHITE</li>
+                <li>Between 0 and 40 varies between WHITE and <font color='purple'>PURPLE</font></li>
+                <li>Between 40 and 60 varies between <font color='purple'>PURPLE</font> and <font color='blue'>BLUE</font></li>
+                <li>Between 60 and 70 varies between <font color='blue'>BLUE</font> and <font color='green'>GREEN</font></li>
+                <li>Between 70 and 80 varies between <font color='green'>GREEN</font> and <font color='gold'>YELLOW</font></li>
+                <li>Between 80 and 90 varies between <font color='gold'>YELLOW</font> and <font color='orange'>ORANGE</font></li>
+                <li>Between 90 and 100 varies between <font color='orange'>ORANGE</font> and <font color='red'>RED</font></li>
+                <li>Greater than 100=RED</li>
+            </ul>
+            </div>
         """
 
     def update_data(self, data):
