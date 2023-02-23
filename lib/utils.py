@@ -31,7 +31,7 @@ def get_sun_times(config):
     import astral.sun
 
     try:
-        city = astral.geocoder.lookup(config.data().geo.city, astral.geocoder.database())
+        city = astral.geocoder.lookup(config.data.geo.city, astral.geocoder.database())
     except KeyError:
         safe_logging.safe_log("Error: Location not recognized, please check list of supported cities and reconfigure")
     else:

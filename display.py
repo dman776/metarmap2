@@ -120,9 +120,9 @@ class Display(object):
             for airport in self.__airports__.keys():
                 i = utils.index_in_list(airport, self.__airports__)
                 if self.__airports__[airport]['display']:
-                    if self.__config__.data().display_screen.locate_active:
+                    if self.__config__.data.display_screen.locate_active:
                         self.__renderer__.locate(i)
-                    self.show_metar(airport, self.__data__.data[airport], self.__config__.data().display_screen.delay)
+                    self.show_metar(airport, self.__data__.data[airport], self.__config__.data.display_screen.delay)
 
     def show_metar(self, sta, dat, delay):
         with self.lock:
@@ -149,8 +149,11 @@ class Display(object):
             self.__oled__.layout = self.__page_layouts__[1]
             self.__oled__.text(station)
             self.__oled__.text(data["flightCategory"], 2)
-            windline = "{0:03d}@{1:02d}".format(int(data["windDir"]), int(data["windSpeed"])) + \
-                       ("G{0:2d}".format(int(data["windGustSpeed"])) if data["windGust"] else "")
+            if int(data['windSpeed']) > 0:
+                windline = "{0:03d}@{1:02d}".format(int(data["windDir"]), int(data["windSpeed"])) + \
+                      ("G{0:2d}".format(int(data["windGustSpeed"])) if data["windGust"] else "")
+            else:
+                windline = "CALM"
             self.__oled__.text(windline, 3)
             self.__oled__.text(ICON_WIND, 4)
             self.__oled__.text("{0}SM".format(data['vis']), 5)

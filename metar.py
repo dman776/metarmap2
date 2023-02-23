@@ -174,15 +174,15 @@ class METAR(object):
 
     def __colors_by_category__(self, category):
         if category == "VFR":
-            return self.__config__.data().color.cat.vfr
+            return self.__config__.data.color.cat.vfr
         elif category == "MVFR":
-            return self.__config__.data().color.cat.mvfr
+            return self.__config__.data.color.cat.mvfr
         elif category == "IFR":
-            return self.__config__.data().color.cat.ifr
+            return self.__config__.data.color.cat.ifr
         elif category == "LIFR":
-            return self.__config__.data().color.cat.lifr
+            return self.__config__.data.color.cat.lifr
         else:
-            return self.__config__.data().color.clear
+            return self.__config__.data.color.clear
 
     def missing_stations(self):
         """

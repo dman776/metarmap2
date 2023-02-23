@@ -129,10 +129,10 @@ def sched_load_suntimes():
 
     # clear schedule/set schedule
     schedule.clear("suntimes")
-    schedule.every().day.at(SUNSET.strftime("%H:%M")).do(sched_set_brightness, level=config.data().led.brightness.dimmed).tag("suntimes")
-    schedule.every().day.at(DUSK.strftime("%H:%M")).do(sched_set_brightness, level=config.data().led.brightness.off).tag("suntimes")
-    schedule.every().day.at(DAWN.strftime("%H:%M")).do(sched_set_brightness, level=config.data().led.brightness.dimmed).tag("suntimes")
-    schedule.every().day.at(SUNRISE.strftime("%H:%M")).do(sched_set_brightness, level=config.data().led.brightness.normal).tag("suntimes")
+    schedule.every().day.at(SUNSET.strftime("%H:%M")).do(sched_set_brightness, level=config.data.led.brightness.dimmed).tag("suntimes")
+    schedule.every().day.at(DUSK.strftime("%H:%M")).do(sched_set_brightness, level=config.data.led.brightness.off).tag("suntimes")
+    schedule.every().day.at(DAWN.strftime("%H:%M")).do(sched_set_brightness, level=config.data.led.brightness.dimmed).tag("suntimes")
+    schedule.every().day.at(SUNRISE.strftime("%H:%M")).do(sched_set_brightness, level=config.data.led.brightness.normal).tag("suntimes")
     for j in schedule.get_jobs("suntimes"):
         safe_logging.safe_log("[c]" + str(j) + " next run: " + str(j.next_run))
 
@@ -163,7 +163,7 @@ if __name__ == '__main__':
     metars = metar.METAR(airports, config, fetch=True)
 
     # init neopixels
-    pixels = neopixel.NeoPixel(config.LED_PIN, config.data().led.count, brightness=config.data().led.brightness.normal,
+    pixels = neopixel.NeoPixel(config.LED_PIN, config.data.led.count, brightness=config.data.led.brightness.normal,
                                pixel_order=config.LED_ORDER, auto_write=False)
     pix_subs = init_pixel_subsets(pixels)   # individual pixels
 
@@ -179,17 +179,17 @@ if __name__ == '__main__':
     ]
 
     renderer = renderer.Renderer(pixels, pix_subs, metars, config, visualizers)
-    renderer.visualizer = config.data().visualizer.active
+    renderer.visualizer = config.data.visualizer.active
 
     # Init DISPLAY
     disp: Display
-    if config.data().display_screen.enabled:
+    if config.data.display_screen.enabled:
         disp = Display(airports, metars, renderer)
         disp.message("MAP", display.ICON_INFO,
                      "Starting..")
 
     # test pattern on pixels?
-    if config.data().led.inittest:
+    if config.data.led.inittest:
         renderer.animate_once(RainbowComet(pixels, speed=0.05, tail_length=5, bounce=False))
         # renderer.animate_once(RainbowChase(pixels, speed=0.1, size=4, spacing=2, step=4))
 
@@ -203,7 +203,7 @@ if __name__ == '__main__':
 
     # ============== MAIN LOOP =====================
     safe_logging.safe_log("[c]" + "Main loop...")
-    if config.data().display_screen.enabled:
+    if config.data.display_screen.enabled:
         disp.start()
 
     while True:
@@ -219,7 +219,7 @@ if __name__ == '__main__':
     # Cleanup
     safe_logging.safe_log("[c]" + "Cleaning up...")
     schedule.clear()
-    if config.data().display_screen.enabled:
+    if config.data.display_screen.enabled:
         disp.stop()
     renderer.clear()
     web_server.stop()

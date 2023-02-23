@@ -73,9 +73,9 @@ class FlightCategory(Visualizer):
 
             if len(airport_data.keys()) > 0:
                 if airport_data is not None:
-                    if self.__config__.data().lightning.animation and airport_data['lightning'] is True:
+                    if self.__config__.data.lightning.animation and airport_data['lightning'] is True:
                         self.__effect__.append(ColorCycle(self.__pix__[i], speed=0.1, colors=lightning_pattern(
-                            airport_data['flightCategoryColor'], self.__config__.data().color.weather.lightning)))
+                            airport_data['flightCategoryColor'], self.__config__.data.color.weather.lightning)))
                     else:
                         self.__effect__.append(Solid(self.__pix__[i], color=airport_data['flightCategoryColor']))
                 else:  # airport key not found in metar data

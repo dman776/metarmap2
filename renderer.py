@@ -67,7 +67,7 @@ class Renderer(object):
         self.__vis__.update_data(self.__data__)
 
     def clear(self):
-        self.__pixels__.fill(self.__config__.data().color.clear)
+        self.__pixels__.fill(self.__config__.data.color.clear)
         self.__pixels__.show()
         return
 
@@ -133,13 +133,13 @@ class Renderer(object):
         (DAWN, SUNRISE, SUNSET, DUSK) = self.__config__.suntimes
 
         if DAWN < right_now < SUNRISE:
-            self.brightness(self.__config__.data().led.brightness.dimmed)
+            self.brightness(self.__config__.data.led.brightness.dimmed)
         elif SUNRISE < right_now < SUNSET:
-            self.brightness(self.__config__.data().led.brightness.normal)
+            self.brightness(self.__config__.data.led.brightness.normal)
         elif SUNSET < right_now < DUSK:
-            self.brightness(self.__config__.data().led.brightness.dimmed)
+            self.brightness(self.__config__.data.led.brightness.dimmed)
         else:
-            self.brightness(self.__config__.data().led.brightness.off)
+            self.brightness(self.__config__.data.led.brightness.off)
 
 
 if __name__ == '__main__':

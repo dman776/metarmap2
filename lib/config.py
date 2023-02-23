@@ -10,6 +10,8 @@ try:
     import neopixel
 except ModuleNotFoundError:
     pass
+except NotImplementedError:
+    pass
 
 
 class Config(object):
@@ -41,14 +43,15 @@ class Config(object):
 
     def write(self):
         with open(self.__file__, 'w') as f:
-            json.dump(config, f)
+            json.dump(self.__data__, f)
         self.read()
         return
 
     def edit(self, key, value):
-        # config['key3'] = 'value3'
+        self.__data__[key] = value
         return
 
+    @property
     def data(self):
         return self.__data__
 
@@ -59,7 +62,8 @@ class Config(object):
 
 if __name__ == '__main__':
     safe_logging.safe_log("[cfg]" + "Config")
-    config = Config("../config.json")
+    config = Config("config.json")
+    # config.data.
 
 
 
