@@ -31,6 +31,7 @@ import threading
 offset = -3
 x = 0
 
+ICON_DEGREES = u'\N{DEGREE SIGN}'
 ICON_INFO = "\uf05a"
 ICON_WIND = '\uf72e'
 ICON_VISIBILITY = "\uf0c2"
@@ -54,13 +55,7 @@ def define_page_layouts():
     # Page station, cat, wind, vis, pressure
     pl.append({
         1: BigLine(0, offset, size=20),  # AIRPORT
-        2: BigLine(90, offset, size=16),  # CAT
-        # 3: BigLine(0, 19 + offset),  # wind
-        # 4: BigLine(110, 19 + offset, font="FontAwesomeSolid.ttf", size=14),  # wind ico
-        # 5: BigLine(0, 36 + offset),  # vis
-        # 6: BigLine(110, 36 + offset, font="FontAwesomeSolid.ttf", size=14),  # vis ico
-        # 7: BigLine(0, 52 + offset),  # pressure
-        # 8: BigLine(116, 52 + offset, font="FontAwesomeSolid.ttf", size=14)  # pressure ico
+        2: BigLine(80, offset, size=16),  # CAT
         3: BigLine(20, 19 + offset),  # wind
         4: BigLine(0, 19 + offset, font="FontAwesomeSolid.ttf", size=14),  # wind ico
         5: BigLine(20, 36 + offset),  # vis
@@ -72,13 +67,7 @@ def define_page_layouts():
     # Page station, cat, temp, dew, time
     pl.append({
         1: BigLine(0, offset, size=20),  # AIRPORT
-        2: BigLine(90, offset, size=16),  # CAT
-        # 3: BigLine(0, 19 + offset),  # temp
-        # 4: BigLine(110, 19 + offset, font="FontAwesomeSolid.ttf", size=14),  # temp ico
-        # 5: BigLine(0, 36 + offset),  # dew
-        # 6: BigLine(110, 36 + offset, font="FontAwesomeSolid.ttf", size=14),  # dew ico
-        # 7: BigLine(0, 52 + offset),  # time
-        # 8: BigLine(110, 52 + offset, font="FontAwesomeSolid.ttf", size=14)  # time ico
+        2: BigLine(80, offset, size=16),  # CAT
         3: BigLine(20, 19 + offset),  # temp
         4: BigLine(0, 19 + offset, font="FontAwesomeSolid.ttf", size=14),  # temp ico
         5: BigLine(20, 36 + offset),  # dew
@@ -173,7 +162,7 @@ class Display(object):
             self.__oled__.layout = self.__page_layouts__[2]
             self.__oled__.text(station)
             self.__oled__.text(data["flightCategory"], 2)
-            self.__oled__.text("{0}C / {1:.0f}F".format(data['tempC'], utils.celsius_to_fahrenheit(data['tempC'])), 3)
+            self.__oled__.text("{0}u'\N{DEGREE SIGN}C / {1:.0f}F".format(data['tempC'], utils.celsius_to_fahrenheit(data['tempC'])), 3)
             self.__oled__.text(ICON_TEMP, 4)
             self.__oled__.text("{0}C / {1:.0f}F".format(data['dewpointC'], utils.celsius_to_fahrenheit(data['dewpointC'])), 5)
             self.__oled__.text(ICON_DEWPOINT, 6)
