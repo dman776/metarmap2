@@ -48,6 +48,10 @@ def find_in_list(akey, avalue, alist):
     return list(filter(lambda alist: alist[akey] == avalue, alist))
 
 
+def index_in_list(akey, alist):
+    return list(alist.keys()).index(akey)
+
+
 def get_proportion_between_floats(
     start: float,
     current: float,
