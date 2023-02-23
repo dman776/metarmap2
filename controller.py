@@ -162,13 +162,6 @@ if __name__ == '__main__':
     safe_logging.safe_log("[c]" + "Get weather for all airports...")
     metars = metar.METAR(airports, config, fetch=True)
 
-    # Init DISPLAY
-    disp: Display
-    if config.data().display_screen.enabled:
-        disp = Display(airports, metars, config)
-        disp.message("MAP", display.ICON_INFO,
-                     "Starting..")
-
     # init neopixels
     pixels = neopixel.NeoPixel(config.LED_PIN, config.data().led.count, brightness=config.data().led.brightness.normal,
                                pixel_order=config.LED_ORDER, auto_write=False)
@@ -186,6 +179,13 @@ if __name__ == '__main__':
 
     renderer = renderer.Renderer(pixels, metars, config, visualizers)
     renderer.visualizer = config.data().visualizer.active
+
+    # Init DISPLAY
+    disp: Display
+    if config.data().display_screen.enabled:
+        disp = Display(airports, metars, renderer)
+        disp.message("MAP", display.ICON_INFO,
+                     "Starting..")
 
     # test pattern on pixels?
     if config.data().led.inittest:

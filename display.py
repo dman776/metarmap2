@@ -6,6 +6,8 @@
 # import lib.config
 from lib import utils
 
+from renderer import Renderer
+
 # import metar
 # from PIL import Image, ImageDraw, ImageFont
 # import io
@@ -84,7 +86,7 @@ class Display(object):
     """
     lock = threading.Lock()
 
-    def __init__(self, airports, data, config):
+    def __init__(self, airports, data, renderer: Renderer):
         self.width = 128
         self.height = 64
 
@@ -95,7 +97,8 @@ class Display(object):
         self.__page_layouts__ = define_page_layouts()
         self.__airports__ = airports
         self.__data__ = data
-        self.__config__ = config
+        self.__renderer__ = renderer
+        self.__config__ = renderer.__config__
         self.__thread__ = threading.Thread(target=self.loop)
         self.__thread__.daemon = True
 
