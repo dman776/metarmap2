@@ -65,6 +65,8 @@ try:
     import RPi.GPIO as GPIO
     GPIO.setmode(GPIO.BOARD)
 except ModuleNotFoundError:
+    pass
+except ValueError:
     # ws281x causes an exception
     # when you try to set the board type
     pass

@@ -38,7 +38,7 @@ class Renderer(object):
         # self.windCycle = False
         self.numAirports = len(self.__stations__)
         self.__pix__ = []                       # individual pixel submap - used to address one pixel for effects
-        self.__animationloop__: AnimateOnce
+        self.__animationloop__: AnimateOnce = None
         self.__visualizers__ = visualizers
         self.__vis__ = visualizers[0]
         self.active_visualizer = 0
