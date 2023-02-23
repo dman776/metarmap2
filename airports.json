@@ -1,252 +1,202 @@
 {
     "KVCT": {
         "text": 0,
-        "display": false,
-        "visits": 0
+        "display": false
     },
     "KPKV": {
         "text": 1,
-        "display": false,
-        "visits": 0
+        "display": false
     },
     "KPSX": {
         "text": 2,
-        "display": false,
-        "visits": 0
+        "display": false
     },
     "KBYY": {
         "text": 3,
-        "display": false,
-        "visits": 0
+        "display": false
     },
     "KLBX": {
         "text": 4,
-        "display": false,
-        "visits": 0
+        "display": false
     },
     "KGLS": {
         "text": 5,
-        "display": false,
-        "visits": 0
+        "display": true
     },
     "KLVJ": {
         "text": 6,
-        "display": false,
-        "visits": 0
+        "display": false
     },
     "KEFD": {
         "text": 7,
-        "display": false,
-        "visits": 0
+        "display": false
     },
     "KHOU": {
         "text": 8,
-        "display": true,
-        "visits": 0
+        "display": true
     },
     "KSGR": {
         "text": 9,
-        "display": false,
-        "visits": 0
+        "display": false
     },
     "KARM": {
         "text": 10,
-        "display": false,
-        "visits": 0
+        "display": false
     },
     "KELA": {
         "text": 11,
-        "display": false,
-        "visits": 0
+        "display": false
     },
     "KTME": {
         "text": 12,
-        "display": false,
-        "visits": 0
+        "display": false
     },
     "K11R": {
         "text": 13,
-        "display": false,
-        "visits": 0
+        "display": false
     },
     "KCLL": {
         "text": 14,
-        "display": true,
-        "visits": 0
+        "display": true
     },
     "KLXY": {
         "text": 15,
-        "display": false,
-        "visits": 0
+        "display": false
     },
     "KPSN": {
         "text": 16,
-        "display": false,
-        "visits": 0
+        "display": false
     },
     "KDKR": {
         "text": 17,
-        "display": false,
-        "visits": 0
+        "display": true
     },
     "KUTS": {
         "text": 18,
-        "display": false,
-        "visits": 0
+        "display": false
     },
     "KCXO": {
         "text": 19,
-        "display": true,
-        "visits": 0
+        "display": true
     },
     "KDWH": {
         "text": 20,
-        "display": true,
-        "visits": 4
+        "display": true
     },
     "KIAH": {
         "text": 21,
-        "display": true,
-        "visits": 0
+        "display": true
     },
     "KT78": {
         "text": 22,
-        "display": false,
-        "visits": 0
+        "display": false
     },
     "KBMT": {
         "text": 23,
-        "display": false,
-        "visits": 0
+        "display": false
     },
     "KBPT": {
         "text": 24,
-        "display": false,
-        "visits": 0
+        "display": false
     },
     "KORG": {
         "text": 25,
-        "display": false,
-        "visits": 0
+        "display": false
     },
     "KUXL": {
         "text": 26,
-        "display": false,
-        "visits": 0
+        "display": false
     },
     "KLCH": {
         "text": 27,
-        "display": false,
-        "visits": 0
+        "display": true
     },
     "KCWF": {
         "text": 28,
-        "display": false,
-        "visits": 0
+        "display": false
     },
     "K3R7": {
         "text": 29,
-        "display": false,
-        "visits": 0
+        "display": false
     },
     "KLFT": {
         "text": 30,
-        "display": false,
-        "visits": 0
+        "display": false
     },
     "KHUM": {
         "text": 31,
-        "display": false,
-        "visits": 0
+        "display": true
     },
     "KAPS": {
         "text": 32,
-        "display": false,
-        "visits": 0
+        "display": false
     },
     "KREG": {
         "text": 33,
-        "display": false,
-        "visits": 0
+        "display": false
     },
     "KBTR": {
         "text": 34,
-        "display": false,
-        "visits": 0
+        "display": false
     },
     "KHZR": {
         "text": 35,
-        "display": false,
-        "visits": 0
+        "display": false
     },
     "KOPL": {
         "text": 36,
-        "display": false,
-        "visits": 0
+        "display": false
     },
     "KACP": {
         "text": 37,
-        "display": false,
-        "visits": 0
+        "display": false
     },
     "KPOE": {
         "text": 38,
-        "display": false,
-        "visits": 0
+        "display": false
     },
     "KDRI": {
         "text": 39,
-        "display": false,
-        "visits": 0
+        "display": false
     },
     "KJAS": {
         "text": 40,
-        "display": false,
-        "visits": 0
+        "display": false
     },
     "KLFK": {
         "text": 41,
-        "display": false,
-        "visits": 0
+        "display": false
     },
     "KOCH": {
         "text": 42,
-        "display": false,
-        "visits": 0
+        "display": true
     },
     "KJSO": {
         "text": 43,
-        "display": false,
-        "visits": 0
+        "display": false
     },
     "KRFI": {
         "text": 44,
-        "display": false,
-        "visits": 0
+        "display": false
     },
     "K4F2": {
         "text": 45,
-        "display": false,
-        "visits": 0
+        "display": false
     },
     "K3F3": {
         "text": 46,
-        "display": false,
-        "visits": 0
+        "display": false
     },
     "KIER": {
         "text": 47,
-        "display": false,
-        "visits": 0
+        "display": false
     },
     "KAEX": {
         "text": 48,
-        "display": false,
-        "visits": 0
+        "display": false
     },
     "KHEZ": {
         "text": 49,
-        "display": false,
-        "visits": 0
+        "display": false
     }
 }
