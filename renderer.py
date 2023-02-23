@@ -91,6 +91,10 @@ class Renderer(object):
     def visualizer(self):
         return self.active_visualizer, self.__visualizers__[self.active_visualizer]
 
+    @property
+    def visualizers(self):
+        return self.__visualizers__
+
     @visualizer.setter
     def visualizer(self, vis):
         self.__vis__ = self.__visualizers__[vis]

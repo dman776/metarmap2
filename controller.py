@@ -170,7 +170,8 @@ if __name__ == '__main__':
     # Load all the visualizers
     visualizers = [
         FlightCategoryVisualizer(metars.data, pix_subs, config),
-        WindVisualizer(metars.data, pix_subs, config), WindGustsVisualizer(metars.data, pix_subs, config),
+        WindVisualizer(metars.data, pix_subs, config),
+        WindGustsVisualizer(metars.data, pix_subs, config),
         PressureVisualizer(metars.data, pix_subs, config),
         PrecipitationVisualizer(metars.data, pix_subs, config),
         TemperatureVisualizer(metars.data, pix_subs, config),
