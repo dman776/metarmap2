@@ -6,7 +6,7 @@
 <div class="row">
     <button type="button" class="btn btn-primary" onClick="window.location='/';">Home</button>&nbsp;
 </div>
-
+<hr />
 <div class="row">
     <div class="form-check">
         <input class="form-check-input" type="checkbox" value="1" id="defaultCheck1">
