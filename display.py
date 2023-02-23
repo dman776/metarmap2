@@ -162,9 +162,9 @@ class Display(object):
             self.__oled__.layout = self.__page_layouts__[2]
             self.__oled__.text(station)
             self.__oled__.text(data["flightCategory"], 2)
-            self.__oled__.text("{0}u'\N{DEGREE SIGN}C / {1:.0f}F".format(data['tempC'], utils.celsius_to_fahrenheit(data['tempC'])), 3)
+            self.__oled__.text("{0}\N{DEGREE SIGN}C / {1:.0f}\N{DEGREE SIGN}F".format(data['tempC'], utils.celsius_to_fahrenheit(data['tempC'])), 3)
             self.__oled__.text(ICON_TEMP, 4)
-            self.__oled__.text("{0}C / {1:.0f}F".format(data['dewpointC'], utils.celsius_to_fahrenheit(data['dewpointC'])), 5)
+            self.__oled__.text("{0}\N{DEGREE SIGN}C / {1:.0f}\N{DEGREE SIGN}F".format(data['dewpointC'], utils.celsius_to_fahrenheit(data['dewpointC'])), 5)
             self.__oled__.text(ICON_DEWPOINT, 6)
             self.__oled__.text("{0} {1}".format(data["obsTime"].astimezone(central).strftime("%H:%MC"), data["obsTime"].strftime("%H:%MZ")), 7)
             self.__oled__.text(ICON_DATE, 8)
