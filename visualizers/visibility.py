@@ -76,7 +76,14 @@ class Visibility(Visualizer):
     @property
     def description(self):
         return """
-            Display the visibility.
+            Display the visibility level (ie. 10SM, 6SM, 1/2SM, etc.)
+            <div class="w-100">
+            <ul>
+                <li>&lt;1SM = OFF</li>
+                <li>&gt;10SM = WHITE</li>
+                <li>Greyscale between 1SM and 10SM</li>
+            </ul>
+            </div>
         """
 
     def update_data(self, data):
