@@ -80,7 +80,7 @@ class WebServer(object):
     def _get_config(self):
         return bottle.template('config.tpl', renderer=self._renderer)
 
-    def edit_config(self, key, value):
+    def _edit_config(self, key, value):
         self._renderer.config.edit(key, value)
         return bottle.template('config.tpl', renderer=self._renderer)
 
