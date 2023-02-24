@@ -96,4 +96,6 @@ def celsius_to_fahrenheit(temperature_celsius: float):
 
 
 def restart():
+    safe_logging.safe_log(os.path.abspath(__file__))
+
     os.execl(sys.executable, os.path.abspath(__file__), *sys.argv)
