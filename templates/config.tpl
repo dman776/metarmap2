@@ -16,19 +16,19 @@
         {{"checked" if val else ""}}
         value="{{val}}"
         id="dse"
-        onChange="fetch('/config/edit/{{key}}/' + !this.value);">
+        onChange="fetch('/config/edit/{{key}}/{{not val}}');this.value={{not val}}">
         <label class="form-check-label" for="dse">Enabled</label>
     </div>
 </div>
 <div class="row">
-    % setdefault('key', "display_screen.locate_active")
-    % setdefault('val', renderer.config.data.display_screen.locate_active)
+    % key = "display_screen.locate_active"
+    % val = renderer.config.data.display_screen.locate_active
     <div class="form-check">
         <input class="form-check-input" type="checkbox"
         {{"checked" if val else ""}}
         value="{{val}}"
         id="dsla"
-        onChange="fetch('/config/edit/{{key}}/' + !this.value);">
+        onChange="fetch('/config/edit/{{key}}/' + (this.value==='true' ? 'False' : 'True'));">
         <label class="form-check-label" for="dsla">Highlight Active Airport</label>
     </div>
 </div>
