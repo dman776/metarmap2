@@ -1,4 +1,11 @@
 %include("header.tpl",title="METAR List")
+<script>
+function config_edit_boolean(item, key) {
+    iv = Boolean(item.value);
+    fetch('/config/edit/' + key + '/' + iv);
+    return;
+}
+</script>
 <div class="py-5 text-center">
     <h2>CONFIG</h2>
 </div>
@@ -16,7 +23,7 @@
         {{"checked" if val else ""}}
         value="{{str(val).lower()}}"
         id="dse"
-        onChange="fetch('/config/edit/{{key}}/' + not this.value);this.value=not this.value;">
+        onChange="config_edit_boolean(this, '{{key}}');">
         <label class="form-check-label" for="dse">Enabled</label>
     </div>
 </div>
@@ -28,7 +35,7 @@
         {{"checked" if val else ""}}
         value="{{str(val).lower()}}"
         id="dsla"
-        onChange="fetch('/config/edit/{{key}}/' + not this.value);this.value=not this.value;">
+        onChange="config_edit_boolean(this, '{{key}}');">
         <label class="form-check-label" for="dsla">Highlight Active Airport</label>
     </div>
 </div>
@@ -42,7 +49,7 @@
         {{"checked" if renderer.config.data.led.inittest else ""}}
         value="{{str(val).lower()}}"
         id="li"
-        onChange="fetch('/config/edit/{{key}}/' + not this.value);this.value=not this.value;">
+        onChange="config_edit_boolean(this, '{{key}}');">
         <label class="form-check-label" for="li">Show test pattern on init</label>
     </div>
 </div>
