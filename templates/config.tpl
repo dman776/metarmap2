@@ -14,7 +14,7 @@
     <div class="form-check">
         <input class="form-check-input" type="checkbox"
         {{"checked" if val else ""}}
-        value="{{val}}"
+        value="{{val.lower()}}"
         id="dse"
         onChange="fetch('/config/edit/{{key}}/' + !this.value);this.value=!this.value;">
         <label class="form-check-label" for="dse">Enabled</label>
@@ -26,7 +26,7 @@
     <div class="form-check">
         <input class="form-check-input" type="checkbox"
         {{"checked" if val else ""}}
-        value="{{val}}"
+        value="{{val.lower()}}"
         id="dsla"
         onChange="fetch('/config/edit/{{key}}/' + !this.value);this.value=!this.value;">
         <label class="form-check-label" for="dsla">Highlight Active Airport</label>
@@ -40,7 +40,7 @@
     <div class="form-check">
         <input class="form-check-input" type="checkbox"
         {{"checked" if renderer.config.data.led.inittest else ""}}
-        value="{{val}}"
+        value="{{val.lower()}}"
         id="li"
         onChange="fetch('/config/edit/{{key}}/' + !this.value);this.value=!this.value;">
         <label class="form-check-label" for="li">Show test pattern on init</label>
