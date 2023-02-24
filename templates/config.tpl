@@ -7,12 +7,26 @@
     <button type="button" class="btn btn-primary" onClick="window.location='/';">Home</button>&nbsp;
 </div>
 <hr />
+<h3>Display Screen</h3>
 <div class="row">
     <div class="form-check">
-        <input class="form-check-input" type="checkbox" value="{{renderer.config.data.display_screen.locate_active}}" id="defaultCheck1">
-        <label class="form-check-label" for="defaultCheck1">
-            Display Highlight Active Airport
-        </label>
+        <input class="form-check-input" type="checkbox" {{"checked" if renderer.config.data.display_screen.enabled else ""}} value="{{renderer.config.data.display_screen.enabled}}" id="defaultCheck1">
+        <label class="form-check-label" for="defaultCheck1">Enabled</label>
     </div>
 </div>
+<div class="row">
+    <div class="form-check">
+        <input class="form-check-input" type="checkbox" {{"checked" if renderer.config.data.display_screen.locate_active else ""}} value="{{renderer.config.data.display_screen.locate_active}}" id="defaultCheck1">
+        <label class="form-check-label" for="defaultCheck1">Highlight Active Airport</label>
+    </div>
+</div>
+<hr />
+<h3>LED Pixels</h3>
+<div class="row">
+    <div class="form-check">
+        <input class="form-check-input" type="checkbox" {{"checked" if renderer.config.data.led.inittest else ""}} value="{{renderer.config.data.led.inittest}}" id="defaultCheck1">
+        <label class="form-check-label" for="defaultCheck1">Show test pattern on init</label>
+    </div>
+</div>
+
 %include("footer.tpl")
