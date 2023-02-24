@@ -9,14 +9,14 @@
 <hr />
 <h3>Display Screen</h3>
 <div class="row">
-    % setdefault('key', "renderer.config.data.display_screen.enabled")
+    % setdefault('key', "display_screen.enabled")
     % setdefault('val', renderer.config.data.display_screen.enabled)
     <div class="form-check">
         <input class="form-check-input" type="checkbox"
         {{"checked" if val else ""}}
         value="{{val}}"
         id="dse"
-        onChange="fetch('/config/edit/{{key}}/' + !this.value);>
+        onChange="fetch('/config/edit/{{key}}/' + !this.value);">
         <label class="form-check-label" for="dse">Enabled</label>
     </div>
 </div>
