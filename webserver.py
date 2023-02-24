@@ -6,6 +6,7 @@ import metar
 from renderer import Renderer
 from display import Display
 from neopixel import NeoPixel
+from lib import utils
 from lib.safe_logging import safe_log
 import threading
 import io
@@ -99,7 +100,8 @@ class WebServer(object):
     def _restart(self):
         self._display.stop()
         self._renderer.clear()
-        os.execl(sys.executable, os.path.abspath(__file__), *sys.argv)
+        utils.restart()
+
 
     def _brightness(self, level):
         self._renderer.brightness(float(level))

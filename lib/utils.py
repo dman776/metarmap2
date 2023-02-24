@@ -1,9 +1,12 @@
 from datetime import datetime
+import os
+import sys
 
 try:
     import lib.safe_logging as safe_logging
 except ModuleNotFoundError as e:
     import safe_logging as safe_logging
+
 
 def wheel(pos):
     # Input a value 0 to 255 to get a color value.
@@ -25,6 +28,7 @@ def wheel(pos):
         g = int(pos * 3)
         b = int(255 - pos * 3)
     return r, g, b
+
 
 def get_sun_times(config):
     import astral.geocoder
@@ -89,3 +93,7 @@ def celsius_to_fahrenheit(temperature_celsius: float):
         return 0
 
     return (temperature_celsius * (9.0 / 5.0)) + 32.0
+
+
+def restart():
+    os.execl(sys.executable, os.path.abspath(__file__), *sys.argv)
