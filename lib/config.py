@@ -49,6 +49,8 @@ class Config(object):
         return
 
     def edit(self, key, value):
+        if value in ['true', 'false']:
+            value = value.capitalize()
         code = compile("self.__data__." + key + "=" + str(value), "<string>", "exec")
         exec(code)
         self.write()
