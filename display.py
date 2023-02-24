@@ -114,6 +114,7 @@ class Display(object):
     """
     def stop(self):
         self.event.set()
+        self.__oled__.clear()
 
     def loop(self):
         while not self.event.is_set():
