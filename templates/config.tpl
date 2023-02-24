@@ -1,8 +1,7 @@
 %include("header.tpl",title="METAR List")
 <script>
 function config_edit_boolean(item, key) {
-    iv = Boolean(item.value);
-    fetch('/config/edit/' + key + '/' + iv);
+    fetch('/config/edit/' + key + '/' + item.checked);
     return;
 }
 </script>
@@ -16,8 +15,8 @@ function config_edit_boolean(item, key) {
 <hr />
 <h3>Display Screen</h3>
 <div class="row">
-    % setdefault('key', "display_screen.enabled")
-    % setdefault('val', renderer.config.data.display_screen.enabled)
+    % key = "display_screen.enabled"
+    % val = renderer.config.data.display_screen.enabled
     <div class="form-check">
         <input class="form-check-input" type="checkbox"
         {{"checked" if val else ""}}

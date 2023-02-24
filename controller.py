@@ -182,7 +182,7 @@ if __name__ == '__main__':
     renderer.visualizer = config.data.visualizer.active
 
     # Init DISPLAY
-    disp: Display
+    disp = None
     if config.data.display_screen.enabled:
         disp = Display(airports, metars, renderer)
         disp.message("MAP", display.ICON_INFO,

@@ -98,7 +98,8 @@ class WebServer(object):
         return bottle.template('debug.tpl', metars=self._metarsObj, renderer=self._renderer)
 
     def _restart(self):
-        self._display.stop()
+        if self._display:
+            self._display.stop()
         self._renderer.clear()
         utils.restart()
 
