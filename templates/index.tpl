@@ -9,6 +9,7 @@
     <button type="button" class="btn btn-primary" onClick="window.location='/metars';">Metars</button>&nbsp;
     <button type="button" class="btn btn-primary" onClick="window.location='/raw';" role="button">Raw Metars</button>&nbsp;
     <button type="button" class="btn btn-primary" onClick="window.location='/config';" role="button">Config</button>&nbsp;
+    <button type="button" class="btn btn-primary" onClick="fetch('/restart');" role="button">Restart</button>&nbsp;
 </div>
 <hr />
 <div class="row">

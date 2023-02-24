@@ -1,5 +1,5 @@
 import pprint
-
+import os, sys
 import bottle
 from bottle import hook, route, run, request, abort, response, static_file
 import metar
@@ -52,6 +52,7 @@ class WebServer(object):
         self._app.route("/config", method="GET", callback=self._get_config)
         self._app.route("/config/edit/<key>/<value>", method="GET", callback=self._edit_config)
         self._app.route("/debug", method="GET", callback=self._debug)
+        self._app.route("/restart", method="GET", callback=self._restart)
         self._app.route("/brightness/<level>", method="GET", callback=self._brightness)
         self._app.route("/locate/<pixnum>", method="GET", callback=self._locate)
         self._app.route("/visualizer/<visnum>", method="GET", callback=self._visualizer)
@@ -92,6 +93,9 @@ class WebServer(object):
 
     def _debug(self):
         return bottle.template('debug.tpl', metars=self._metarsObj, renderer=self._renderer)
+
+    def _restart(self):
+        os.execl(sys.executable, os.path.abspath(__file__), *sys.argv)
 
     def _brightness(self, level):
         self._renderer.brightness(float(level))
