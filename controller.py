@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # METAR Map controller
 # Darryl Quinn 2023
 # Uses RPi.GPIO library: https://sourceforge.net/p/raspberry-gpio-python/wiki/BasicUsage/
