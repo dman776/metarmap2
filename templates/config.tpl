@@ -4,6 +4,10 @@ function config_edit_boolean(item, key) {
     fetch('/config/edit/' + key + '/' + item.checked);
     return;
 }
+function config_edit(item, key) {
+    fetch('/config/edit/' + key + '/' + item.value);
+    return;
+}
 </script>
 <div class="py-5 text-center">
     <h2>CONFIG</h2>
@@ -11,6 +15,23 @@ function config_edit_boolean(item, key) {
 
 <div class="row">
     <button type="button" class="btn btn-primary" onClick="window.location='/';">Home</button>&nbsp;
+</div>
+<hr />
+
+<h3>Visualizers</h3>
+<div class="row">
+    % key = "visualizer.active"
+    % val = renderer.config.data.visualizer.active
+    <div class="dropdown">
+      <button class="btn btn-secondary dropdown-toggle" type="button" id="defaultVisualizer" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        Default Visualizer
+      </button>
+      <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+        %for i in range(0, len(renderer.visualizers)):
+            <a class="dropdown-item" onClick="config_edit(this, '{{key}}', '{{i}}'">{{renderer.visualizers[i].name}}</a>
+        %end
+      </div>
+    </div>&nbsp;
 </div>
 <hr />
 <h3>Display Screen</h3>
