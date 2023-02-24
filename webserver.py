@@ -98,6 +98,7 @@ class WebServer(object):
 
     def _restart(self):
         self._display.stop()
+        self._renderer.clear()
         os.execl(sys.executable, os.path.abspath(__file__), *sys.argv)
 
     def _brightness(self, level):
