@@ -13,7 +13,7 @@
     % setdefault('val', renderer.config.data.display_screen.enabled)
     <div class="form-check">
         <input class="form-check-input" type="checkbox"
-        {{"checked" if dse else ""}}
+        {{"checked" if val else ""}}
         value="{{val}}"
         id="dse"
         onChange="fetch('/config/edit/{{key}}/' + !this.value);>
