@@ -42,7 +42,7 @@
         {{"checked" if renderer.config.data.led.inittest else ""}}
         value="{{val}}"
         id="li"
-        onChange="fetch('/config/edit/{{key}}/' + !this.value);this.value=!this.value;">>
+        onChange="fetch('/config/edit/{{key}}/' + !this.value);this.value=!this.value;">
         <label class="form-check-label" for="li">Show test pattern on init</label>
     </div>
 </div>
