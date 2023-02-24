@@ -16,7 +16,7 @@
         {{"checked" if val else ""}}
         value="{{val}}"
         id="dse"
-        onChange="fetch('/config/edit/{{key}}/{{not val}}');this.value={{not val}}">
+        onChange="fetch('/config/edit/{{key}}/' + !this.value);this.value=!this.value;">
         <label class="form-check-label" for="dse">Enabled</label>
     </div>
 </div>
@@ -28,16 +28,22 @@
         {{"checked" if val else ""}}
         value="{{val}}"
         id="dsla"
-        onChange="fetch('/config/edit/{{key}}/' + (this.value==='true' ? 'False' : 'True'));">
+        onChange="fetch('/config/edit/{{key}}/' + !this.value);this.value=!this.value;">
         <label class="form-check-label" for="dsla">Highlight Active Airport</label>
     </div>
 </div>
 <hr />
 <h3>LED Pixels</h3>
 <div class="row">
+    % key = "led.inittest"
+    % val = renderer.config.data.led.inittest
     <div class="form-check">
-        <input class="form-check-input" type="checkbox" {{"checked" if renderer.config.data.led.inittest else ""}} value="{{renderer.config.data.led.inittest}}" id="defaultCheck1">
-        <label class="form-check-label" for="defaultCheck1">Show test pattern on init</label>
+        <input class="form-check-input" type="checkbox"
+        {{"checked" if renderer.config.data.led.inittest else ""}}
+        value="{{val}}"
+        id="li"
+        onChange="fetch('/config/edit/{{key}}/' + !this.value);this.value=!this.value;">>
+        <label class="form-check-label" for="li">Show test pattern on init</label>
     </div>
 </div>
 
