@@ -50,7 +50,7 @@ class WebServer(object):
         self._app.route("/raw/<code>", method="GET", callback=self._rawcode)
         self._app.route("/fetch", method="GET", callback=self._fetch)
         self._app.route("/config", method="GET", callback=self._get_config)
-        self._app.route("/config/edit/<key>/</value>", method="GET", callback=self._edit_config)
+        self._app.route("/config/edit/<key>/<value>", method="GET", callback=self._edit_config)
         self._app.route("/debug", method="GET", callback=self._debug)
         self._app.route("/brightness/<level>", method="GET", callback=self._brightness)
         self._app.route("/locate/<pixnum>", method="GET", callback=self._locate)
