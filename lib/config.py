@@ -55,7 +55,6 @@ class Config(object):
         exec(code)
         self.write()
 
-
     @property
     def data(self):
         return self.__data__

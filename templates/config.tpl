@@ -21,9 +21,15 @@
     </div>
 </div>
 <div class="row">
+    % setdefault('key', "display_screen.locate_active")
+    % setdefault('val', renderer.config.data.display_screen.locate_active)
     <div class="form-check">
-        <input class="form-check-input" type="checkbox" {{"checked" if renderer.config.data.display_screen.locate_active else ""}} value="{{renderer.config.data.display_screen.locate_active}}" id="defaultCheck1">
-        <label class="form-check-label" for="defaultCheck1">Highlight Active Airport</label>
+        <input class="form-check-input" type="checkbox"
+        {{"checked" if val else ""}}
+        value="{{val}}"
+        id="dsla"
+        onChange="fetch('/config/edit/{{key}}/' + !this.value);">
+        <label class="form-check-label" for="dsla">Highlight Active Airport</label>
     </div>
 </div>
 <hr />
