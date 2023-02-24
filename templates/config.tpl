@@ -9,7 +9,7 @@
 <hr />
 <div class="row">
     <div class="form-check">
-        <input class="form-check-input" type="checkbox" value="1" id="defaultCheck1">
+        <input class="form-check-input" type="checkbox" value="{{renderer.config.data.display_screen.locate_active}}" id="defaultCheck1">
         <label class="form-check-label" for="defaultCheck1">
             Display Highlight Active Airport
         </label>

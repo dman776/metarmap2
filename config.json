@@ -1,49 +1,97 @@
 {
-  "led": {
-    "count": 50,
-    "pin": 18,
-    "order": "GRB",
-    "brightness": {
-      "normal": 0.5,
-      "dimmed": 0.1,
-      "off": 0.01
+    "led": {
+        "count": 50,
+        "pin": 18,
+        "order": "GRB",
+        "brightness": {
+            "normal": 0.5,
+            "dimmed": 0.1,
+            "off": 0.01
+        },
+        "inittest": true
     },
-    "inittest": true
-  },
-  "geo": {
-    "city": "Houston"
-  },
-  "display_screen": {
-    "enabled": true,
-    "delay": 5.0,
-    "locate_active": true
-  },
-  "color": {
-    "cat": {
-      "vfr": [255, 0, 0],
-      "mvfr": [0, 0, 255],
-      "ifr": [0, 255, 0],
-      "lifr": [0, 125, 125]
+    "geo": {
+        "city": "Houston"
     },
-    "clear": [0, 0, 0],
-    "weather": {
-      "lightning": [255, 255, 0],
-      "fog": [128, 128, 128],
-      "smoke": [75, 75, 75],
-      "rain": {
-        "light": [0, 0, 128],
-        "normal": [0, 0, 255]
-      },
-      "mist": {
-        "light": [25, 25, 25],
-        "normal": [50, 50, 50]
-      }
+    "display_screen": {
+        "enabled": true,
+        "delay": 5.0,
+        "locate_active": true
+    },
+    "color": {
+        "cat": {
+            "vfr": [
+                255,
+                0,
+                0
+            ],
+            "mvfr": [
+                0,
+                0,
+                255
+            ],
+            "ifr": [
+                0,
+                255,
+                0
+            ],
+            "lifr": [
+                0,
+                125,
+                125
+            ]
+        },
+        "clear": [
+            0,
+            0,
+            0
+        ],
+        "weather": {
+            "lightning": [
+                255,
+                255,
+                0
+            ],
+            "fog": [
+                128,
+                128,
+                128
+            ],
+            "smoke": [
+                75,
+                75,
+                75
+            ],
+            "rain": {
+                "light": [
+                    0,
+                    0,
+                    128
+                ],
+                "normal": [
+                    0,
+                    0,
+                    255
+                ]
+            },
+            "mist": {
+                "light": [
+                    25,
+                    25,
+                    25
+                ],
+                "normal": [
+                    50,
+                    50,
+                    50
+                ]
+            }
+        }
+    },
+    "visualizer": {
+        "active": 0
+    },
+    "lightning": {
+        "animation": true
     }
-  },
-  "visualizer": {
-    "active": 0
-  },
-  "lightning": {
-    "animation": true
-  }
 }

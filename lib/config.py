@@ -1,4 +1,5 @@
 import json
+from json import JSONEncoder
 try:
     import lib.safe_logging as safe_logging
 except ModuleNotFoundError as e:
@@ -43,13 +44,15 @@ class Config(object):
 
     def write(self):
         with open(self.__file__, 'w') as f:
-            json.dump(self.__data__, f)
+            json.dump(self.data, f, cls=MyJsonEncoder, indent=4)
         self.read()
         return
 
     def edit(self, key, value):
-        self.__data__[key] = value
-        return
+        code = compile("self.__data__." + key + "=" + str(value), "<string>", "exec")
+        exec(code)
+        self.write()
+
 
     @property
     def data(self):
@@ -59,12 +62,17 @@ class Config(object):
         self.suntimes = suntimes
 
 
+class MyJsonEncoder(JSONEncoder):
+    def default(self, o):
+        return o.__dict__
+
 
 if __name__ == '__main__':
     safe_logging.safe_log("[cfg]" + "Config")
     config = Config("config.json")
-    # config.data.
-
-
+    config.edit("display_screen.enabled", False)
+    config.edit("display_screen.delay", "0.6")
+    config.edit("display_screen.locate_active", True)
+    config.write()
 
 
