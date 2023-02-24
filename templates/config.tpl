@@ -9,9 +9,15 @@
 <hr />
 <h3>Display Screen</h3>
 <div class="row">
+    % setdefault('key', "renderer.config.data.display_screen.enabled")
+    % setdefault('val', renderer.config.data.display_screen.enabled)
     <div class="form-check">
-        <input class="form-check-input" type="checkbox" {{"checked" if renderer.config.data.display_screen.enabled else ""}} value="{{renderer.config.data.display_screen.enabled}}" id="defaultCheck1">
-        <label class="form-check-label" for="defaultCheck1">Enabled</label>
+        <input class="form-check-input" type="checkbox"
+        {{"checked" if dse else ""}}
+        value="{{val}}"
+        id="dse"
+        onChange="fetch('/config/edit/{{key}}/' + !this.value);>
+        <label class="form-check-label" for="dse">Enabled</label>
     </div>
 </div>
 <div class="row">
