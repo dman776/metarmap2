@@ -32,16 +32,16 @@ class Renderer(object):
         Creates a new renderer
         """
         self.__pixels__ = pixels
-        self.__stations__ = metars.stations()   # list of station ids
-        self.__data__ = metars.data             # all METAR data
-        self.__config__ = config
+        self.__stations__: list = metars.stations()   # list of station ids
+        self.__data__: dict = metars.data             # all METAR data
+        self.__config__: Config = config
         # self.windCycle = False
         self.numAirports = len(self.__stations__)
         self.__pix__ = pixel_subsets                       # individual pixel submap - used to address one pixel for effects
         self.__animationloop__: AnimateOnce = None
-        self.__visualizers__ = visualizers
+        self.__visualizers__: list = visualizers
         self.__vis__ = visualizers[0]
-        self.active_visualizer = 0
+        self.active_visualizer: int = 0
         self.adjust_brightness_for_time()
         self.clear()
 

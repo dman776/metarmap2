@@ -27,7 +27,6 @@ class Config(object):
         self.suntimes = []
         self.read()
 
-
     def read(self):
         with open(self.__file__, 'r') as f:
             self.__data__ = json.load(f, object_hook= lambda x: SimpleNamespace(**x))
@@ -67,9 +66,8 @@ class MyJsonEncoder(JSONEncoder):
     def default(self, o):
         return o.__dict__
 
-
 if __name__ == '__main__':
-    safe_logging.safe_log("[cfg]" + "Config")
+    # safe_logging.safe_log("[cfg]" + "Config")
     config = Config("config.json")
     config.edit("display_screen.enabled", False)
     config.edit("display_screen.delay", "0.6")
