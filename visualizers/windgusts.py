@@ -37,7 +37,18 @@ class WindGusts(Visualizer):
     @property
     def description(self):
         return """
-            Display the wind gusts.
+            Display the wind gusts by Pulsing the Flight Category (VFR, MVFR, IFR, LIFR) at different rates.
+            <div class="w-100">
+            <ul>
+                <li>Between 0 and 10 kts = 10 second pulse</li>
+                <li>Between 11 and 15 kts = 8 second pulse</li>
+                <li>Between 16 and 20 kts = 6 second pulse</li>
+                <li>Between 21 and 25 kts = 4 second pulse</li>
+                <li>Between 26 and 30 kts = 1 second pulse</li>
+                <li>Greater than 30 = 1/2 second pulse</li>
+                <li>No gusts reported = No pulse. Solid flight category.</li>
+            </ul>
+            </div>
         """
 
     def update_data(self, data):
