@@ -39,22 +39,22 @@ def get_effect_by_obs(pixel, obs: str):
 
     if obs is None or obs == "":
         return Solid(pixel, color=colors_by_name[colors_lib.OFF])
-    elif "FG" in obs:
-        # TODO: use config.colors.weather.fog
-        return Solid(pixel, color=[15, 15, 15])
     elif "HZ" in obs:
         # TODO: use config.colors.weather.haze
         return Solid(pixel, color=[5, 5, 5])
+    elif "FG" in obs:
+        # TODO: use config.colors.weather.fog
+        return Solid(pixel, color=[15, 15, 15])
     elif "BR" in obs:
-        return Solid(pixel, color=[0, 0, 15])
+        return Solid(pixel, color=[0, 0, 15])   # 6% blue
     elif "-DZ" in obs:
-        return Pulse(pixel, speed=0.1, period=4, color=[0, 0, 30])
+        return Solid(pixel, color=[0, 0, 30])  # 12% blue
     elif "-RA" in obs:
-        return Pulse(pixel, speed=0.1, period=3, color=[0, 0, 60])
+        return Pulse(pixel, speed=0.1, period=4, color=colors_by_name[colors_lib.BLUE])  # 24% blue, 3 sec
     elif "RA" in obs:
-        return Pulse(pixel, speed=0.1, period=2, color=colors_by_name[colors_lib.BLUE])
+        return Pulse(pixel, speed=0.1, period=2, color=colors_by_name[colors_lib.BLUE]) # 100% blue, 2 sec
     elif "+RA" in obs:
-        return Blink(pixel, speed=1, color=colors_by_name[colors_lib.BLUE])
+        return Blink(pixel, speed=1, color=colors_by_name[colors_lib.BLUE]) # 100% blue, 1 sec
     else:
         safe_logging.safe_log("[v]obs=" + str(obs))
         return Blink(pixel, speed=1, color=colors_by_name[colors_lib.RED])
@@ -75,7 +75,19 @@ class Precipitation(Visualizer):
     @property
     def description(self):
         return """
-            Display the precipitation.
+            Display the current observed precipitation.
+            <div class="w-100">
+            <ul>
+                <li>None = OFF</li>
+                <li>Haze = DARK GRAY</li>
+                <li>Fog = 6% WHITE</li>
+                <li>Light Drizzle = <font color='blue'>12% BLUE</font></li>
+                <li>Light Rain = Pulsing <font color='blue'>BLUE</font> every 4 seconds</li>
+                <li>Rain = Pulsing <font color='blue'>BLUE</font> every 2 seconds</li>
+                <li>Heavy Rain = Blinking <font color='blue'>BLUE</font> every second</li>
+                <li>Other = Blinking <font color='red'>RED</font> every second</li>
+            </ul>
+            </div>
         """
 
     def update_data(self, data):
