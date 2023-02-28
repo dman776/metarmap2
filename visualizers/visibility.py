@@ -79,9 +79,17 @@ class Visibility(Visualizer):
             Display the visibility level (ie. 10SM, 6SM, 1/2SM, etc.)
             <div class="w-100">
             <ul>
-                <li>&lt;1SM = OFF</li>
-                <li>&gt;10SM = WHITE</li>
-                <li>Greyscale between 1SM and 10SM</li>
+                <li>Between 9 and 10 Miles = 30% WHITE</li>
+                <li>Between 8 and 9 Miles = 15% WHITE</li>
+                <li>Between 7 and 8 Miles = 8% WHITE</li>
+                <li>Between 6 and 7 Miles = 6% WHITE</li>
+                <li>Between 5 and 6 Miles = 5% WHITE</li>
+                <li>Between 4 and 5 Miles = 4% WHITE</li>
+                <li>Between 3 and 4 Miles = 3% WHITE</li>
+                <li>Between 2 and 3 Miles = 2% WHITE</li>
+                <li>Between 1 and 2 Miles = 1% WHITE</li>
+                <li>Between 0 and 1 Miles = OFF</li>
+                <li>No visibility reported = <font color='red'>RED</font></li>
             </ul>
             </div>
         """
