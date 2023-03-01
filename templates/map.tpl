@@ -24,12 +24,47 @@
 <div id="map"></div>
 <hr />
 <script>
-const map = L.map('map').setView([30.603, -93.581], 13);
+const map = L.map('map').setView([30.603, -93.581], 7);
+const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+}).addTo(map);
 
-	const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-		maxZoom: 19,
-		attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-	}).addTo(map);
+var VFRIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
+var MVFRIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
+var IFRIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
+var LIFRIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-violet.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
 
 	function onMapClick(e) {
 		popup
@@ -37,6 +72,20 @@ const map = L.map('map').setView([30.603, -93.581], 13);
 			.setContent(`You clicked the map at ${e.latlng.toString()}`)
 			.openOn(map);
 	}
+
+	%for m in metars.data:
+	    %if 'latitude' in metars.data[m]:
+	        %if metars.data[m]['flightCategory']=='VFR':
+                L.marker([{{metars.data[m]['latitude']}},{{metars.data[m]['longitude']}}], {icon: VFRIcon, title:'{{metars.data[m]['raw']}}'}).addTo(map);
+            %elif metars.data[m]['flightCategory']=='MVFR':
+                L.marker([{{metars.data[m]['latitude']}},{{metars.data[m]['longitude']}}], {icon: MVFRIcon, title:'{{metars.data[m]['raw']}}'}).addTo(map);
+            %elif metars.data[m]['flightCategory']=='IFR':
+                L.marker([{{metars.data[m]['latitude']}},{{metars.data[m]['longitude']}}], {icon: IFRIcon, title:'{{metars.data[m]['raw']}}'}).addTo(map);
+            %elif metars.data[m]['flightCategory']=='LIFR':
+                L.marker([{{metars.data[m]['latitude']}},{{metars.data[m]['longitude']}}], {icon: LIFRIcon, title:'{{metars.data[m]['raw']}}'}).addTo(map);
+            %end
+	    %end
+	%end
 
 	map.on('click', onMapClick);
 </script>
