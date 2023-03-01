@@ -66,30 +66,22 @@ var LIFRIcon = new L.Icon({
   shadowSize: [41, 41]
 });
 
-	function onMapClick(e) {
-		popup
-			.setLatLng(e.latlng)
-			.setContent(`You clicked the map at ${e.latlng.toString()}`)
-			.openOn(map);
-	}
-
 	%for m in metars.data:
 	    %if 'latitude' in metars.data[m]:
 	        marker = ""
 	        %if metars.data[m]['flightCategory']=='VFR':
-                marker = L.marker([{{metars.data[m]['latitude']}},{{metars.data[m]['longitude']}}], {icon: VFRIcon, title:'{{metars.data[m]['raw']}}'});
+                marker = L.marker([{{metars.data[m]['latitude']}},{{metars.data[m]['longitude']}}], {icon: VFRIcon});
             %elif metars.data[m]['flightCategory']=='MVFR':
-                marker = L.marker([{{metars.data[m]['latitude']}},{{metars.data[m]['longitude']}}], {icon: MVFRIcon, title:'{{metars.data[m]['raw']}}'});
+                marker = L.marker([{{metars.data[m]['latitude']}},{{metars.data[m]['longitude']}}], {icon: MVFRIcon});
             %elif metars.data[m]['flightCategory']=='IFR':
-                marker = L.marker([{{metars.data[m]['latitude']}},{{metars.data[m]['longitude']}}], {icon: IFRIcon, title:'{{metars.data[m]['raw']}}'});
+                marker = L.marker([{{metars.data[m]['latitude']}},{{metars.data[m]['longitude']}}], {icon: IFRIcon});
             %elif metars.data[m]['flightCategory']=='LIFR':
-                marker = L.marker([{{metars.data[m]['latitude']}},{{metars.data[m]['longitude']}}], {icon: LIFRIcon, title:'{{metars.data[m]['raw']}}'});
+                marker = L.marker([{{metars.data[m]['latitude']}},{{metars.data[m]['longitude']}}], {icon: LIFRIcon});
             %end
             marker.bindPopup("{{metars.data[m]['raw']}}").openPopup();
             marker.addTo(map);
 	    %end
 	%end
 
-	map.on('click', onMapClick);
 </script>
 %include("footer.tpl")
