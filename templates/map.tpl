@@ -24,7 +24,7 @@
 <div id="map"></div>
 <hr />
 <script>
-const map = L.map('map').setView([51.505, -0.09], 13);
+const map = L.map('map').setView([30.603, -93.581], 13);
 
 	const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
 		maxZoom: 19,
