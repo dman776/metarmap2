@@ -1,4 +1,16 @@
 %include("header.tpl",title="METARMap")
+<style>
+    html, body {
+        height: 100%;
+        margin: 0;
+    }
+    .leaflet-container {
+        height: 400px;
+        width: 600px;
+        max-width: 100%;
+        max-height: 100%;
+    }
+</style>
 
 
 <div class="py-5 text-center">
