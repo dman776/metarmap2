@@ -29,7 +29,7 @@ class Config(object):
 
     def read(self):
         with open(self.__file__, 'r') as f:
-            self.__data__ = json.load(f, object_hook= lambda x: SimpleNamespace(**x))
+            self.__data__ = json.load(f, object_hook=lambda x: SimpleNamespace(**x))
         self.post_process()
         return
 
