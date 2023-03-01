@@ -5,8 +5,8 @@
         margin: 0;
     }
     .leaflet-container {
-        height: 400px;
-        width: 600px;
+        height: 600px;
+        width: 800px;
         max-width: 100%;
         max-height: 100%;
     }
