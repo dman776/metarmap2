@@ -9,9 +9,7 @@
     <button type="button" class="btn btn-primary" onClick="window.location='/';">Home</button>&nbsp;
 </div>
 <hr />
-<div class="row">
-    <div id="map"></div>
-</div>
+<div id="map"></div>
 <hr />
 <script>
 const map = L.map('map').setView([51.505, -0.09], 13);
