@@ -75,15 +75,18 @@ var LIFRIcon = new L.Icon({
 
 	%for m in metars.data:
 	    %if 'latitude' in metars.data[m]:
+	        marker = ""
 	        %if metars.data[m]['flightCategory']=='VFR':
-                L.marker([{{metars.data[m]['latitude']}},{{metars.data[m]['longitude']}}], {icon: VFRIcon, title:'{{metars.data[m]['raw']}}'}).addTo(map);
+                marker = L.marker([{{metars.data[m]['latitude']}},{{metars.data[m]['longitude']}}], {icon: VFRIcon, title:'{{metars.data[m]['raw']}}'});
             %elif metars.data[m]['flightCategory']=='MVFR':
-                L.marker([{{metars.data[m]['latitude']}},{{metars.data[m]['longitude']}}], {icon: MVFRIcon, title:'{{metars.data[m]['raw']}}'}).addTo(map);
+                marker = L.marker([{{metars.data[m]['latitude']}},{{metars.data[m]['longitude']}}], {icon: MVFRIcon, title:'{{metars.data[m]['raw']}}'});
             %elif metars.data[m]['flightCategory']=='IFR':
-                L.marker([{{metars.data[m]['latitude']}},{{metars.data[m]['longitude']}}], {icon: IFRIcon, title:'{{metars.data[m]['raw']}}'}).addTo(map);
+                marker = L.marker([{{metars.data[m]['latitude']}},{{metars.data[m]['longitude']}}], {icon: IFRIcon, title:'{{metars.data[m]['raw']}}'});
             %elif metars.data[m]['flightCategory']=='LIFR':
-                L.marker([{{metars.data[m]['latitude']}},{{metars.data[m]['longitude']}}], {icon: LIFRIcon, title:'{{metars.data[m]['raw']}}'}).addTo(map);
+                marker = L.marker([{{metars.data[m]['latitude']}},{{metars.data[m]['longitude']}}], {icon: LIFRIcon, title:'{{metars.data[m]['raw']}}'});
             %end
+            marker.bindPopup("{{metars.data[m]['raw']}}").openPopup();
+            marker.addTo(map);
 	    %end
 	%end
 
