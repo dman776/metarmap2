@@ -50,6 +50,7 @@ class WebServer(object):
         self._app.route("/", method="GET", callback=self._index)
         self._app.route("/metars", method="GET", callback=self._metars)
         self._app.route("/raw", method="GET", callback=self._raw)
+        self._app.route("/map", method="GET", callback=self._map)
         self._app.route("/raw/<code>", method="GET", callback=self._rawcode)
         self._app.route("/fetch", method="GET", callback=self._fetch)
         self._app.route("/config", method="GET", callback=self._get_config)
@@ -77,6 +78,9 @@ class WebServer(object):
                 buf.write("<b>" + s + "</b>: N/A<br />")
         buf.seek(0)
         return buf.read()
+
+    def _map(self):
+        return bottle.template('map.tpl', metars=self._metarsObj)
 
     def _rawcode(self, code):
         return "<b>" + code + "</b>: " + self._metarsObj.data[code]['raw'] + "<br />"
