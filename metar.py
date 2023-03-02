@@ -114,8 +114,8 @@ class METAR(object):
             windGustSpeed = 0
             windGust = False
             lightning = False
-            tempC = None
-            dewpointC = None
+            tempC = ''
+            dewpointC = ''
             vis = 0
             altimHg = 0.0
             obs = ""

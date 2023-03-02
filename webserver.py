@@ -76,6 +76,9 @@ class WebServer(object):
                 buf.write("<b>" + s + "</b>: " + self._metarsObj.data[s]['raw'] + "<br />")
             else:
                 buf.write("<b>" + s + "</b>: N/A<br />")
+        buf.write("<pre><code>")
+        buf.write(pprint.pformat(self._metarsObj.data, indent=4))
+        buf.write("</code></pre>")
         buf.seek(0)
         return buf.read()
 
