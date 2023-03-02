@@ -149,21 +149,15 @@ def sched_set_brightness(level):
 if __name__ == '__main__':
     safe_logging.safe_log("[c]" + "Starting controller.py at " + datetime.now().strftime('%d/%m/%Y %H:%M'))
 
-    # disp.message("METARMAP", "config...")
     config = lib.config.Config("config.json")
 
     # get sunrise/sunset times for dynamic dimming
     config.suntimes = utils.get_sun_times(config)
     sched_load_suntimes()
 
-    # load airports file
-    # airports = load_airports("airports.json")
-    # todo: can this be eliminated and config.airports used everywhere
-    airports = config.airports
-
     # Start loading the METARs in the background
     safe_logging.safe_log("[c]" + "Get weather for all airports...")
-    metars = metar.METAR(airports, config, fetch=True)
+    metars = metar.METAR(config, fetch=True)
 
     # init neopixels
     pixels = neopixel.NeoPixel(config.LED_PIN, config.data.led.count, brightness=config.data.led.brightness.normal,
@@ -187,7 +181,7 @@ if __name__ == '__main__':
     # Init DISPLAY
     disp: Display
     if config.data.display_screen.enabled:
-        disp = Display(airports, metars, renderer)
+        disp = Display(config.airports, metars, renderer)
         disp.message("MAP", display.ICON_INFO,
                      "Starting..")
 

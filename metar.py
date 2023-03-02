@@ -20,12 +20,13 @@ class METAR(object):
     Object to control and handle METARs.
     """
 
-    def __init__(self, airports: dict, cfg, fetch=False):
+    def __init__(self, cfg, fetch=False):
         """
         Creates a new METAR class.
         """
-        self.__airports__ = airports
+
         self.__config__ = cfg
+        self.__airports__ = self.__config__.data.airports
         self.__is_fetching__ = False
         self.__missing_stations__ = []
         self.__stations__ = []
