@@ -168,7 +168,7 @@ class Display(object):
 
     def page2(self, station, data):
         # TODO: change to CONFIG value
-        tz = self.__location__.timezone
+        tz = timezone(self.__location__.timezone)
 
         try:
             self.__oled__.layout = self.__page_layouts__[2]
