@@ -4,8 +4,8 @@ function config_edit_boolean(item, key) {
     fetch('/config/edit/' + key + '/' + item.checked);
     return;
 }
-function config_edit(item, key) {
-    fetch('/config/edit/' + key + '/' + item.value);
+function config_edit(key, value) {
+    fetch('/config/edit/' + key + '/' + value);
     return;
 }
 </script>
@@ -17,18 +17,17 @@ function config_edit(item, key) {
     <button type="button" class="btn btn-primary" onClick="window.location='/';">Home</button>&nbsp;
 </div>
 <hr />
-
-<h3>Visualizers</h3>
+<h3>Visualizer Settings</h3>
 <div class="row">
     % key = "visualizer.active"
     % val = renderer.config.data.visualizer.active
-    <div class="dropdown">
+    <div class="dropdown show">
       <button class="btn btn-secondary dropdown-toggle" type="button" id="defaultVisualizer" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
         Default Visualizer
       </button>
-      <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+      <div class="dropdown-menu" aria-labelledby="defaultVisualizer">
         %for i in range(0, len(renderer.visualizers)):
-            <a class="dropdown-item" onClick="config_edit(this, '{{key}}', '{{i}}'">{{renderer.visualizers[i].name}}</a>
+            <a class="dropdown-item" onClick="config_edit('{{key}}', '{{i}}');">{{renderer.visualizers[i].name}}</a>
         %end
       </div>
     </div>&nbsp;
@@ -40,9 +39,9 @@ function config_edit(item, key) {
         <input class="form-check-input" type="checkbox"
         {{"checked" if val else ""}}
         value="{{str(val).lower()}}"
-        id="dse"
+        id="la"
         onChange="config_edit_boolean(this, '{{key}}');">
-        <label class="form-check-label" for="dse">Lightning animation enabled</label>
+        <label class="form-check-label" for="la">Lightning animation enabled</label>
     </div>
 </div>
 <hr />
