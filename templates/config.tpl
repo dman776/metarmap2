@@ -33,6 +33,18 @@ function config_edit(item, key) {
       </div>
     </div>&nbsp;
 </div>
+<div class="row">
+    % key = "lightning.animation"
+    % val = renderer.config.data.lightning.animation
+    <div class="form-check">
+        <input class="form-check-input" type="checkbox"
+        {{"checked" if val else ""}}
+        value="{{str(val).lower()}}"
+        id="dse"
+        onChange="config_edit_boolean(this, '{{key}}');">
+        <label class="form-check-label" for="dse">Lightning animation enabled</label>
+    </div>
+</div>
 <hr />
 <h3>Display Screen</h3>
 <div class="row">
