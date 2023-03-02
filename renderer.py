@@ -83,8 +83,7 @@ class Renderer(object):
             self.__animationloop__.resume()
 
     def locate(self, pixnum):
-        # pix = PixelSubset(self.__pixels__, int(pixnum), int(pixnum) + 1)
-        self.animate_once(Pulse(self.__pix__[pixnum], speed=0.1, period=2, color=WHITE), False)
+        self.animate_once(Pulse(self.__pix__[int(pixnum)], speed=0.1, period=2, color=WHITE), False)
 
     @property
     # returns [number, visualizer]
