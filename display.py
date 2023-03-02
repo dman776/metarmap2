@@ -102,6 +102,7 @@ class Display(object):
         self.__config__ = renderer.__config__
         self.__thread__ = threading.Thread(target=self.loop)
         self.__thread__.daemon = True
+        self.__location__ = utils.get_location(self.__renderer__.config.data.geo.city)
 
     """
     method to start the looping thread
@@ -167,7 +168,7 @@ class Display(object):
 
     def page2(self, station, data):
         # TODO: change to CONFIG value
-        central = timezone('US/Central')
+        tz = self.__location__.timezone
 
         try:
             self.__oled__.layout = self.__page_layouts__[2]
@@ -177,7 +178,7 @@ class Display(object):
             self.__oled__.text(ICON_TEMP, 4)
             self.__oled__.text("{0}\N{DEGREE SIGN}C / {1:.0f}\N{DEGREE SIGN}F".format(data['dewpointC'], utils.celsius_to_fahrenheit(data['dewpointC'])), 5)
             self.__oled__.text(ICON_DEWPOINT, 6)
-            self.__oled__.text("{0} {1}".format(data["obsTime"].astimezone(central).strftime("%H:%MC"), data["obsTime"].strftime("%H:%MZ")), 7)
+            self.__oled__.text("{0} {1}".format(data["obsTime"].astimezone(tz).strftime("%H:%MC"), data["obsTime"].strftime("%H:%MZ")), 7)
             self.__oled__.text(ICON_DATE, 8)
             self.__oled__.show()
         except Exception as e:

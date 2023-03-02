@@ -30,12 +30,21 @@ def wheel(pos):
     return r, g, b
 
 
+def get_location(city):
+    import astral.geocoder
+    import astral.sun
+    try:
+        return astral.geocoder.lookup(city, astral.geocoder.database())
+    except KeyError:
+        safe_logging.safe_log("Error: Location not recognized, please check list of supported cities and reconfigure")
+
+
 def get_sun_times(config):
     import astral.geocoder
     import astral.sun
 
     try:
-        city = astral.geocoder.lookup(config.data.geo.city, astral.geocoder.database())
+        city = get_location(config.data.geo.city)
     except KeyError:
         safe_logging.safe_log("Error: Location not recognized, please check list of supported cities and reconfigure")
     else:
