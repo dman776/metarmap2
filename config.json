@@ -11,7 +11,11 @@
         "inittest": true
     },
     "geo": {
-        "city": "Houston"
+        "city": "Houston",
+        "map": {
+            "center": [30.603, -93.581],
+            "zoom": 7
+        }
     },
     "display_screen": {
         "enabled": true,

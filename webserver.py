@@ -80,7 +80,7 @@ class WebServer(object):
         return buf.read()
 
     def _map(self):
-        return bottle.template('map.tpl', metars=self._metarsObj)
+        return bottle.template('map.tpl', metars=self._metarsObj, config=self._config)
 
     def _rawcode(self, code):
         return "<b>" + code + "</b>: " + self._metarsObj.data[code]['raw'] + "<br />"

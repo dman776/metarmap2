@@ -24,7 +24,7 @@
 <div id="map"></div>
 <hr />
 <script>
-const map = L.map('map').setView([30.603, -93.581], 7);
+const map = L.map('map').setView({{config.data.geo.map.center}}, {{config.data.geo.map.zoom}});
 const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
