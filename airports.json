@@ -20,7 +20,7 @@
         "display": false
     },
     "KGLS": {
-        "text": 5,
+        "text": "Galveston",
         "display": true
     },
     "KLVJ": {
@@ -28,11 +28,11 @@
         "display": false
     },
     "KEFD": {
-        "text": 7,
+        "text": "Ellington",
         "display": false
     },
     "KHOU": {
-        "text": 8,
+        "text": "Hobby",
         "display": true
     },
     "KSGR": {
@@ -68,23 +68,23 @@
         "display": false
     },
     "KDKR": {
-        "text": 17,
+        "text": "Crockett",
         "display": true
     },
     "KUTS": {
-        "text": 18,
+        "text": "Huntsville",
         "display": false
     },
     "KCXO": {
-        "text": 19,
+        "text": "Conroe",
         "display": true
     },
     "KDWH": {
-        "text": 20,
+        "text": "Hooks",
         "display": true
     },
     "KIAH": {
-        "text": 21,
+        "text": "Intercontinental",
         "display": true
     },
     "KT78": {
@@ -108,7 +108,7 @@
         "display": false
     },
     "KLCH": {
-        "text": 27,
+        "text": "Lake Charles",
         "display": true
     },
     "KCWF": {
@@ -128,7 +128,7 @@
         "display": true
     },
     "KAPS": {
-        "text": 32,
+        "text": "Port of South Louisiana",
         "display": false
     },
     "KREG": {
@@ -156,7 +156,7 @@
         "display": false
     },
     "KDRI": {
-        "text": 39,
+        "text": "DeRidder",
         "display": false
     },
     "KJAS": {
@@ -164,11 +164,11 @@
         "display": false
     },
     "KLFK": {
-        "text": 41,
+        "text": "Lufkin",
         "display": false
     },
     "KOCH": {
-        "text": 42,
+        "text": "Nacogdoches",
         "display": true
     },
     "KJSO": {

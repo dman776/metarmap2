@@ -15,6 +15,12 @@ except NotImplementedError:
     pass
 
 
+def load_airports(file):
+    with open(file) as f:
+        fdata = f.read()
+    return json.loads(fdata)
+
+
 class Config(object):
     def __init__(self, file):
         """
@@ -26,6 +32,7 @@ class Config(object):
         self.LED_ORDER = None
         self.suntimes = []
         self.read()
+        self.__airports__ = load_airports(self.__data__.airports)
 
     def read(self):
         with open(self.__file__, 'r') as f:
@@ -61,17 +68,22 @@ class Config(object):
     def set_suntimes(self, suntimes):
         self.suntimes = suntimes
 
+    @property
+    def airports(self):
+        return self.__airports__
 
 class MyJsonEncoder(JSONEncoder):
     def default(self, o):
         return o.__dict__
 
+
 if __name__ == '__main__':
     # safe_logging.safe_log("[cfg]" + "Config")
     config = Config("config.json")
-    config.edit("display_screen.enabled", False)
-    config.edit("display_screen.delay", "0.6")
-    config.edit("display_screen.locate_active", True)
-    config.write()
+    # config.edit("display_screen.enabled", False)
+    # config.edit("display_screen.delay", "0.6")
+    # config.edit("display_screen.locate_active", True)
+    # config.write()
+    pprint(config.airports)
 
 

@@ -24,7 +24,9 @@
                     %elif metars.data[m]['flightCategory'] == 'LIFR':
                         list-group-item-info">
                     %end
-                    <div class="col-1"><button type="button" class="badge badge-pill badge-primary" onClick="fetch('/locate/{{i}}');">Find</button></div>
+                    <div class="col-1">
+                        <button type="button" class="badge badge-pill badge-primary" onClick="fetch('/locate/{{i}}');">Find</button>
+                    </div>
                     <div class="col-1">{{m}}</div>
                     <div class="col-1">{{metars.data[m]['flightCategory']}}</div>
                     <div class="col-7">{{metars.data[m]['raw']}}</div>

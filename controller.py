@@ -118,10 +118,10 @@ def update_data():
     renderer.update_data(metars)
 
 
-def load_airports(file):
-    with open(file) as f:
-        fdata = f.read()
-    return json.loads(fdata)
+# def load_airports(file):
+#     with open(file) as f:
+#         fdata = f.read()
+#     return json.loads(fdata)
 
 
 def sched_load_suntimes():
@@ -157,7 +157,9 @@ if __name__ == '__main__':
     sched_load_suntimes()
 
     # load airports file
-    airports = load_airports("airports.json")
+    # airports = load_airports("airports.json")
+    # todo: can this be eliminated and config.airports used everywhere
+    airports = config.airports
 
     # Start loading the METARs in the background
     safe_logging.safe_log("[c]" + "Get weather for all airports...")
