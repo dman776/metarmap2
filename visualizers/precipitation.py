@@ -40,7 +40,7 @@ class Precipitation(Visualizer):
             <ul>
                 <li>None = OFF</li>
                 <li>Haze = DARK GRAY</li>
-                <li>Fog = 6% WHITE</li>
+                <li>Fog = Pulsing 6% WHITE every 4 seconds</li>
                 <li>Light Drizzle = <font color='blue'>12% BLUE</font></li>
                 <li>Light Rain = Pulsing <font color='blue'>BLUE</font> every 4 seconds</li>
                 <li>Rain = Pulsing <font color='blue'>BLUE</font> every 2 seconds</li>
@@ -96,7 +96,7 @@ class Precipitation(Visualizer):
         elif "HZ" in obs:
             return Solid(pixel, color=self.__config__.data.color.weather.haze)
         elif "FG" in obs:
-            return Solid(pixel, color=self.__config__.data.color.weather.fog)
+            return Pulse(pixel, speed=0.1, period=4, color=self.__config__.data.color.weather.fog)
         elif "BR" in obs:
             return Solid(pixel, color=self.__config__.data.color.weather.mist.normal)
         elif "-DZ" in obs:
