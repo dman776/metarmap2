@@ -26,7 +26,7 @@ class METAR(object):
         """
 
         self.__config__ = cfg
-        self.__airports__ = self.__config__.data.airports
+        self.__airports__ = self.__config__.airports
         self.__is_fetching__ = False
         self.__missing_stations__ = []
         self.__stations__ = []

@@ -32,7 +32,7 @@ class Config(object):
         self.LED_ORDER = None
         self.suntimes = []
         self.read()
-        self.__airports__ = load_airports(self.__data__.airports)
+        self.__airports__ = load_airports(self.__data__.airports_file)
 
     def read(self):
         with open(self.__file__, 'r') as f:

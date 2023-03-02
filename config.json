@@ -1,5 +1,5 @@
 {
-    "airports": "airports.json",
+    "airports_file": "airports.json",
     "led": {
         "count": 50,
         "pin": 18,
