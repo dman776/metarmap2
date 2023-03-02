@@ -25,7 +25,7 @@ from adafruit_led_animation.animation.colorcycle import ColorCycle
 from adafruit_led_animation.color import PURPLE, WHITE, AMBER, JADE, MAGENTA, ORANGE, BLUE, AQUA, RED, GREEN, YELLOW
 
 
-def get_color_by_temperature_celsius(temperature_celsius: float) -> list:
+def get_color_by_temperature_celsius(temperature_celsius: int) -> list:
     """
     Given a temperature (in Celsius), return the color
     that should represent that temp on the map.
@@ -34,7 +34,7 @@ def get_color_by_temperature_celsius(temperature_celsius: float) -> list:
     and thermometer markings.
 
     Args:
-        temperature_celsius (float): A temperature in metric.
+        temperature_celsius (int): A temperature in C.
 
     Returns:
         list: The RGB color to show on the map.
@@ -129,8 +129,11 @@ class Temperature(Visualizer):
 
             if len(airport_data.keys()) > 0:
                 if airport_data is not None:
-                    tcolor = get_color_by_temperature_celsius(airport_data['tempC'])
-                    self.__effect__.append(Solid(self.__pix__[i], color=tcolor))
+                    if type(airport_data['tempC']) == int:
+                        tcolor = get_color_by_temperature_celsius(airport_data['tempC'])
+                        self.__effect__.append(Solid(self.__pix__[i], color=tcolor))
+                    else:   # no temp reported
+                        self.__effect__.append(Solid(self.__pix__[i], color=[0, 0, 0]))
                 else:  # airport key not found in metar data
                     self.__effect__.append(Solid(self.__pix__[i], color=[0, 0, 0]))
             else:  # airport data is empty METAR data
