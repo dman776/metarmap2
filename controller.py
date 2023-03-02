@@ -148,11 +148,10 @@ def sched_set_brightness(level):
 # =====================================================================================================
 if __name__ == '__main__':
     safe_logging.safe_log("[c]" + "Starting controller.py at " + datetime.now().strftime('%d/%m/%Y %H:%M'))
-
     config = lib.config.Config("config.json")
 
     # get sunrise/sunset times for dynamic dimming
-    config.suntimes = utils.get_sun_times(config)
+    # config.suntimes = utils.get_sun_times(config)
     sched_load_suntimes()
 
     # Start loading the METARs in the background
