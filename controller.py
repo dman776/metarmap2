@@ -150,8 +150,7 @@ if __name__ == '__main__':
     safe_logging.safe_log("[c]" + "Starting controller.py at " + datetime.now().strftime('%d/%m/%Y %H:%M'))
     config = lib.config.Config("config.json")
 
-    # get sunrise/sunset times for dynamic dimming
-    # config.suntimes = utils.get_sun_times(config)
+    # load sunrise/sunset times into scheduler for dynamic dimming
     sched_load_suntimes()
 
     # Start loading the METARs in the background
@@ -187,7 +186,6 @@ if __name__ == '__main__':
     # test pattern on pixels?
     if config.data.led.inittest:
         renderer.animate_once(RainbowComet(pixels, speed=0.05, tail_length=5, bounce=False))
-        # renderer.animate_once(RainbowChase(pixels, speed=0.1, size=4, spacing=2, step=4))
 
     # Job Scheduler setup --------------
     schedule.every(10).minutes.do(update_data)                  # Start up METAR update thread
@@ -217,6 +215,7 @@ if __name__ == '__main__':
     schedule.clear()
     if config.data.display_screen.enabled:
         disp.stop()
+    renderer.stop()
     renderer.clear()
     web_server.stop()
-    # GPIO.cleanup()
+

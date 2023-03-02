@@ -6,7 +6,7 @@ except ModuleNotFoundError as e:
     import safe_logging as safe_logging
 from pprint import pprint
 from types import SimpleNamespace
-import utils
+from lib import utils
 
 try:
     import board
@@ -32,8 +32,8 @@ class Config(object):
         self.__data__ = {}
         self.LED_PIN = None
         self.LED_ORDER = None
-        self.suntimes = utils.get_sun_times(self)
         self.read()
+        self.suntimes = utils.get_sun_times(self)
         self.__airports__ = load_airports(self.__data__.airports_file)
 
     def read(self):

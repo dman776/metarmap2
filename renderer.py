@@ -66,21 +66,27 @@ class Renderer(object):
         self.__data__ = metars.data
         self.__vis__.update_data(self.__data__)
 
+    def stop(self):
+        if self.__animationloop__ is not None:
+            self.__animationloop__.freeze()
+
+    def resume(self):
+        if self.__animationloop__ is not None:
+            self.__animationloop__.resume()
+
     def clear(self):
         self.__pixels__.fill(self.__config__.data.color.clear)
         self.__pixels__.show()
         return
 
     def animate_once(self, effect, clear=True):
-        if self.__animationloop__ is not None:
-            self.__animationloop__.freeze()
+        self.stop()
         animations = AnimateOnce(effect)
         while animations.animate():
             pass
         if clear:
             self.clear()
-        if self.__animationloop__ is not None:
-            self.__animationloop__.resume()
+        self.resume()
 
     def locate(self, pixnum):
         self.animate_once(Pulse(self.__pix__[int(pixnum)], speed=0.1, period=2, color=WHITE), False)
