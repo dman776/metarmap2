@@ -112,6 +112,7 @@ class METAR(object):
             windGustSpeed = 0
             windGust = False
             lightning = False
+            elevation_m = 0
             tempC = ''
             dewpointC = ''
             vis = 0
@@ -121,6 +122,8 @@ class METAR(object):
             latitude = metar['latitude'] or ""
             longitude = metar['longitude'] or ""
 
+            if 'elevation_m' in metar:
+                elevation_m = int(metar['elevation_m'])
             if 'wind_gust_kt' in metar:
                 windGustSpeed = int(metar['wind_gust_kt'])
                 windGust = (True if windGustSpeed > 0 else False)
@@ -157,6 +160,7 @@ class METAR(object):
                 skyConditions.append(skyCond)
 
             self.data[stationId] = {"raw": rawMetar,
+                                    "elevation_m": elevation_m,
                                     "flightCategory": flightCategory,
                                     "flightCategoryColor": flightCategoryColor,
                                     "windDir": windDir, "windSpeed": windSpeed, "windGustSpeed": windGustSpeed,
