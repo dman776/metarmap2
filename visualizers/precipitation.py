@@ -42,9 +42,9 @@ class Precipitation(Visualizer):
                 <li>Haze = DARK GRAY</li>
                 <li>Fog = Pulsing 6% WHITE every 4 seconds</li>
                 <li>Light Drizzle = Pulsing <font color='green'>GREEN</font> every 4 seconds</li>
-                <li>Drizzle = Pulsing <font color='green'>GREEN</font> every 2 seconds</li>
+                <li>Drizzle = Solid <font color='green'>GREEN</font></li>
                 <li>Light Rain = Pulsing <font color='blue'>BLUE</font> every 4 seconds</li>
-                <li>Rain = Pulsing <font color='blue'>BLUE</font> every 2 seconds</li>
+                <li>Rain = Solid <font color='blue'>BLUE</font></li>
                 <li>Heavy Rain = Blinking <font color='blue'>BLUE</font> every second</li>
                 <li>Thunderstorms in vicinity = Blinking <font color='gold'>YELLOW</font> every second</li>
                 <li>Other = Blinking <font color='red'>RED</font> every second</li>
@@ -86,10 +86,9 @@ class Precipitation(Visualizer):
             pixel effect
         """
 
-        # -RA = light color, slow pulse
-        #  RA = regular color, med pulse
-
-        # +RA = blink regular color, rapid pulse
+        # -RA = slow pulse 4 sec
+        #  RA = solid color
+        # +RA = blink color 1 sec
 
         colors_by_name = colors_lib.get_colors()
 
@@ -100,15 +99,15 @@ class Precipitation(Visualizer):
         elif "FG" in obs:
             return Pulse(pixel, speed=0.1, period=4, color=self.__config__.data.color.weather.fog)
         elif "BR" in obs:
-            return Solid(pixel, color=self.__config__.data.color.weather.mist.normal)
+            return Solid(pixel, color=self.__config__.data.color.weather.mist)
         elif "-DZ" in obs:
             return Pulse(pixel, speed=0.1, period=4, color=self.__config__.data.color.weather.drizzle)
         elif "DZ" in obs:
-            return Pulse(pixel, speed=0.1, period=2, color=self.__config__.data.color.weather.drizzle)
+            return Solid(pixel, color=self.__config__.data.color.weather.drizzle)
         elif "-RA" in obs:
             return Pulse(pixel, speed=0.1, period=4, color=self.__config__.data.color.weather.rain)
         elif "RA" in obs:
-            return Pulse(pixel, speed=0.1, period=2, color=self.__config__.data.color.weather.rain)
+            return Solid(pixel, color=self.__config__.data.color.weather.rain)
         elif "+RA" in obs:
             return Blink(pixel, speed=1, color=self.__config__.data.color.weather.rain)
         elif "VCTS" in obs:
