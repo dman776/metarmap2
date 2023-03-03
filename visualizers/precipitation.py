@@ -107,6 +107,8 @@ class Precipitation(Visualizer):
             return Pulse(pixel, speed=0.1, period=2, color=self.__config__.data.color.weather.rain)
         elif "+RA" in obs:
             return Blink(pixel, speed=1, color=self.__config__.data.color.weather.rain)
+        elif "VCTS" in obs:
+            return Blink(pixel, speed=1, color=self.__config__.data.color.weather.lightning)
         else:
             safe_logging.safe_log("[v]obs=" + str(obs))
             return Blink(pixel, speed=1, color=colors_by_name[colors_lib.RED])
