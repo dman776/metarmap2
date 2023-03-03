@@ -27,8 +27,9 @@ from datetime import datetime
 import display
 import webserver
 import renderer
+from config import Config
 from display import Display
-import config
+
 import schedule
 
 from lib import safe_logging
@@ -138,7 +139,7 @@ def sched_set_brightness(level):
 # =====================================================================================================
 if __name__ == '__main__':
     safe_logging.safe_log("[c]" + "Starting controller.py at " + datetime.now().strftime('%d/%m/%Y %H:%M'))
-    config = config.Config("config.json")
+    config = Config("config.json")
 
     # load sunrise/sunset times into scheduler for dynamic dimming
     sched_load_suntimes()
