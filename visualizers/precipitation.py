@@ -95,24 +95,24 @@ class Precipitation(Visualizer):
 
         if obs is None or obs == "":
             return Solid(pixel, color=colors_by_name[colors_lib.OFF])
-        elif "HZ" in obs:
-            return Solid(pixel, color=self.__config__.data.color.weather.haze)
-        elif "FG" in obs:
-            return Pulse(pixel, speed=0.1, period=4, color=self.__config__.data.color.weather.fog)
-        elif "BR" in obs:
-            return Solid(pixel, color=self.__config__.data.color.weather.mist)
-        elif "-DZ" in obs:
-            return Pulse(pixel, speed=0.1, period=4, color=self.__config__.data.color.weather.drizzle)
-        elif "DZ" in obs:
-            return Solid(pixel, color=self.__config__.data.color.weather.drizzle)
+        elif "VCTS" in obs:
+            return Blink(pixel, speed=1, color=self.__config__.data.color.weather.lightning)
         elif "-RA" in obs:
             return Pulse(pixel, speed=0.1, period=4, color=self.__config__.data.color.weather.rain)
         elif "RA" in obs:
             return Solid(pixel, color=self.__config__.data.color.weather.rain)
         elif "+RA" in obs:
             return Blink(pixel, speed=1, color=self.__config__.data.color.weather.rain)
-        elif "VCTS" in obs:
-            return Blink(pixel, speed=1, color=self.__config__.data.color.weather.lightning)
+        elif "-DZ" in obs:
+            return Pulse(pixel, speed=0.1, period=4, color=self.__config__.data.color.weather.drizzle)
+        elif "DZ" in obs:
+            return Solid(pixel, color=self.__config__.data.color.weather.drizzle)
+        elif "BR" in obs:
+            return Solid(pixel, color=self.__config__.data.color.weather.mist)
+        elif "FG" in obs:
+            return Pulse(pixel, speed=0.1, period=4, color=self.__config__.data.color.weather.fog)
+        elif "HZ" in obs:
+            return Solid(pixel, color=self.__config__.data.color.weather.haze)
         else:
-            safe_logging.safe_log("[v]obs=" + str(obs))
+            safe_logging.safe_log("[v]missing observation code=" + str(obs))
             return Blink(pixel, speed=1, color=colors_by_name[colors_lib.RED])
