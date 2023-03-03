@@ -102,6 +102,8 @@ class Precipitation(Visualizer):
             return Solid(pixel, color=self.__config__.data.color.weather.mist.normal)
         elif "-DZ" in obs:
             return Solid(pixel, color=self.__config__.data.color.weather.drizzle.light)
+        elif "DZ" in obs:
+            return Solid(pixel, color=self.__config__.data.color.weather.drizzle.normal)
         elif "-RA" in obs:
             return Pulse(pixel, speed=0.1, period=4, color=self.__config__.data.color.weather.rain)
         elif "RA" in obs:
