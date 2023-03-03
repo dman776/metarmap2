@@ -112,7 +112,7 @@ class METAR(object):
             windGustSpeed = 0
             windGust = False
             lightning = False
-            elevation_m = 0
+            elevation_m = 0.0
             tempC = ''
             dewpointC = ''
             vis = 0
@@ -123,7 +123,7 @@ class METAR(object):
             longitude = metar['longitude'] or ""
 
             if 'elevation_m' in metar:
-                elevation_m = int(metar['elevation_m'])
+                elevation_m = int(round(float(metar['elevation_m'])))
             if 'wind_gust_kt' in metar:
                 windGustSpeed = int(metar['wind_gust_kt'])
                 windGust = (True if windGustSpeed > 0 else False)
