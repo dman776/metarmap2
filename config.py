@@ -1,4 +1,5 @@
 import json
+import sys
 from json import JSONEncoder
 import lib.safe_logging as safe_logging
 
@@ -37,10 +38,10 @@ class Config(object):
     def read(self):
         with open(self.__file__, 'r') as f:
             self.__data__ = json.load(f, object_hook=lambda x: SimpleNamespace(**x))
-        self.post_process()
+        self.__post_process__()
         return
 
-    def post_process(self):
+    def __post_process__(self):
         # LED config
         try:
             self.LED_PIN = eval("board.D" + str(self.__data__.led.pin))
@@ -50,7 +51,7 @@ class Config(object):
 
     def write(self):
         with open(self.__file__, 'w') as f:
-            json.dump(self.data, f, cls=MyJsonEncoder, indent=4)
+            json.dump(self.__data__, f, cls=MyJsonEncoder, indent=4)
         self.read()
         return
 
@@ -84,7 +85,6 @@ if __name__ == '__main__':
     # config.edit("display_screen.enabled", False)
     # config.edit("display_screen.delay", "0.6")
     # config.edit("display_screen.locate_active", True)
-    # config.write()
-    pprint(config.airports)
+    # pprint(config.airports)
 
 

@@ -93,6 +93,7 @@ class WebServer(object):
 
     def _edit_config(self, key, value):
         self._renderer.config.edit(key, value)
+        self._renderer.refresh()
         return bottle.template('config.tpl', renderer=self._renderer)
 
     def _fetch(self):
@@ -109,7 +110,6 @@ class WebServer(object):
             self._display.stop()
         self._renderer.clear()
         utils.restart()
-
 
     def _brightness(self, level):
         self._renderer.brightness(float(level))

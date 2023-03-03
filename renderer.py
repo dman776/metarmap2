@@ -97,6 +97,9 @@ class Renderer(object):
         self.__vis__.update_data(self.__data__)
         self.active_visualizer = vis
 
+    def refresh(self):
+        self.visualizer = self.active_visualizer
+
     def visualizer_next(self):
         totalnum = len(self.__visualizers__)
         vnum = self.active_visualizer + 1
