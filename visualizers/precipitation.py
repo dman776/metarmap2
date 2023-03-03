@@ -45,6 +45,7 @@ class Precipitation(Visualizer):
                 <li>Light Rain = Pulsing <font color='blue'>BLUE</font> every 4 seconds</li>
                 <li>Rain = Pulsing <font color='blue'>BLUE</font> every 2 seconds</li>
                 <li>Heavy Rain = Blinking <font color='blue'>BLUE</font> every second</li>
+                <li>Thunderstorms in vicinity = Blinking <font color='gold'>YELLOW</font> every second</li>
                 <li>Other = Blinking <font color='red'>RED</font> every second</li>
             </ul>
             </div>
