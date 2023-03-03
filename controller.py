@@ -64,20 +64,7 @@ except ValueError:
     pass
 
 # ---------------------------------------------------------------------------
-# ------------START OF CONFIGURATION-----------------------------------------
-# ---------------------------------------------------------------------------
-FADE_INSTEAD_OF_BLINK	= True			# Set to False if you want blinking
-BLINK_TOTALTIME_SECONDS	= 600
-# LED_ORDER = neopixel.GRB        # fix in config
-# ---------------------------------------------------------------------------
-# ------------END OF CONFIGURATION-------------------------------------------
-# ---------------------------------------------------------------------------
-
 # Globals
-# DAWN = None
-# SUNRISE = None
-# SUNSET = None
-# DUSK = None
 config = None
 
 
@@ -87,32 +74,10 @@ def init_pixel_subsets(apixels: neopixel):
         p.append(PixelSubset(apixels, i, i + 1))
     return p
 
-# def render_thread(metars):
-#     """
-#     Main logic loop for rendering
-#     """
-#     print("Starting rendering thread")
-#     while True:
-#         try:
-#             try:
-#                 renderer.render()
-#             except Exception as e:
-#                 safe_logging.safe_log("[c]" + str(traceback.print_exc()))
-#         except KeyboardInterrupt:
-#             raise KeyboardInterrupt
-#         except Exception as ex:
-#             safe_logging.safe_log("[c]" + ex)
-
 
 def update_data():
     metars.fetch()
     renderer.update_data(metars)
-
-
-# def load_airports(file):
-#     with open(file) as f:
-#         fdata = f.read()
-#     return json.loads(fdata)
 
 
 def sched_load_suntimes():
@@ -186,7 +151,9 @@ if __name__ == '__main__':
     web_server = webserver.WebServer("0.0.0.0", 80, metars, renderer, disp or None)
     web_server.run()
 
-    # ============== MAIN LOOP =====================
+    # ======================================================================================
+    # ============== MAIN LOOP =============================================================
+    # ======================================================================================
     safe_logging.safe_log("[c]" + "Main loop...")
     if config.data.display_screen.enabled:
         disp.start()
