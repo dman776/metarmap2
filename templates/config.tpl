@@ -55,7 +55,7 @@ function config_edit(key, value) {
         value="{{str(val).lower()}}"
         id="dse"
         onChange="config_edit_boolean(this, '{{key}}');">
-        <label class="form-check-label" for="dse">Enabled</label>
+        <label class="form-check-label" for="dse">Enabled *</label>
     </div>
 </div>
 <div class="row">
@@ -81,8 +81,12 @@ function config_edit(key, value) {
         value="{{str(val).lower()}}"
         id="li"
         onChange="config_edit_boolean(this, '{{key}}');">
-        <label class="form-check-label" for="li">Show test pattern on init</label>
+        <label class="form-check-label" for="li">Show test pattern on init *</label>
     </div>
+</div>
+<hr />
+<div class="row">
+* = Requires a restart
 </div>
 
 %include("footer.tpl")

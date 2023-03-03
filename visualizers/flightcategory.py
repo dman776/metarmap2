@@ -53,7 +53,7 @@ class FlightCategory(Visualizer):
             </ul>
             </div>
             <div class="w-100">
-            Lightning will be indicated by flashing <font color='gold'>YELLOW</font>.
+            Lightning will be indicated by flashing <font color='gold'>YELLOW</font> (if configured).
             </div>
         """
 
