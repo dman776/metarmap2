@@ -43,6 +43,7 @@ class Precipitation(Visualizer):
                 <li>Fog = Pulsing 6% WHITE every 4 seconds</li>
                 <li>Light Drizzle = Pulsing <font color='green'>GREEN</font> every 4 seconds</li>
                 <li>Drizzle = Solid <font color='green'>GREEN</font></li>
+                <li>Mist = Solid <font color='blue'>DARK BLUE</font></li>
                 <li>Light Rain = Pulsing <font color='blue'>BLUE</font> every 4 seconds</li>
                 <li>Rain = Solid <font color='blue'>BLUE</font></li>
                 <li>Heavy Rain = Blinking <font color='blue'>BLUE</font> every second</li>
