@@ -21,29 +21,19 @@
 # Green -> Pin 23(Physical)/SCLK/SPI
 #
 
-import json
-import sys
 import threading
-import time
-from datetime import datetime, timezone
-import pytz
-import json
-from pprint import pprint
+from datetime import datetime
 
 import display
-import lib.config
 import webserver
 import renderer
 from display import Display
-import lib.config
+import config
 import schedule
 
-from lib import logger, safe_logging, utils
-import traceback
+from lib import safe_logging
 import metar as metar
-from renderer import Renderer as Renderer
 from adafruit_led_animation.helper import PixelSubset
-from adafruit_led_animation.animation.rainbowchase import RainbowChase
 from adafruit_led_animation.animation.rainbowcomet import RainbowComet
 
 from visualizers.flightcategory import FlightCategory as FlightCategoryVisualizer
@@ -148,7 +138,7 @@ def sched_set_brightness(level):
 # =====================================================================================================
 if __name__ == '__main__':
     safe_logging.safe_log("[c]" + "Starting controller.py at " + datetime.now().strftime('%d/%m/%Y %H:%M'))
-    config = lib.config.Config("config.json")
+    config = config.Config("config.json")
 
     # load sunrise/sunset times into scheduler for dynamic dimming
     sched_load_suntimes()

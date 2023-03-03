@@ -1,9 +1,7 @@
 import json
 from json import JSONEncoder
-try:
-    import lib.safe_logging as safe_logging
-except ModuleNotFoundError as e:
-    import safe_logging as safe_logging
+import lib.safe_logging as safe_logging
+
 from pprint import pprint
 from types import SimpleNamespace
 from lib import utils
@@ -73,6 +71,7 @@ class Config(object):
     @property
     def airports(self):
         return self.__airports__
+
 
 class MyJsonEncoder(JSONEncoder):
     def default(self, o):

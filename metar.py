@@ -2,9 +2,6 @@
 Module to handle METAR fetching and processing
 """
 
-import threading
-import sys
-import time
 import datetime
 import urllib.request
 # import xml.etree.ElementTree as ET
@@ -12,7 +9,7 @@ import xmltodict
 from pprint import pprint
 import json
 import lib.safe_logging as safe_logging
-from lib.config import Config
+from config import Config
 import lib.utils as utils
 
 class METAR(object):

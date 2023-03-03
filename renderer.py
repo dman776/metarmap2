@@ -2,25 +2,16 @@
 Module to handle METAR fetching and processing
 """
 
-import sys
-import time
 from datetime import datetime
 import pytz
-from pprint import pprint
-import json
 import lib.safe_logging as safe_logging
 import metar
-from lib.config import Config
-from lib.utils import wheel
-from lib import utils
+from config import Config
 
-from adafruit_led_animation.helper import PixelSubset
-
-from adafruit_led_animation.sequence import AnimationSequence, AnimateOnce
+from adafruit_led_animation.sequence import AnimateOnce
 from adafruit_led_animation.group import AnimationGroup
 from adafruit_led_animation.animation.pulse import Pulse
 from adafruit_led_animation.color import WHITE
-import adafruit_led_animation.animation
 
 
 class Renderer(object):
