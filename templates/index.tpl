@@ -19,7 +19,8 @@
 <hr />
 <div class="row">
     <label for="brightness" class="form-label">Brightness</label>&nbsp;
-    <input type="range" class="form-range" min="0" max="1" step="0.01" id="brightness" onChange="fetch('/brightness/' + this.value);" value="{{renderer.pixels().brightness}}" />
+    <input type="range" class="form-range" min="0" max="1" step="0.01" id="brightness" onChange="fetch('/brightness/' + this.value);document.getElementById('brt_label').innerText=Math.round(this.value*100) + '%';" value="{{renderer.pixels().brightness}}" />
+    <label id="brt_label">{{round(renderer.pixels().brightness * 100)}}%</label>
 </div>
 <hr />
 <div class="row">

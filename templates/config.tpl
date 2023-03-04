@@ -75,9 +75,9 @@ function config_edit(key, value) {
     % val = renderer.config.data.display_screen.delay
     <div class="form-check">
         <input type="range" class="form-range" min="0" max="30" step="1" id="dsd"
-               onChange="config_edit('{{key}}', this.value);"
+               onChange="config_edit('{{key}}', this.value);document.getElementById('dsd_label').innerText=this.value + ' sec delay';"
                value="{{val}}" />
-        <label class="form-check-label" for="dsd">Delay (in secs)</label>
+        <label class="form-check-label" id="dsd_label" for="dsd">{{val}} sec delay</label>
     </div>
 </div>
 <hr />
