@@ -127,11 +127,16 @@ class Display(object):
                     self.show_metar(airport, self.__data__.data[airport], self.__config__.data.display_screen.delay)
 
     def show_metar(self, sta, dat, delay):
-        with self.lock:
-            self.page1(sta, dat)
-            time.sleep(delay)
-            self.page2(sta, dat)
-            time.sleep(delay)
+        if len(dat) > 0:
+            with self.lock:
+                self.page1(sta, dat)
+                time.sleep(delay)
+                self.page2(sta, dat)
+                time.sleep(delay)
+        else:
+            with self.lock:
+                self.page_unavailable(sta)
+                time.sleep(delay)
 
     def message(self, title, icon="", line1="", line2="", line3=""):
         with self.lock:
@@ -145,6 +150,22 @@ class Display(object):
                 self.__oled__.show()
             except Exception as e:
                 safe_log("[d]: " + str(e))
+
+    def page_unavailable(self, station):
+        try:
+            self.__oled__.layout = self.__page_layouts__[1]
+            self.__oled__.text(station)
+            self.__oled__.text("", 2)
+
+            self.__oled__.text("Data", 3)
+            self.__oled__.text("", 4)
+            self.__oled__.text("Unavailable", 5)
+            self.__oled__.text("", 6)
+            self.__oled__.text("", 7)
+            self.__oled__.text("", 8)
+            self.__oled__.show()
+        except Exception as e:
+            safe_log(station + ": " + str(e))
 
     def page1(self, station, data):
         try:
