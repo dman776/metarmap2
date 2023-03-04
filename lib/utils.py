@@ -1,6 +1,7 @@
 from datetime import datetime
 import os
 import sys
+import subprocess
 
 try:
     import lib.safe_logging as safe_logging
@@ -103,6 +104,11 @@ def celsius_to_fahrenheit(temperature_celsius: float):
 
     return (temperature_celsius * (9.0 / 5.0)) + 32.0
 
+
+def update():
+    safe_logging.safe_log("[u]updating from github... " + os.getcwd())
+    result = subprocess.run("/usr/bin/git pull", capture_output=True, text=True)
+    safe_logging.safe_log("[u]" + result.stdout)
 
 def restart():
     safe_logging.safe_log("[u]restarting... " + os.path.abspath(sys.argv[0]))

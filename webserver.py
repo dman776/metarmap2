@@ -56,6 +56,7 @@ class WebServer(object):
         self._app.route("/config", method="GET", callback=self._get_config)
         self._app.route("/config/edit/<key>/<value>", method="GET", callback=self._edit_config)
         self._app.route("/debug", method="GET", callback=self._debug)
+        self._app.route("/update", method="GET", callback=self._update)
         self._app.route("/restart", method="GET", callback=self._restart)
         self._app.route("/brightness/<level>", method="GET", callback=self._brightness)
         self._app.route("/locate/<pixnum>", method="GET", callback=self._locate)
@@ -110,6 +111,11 @@ class WebServer(object):
             self._display.stop()
         self._renderer.clear()
         utils.restart()
+
+    def _update(self):
+        utils.update()
+        return bottle.template('index.tpl', renderer=self._renderer)
+
 
     def _brightness(self, level):
         self._renderer.brightness(float(level))
