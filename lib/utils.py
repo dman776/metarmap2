@@ -107,7 +107,7 @@ def celsius_to_fahrenheit(temperature_celsius: float):
 
 def update():
     safe_logging.safe_log("[u]updating from github... " + os.getcwd())
-    result = subprocess.run("/usr/bin/git pull", capture_output=True, text=True)
+    result = subprocess.run(["/usr/bin/git", "pull"], capture_output=True, text=True)
     safe_logging.safe_log("[u]" + result.stdout)
 
 def restart():
