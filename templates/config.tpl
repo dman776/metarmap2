@@ -70,6 +70,16 @@ function config_edit(key, value) {
         <label class="form-check-label" for="dsla">Highlight Active Airport</label>
     </div>
 </div>
+<div class="row">
+    % key = "display_screen.delay"
+    % val = renderer.config.data.display_screen.delay
+    <div class="form-check">
+        <input type="range" class="form-range" min="0" max="30" step="1" id="dsd"
+               onChange="config_edit(this, '{{key}}', this.value);"
+               value="{{val}}" />
+        <label class="form-check-label" for="dsd">Delay (in secs)</label>
+    </div>
+</div>
 <hr />
 <h3>LED Pixels</h3>
 <div class="row">
