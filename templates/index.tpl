@@ -10,6 +10,7 @@
     <button type="button" class="btn btn-primary" onClick="window.location='/raw';" role="button">Raw Metars</button>&nbsp;
     <button type="button" class="btn btn-primary" onClick="window.location='/map';" role="button">Map</button>
 </div>
+&nbsp;
 <div class="row">
     <button type="button" class="btn btn-secondary" onClick="window.location='/config';" role="button">Config</button>&nbsp;
     <button type="button" class="btn btn-secondary" onClick="fetch('/update');" role="button">Update</button>&nbsp;
