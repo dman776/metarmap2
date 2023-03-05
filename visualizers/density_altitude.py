@@ -16,6 +16,8 @@ from metar import METAR
 from visualizers.visualizer import Visualizer
 from adafruit_led_animation.animation.solid import Solid
 
+STANDARD_PRESSURE = 29.92
+
 def get_color_by_da(da: int, elevation_f: int) -> list:
     """
     Given a DA reading, return a RGB color to show on the map.
