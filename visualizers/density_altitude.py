@@ -106,7 +106,7 @@ class DensityAltitude(Visualizer):
             if len(airport_data.keys()) > 0:
                 if airport_data is not None:
                     da = calculate_density_altitude(airport_data['altimHg'])
-                    pcolor = get_color_by_da(da, meters_to_feet(airport_data['elevation_m'])
+                    pcolor = get_color_by_da(da, meters_to_feet(airport_data['elevation_m']))
                     self.__effect__.append(Solid(self.__pix__[i], color=pcolor))
                 else:  # airport key not found in metar data
                     self.__effect__.append(Solid(self.__pix__[i], color=[0, 0, 0]))
