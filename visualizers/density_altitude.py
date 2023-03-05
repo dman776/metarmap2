@@ -129,8 +129,11 @@ class DensityAltitude(Visualizer):
             if len(airport_data.keys()) > 0:
                 if airport_data is not None and airport_data['altimHg'] != "" and airport_data['elevation_m'] != ""  and airport_data['tempC'] != "":
                     da = calculate_density_altitude(airport_data['altimHg'], meters_to_feet(airport_data['elevation_m']), airport_data['tempC'])
+                    daf = round(da/meters_to_feet(airport_data['elevation_m'])) # density altitude factor
                     pcolor = get_color_by_da(da, meters_to_feet(airport_data['elevation_m']))
-                    safe_logging.safe_log("STA: " + airport + " " + str(round(da/meters_to_feet(airport_data['elevation_m']))))
+                    # safe_logging.safe_log("STA: " + airport + " " + str(round(da/meters_to_feet(airport_data['elevation_m']))))
+                    # if daf >= 40: effect should BLINK
+                    # else:
                     self.__effect__.append(Solid(self.__pix__[i], color=pcolor))
                 else:  # airport key not found in metar data
                     self.__effect__.append(Solid(self.__pix__[i], color=[0, 0, 0]))
