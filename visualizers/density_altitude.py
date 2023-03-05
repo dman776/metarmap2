@@ -37,22 +37,22 @@ def get_color_by_da(da: int, elevation_f: int) -> list:
     if da == elevation_f:
         return colors_by_name[colors_lib.BLUE]
 
-    if daf <= -30:
+    if daf <= -40:
         return colors_by_name[colors_lib.GREEN]
 
-    if daf in range(-30, -20):
+    if daf in range(-40, -20):
         return colors_lib.get_color_mix(
-            colors_by_name[colors_lib.GREEN], colors_by_name[colors_lib.DARK_GREEN],
-            utils.get_proportion_between_floats(-30, daf, -20))
+            colors_by_name[colors_lib.GREEN], colors_by_name[colors_lib.BLUE],
+            utils.get_proportion_between_floats(-40, daf, -20))
 
     if daf in range(-20, -10):
         return colors_lib.get_color_mix(
-            colors_by_name[colors_lib.DARK_GREEN], colors_by_name[colors_lib.BLUE],
+            colors_by_name[colors_lib.BLUE], colors_by_name[colors_lib.LIGHT_BLUE],
             utils.get_proportion_between_floats(-20, daf, -10))
 
     if daf in range(-10, 0):
         return colors_lib.get_color_mix(
-            colors_by_name[colors_lib.BLUE], colors_by_name[colors_lib.GRAY],
+            colors_by_name[colors_lib.LIGHT_BLUE], colors_by_name[colors_lib.GRAY],
             utils.get_proportion_between_floats(-10, daf, 0))
 
     if daf in range(0, 30):
@@ -101,13 +101,13 @@ class DensityAltitude(Visualizer):
     @property
     def description(self):
         return """
-            Display the density altitude relative to field elevation.
+            Display the density altitude relative to field elevation (ie. Density altitude factor).
             <div class="w-100">
             <ul>
-                <li>Less than 29.80=<font color='red'>RED</font></li>
-                <li>Between 29.80 and 29.92 varies between <font color='red'>RED</font> and <font color='LightCoral'>LIGHT RED</font></li>
-                <li>Between 29.92 and 30.20 varies between <font color='LightSkyBlue'>LIGHT BLUE</font> and <font color='blue'>BLUE</font></li>
-                <li>Greater than 30.20=<font color='blue'>BLUE</font></li>
+                <li>TODO 10 * FE =<font color='red'>RED</font></li>
+                <li>TODO Between x and y varies between <font color='red'>RED</font> and <font color='LightCoral'>LIGHT RED</font></li>
+                <li>TODO Between x and y varies between <font color='LightSkyBlue'>LIGHT BLUE</font> and <font color='blue'>BLUE</font></li>
+                <li>TODO Greater than x=<font color='blue'>BLUE</font></li>
             </ul>
             </div>
         """
