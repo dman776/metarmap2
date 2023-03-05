@@ -44,6 +44,7 @@ from visualizers.pressure import Pressure as PressureVisualizer
 from visualizers.temperature import Temperature as TemperatureVisualizer
 from visualizers.visibility import Visibility as VisibilityVisualizer
 from visualizers.precipitation import Precipitation as PrecipitationVisualizer
+from visualizers.density_altitude import DensityAltitude as DensityAltitudeVisualizer
 
 try:
     import board
@@ -126,7 +127,8 @@ if __name__ == '__main__':
         PressureVisualizer(metars.data, pix_subs, config),
         PrecipitationVisualizer(metars.data, pix_subs, config),
         TemperatureVisualizer(metars.data, pix_subs, config),
-        VisibilityVisualizer(metars.data, pix_subs, config)
+        VisibilityVisualizer(metars.data, pix_subs, config),
+        DensityAltitudeVisualizer(metars.data, pix_subs, config)
     ]
 
     renderer = renderer.Renderer(pixels, pix_subs, metars, config, visualizers)
