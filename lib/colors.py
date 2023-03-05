@@ -1,5 +1,6 @@
 RED = 'RED'
 LIGHT_RED = 'LIGHT RED'
+DARK_RED = 'DARK_RED'
 GREEN = 'GREEN'
 BLUE = 'BLUE'
 LIGHT_BLUE = "LIGHT BLUE"
@@ -21,6 +22,7 @@ def get_colors() -> dict:
 
     return {
         RED: (0, 255, 0),
+        DARK_RED: (0, 20, 0),
         LIGHT_RED: (105, 255, 180),
         GREEN: (255, 0, 0),
         BLUE: (0, 0, 255),

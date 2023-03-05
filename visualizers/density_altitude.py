@@ -8,7 +8,7 @@ import datetime
 from pprint import pprint
 import json
 
-# import lib.safe_logging as safe_logging
+import lib.safe_logging as safe_logging
 from config import Config
 import lib.utils as utils
 import lib.colors as colors_lib
@@ -29,39 +29,60 @@ def get_color_by_da(da: int, elevation_f: int) -> list:
 
     colors_by_name = colors_lib.get_colors()
 
+    daf = round(da/elevation_f)     # DA factor
+
     if da is None:
         return colors_by_name[colors_lib.OFF]
 
     if da == elevation_f:
+        return colors_by_name[colors_lib.BLUE]
+
+    if daf <= -30:
         return colors_by_name[colors_lib.WHITE]
 
-    if da < elevation_f:
+    if daf in range(-30, -20):
         return colors_lib.get_color_mix(
-            colors_by_name[colors_lib.WHITE],
-            colors_by_name[colors_lib.BLUE],
-            utils.get_proportion_between_floats(
-                elevation_f,
-                da,
-                elevation_f * -50))
-    else:
+            colors_by_name[colors_lib.WHITE], colors_by_name[colors_lib.PURPLE],
+            utils.get_proportion_between_floats(-30, daf, -20))
+
+    if daf in range(-20, -10):
         return colors_lib.get_color_mix(
-            colors_by_name[colors_lib.WHITE],
-            colors_by_name[colors_lib.RED],
-            utils.get_proportion_between_floats(
-                elevation_f,
-                da,
-                elevation_f * 50))
+            colors_by_name[colors_lib.PURPLE], colors_by_name[colors_lib.BLUE],
+            utils.get_proportion_between_floats(-20, daf, -10))
+
+    if daf in range(-10, 0):
+        return colors_lib.get_color_mix(
+            colors_by_name[colors_lib.BLUE], colors_by_name[colors_lib.GREEN],
+            utils.get_proportion_between_floats(-10, daf, 0))
+
+    if daf in range(0, 30):
+        return colors_lib.get_color_mix(
+            colors_by_name[colors_lib.GREEN], colors_by_name[colors_lib.DARK_RED],
+            utils.get_proportion_between_floats(0, daf, 30))
+
+    # if daf in range(10, 20):
+    #     return colors_lib.get_color_mix(
+    #         colors_by_name[colors_lib.YELLOW], colors_by_name[colors_lib.LIGHT_RED],
+    #         utils.get_proportion_between_floats(10, daf, 20))
+
+    if daf in range(30, 40):
+        return colors_lib.get_color_mix(
+            colors_by_name[colors_lib.DARK_RED], colors_by_name[colors_lib.RED],
+            utils.get_proportion_between_floats(30, daf, 40))
+
+    if daf >= 40:
+        return colors_by_name[colors_lib.RED]
 
 
 def meters_to_feet(m):
     return m * 3.28084
 
 
-def calculate_density_altitude(pressure, field_elevation, oat):
+def calculate_density_altitude(pressure, field_elevation, oat: float):
     fef = meters_to_feet(field_elevation)
     pa = (STANDARD_PRESSURE - pressure) * 1000 + fef
     isa = 15 - 1.98 * fef / 1000
-    da = pa + 118.8 * (oat - isa)
+    da = pa + 118.8 * (float(oat) - isa)
     return da
 
 
@@ -106,9 +127,10 @@ class DensityAltitude(Visualizer):
             airport_data = self.__data__.get(airport, None)
 
             if len(airport_data.keys()) > 0:
-                if airport_data is not None:
-                    da = calculate_density_altitude(airport_data['altimHg'], airport_data['elevation_m'], airport_data['tempC'])
+                if airport_data is not None and airport_data['altimHg'] != "" and airport_data['elevation_m'] != ""  and airport_data['tempC'] != "":
+                    da = calculate_density_altitude(airport_data['altimHg'], meters_to_feet(airport_data['elevation_m']), airport_data['tempC'])
                     pcolor = get_color_by_da(da, meters_to_feet(airport_data['elevation_m']))
+                    safe_logging.safe_log("STA: " + airport + " " + str(round(da/meters_to_feet(airport_data['elevation_m']))))
                     self.__effect__.append(Solid(self.__pix__[i], color=pcolor))
                 else:  # airport key not found in metar data
                     self.__effect__.append(Solid(self.__pix__[i], color=[0, 0, 0]))
