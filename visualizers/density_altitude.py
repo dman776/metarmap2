@@ -38,26 +38,26 @@ def get_color_by_da(da: int, elevation_f: int) -> list:
         return colors_by_name[colors_lib.BLUE]
 
     if daf <= -30:
-        return colors_by_name[colors_lib.WHITE]
+        return colors_by_name[colors_lib.GREEN]
 
     if daf in range(-30, -20):
         return colors_lib.get_color_mix(
-            colors_by_name[colors_lib.WHITE], colors_by_name[colors_lib.PURPLE],
+            colors_by_name[colors_lib.GREEN], colors_by_name[colors_lib.DARK_GREEN],
             utils.get_proportion_between_floats(-30, daf, -20))
 
     if daf in range(-20, -10):
         return colors_lib.get_color_mix(
-            colors_by_name[colors_lib.PURPLE], colors_by_name[colors_lib.BLUE],
+            colors_by_name[colors_lib.DARK_GREEN], colors_by_name[colors_lib.BLUE],
             utils.get_proportion_between_floats(-20, daf, -10))
 
     if daf in range(-10, 0):
         return colors_lib.get_color_mix(
-            colors_by_name[colors_lib.BLUE], colors_by_name[colors_lib.GREEN],
+            colors_by_name[colors_lib.BLUE], colors_by_name[colors_lib.GRAY],
             utils.get_proportion_between_floats(-10, daf, 0))
 
     if daf in range(0, 30):
         return colors_lib.get_color_mix(
-            colors_by_name[colors_lib.GREEN], colors_by_name[colors_lib.DARK_RED],
+            colors_by_name[colors_lib.GRAY], colors_by_name[colors_lib.DARK_RED],
             utils.get_proportion_between_floats(0, daf, 30))
 
     # if daf in range(10, 20):
