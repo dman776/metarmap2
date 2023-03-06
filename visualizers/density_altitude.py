@@ -101,13 +101,18 @@ class DensityAltitude(Visualizer):
     @property
     def description(self):
         return """
-            Display the density altitude relative to field elevation (ie. Density altitude factor).
+            Display the density altitude (DA) relative to field elevation (FE) (ie. Density altitude factor).
             <div class="w-100">
             <ul>
-                <li>TODO 10 * FE =<font color='red'>RED</font></li>
-                <li>TODO Between x and y varies between <font color='red'>RED</font> and <font color='LightCoral'>LIGHT RED</font></li>
-                <li>TODO Between x and y varies between <font color='LightSkyBlue'>LIGHT BLUE</font> and <font color='blue'>BLUE</font></li>
-                <li>TODO Greater than x=<font color='blue'>BLUE</font></li>
+                <li>DA = FE =<font color='blue'>BLUE</font></li>
+                <li>DA/FE (aka. Density altitude factor, DAF) < -40 = <font color='green'>GREEN</font></li>
+                <li>DAF between -40 (<font color='green'>GREEN</font>) and -20 (<font color='blue'>BLUE</font>)</li>
+                <li>DAF between -20 (<font color='blue'>BLUE</font>) and -10 (<font color='lightblue'>LIGHT BLUE</font>)</li>
+                <li>DAF between -10 (<font color='lightblue'>LIGHT BLUE</font>) and 0 (<font color='gray'>GRAY</font>)</li>
+                <li>DAF between 0 (<font color='gray'>GRAY</font>) and 30 (<font color='darkred'>DARK RED</font>)</li>
+                <li>DAF between 30 (<font color='darkred'>DARK RED</font>) and 40 (<font color='red'>RED</font>)</li>
+                <li>DAF between 0 (<font color='gray'>GRAY</font>) and 30 (<font color='darkred'>DARK RED</font>)</li>
+                <li>DAF Greater than 40 =<font color='red'>RED</font></li>
             </ul>
             </div>
         """
@@ -129,7 +134,7 @@ class DensityAltitude(Visualizer):
             if len(airport_data.keys()) > 0:
                 if airport_data is not None and airport_data['altimHg'] != "" and airport_data['elevation_m'] != ""  and airport_data['tempC'] != "":
                     da = calculate_density_altitude(airport_data['altimHg'], meters_to_feet(airport_data['elevation_m']), airport_data['tempC'])
-                    daf = round(da/meters_to_feet(airport_data['elevation_m'])) # density altitude factor
+                    daf = round(da/meters_to_feet(airport_data['elevation_m']))     # density altitude factor
                     pcolor = get_color_by_da(da, meters_to_feet(airport_data['elevation_m']))
                     # safe_logging.safe_log("STA: " + airport + " " + str(round(da/meters_to_feet(airport_data['elevation_m']))))
                     # if daf >= 40: effect should BLINK
