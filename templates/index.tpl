@@ -13,7 +13,7 @@
 &nbsp;
 <div class="row">
     <button type="button" class="btn btn-secondary" onClick="window.location='/config';" role="button">Config</button>&nbsp;
-    <button type="button" class="btn btn-secondary" onClick="fetch('/update');" role="button">Update</button>&nbsp;
+    <button type="button" class="btn btn-secondary" onClick="window.location='/update';" role="button">Update</button>&nbsp;
     <button type="button" class="btn btn-secondary" onClick="fetch('/restart');" role="button">Restart</button>&nbsp;
 </div>
 <hr />
