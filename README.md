@@ -2,13 +2,7 @@
 Forked from prueker/METARMap  
   
 Items updated from orig:  
-* The screen was cluttered, so I added a cycle within a given airport to split the info over two screens.
-*  Currently it will use half of the DISPLAY_ROTATION_SPEED to cycle. 
-* Tweaked with the display items, including adding local update time, and right justified custom text to header.
-* Separated out the light list and the display update list. I might have n LEDS I want updated, but only want see the METAR for a few.
-* Changed airports file to json, as I expect to be adding in more input params there in the future.
-*  If adding in Nulls for spacing, a code of NULLn where n is unique must be used
-* In cases where weather updates are not found, or no airports are selected to be displayed, a message will show in the display to check these items
+* Completely re-wrote the core into a multi-threaded application
 
 # METARMap
 Raspberry Pi project to visualize flight conditions on a map using WS8211 LEDs addressed via NeoPixel
@@ -43,48 +37,10 @@ I've created detailed instructions about the setup and parts used here: https://
 	* The sample crontab will run the script every 5 minutes (the */5) between the hours of 7 to 21, which includes the 21 hour, so it means it will run until 21:55
 	* Then at 22:05 it will run the lightsoff.sh script, which will turn all the lights off
 
-## Additional Wind condition blinking/fading functionality
-I recently expanded the script to also take wind condition into account and if the wind exceeds a certain threshold, or if it is gusting, make the LED for that airport either blink on/off or to fade between  two shades of the current flight category color.
 
-If you want to use this extra functionality, then inside the **[metar.py](metar_orig.py)** file set the **`ACTIVATE_WINDCONDITION_ANIMATION`** parameter to **True**.
-* There are a few additional parameters in the script you can configure to your liking:
-	* `FADE_INSTEAD_OF_BLINK` - set this to either **True** or **False** to switch between fading or blinking for the LEDs when conditions are windy
-	* `WIND_BLINK_THRESHOLD` - in Knots for normal wind speeds currently at the airport
-	* `ALWAYS_BLINK_FOR_GUSTS` - If you always want the blinking/fading to happen for gusts, regardless of the wind speed
-	* `BLINKS_SPEED` - How fast the blinking happens, I found 1 second to be a happy medium so it's not too busy, but you can also make it faster, for example every half a second by using 0.5
-	* `BLINK_TOTALTIME_SECONDS` = How long do you want the script to run. I have this set to 300 seconds as I have my crontab setup to re-run the script every 5 minutes to get the latest weather information
-	
-## Additional Lightning in the vicinity blinking functionality
-After the recent addition for wind condition animation, I got another request from someone if I could add a white blinking animation to represent lightning in the area.
-Please note that due to the nature of the METAR system, this means that the METAR for this airport reports that there is Lightning somewhere in the vicinity of the airport, but not necessarily right at the airport.
-
-If you want to use this extra functionality, then inside the **[metar.py](metar_orig.py)** file set the **`ACTIVATE_LIGHTNING_ANIMATION`** parameter to **True**.
-* This shares two configuration parameters together with the wind animation that you can modify as you like:
-	* `BLINKS_SPEED` - How fast the blinking happens, I found 1 second to be a happy medium so it's not too busy, but you can also make it faster, for example every half a second by using 0.5
-	* `BLINK_TOTALTIME_SECONDS` = How long do you want the script to run. I have this set to 300 seconds as I have my crontab setup to re-run the script every 5 minutes to get the latest weather information
-	
-## Additional LED dimming functionality based on time of day
-This optional functionality allows you to run the LEDs at a dimmed lower level between a certain time of the day.
-
-If you want to use this extra functionality, then inside the **[metar.py](metar_orig.py)** file set the **`ACTIVATE_DAYTIME_DIMMING`** parameter to **True**.
-Set the `LED_BRIGHTNESS_DIM` setting to the level you want to run when dimmed.
-
-For time timings of the dimming there are two options:
-* Fixed time of day dimming:
-	* `BRIGHT_TIME_START` - Set this to the beginning of the day when you want to run at the normal `LED_BRIGHTNESS` level
-	* `DIM_TIME_START` - Set this to the time where you want to run at a different `LED_BRIGHTNESS_DIM` level
-* Dimming based on local sunrise/sunset:
-	* For this to work, you need to install an additional library, run:
-		* `sudo pip3 install astral`
-	* `USE_SUNRISE_SUNSET` - Set this to **True** to use the dimming based on sunrise and sunset
-	* `LOCATION` - set this to the city you want to use for sunset/sunrise timings
-		* Use the closest city from the list of supported cities from https://astral.readthedocs.io/en/latest/#cities
-
-## Additional mini display to show METAR information functionality
-This optional functionality allows you to connect a small mini LED display to show the METAR information of the airports.
-
+## Mini display to show METAR information functionality
+This functionality allows you to connect a small mini LED display to show the METAR information of the airports.
 For this functionality to work, you will need to buy a compatible LED display and enable and install a few additional things.
-
 I've written up some details on the display I used and the wiring here: https://slingtsi.rueker.com/adding-a-mini-display-to-show-metar-information-to-the-metar-map/
 
 To support the display you need to enable a few new libraries and settings on the raspberry pi.
@@ -107,10 +63,6 @@ To support the display you need to enable a few new libraries and settings on th
 	* `sudo apt-get install liblcms1-dev -y`
 	* `sudo apt-get install libopenjp2-7 -y`
 	* `sudo apt-get install libtiff5 -y`
-* copy new file **[displaymetar.py](displaymetar.py)** into the same folder as **[metar.py](metar_orig.py)**
-* Use the latest version of **[metar.py](metar_orig.py)** and **[pixelsoff.py](pixelsoff.py)** for the new functionality
-* Configure **[metar.py](metar_orig.py)** and set **`ACTIVATE_EXTERNAL_METAR_DISPLAY`** parameter to **True**.
-* Configure the `DISPLAY_ROTATION_SPEED` to your desired timing, I'm using 5 seconds for mine.
 
 ## Changelist
 To see a list of changes to the metar script over time, refer to [CHANGELIST.md](CHANGELIST.md)
