@@ -148,6 +148,8 @@ if __name__ == '__main__':
         disp = Display(config.airports, metars, renderer)
         disp.message("MAP", display.ICON_INFO,
                      "Starting..")
+    else:
+        disp = None
 
     # test pattern on pixels?
     if config.data.led.inittest:
@@ -158,7 +160,7 @@ if __name__ == '__main__':
     schedule.every().day.at('00:00').do(sched_load_suntimes)    # load sun times and dim the map appropriately
 
     # Start up Web Server to handle UI
-    web_server = webserver.WebServer("0.0.0.0", 80, metars, renderer, disp or None)
+    web_server = webserver.WebServer("0.0.0.0", 80, metars, renderer, disp)
     web_server.run()
 
     # ======================================================================================
