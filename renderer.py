@@ -80,7 +80,7 @@ class Renderer(object):
         self.resume()
 
     def locate(self, pixnum):
-        self.animate_once(Pulse(self.__pix__[int(pixnum)], speed=0.1, period=2, color=WHITE), False)
+        self.animate_once(Pulse(self.__pix__[int(pixnum)], speed=0.1, period=1, color=WHITE), False)
 
     @property
     # returns [number, visualizer]

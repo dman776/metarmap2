@@ -75,7 +75,6 @@ class METAR(object):
         stationList = []
         missingCondList = []
 
-
         for airport in list(self.__airports__.keys()):
             # safe_logging.safe_log(airport)
             # station_id = ""
