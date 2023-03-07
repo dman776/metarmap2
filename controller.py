@@ -23,6 +23,7 @@
 
 import threading
 from datetime import datetime
+import signal
 
 import display
 import webserver
@@ -100,10 +101,17 @@ def sched_set_brightness(level):
     renderer.brightness(level)
 
 
+def signal_handler(sig, frame):
+    raise KeyboardInterrupt
+
+
 # =====================================================================================================
 # MAIN
 # =====================================================================================================
 if __name__ == '__main__':
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+
     safe_logging.safe_log("[c]" + "Starting controller.py at " + datetime.now().strftime('%d/%m/%Y %H:%M'))
     config = Config("config.json")
 
