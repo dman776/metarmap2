@@ -125,8 +125,8 @@ class Display(object):
                     if self.__config__.data.display_screen.locate_active:
                         self.__renderer__.locate(i)
                     self.show_metar(airport, self.__data__.data[airport], self.__config__.data.display_screen.delay)
-                self.message("Visualizer", "", self.__renderer__.visualizer[1].name)
-                time.sleep(1)
+            self.message("Visualizer", "", self.__renderer__.visualizer[1].name)
+            time.sleep(1)
 
     def show_metar(self, sta, dat, delay):
         if len(dat) > 0:
