@@ -35,20 +35,30 @@
 <div class="col-sm">
     <button type="button" class="btn btn-primary" onClick="window.location='/visualizer/previous';">&lt;</button>
     <span class="dropdown">
-        <button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown"
-                aria-haspopup="true" aria-expanded="false">
-            Visualizer
-        </button>
-        <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-            %for i in range(0, len(renderer.visualizers)):
-            <a class="dropdown-item" onClick="window.location='/visualizer/{{i}}'">{{renderer.visualizers[i].name}}</a>
-            %end
-        </div>
-    </span>
+            <button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownMenuButton"
+                    data-toggle="dropdown"
+                    aria-haspopup="true" aria-expanded="false">
+                Visualizer
+            </button>
+            <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                %for i in range(0, len(renderer.visualizers)):
+                <a class="dropdown-item"
+                   onClick="window.location='/visualizer/{{i}}'">{{renderer.visualizers[i].name}}</a>
+                %end
+            </div>
+        </span>
     <button type="button" class="btn btn-primary" onClick="window.location='/visualizer/next';">&gt;</button>
 </div>
-<div class="row"><b>{{renderer.visualizer[1].name}}</b></div>
-<div class="row">{{!renderer.visualizer[1].description}}</div>
+</div>
+<div class="row">
+<div class="col-sm">
+    <b>{{renderer.visualizer[1].name}}</b>
+</div>
+</div>
+<div class="row">
+<div class="col-sm">
+    {{!renderer.visualizer[1].description}}
+</div>
 </div>&nbsp;
 <hr/>
         %include("footer.tpl")
