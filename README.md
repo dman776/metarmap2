@@ -34,7 +34,6 @@ I've created detailed instructions about the setup and parts used
 here: https://slingtsi.rueker.com/making-a-led-powered-metar-map-for-your-wall/
 
 ## Time of day automatic dimming
-
 Automatically dims (2 levels) based on the current location of the map (via configuration) and sunrise/sunset times.
 
 ## Software Setup
