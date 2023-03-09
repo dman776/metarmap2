@@ -42,8 +42,7 @@ def get_color_by_wind(wind: float) -> list:
         return colors_by_name[colors_lib.OFF]
 
     if wind == 0:
-        return colors_by_name[colors_lib.OFF]
-
+        return colors_by_name[colors_lib.DARK_GRAY]
     if wind < 5:
         return colors_lib.get_color_mix(
             colors_by_name[colors_lib.OFF], colors_by_name[colors_lib.PURPLE],

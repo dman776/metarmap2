@@ -20,6 +20,7 @@ from adafruit_led_animation.animation.pulse import Pulse
 from adafruit_led_animation.animation.solid import Solid
 from adafruit_led_animation.animation.colorcycle import ColorCycle
 from adafruit_led_animation.color import PURPLE, WHITE, AMBER, JADE, MAGENTA, ORANGE, BLUE, AQUA, RED, GREEN, YELLOW
+import visualizers.wind
 
 
 class WindGusts(Visualizer):
@@ -37,7 +38,7 @@ class WindGusts(Visualizer):
     @property
     def description(self):
         return """
-            Display the wind gusts by Pulsing the Flight Category (VFR, MVFR, IFR, LIFR) at different rates.
+            Display the wind gusts by Pulsing the Wind colors (from the wind visualizer) at different rates.
             <div class="w-100">
             <ul>
                 <li>Between 0 and 10 kts = 10 second pulse</li>
@@ -56,6 +57,7 @@ class WindGusts(Visualizer):
 
         # loop over all stations
         i = 0
+        wcolor = None
         # for airport in list(self.__stations__):
         for airport in list(self.__data__.keys()):
             # Skip NULL entries
@@ -66,6 +68,7 @@ class WindGusts(Visualizer):
             airport_data = self.__data__.get(airport, None)
             if len(airport_data.keys()) > 0:
                 if airport_data is not None:
+                    wcolor = visualizers.wind.get_color_by_wind(airport_data['windSpeed'])
                     if airport_data['windGust'] is True:
                         p = 10
                         if airport_data['windGustSpeed'] in range(0, 11):
@@ -81,9 +84,9 @@ class WindGusts(Visualizer):
                         elif airport_data['windGustSpeed'] > 30:
                             p = 0.5
                         self.__effect__.append(
-                            Pulse(self.__pix__[i], speed=0.1, period=p, color=airport_data['flightCategoryColor']))
+                            Pulse(self.__pix__[i], speed=0.1, period=p, color=wcolor))
                     else:
-                        self.__effect__.append(Solid(self.__pix__[i], color=airport_data['flightCategoryColor']))
+                        self.__effect__.append(Solid(self.__pix__[i], color=wcolor))
                 else:  # airport key not found in metar data
                     self.__effect__.append(Solid(self.__pix__[i], color=[0, 0, 0]))
             else:  # airport data is empty METAR data
