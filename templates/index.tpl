@@ -33,8 +33,8 @@
 <hr/>
 <div class="row">
 <div class="col-sm">
-    <button type="button" class="btn btn-primary" onClick="window.location='/visualizer/previous';">&lt;</button>&nbsp;
-    <div class="dropdown">
+    <button type="button" class="btn btn-primary" onClick="window.location='/visualizer/previous';">&lt;</button>
+    <span class="dropdown">
         <button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown"
                 aria-haspopup="true" aria-expanded="false">
             Visualizer
@@ -44,7 +44,7 @@
             <a class="dropdown-item" onClick="window.location='/visualizer/{{i}}'">{{renderer.visualizers[i].name}}</a>
             %end
         </div>
-    </div>
+    </span>
     <button type="button" class="btn btn-primary" onClick="window.location='/visualizer/next';">&gt;</button>
 </div>
 <div class="row"><b>{{renderer.visualizer[1].name}}</b></div>
