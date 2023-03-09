@@ -8,23 +8,19 @@ Items updated from orig:
 * Completely re-wrote the core into a multi-threaded application
 
 # METARMap
-
 Raspberry Pi project to visualize flight conditions on a map using NeoPixel RGB pixels
 
 ## Built-in webserver for config and control
-
 This allows you to browse to your map at http://raspberrypi.local (or appropriate hostname) to control and configure the
 map.
 
 ## Mini OLED display
-
 This functionality allows you to connect a small mini LED display to show the METAR information of the airports.
 For this functionality to work, you will need to a compatible LED display.
 I've written up some details on the display I used and the wiring
 here: https://slingtsi.rueker.com/adding-a-mini-display-to-show-metar-information-to-the-metar-map/
 
 ## Multiple Visualizers
-
 * Flight Category
 * Wind
 * Wind Gusts
@@ -34,7 +30,6 @@ here: https://slingtsi.rueker.com/adding-a-mini-display-to-show-metar-informatio
 * Density Altitude
 
 ## Detailed instructions
-
 I've created detailed instructions about the setup and parts used
 here: https://slingtsi.rueker.com/making-a-led-powered-metar-map-for-your-wall/
 
