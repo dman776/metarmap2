@@ -188,7 +188,6 @@ class Display(object):
             safe_log(station + ": " + str(e))
 
     def page2(self, station, data):
-        # TODO: change to CONFIG value
         tz = timezone(self.__location__.timezone)
 
         try:
@@ -205,21 +204,5 @@ class Display(object):
         except Exception as e:
             safe_log(station + ": " + str(e))
 
-        #
-        # yOff = 18
-        # xOff = 0
-        # NewLine = False
-        # for skyIter in data["skyConditions"]:
-        #     draw2.text((x + xOff, top + yOff),
-        #                skyIter["cover"] + ("@" + str(skyIter["cloudBaseFt"]) if skyIter["cloudBaseFt"] > 0 else ""),
-        #                font=fontSmall, fill=255)
-        #     if NewLine:
-        #         yOff += 12
-        #         xOff = 0
-        #         NewLine = False
-        #     else:
-        #         xOff = 65
-        #         NewLine = True
-        # draw2.text((x, yOff + 12), condition["obs"], font=fontMed, fill=255)
 
 

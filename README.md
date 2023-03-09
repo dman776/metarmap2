@@ -1,29 +1,57 @@
 ## Updates
-Forked from prueker/METARMap  
-  
-Items updated from orig:  
+
+Forked from prueker/METARMap
+Some portions by @lostlocalhost and @johnmarzulli
+
+Items updated from orig:
+
 * Completely re-wrote the core into a multi-threaded application
 
 # METARMap
-Raspberry Pi project to visualize flight conditions on a map using WS8211 LEDs addressed via NeoPixel
+
+Raspberry Pi project to visualize flight conditions on a map using NeoPixel RGB pixels
+
+## Built-in webserver for config and control
+
+This allows you to browse to your map at http://raspberrypi.local (or appropriate hostname) to control and configure the
+map.
 
 ## Mini OLED display
+
 This functionality allows you to connect a small mini LED display to show the METAR information of the airports.
-For this functionality to work, you will need to buy a compatible LED display and enable and install a few additional things.
-I've written up some details on the display I used and the wiring here: https://slingtsi.rueker.com/adding-a-mini-display-to-show-metar-information-to-the-metar-map/
+For this functionality to work, you will need to a compatible LED display.
+I've written up some details on the display I used and the wiring
+here: https://slingtsi.rueker.com/adding-a-mini-display-to-show-metar-information-to-the-metar-map/
+
+## Multiple Visualizers
+
+* Flight Category
+* Wind
+* Wind Gusts
+* Temperature
+* Pressure
+* Visibility
+* Density Altitude
 
 ## Detailed instructions
-I've created detailed instructions about the setup and parts used here: https://slingtsi.rueker.com/making-a-led-powered-metar-map-for-your-wall/
+
+I've created detailed instructions about the setup and parts used
+here: https://slingtsi.rueker.com/making-a-led-powered-metar-map-for-your-wall/
+
+## Time of day automatic dimming
+
+Automatically dims (2 levels) based on the current location of the map (via configuration) and sunrise/sunset times.
 
 ## Software Setup
+
 * Install [Raspbian Bullseye Lite](https://www.raspberrypi.org/downloads/raspbian/) on SD card
 * [Enable Wi-Fi and SSH](https://medium.com/@danidudas/install-raspbian-jessie-lite-and-setup-wi-fi-without-access-to-command-line-or-using-the-network-97f065af722e)
 * Install SD card and power up Raspberry Pi
 * SSH (using [Putty](https://www.putty.org) or some other SSH tool) into the Raspberry and configure
-	* Set a new password for the 'pi' user: `passwd`
-	* `sudo raspi-config`
-      * Configure hostname (1, S4) (ie.  metarmap)
-      * Configure locale (5, L1) (ie.  en_US.UTF-8)
+    * Set a new password for the 'pi' user: `passwd`
+    * `sudo raspi-config`
+        * Configure hostname (1, S4) (ie. metarmap)
+        * Configure locale (5, L1) (ie. en_US.UTF-8)
       * Configure timezone (5, L2) (ie. America/Chicago)
       * `sudo reboot`
 * SSH again and Update/install packages 
