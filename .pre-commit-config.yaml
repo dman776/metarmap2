@@ -1,9 +1,0 @@
-repos:
-  - repo: local
-    hooks:
-      - id: bump2version
-        name: bump2version
-        entry: bump2version minor
-        language: system
-        always_run: false
-        pass_filenames: false

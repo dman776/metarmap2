@@ -37,7 +37,6 @@ here: https://slingtsi.rueker.com/making-a-led-powered-metar-map-for-your-wall/
 Automatically dims (2 levels) based on the current location of the map (via configuration) and sunrise/sunset times.
 
 ## Software Setup
-
 * Install [Raspbian Bullseye Lite](https://www.raspberrypi.org/downloads/raspbian/) on SD card
 * [Enable Wi-Fi and SSH](https://medium.com/@danidudas/install-raspbian-jessie-lite-and-setup-wi-fi-without-access-to-command-line-or-using-the-network-97f065af722e)
 * Install SD card and power up Raspberry Pi
