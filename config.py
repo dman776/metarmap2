@@ -23,12 +23,13 @@ def load_airports(file):
 
 
 class Config(object):
-    def __init__(self, file):
+    def __init__(self, file, app_version):
         """
         Creates a new config object
         """
         self.__file__ = file
         self.__data__ = {}
+        self.app_version = app_version
         self.LED_PIN = None
         self.LED_ORDER = None
         self.read()
