@@ -114,7 +114,7 @@ if __name__ == '__main__':
     signal.signal(signal.SIGTERM, signal_handler)
 
     safe_logging.safe_log("[c]" + "Starting controller.py at " + datetime.now().strftime('%d/%m/%Y %H:%M'))
-    config = Config("config.json")
+    config = Config("config.json", __version__)
 
     # load sunrise/sunset times into scheduler for dynamic dimming
     sched_load_suntimes()
