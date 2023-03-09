@@ -1,5 +1,4 @@
 ## Updates
-
 Forked from prueker/METARMap
 Some portions by @lostlocalhost and @johnmarzulli
 
