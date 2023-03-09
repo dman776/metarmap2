@@ -1,25 +1,9 @@
 #!/usr/bin/python3
 # METAR Map controller
 # Darryl Quinn 2023
-# Uses RPi.GPIO library: https://sourceforge.net/p/raspberry-gpio-python/wiki/BasicUsage/
 # Free for personal use. Prohibited for commercial without consent
 #
-# pip install Adafruit-GPIO
-# pip install RPi-GPIO
-# pip install pytest
-# pip install Adafruit_WS2801
-#
-# Raspberry Pi
-# Run 'raspi-config' and enable the SPI bus under Advanced
-#
-# Wiring the WS2801 :
-# https://learn.adafruit.com/12mm-led-pixels/wiring
-# https://tutorials-raspberrypi.com/how-to-control-a-raspberry-pi-ws2801-rgb-led-strip/
-# Blue -> 5V Minus AND Pi GND (Physical Pi 25)
-# Red -> 5V Plus
-# Yellow -> Pin 19(Physical)/SPI MOSI
-# Green -> Pin 23(Physical)/SCLK/SPI
-#
+__version__ = "1.0.0"
 
 import threading
 from datetime import datetime
@@ -67,7 +51,6 @@ except ValueError:
 
 # ---------------------------------------------------------------------------
 # Globals
-__version__ = "1.0.0"
 config = None
 
 
