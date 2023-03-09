@@ -5,16 +5,20 @@
 </div>
 <hr/>
 <div class="row">
-<button type="button" class="btn btn-primary" onClick="window.location='/';">Home</button>&nbsp;
-<button type="button" class="btn btn-primary" onClick="window.location='/metars';">Metars</button>&nbsp;
-<button type="button" class="btn btn-primary" onClick="window.location='/raw';" role="button">Raw Metars</button>&nbsp;
-<button type="button" class="btn btn-primary" onClick="window.location='/map';" role="button">Map</button>
+<div class="col">
+    <button type="button" class="btn btn-primary" onClick="window.location='/';">Home</button>&nbsp;
+    <button type="button" class="btn btn-primary" onClick="window.location='/metars';">Metars</button>&nbsp;
+    <button type="button" class="btn btn-primary" onClick="window.location='/raw';" role="button">Raw Metars</button>&nbsp;
+    <button type="button" class="btn btn-primary" onClick="window.location='/map';" role="button">Map</button>
+</div>
 </div>
         &nbsp;
 <div class="row">
-<button type="button" class="btn btn-secondary" onClick="window.location='/config';" role="button">Config</button>&nbsp;
-<button type="button" class="btn btn-secondary" onClick="window.location='/update';" role="button">Update</button>&nbsp;
-<button type="button" class="btn btn-secondary" onClick="fetch('/restart');" role="button">Restart</button>&nbsp;
+<div class="col">
+    <button type="button" class="btn btn-secondary" onClick="window.location='/config';" role="button">Config</button>&nbsp;
+    <button type="button" class="btn btn-secondary" onClick="window.location='/update';" role="button">Update</button>&nbsp;
+    <button type="button" class="btn btn-secondary" onClick="fetch('/restart');" role="button">Restart</button>&nbsp;
+</div>
 </div>
 <hr/>
 <div class="row">
