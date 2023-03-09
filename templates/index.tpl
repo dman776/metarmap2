@@ -5,7 +5,7 @@
 </div>
 <hr/>
 <div class="row">
-<div class="col">
+<div class="col-sm">
     <button type="button" class="btn btn-primary" onClick="window.location='/';">Home</button>&nbsp;
     <button type="button" class="btn btn-primary" onClick="window.location='/metars';">Metars</button>&nbsp;
     <button type="button" class="btn btn-primary" onClick="window.location='/raw';" role="button">Raw Metars</button>&nbsp;
@@ -14,7 +14,7 @@
 </div>
         &nbsp;
 <div class="row">
-<div class="col">
+<div class="col-sm">
     <button type="button" class="btn btn-secondary" onClick="window.location='/config';" role="button">Config</button>&nbsp;
     <button type="button" class="btn btn-secondary" onClick="window.location='/update';" role="button">Update</button>&nbsp;
     <button type="button" class="btn btn-secondary" onClick="fetch('/restart');" role="button">Restart</button>&nbsp;
