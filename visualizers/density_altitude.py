@@ -52,7 +52,7 @@ def get_color_by_da(da: int, elevation_f: int) -> list:
 
     if daf in range(-5, 0):
         return colors_lib.get_color_mix(
-            colors_by_name[colors_lib.LIGHT_BLUE], [1, 1, 1],
+            colors_by_name[colors_lib.LIGHT_BLUE], colors_by_name[colors_lib.DARK_GRAY],
             utils.get_proportion_between_floats(-5, daf, 0))
 
     # if daf in range(0, 30):
@@ -67,7 +67,7 @@ def get_color_by_da(da: int, elevation_f: int) -> list:
 
     if daf in range(0, 40):
         return colors_lib.get_color_mix(
-            [1, 1, 1], colors_by_name[colors_lib.RED],
+            colors_by_name[colors_lib.DARK_GRAY], colors_by_name[colors_lib.RED],
             utils.get_proportion_between_floats(0, daf, 40))
 
     if daf >= 40:
