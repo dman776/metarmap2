@@ -82,6 +82,5 @@ Automatically dims (2 levels) based on the current location of the map (via conf
   * `sudo systemctl stop metarmap.service`
 
 
-
 ## Changelist
 To see a list of changes to the metar script over time, refer to [CHANGELIST.md](CHANGELIST.md)
