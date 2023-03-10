@@ -68,7 +68,7 @@ class WebServer(object):
         return bottle.template('index.tpl', renderer=self._renderer)
 
     def _metars(self):
-        return bottle.template('metars.tpl', metars=self._metarsObj)
+        return bottle.template('metars.tpl', metars=self._metarsObj, renderer=self._renderer)
 
     def _raw(self):
         buf = io.StringIO()
@@ -84,7 +84,7 @@ class WebServer(object):
         return buf.read()
 
     def _map(self):
-        return bottle.template('map.tpl', metars=self._metarsObj, config=self._config)
+        return bottle.template('map.tpl', metars=self._metarsObj, config=self._config, renderer=self._renderer)
 
     def _rawcode(self, code):
         return "<b>" + code + "</b>: " + self._metarsObj.data[code]['raw'] + "<br />"
@@ -122,7 +122,7 @@ class WebServer(object):
 
     def _locate(self, pixnum):
         self._renderer.locate(pixnum)
-        return bottle.template('metars.tpl', metars=self._metarsObj)
+        return bottle.template('metars.tpl', metars=self._metarsObj, renderer=self._renderer)
 
     def _visualizer(self, visnum):
         self._renderer.visualizer = int(visnum)
