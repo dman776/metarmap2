@@ -22,6 +22,7 @@ from adafruit_led_animation.animation.blink import Blink
 from adafruit_led_animation.animation.pulse import Pulse
 from adafruit_led_animation.animation.solid import Solid
 from adafruit_led_animation.animation.comet import Comet
+from adafruit_led_animation.animation.chase import Chase
 from adafruit_led_animation.animation.customcolorchase import CustomColorChase
 from adafruit_led_animation.color import PURPLE, WHITE, AMBER, JADE, MAGENTA, ORANGE, BLUE, AQUA, RED, GREEN, YELLOW
 
@@ -47,4 +48,5 @@ class Chase(Visualizer):
 
     def update_data(self, data):
         # super().update_data(data)
-        self.__effect__.append(Comet(self.__pix__, speed=0.1, color=[0, 0, 255], tail_length=3, bounce=False))
+        # self.__effect__.append(Comet(self.__pix__, speed=0.25, color=[0, 0, 255], tail_length=2, bounce=False))
+        self.__effect__.append(Chase(self.__pix__, speed=0.5, size=1, spacing=50, color=[0, 0, 255]))
