@@ -3,7 +3,7 @@
 # Darryl Quinn 2023
 # Free for personal use. Prohibited for commercial without consent
 #
-__version__ = "1.0.4"
+__version__ = "1.0.5"
 
 import threading
 from datetime import datetime
@@ -30,6 +30,7 @@ from visualizers.temperature import Temperature as TemperatureVisualizer
 from visualizers.visibility import Visibility as VisibilityVisualizer
 from visualizers.precipitation import Precipitation as PrecipitationVisualizer
 from visualizers.density_altitude import DensityAltitude as DensityAltitudeVisualizer
+from visualizers.chase import Chase
 
 try:
     import board
@@ -120,7 +121,8 @@ if __name__ == '__main__':
         PrecipitationVisualizer(metars.data, pix_subs, config),
         TemperatureVisualizer(metars.data, pix_subs, config),
         VisibilityVisualizer(metars.data, pix_subs, config),
-        DensityAltitudeVisualizer(metars.data, pix_subs, config)
+        DensityAltitudeVisualizer(metars.data, pix_subs, config),
+        Chase(metars.data, pixels, config)
     ]
 
     renderer = renderer.Renderer(pixels, pix_subs, metars, config, visualizers)
