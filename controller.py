@@ -30,7 +30,7 @@ from visualizers.temperature import Temperature as TemperatureVisualizer
 from visualizers.visibility import Visibility as VisibilityVisualizer
 from visualizers.precipitation import Precipitation as PrecipitationVisualizer
 from visualizers.density_altitude import DensityAltitude as DensityAltitudeVisualizer
-from visualizers.chase import Chase
+from visualizers.chase import ChaseTest as ChaseVisualizer
 
 try:
     import board
@@ -122,7 +122,7 @@ if __name__ == '__main__':
         TemperatureVisualizer(metars.data, pix_subs, config),
         VisibilityVisualizer(metars.data, pix_subs, config),
         DensityAltitudeVisualizer(metars.data, pix_subs, config),
-        Chase(metars.data, pixels, config)
+        ChaseVisualizer(metars.data, pixels, config)
     ]
 
     renderer = renderer.Renderer(pixels, pix_subs, metars, config, visualizers)

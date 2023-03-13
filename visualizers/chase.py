@@ -27,7 +27,7 @@ from adafruit_led_animation.animation.customcolorchase import CustomColorChase
 from adafruit_led_animation.color import PURPLE, WHITE, AMBER, JADE, MAGENTA, ORANGE, BLUE, AQUA, RED, GREEN, YELLOW
 
 
-class Chase(Visualizer):
+class ChaseTest(Visualizer):
     """
     Object to handle a test pattern
     Returns a list of Effects on each pixel
