@@ -14,17 +14,8 @@ import lib
 import lib.utils as utils
 import lib.colors as colors_lib
 from metar import METAR
-import neopixel
-import board
 from visualizers.visualizer import Visualizer
-
-from adafruit_led_animation.animation.blink import Blink
-from adafruit_led_animation.animation.pulse import Pulse
-from adafruit_led_animation.animation.solid import Solid
-from adafruit_led_animation.animation.comet import Comet
 from adafruit_led_animation.animation.chase import Chase
-from adafruit_led_animation.animation.customcolorchase import CustomColorChase
-from adafruit_led_animation.color import PURPLE, WHITE, AMBER, JADE, MAGENTA, ORANGE, BLUE, AQUA, RED, GREEN, YELLOW
 
 
 class ChaseTest(Visualizer):
@@ -43,10 +34,9 @@ class ChaseTest(Visualizer):
     @property
     def description(self):
         return """
-            Display a simple chase pattern of LEDS in sequence.
+            Display a simple chase pattern of BLUE LEDS in sequence.
         """
 
     def update_data(self, data):
         # super().update_data(data)
-        # self.__effect__.append(Comet(self.__pix__, speed=0.25, color=[0, 0, 255], tail_length=2, bounce=False))
-        self.__effect__.append(Chase(self.__pix__, speed=0.5, size=1, spacing=49, color=[0, 0, 255]))
+        self.__effect__.append(Chase(self.__pix__, speed=0.25, size=1, spacing=49, color=[0, 0, 255]))
