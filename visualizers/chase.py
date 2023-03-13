@@ -35,6 +35,9 @@ class ChaseTest(Visualizer):
     def description(self):
         return """
             Display a simple chase pattern of BLUE LEDS in sequence.
+            <div class="w-100">
+            This visualizer WILL run for ONE COMPLETE animation cycle. (ie. ALL 50 LEDS), then repeat.
+            </div>
         """
 
     def update_data(self, data):
