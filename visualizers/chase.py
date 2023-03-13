@@ -47,4 +47,4 @@ class Chase(Visualizer):
 
     def update_data(self, data):
         # super().update_data(data)
-        self.__effect__.append(Comet(self.__pix__, speed=1, color=BLUE, tail_length=1, bounce=False))
+        self.__effect__.append(Comet(self.__pix__, speed=0.5, color=RED, tail_length=3, bounce=False))
