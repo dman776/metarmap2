@@ -4,7 +4,7 @@ After=network-online.target
 
 [Service]
 WorkingDirectory=/home/pi/metarmap2
-ExecStartPre=/bin/sleep 10
+ExecStartPre=/bin/sh -c 'until ping -c1 www.aviationweather.gov; do sleep 1; done;'
 ExecStart=sudo /home/pi/metarmap2/controller.py
 Restart=always
 User=pi
