@@ -26,6 +26,7 @@ class Rainbow1(Visualizer):
 
     def __init__(self, data, pix, config):
         super().__init__(data, pix, config)
+        self.__exclusive__ = True
 
     @property
     def name(self):

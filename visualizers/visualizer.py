@@ -8,6 +8,11 @@ class Visualizer(object):
         self.__pix__ = pix
         self.__config__: Config = config
         self.__effect__ = []
+        self.__exclusive__ = False  # used to have exclusive control of renderer (ie. no locate() function!)
+
+    @property
+    def exclusive(self):
+        return self.__exclusive__
 
     def get_effects(self):
         return self.__effect__
