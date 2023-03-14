@@ -3,7 +3,11 @@ Module to handle METAR fetching and processing
 """
 
 import datetime
+
+# import urllib3.request
 import urllib.request
+from urllib.error import HTTPError, URLError
+import socket
 # import xml.etree.ElementTree as ET
 import xmltodict
 from pprint import pprint
@@ -11,6 +15,7 @@ import json
 import lib.safe_logging as safe_logging
 from config import Config
 import lib.utils as utils
+
 
 class METAR(object):
     """
@@ -41,13 +46,18 @@ class METAR(object):
                       [item for item in list(self.__airports__.keys()) if "NULL" not in item])
             req = urllib.request.Request(url, headers={
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.198 Safari/537.36 Edg/86.0.622.69'})
-            content = urllib.request.urlopen(req).read()
+            content = urllib.request.urlopen(req, timeout=30).read()
             self.__is_fetching__ = False
-            self.lastFetchTime=datetime.datetime.now()
+            self.lastFetchTime = datetime.datetime.now()
             safe_logging.safe_log("[m]" + "Fetching completed.")
             self.__process__(content)
+        except HTTPError as e:
+            safe_logging.safe_log("[m]HTTPError: " + str(e))
+        except URLError as e:
+            safe_logging.safe_log("[m]URLError: " + str(e))
         except Exception as e:
-            print(e)
+            safe_logging.safe_log("[m]" + str(e))
+        finally:
             self.__is_fetching__ = False
             if callback is not None:
                 safe_logging.safe_log("[m]" + "Calling callback function...")
