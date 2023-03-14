@@ -99,6 +99,10 @@ class WebServer(object):
         return bottle.template('airports.tpl', airports=self._config.airports, config=self._config,
                                renderer=self._renderer)
 
+    def _airport_edit(self, oldkey, newkey):
+        self._renderer.config.edit_airport(oldkey, newkey)
+        return self._get_config_airports()
+
     def _airport_edit_prop(self, airport, key, value):
         self._renderer.config.edit_airport_property(airport, key, value)
         return self._get_config_airports()
