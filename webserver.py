@@ -56,7 +56,7 @@ class WebServer(object):
         self._app.route("/config", method="GET", callback=self._get_config)
         self._app.route("/config/edit/<key>/<value>", method="GET", callback=self._edit_config)
         self._app.route("/config/airports", method="GET", callback=self._get_config_airports)
-        self._app.route("/config/airports/editprop/<airport>/<key>/<value>", method="GET",
+        self._app.route("/config/airports/edit/prop/<airport>/<key>/<value>", method="GET",
                         callback=self._airport_edit_prop)
         self._app.route("/debug", method="GET", callback=self._debug)
         self._app.route("/update", method="GET", callback=self._update)
