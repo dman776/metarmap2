@@ -83,7 +83,7 @@
                 <span aria-hidden="true">&times;</span>
             </button>
         </div>
-        <div class="modal-body" id="modalBody">...</div>
+        <div class="modal-body" id="modalBody">Processing...</div>
         <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
             <button type="button" class="btn btn-primary" onClick="fetch('/restart');" data-dismiss="modal"
