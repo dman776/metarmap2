@@ -78,7 +78,7 @@
 <div class="modal-dialog modal-dialog-scrollable" role="document">
     <div class="modal-content">
         <div class="modal-header">
-            <h5 class="modal-title" id="outputModalTitle">Modal title</h5>
+            <h5 class="modal-title" id="outputModalTitle">Output</h5>
             <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                 <span aria-hidden="true">&times;</span>
             </button>
@@ -86,7 +86,9 @@
         <div class="modal-body" id="modalBody">...</div>
         <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-            <button type="button" class="btn btn-primary">Save changes</button>
+            <button type="button" class="btn btn-primary" onClick="fetch('/restart');" data-dismiss="modal"
+                    role="button">Restart
+            </button>
         </div>
     </div>
 </div>

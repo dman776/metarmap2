@@ -111,33 +111,33 @@ def update():
     buf = io.StringIO()
     msg = "[u]starting update... "
     safe_logging.safe_log(msg)
-    buf.write(msg)
+    buf.write(msg + "<br />")
     shutil.copy2(os.getcwd() + "/config.json", "/tmp")
     shutil.copy2(os.getcwd() + "/airports.json", "/tmp")
 
     msg = "[u]git reset... "
     safe_logging.safe_log(msg)
-    buf.write(msg)
+    buf.write(msg + "<br />")
     result = subprocess.run(["/usr/bin/git", "reset", "--hard"], capture_output=True, text=True)
     safe_logging.safe_log("[u]" + result.stdout)
-    buf.write("[u]" + result.stdout)
+    buf.write("[u]" + result.stdout + "<br />")
 
     msg = "[u]updating from github..."
     safe_logging.safe_log(msg)
-    buf.write(msg)
+    buf.write(msg + "<br />")
     result = subprocess.run(["/usr/bin/git", "pull"], capture_output=True, text=True)
     safe_logging.safe_log("[u]" + result.stdout)
-    buf.write("[u]" + result.stdout)
+    buf.write("[u]" + result.stdout + "<br />")
 
     msg = "[u]restoring config files from /tmp... "
     safe_logging.safe_log(msg)
-    buf.write(msg)
+    buf.write(msg + "<br />")
     shutil.copy2("/tmp/config.json", os.getcwd())
     shutil.copy2("/tmp/airports.json", os.getcwd())
 
     msg = "[u]update complete"
     safe_logging.safe_log(msg)
-    buf.write(msg)
+    buf.write(msg + "<br />")
 
     buf.seek(0)
     return buf.read()
