@@ -1,12 +1,10 @@
 %include("header.tpl",title="Config Airports")
 <script>
 function config_edit_boolean(airport, key, value) {
-    fetch('/config/airports/edit/prop/' + airport + '/' + key + '/' + value);
-    return;
+    window.location('/config/airports/edit/prop/' + airport + '/' + key + '/' + value);
 }
 function config_edit(key, newkey) {
-    fetch('/config/airports/edit/' + key + '/' + newkey);
-    return;
+    window.location('/config/airports/edit/' + key + '/' + newkey);
 }
 
 </script>
