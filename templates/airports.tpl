@@ -5,7 +5,7 @@ function config_edit_boolean(item, airport, key) {
     return;
 }
 function config_edit(key, newkey) {
-    window.location('/config/airports/edit/' + key + '/' + newkey);
+    window.location='/config/airports/edit/' + key + '/' + newkey;
     return;
 }
 
