@@ -117,4 +117,4 @@ def restart():
 
 
 def is_pingable(site="www.aviationweather.gov"):
-    return subprocess.run(["ping", "-c", "1", site]).returncode
+    return subprocess.run(["ping", "-c", "1", site], capture_output=True).returncode
