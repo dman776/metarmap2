@@ -34,9 +34,11 @@ function config_edit(key, newkey) {
         </div>
         <div class="input-group col-md-1">
             <label class="sr-only" for="code">Airport Code</label>
-            <input type="text" class="form-control mb-2 mr-sm-2" id="code" value="{{a}}"/>
+            <input type="text" class="form-control mb-2 mr-sm-2" id="code" value="{{a}}"
+                   onChange="config_edit('{{a}}', this.value);
+            />
         </div>
-        <div class="input-group col-md-4">
+        <div class=" input-group col-md-4">
             <div class="form-check mb-2 mr-sm-2">
                 <input class="form-check-input" type="checkbox" id="is_oled"
                        {{"checked" if airports[a]["display"] else ""}}
