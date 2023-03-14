@@ -121,7 +121,7 @@ def update():
     shutil.copy2("/tmp/config.json", os.getcwd())
     shutil.copy2("/tmp/airports.json", os.getcwd())
     safe_logging.safe_log("[u]update complete")
-    return result + result2
+    return result.stdout + result2.stdout
 
 
 def restart():
