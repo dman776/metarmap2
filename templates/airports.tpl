@@ -1,8 +1,8 @@
 %include("header.tpl",title="Config Airports")
 <script>
-function config_edit_boolean(airport, key, value) {
-    fetch('/config/airports/edit/prop/' + airport + '/' + key + '/' + value);
-    return;
+function config_edit_boolean(item, airport, key) {
+    fetch('/config/airports/edit/prop/' + airport + '/' + key + '/' + item.checked);
+    return true;
 }
 function config_edit(key, newkey) {
     window.location('/config/airports/edit/' + key + '/' + newkey);
@@ -40,9 +40,9 @@ function config_edit(key, newkey) {
         <div class=" input-group col-md-4">
             <div class="form-check mb-2 mr-sm-2">
                 <input class="form-check-input" type="checkbox" id="is_oled"
-                       {{"checked" if airports[a]["display"] else ""}}
-                value="{{str(airports[a]["display"]).lower()}}"
-                onChange="config_edit_boolean('{{a}}', 'display', this.checked);"
+                       {{"checked" if airports[a]['display'] else ""}}
+                value="{{str(airports[a]['display']).lower()}}"
+                onChange="config_edit_boolean(item, '{{a}}', 'display');"
                 />
                 <label class="form-check-label" for="is_oled">OLED Display</label>
             </div>
