@@ -130,8 +130,8 @@ class WebServer(object):
         utils.restart()
 
     def _update(self):
-        utils.update()
-        return bottle.template('index.tpl', renderer=self._renderer)
+        return utils.update()
+        # return bottle.template('index.tpl', renderer=self._renderer)
 
     def _brightness(self, level):
         self._renderer.brightness(float(level))

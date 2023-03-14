@@ -1,7 +1,16 @@
 %include("header.tpl",title="METARMap")
+<script>
+    async function fetch_output(url, destdiv) {
+        let result;
+        const res = await fetch(url);
+        result = await res.text();
+        document.getElementById(destdiv).innerHTML = result;
+        return;
+    }
 
+</script>
 <div class="py-5 text-center">
-    <h2>Home</h2>
+<h2>Home</h2>
 </div>
 <hr/>
 <div class="row">
@@ -16,7 +25,9 @@
 <div class="row">
 <div class="col-sm">
     <button type="button" class="btn btn-secondary" onClick="window.location='/config';" role="button">Config</button>&nbsp;
-    <button type="button" class="btn btn-secondary" onClick="window.location='/update';" role="button">Update</button>&nbsp;
+    <button type="button" class="btn btn-secondary" onClick="fetch_output('/update', 'modalBody');" role="button"
+            data-toggle="modal" data-target="#outputModal">Update
+    </button>&nbsp;
     <button type="button" class="btn btn-secondary" onClick="fetch('/restart');" role="button">Restart</button>&nbsp;
 </div>
 </div>
@@ -61,4 +72,24 @@
 </div>
 </div>&nbsp;
 <hr/>
+        <!-- Modal -->
+<div class="modal fade" id="outputModal" tabindex="-1" role="dialog" aria-labelledby="outputModalTitle"
+     aria-hidden="true">
+<div class="modal-dialog modal-dialog-scrollable" role="document">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h5 class="modal-title" id="outputModalTitle">Modal title</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+        <div class="modal-body" id="modalBody">...</div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            <button type="button" class="btn btn-primary">Save changes</button>
+        </div>
+    </div>
+</div>
+</div>
+
         %include("footer.tpl")

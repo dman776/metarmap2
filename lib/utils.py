@@ -115,12 +115,13 @@ def update():
     result = subprocess.run(["/usr/bin/git", "reset", "--hard"], capture_output=True, text=True)
     safe_logging.safe_log("[u]" + result.stdout)
     safe_logging.safe_log("[u]updating from github... " + os.getcwd())
-    result = subprocess.run(["/usr/bin/git", "pull"], capture_output=True, text=True)
-    safe_logging.safe_log("[u]" + result.stdout)
+    result2 = subprocess.run(["/usr/bin/git", "pull"], capture_output=True, text=True)
+    safe_logging.safe_log("[u]" + result2.stdout)
     safe_logging.safe_log("[u]restoring config files from /tmp... ")
     shutil.copy2("/tmp/config.json", os.getcwd())
     shutil.copy2("/tmp/airports.json", os.getcwd())
     safe_logging.safe_log("[u]update complete")
+    return result + result2
 
 
 def restart():
