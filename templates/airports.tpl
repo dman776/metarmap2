@@ -11,7 +11,7 @@ function config_edit(key, newkey) {
 
 </script>
 <div class="py-5 text-center">
-    <h2>Config</h2>
+    <h2>Configure</h2>
 </div>
 
 <div class="row">
