@@ -42,4 +42,5 @@ class Rainbow1(Visualizer):
 
     def update_data(self, data):
         # super().update_data(data)
+        self.__effect__.clear()
         self.__effect__.append(Rainbow(self.__pix__, period=5, speed=0.1, precompute_rainbow=True))
