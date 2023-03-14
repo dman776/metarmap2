@@ -2,7 +2,7 @@
 <script>
 function config_edit_boolean(item, airport, key) {
     fetch('/config/airports/edit/prop/' + airport + '/' + key + '/' + item.checked);
-    return true;
+    return;
 }
 function config_edit(key, newkey) {
     window.location('/config/airports/edit/' + key + '/' + newkey);
@@ -42,7 +42,7 @@ function config_edit(key, newkey) {
                 <input class="form-check-input" type="checkbox" id="is_oled"
                        {{"checked" if airports[a]['display'] else ""}}
                 value="{{str(airports[a]['display']).lower()}}"
-                onChange="config_edit_boolean(item, '{{a}}', 'display');"
+                onChange="config_edit_boolean(this, '{{a}}', 'display');"
                 />
                 <label class="form-check-label" for="is_oled">OLED Display</label>
             </div>
