@@ -88,7 +88,7 @@ class Config(object):
 
     def edit_airport_property(self, airport, key, value):
         if value in ['True', 'False']:
-            value = value.lower()
+            value = bool(value)
         self.__airports__[airport][key] = value
         self.write_airports()
 
