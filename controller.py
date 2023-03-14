@@ -6,10 +6,12 @@
 __version__ = "1.0.5"
 
 import threading
+import time
 from datetime import datetime
 import signal
 
 import display
+import lib.utils
 import webserver
 import renderer
 from config import Config
@@ -98,6 +100,14 @@ if __name__ == '__main__':
     signal.signal(signal.SIGTERM, signal_handler)
 
     safe_logging.safe_log("[c]" + "Starting controller.py at " + datetime.now().strftime('%d/%m/%Y %H:%M'))
+
+    safe_logging.safe_log("[c]" + "Testing to see if www.aviationweather.gov is reachable...")
+    # wait until we can reach www.aviationweather.gov
+    while lib.utils.is_pingable("www.aviationweather.gov") != 0:
+        safe_logging.safe_log("[c]" + ".")
+        time.sleep(1)
+    safe_logging.safe_log("[c]" + "done.")
+
     config = Config("config.json", __version__)
 
     # load sunrise/sunset times into scheduler for dynamic dimming
