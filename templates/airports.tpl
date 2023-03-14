@@ -1,4 +1,15 @@
-%include("header.tpl",title="METAR List")
+%include("header.tpl",title="Config Airports")
+<script>
+function config_edit_boolean(airport, key, value) {
+    fetch('/config/airports/edit/prop/' + airport + '/' + key + '/' + value);
+    return;
+}
+function config_edit(key, newkey) {
+    fetch('/config/airports/edit/' + key + '/' + newkey);
+    return;
+}
+
+</script>
 <div class="py-5 text-center">
     <h2>Config</h2>
 </div>
@@ -29,7 +40,9 @@
             <div class="form-check mb-2 mr-sm-2">
                 <input class="form-check-input" type="checkbox" id="is_oled"
                        {{"checked" if airports[a]["display"] else ""}}
-                value="{{str(airports[a]["display"]).lower()}}" />
+                value="{{str(airports[a]["display"]).lower()}}"
+                onChange="config_edit_boolean('{{a}}', 'display', this.checked);"
+                />
                 <label class="form-check-label" for="is_oled">OLED Display</label>
             </div>
         </div>
