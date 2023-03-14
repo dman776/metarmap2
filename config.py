@@ -87,8 +87,10 @@ class Config(object):
         self.write_airports()
 
     def edit_airport_property(self, airport, key, value):
-        if value in ['True', 'False']:
-            value = bool(value)
+        # if boolean, force it!
+        if value in ['true', 'false']:
+            value = value.capitalize()
+            value = eval(value)
         self.__airports__[airport][key] = value
         self.write_airports()
 
