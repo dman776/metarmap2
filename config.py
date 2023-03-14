@@ -16,12 +16,6 @@ except NotImplementedError:
     pass
 
 
-def load_airports(file):
-    with open(file) as f:
-        fdata = f.read()
-    return json.loads(fdata)
-
-
 class Config(object):
     def __init__(self, file, app_version):
         """
@@ -34,7 +28,8 @@ class Config(object):
         self.LED_ORDER = None
         self.read()
         self.suntimes = utils.get_sun_times(self)
-        self.__airports__ = load_airports(self.__data__.airports_file)
+        self.__airports__ = {}
+        self.read_airports()
 
     def read(self):
         with open(self.__file__, 'r') as f:
@@ -73,6 +68,15 @@ class Config(object):
     @property
     def airports(self):
         return self.__airports__
+
+    def read_airports(self):
+        with open(self.__data__.airports_file) as f:
+            fdata = f.read()
+        self.__airports__ = json.loads(fdata)
+
+    def write_airports(self):
+        with open(self.__data__.airports_file, "w") as f:
+            f.write(json.dumps(self.__airports__, indent=4))
 
 
 class MyJsonEncoder(JSONEncoder):
