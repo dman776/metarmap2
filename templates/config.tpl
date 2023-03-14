@@ -14,9 +14,11 @@ function config_edit(key, value) {
 </div>
 
 <div class="row">
-    <button type="button" class="btn btn-primary" onClick="window.location='/';">Home</button>&nbsp;
+<button type="button" class="btn btn-primary" onClick="window.location='/';">Home</button>
+&nbsp
+<button type="button" class="btn btn-secondary" onClick="window.location='/config/airports';">Airports</button>&nbsp;
 </div>
-<hr />
+<hr/>
 <h3>Visualizer Settings</h3>
 <div class="row">
     % key = "visualizer.active"
