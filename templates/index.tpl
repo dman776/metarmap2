@@ -73,6 +73,12 @@
     {{!renderer.visualizer[1].description}}
 </div>
 </div>&nbsp;
+<div class="row">
+<div class="col-sm">
+    This visualizer will {{"not" if renderer.visualizer[1].exclusive else ""}} allow other functions to interrupt the
+    map.
+</div>
+</div>&nbsp;
 <hr/>
         <!-- Modal -->
 <div class="modal fade" id="outputModal" tabindex="-1" role="dialog" aria-labelledby="outputModalTitle"
