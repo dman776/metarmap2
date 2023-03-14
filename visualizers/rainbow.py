@@ -34,10 +34,7 @@ class Rainbow1(Visualizer):
     @property
     def description(self):
         return """
-            Display a rainbow pattern across the LEDS.
-            <div class="w-100">
-            This visualizer WILL run for ONE COMPLETE animation cycle, then repeat.
-            </div>
+            Display a rainbow pattern across all of the LEDS.
         """
 
     def update_data(self, data):

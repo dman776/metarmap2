@@ -41,5 +41,5 @@ class ChaseTest(Visualizer):
         """
 
     def update_data(self, data):
-        # super().update_data(data)
-        self.__effect__.append(Chase(self.__pix__, speed=0.25, size=1, spacing=49, color=[0, 0, 255]))
+        self.__effect__.clear()
+        self.__effect__.append(Chase(self.__pix__, speed=0.5, size=1, spacing=49, color=[0, 0, 255]))
