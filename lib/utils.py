@@ -109,21 +109,36 @@ def celsius_to_fahrenheit(temperature_celsius: float):
 
 def update():
     buf = io.StringIO()
-
-    buf.write(safe_logging.safe_log("[u]starting update... "))
-    buf.write(safe_logging.safe_log("[u]saving config files to /tmp... "))
+    msg = "[u]starting update... "
+    safe_logging.safe_log(msg)
+    buf.write(msg)
     shutil.copy2(os.getcwd() + "/config.json", "/tmp")
     shutil.copy2(os.getcwd() + "/airports.json", "/tmp")
-    buf.write(safe_logging.safe_log("[u]git reset... "))
+
+    msg = "[u]git reset... "
+    safe_logging.safe_log(msg)
+    buf.write(msg)
     result = subprocess.run(["/usr/bin/git", "reset", "--hard"], capture_output=True, text=True)
-    buf.write(safe_logging.safe_log("[u]" + result.stdout))
-    buf.write(safe_logging.safe_log("[u]updating from github... " + os.getcwd()))
-    result2 = subprocess.run(["/usr/bin/git", "pull"], capture_output=True, text=True)
-    buf.write(safe_logging.safe_log("[u]" + result2.stdout))
-    buf.write(safe_logging.safe_log("[u]restoring config files from /tmp... "))
+    safe_logging.safe_log("[u]" + result.stdout)
+    buf.write("[u]" + result.stdout)
+
+    msg = "[u]updating from github..."
+    safe_logging.safe_log(msg)
+    buf.write(msg)
+    result = subprocess.run(["/usr/bin/git", "pull"], capture_output=True, text=True)
+    safe_logging.safe_log("[u]" + result.stdout)
+    buf.write("[u]" + result.stdout)
+
+    msg = "[u]restoring config files from /tmp... "
+    safe_logging.safe_log(msg)
+    buf.write(msg)
     shutil.copy2("/tmp/config.json", os.getcwd())
     shutil.copy2("/tmp/airports.json", os.getcwd())
-    buf.write(safe_logging.safe_log("[u]update complete"))
+
+    msg = "[u]update complete"
+    safe_logging.safe_log(msg)
+    buf.write(msg)
+
     buf.seek(0)
     return buf.read()
 
