@@ -4,9 +4,10 @@ After=network-online.target
 
 [Service]
 WorkingDirectory=/home/pi/metarmap2
-ExecStart=/home/pi/metarmap2/controller.py
+ExecStartPre=/bin/sleep 10
+ExecStart=sudo /home/pi/metarmap2/controller.py
 Restart=always
-User=root
+User=pi
 
 [Install]
 WantedBy=multi-user.target
