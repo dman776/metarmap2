@@ -1,10 +1,12 @@
 %include("header.tpl",title="METARMap")
 <script>
     async function fetch_output(url, destdiv) {
+        e = document.getElementById(destdiv);
+        e.innerHTML = "Processing..."
         let result;
         const res = await fetch(url);
         result = await res.text();
-        document.getElementById(destdiv).innerHTML = result;
+        e.innerHTML = result;
         return;
     }
 
@@ -83,7 +85,7 @@
                 <span aria-hidden="true">&times;</span>
             </button>
         </div>
-        <div class="modal-body" id="modalBody">Processing...</div>
+        <div class="modal-body" id="modalBody"></div>
         <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
             <button type="button" class="btn btn-primary" onClick="fetch('/restart');" data-dismiss="modal"
