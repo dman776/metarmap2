@@ -78,6 +78,17 @@ class Config(object):
         with open(self.__data__.airports_file, "w") as f:
             f.write(json.dumps(self.__airports__, indent=4))
 
+    def edit_airport(self, oldkey, newkey):
+        # need to keep the existing order
+        rep = {oldkey: newkey}
+        for k, v in list(self.__airports__.items()):
+            self.__airports__[rep.get(k, k)] = self.__airports__.pop(k)
+        self.write_airports()
+
+    def edit_airport_property(self, airport, key, value):
+        self.__airports__[airport][key] = value
+        self.write_airports()
+
 
 class MyJsonEncoder(JSONEncoder):
     def default(self, o):

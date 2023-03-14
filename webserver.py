@@ -56,6 +56,8 @@ class WebServer(object):
         self._app.route("/config", method="GET", callback=self._get_config)
         self._app.route("/config/edit/<key>/<value>", method="GET", callback=self._edit_config)
         self._app.route("/config/airports", method="GET", callback=self._get_config_airports)
+        self._app.route("/config/airports/editprop/<airport>/<key>/<value>", method="GET",
+                        callback=self._airport_edit_prop)
         self._app.route("/debug", method="GET", callback=self._debug)
         self._app.route("/update", method="GET", callback=self._update)
         self._app.route("/restart", method="GET", callback=self._restart)
@@ -96,6 +98,10 @@ class WebServer(object):
     def _get_config_airports(self):
         return bottle.template('airports.tpl', airports=self._config.airports, config=self._config,
                                renderer=self._renderer)
+
+    def _airport_edit_prop(self, airport, key, value):
+        self._renderer.config.edit_airport_property(airport, key, value)
+        return self._get_config_airports()
 
     def _edit_config(self, key, value):
         self._renderer.config.edit(key, value)
