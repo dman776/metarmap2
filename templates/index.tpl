@@ -1,8 +1,10 @@
 %include("header.tpl",title="METARMap")
 <script>
-    async function fetch_output(url, destdiv) {
+    async function fetch_output(url, destdiv, modalTitleDiv, title) {
         e = document.getElementById(destdiv);
         e.innerHTML = "Processing..."
+        mtd = document.getElementById(modalTitleDiv);
+        mtd.innerHTML = title
         let result;
         const res = await fetch(url);
         result = await res.text();
@@ -27,7 +29,8 @@
 <div class="row">
 <div class="col-sm">
     <button type="button" class="btn btn-secondary" onClick="window.location='/config';" role="button">Config</button>&nbsp;
-    <button type="button" class="btn btn-secondary" onClick="fetch_output('/update', 'modalBody');" role="button"
+    <button type="button" class="btn btn-secondary"
+            onClick="fetch_output('/update', 'modalBody', 'outputModalTitle', 'Update');" role="button"
             data-toggle="modal" data-target="#outputModal">Update
     </button>&nbsp;
     <button type="button" class="btn btn-secondary" onClick="fetch('/restart');" role="button">Restart</button>&nbsp;
@@ -86,7 +89,7 @@
 <div class="modal-dialog modal-dialog-scrollable" role="document">
     <div class="modal-content">
         <div class="modal-header">
-            <h5 class="modal-title" id="outputModalTitle">Output</h5>
+            <h5 class="modal-title" id="outputModalTitle"></h5>
             <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                 <span aria-hidden="true">&times;</span>
             </button>
