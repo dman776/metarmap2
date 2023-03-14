@@ -2,6 +2,7 @@ from datetime import datetime
 import os
 import sys
 import subprocess
+import shutil
 
 try:
     import lib.safe_logging as safe_logging
@@ -106,9 +107,20 @@ def celsius_to_fahrenheit(temperature_celsius: float):
 
 
 def update():
+    safe_logging.safe_log("[u]starting update... ")
+    safe_logging.safe_log("[u]saving config files to /tmp... ")
+    shutil.copy2(os.getcwd() + "/config.json", "/tmp")
+    shutil.copy2(os.getcwd() + "/airports.json", "/tmp")
+    safe_logging.safe_log("[u]git reset... ")
+    result = subprocess.run(["/usr/bin/git", "reset", "--hard"], capture_output=True, text=True)
+    safe_logging.safe_log("[u]" + result.stdout)
     safe_logging.safe_log("[u]updating from github... " + os.getcwd())
     result = subprocess.run(["/usr/bin/git", "pull"], capture_output=True, text=True)
     safe_logging.safe_log("[u]" + result.stdout)
+    safe_logging.safe_log("[u]restoring config files from /tmp... ")
+    shutil.copy2("/tmp/config.json", os.getcwd())
+    shutil.copy2("/tmp/airports.json", os.getcwd())
+    safe_logging.safe_log("[u]update complete")
 
 
 def restart():
