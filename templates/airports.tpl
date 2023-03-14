@@ -40,7 +40,7 @@ function config_edit(key, newkey) {
         <div class=" input-group col-md-4">
             <div class="form-check mb-2 mr-sm-2">
                 <input class="form-check-input" type="checkbox" id="is_oled"
-                       {{"checked" if airports[a]['display'] else ""}}
+                       {{"checked" if airports[a]['display']=="true" else ""}}
                 value="{{str(airports[a]['display']).lower()}}"
                 onChange="config_edit_boolean(this, '{{a}}', 'display');"
                 />
