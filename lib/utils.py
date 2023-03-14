@@ -112,6 +112,10 @@ def update():
     msg = "[u]starting update... "
     safe_logging.safe_log(msg)
     buf.write(msg + "<br />")
+
+    msg = "[u]saving config files to /tmp... "
+    safe_logging.safe_log(msg)
+    buf.write(msg + "<br />")
     shutil.copy2(os.getcwd() + "/config.json", "/tmp")
     shutil.copy2(os.getcwd() + "/airports.json", "/tmp")
 
