@@ -39,6 +39,7 @@
 <hr/>
 <div class="row">
 <div class="col-sm">
+    <h4>LED Information</h4>
     <label for="brightness" class="form-label">Brightness</label>&nbsp;
     <input type="range" class="form-range" min="0" max="1" step="0.01" id="brightness"
            onChange="fetch('/brightness/' + this.value);document.getElementById('brt_label').innerText=Math.round(this.value*100) + '%';"
@@ -46,9 +47,28 @@
     <label id="brt_label">{{round(renderer.pixels().brightness * 100)}}%</label>
 </div>
 </div>
+<div class="row">
+<div class="col-sm-3">
+    <b>Dawn ({{str(int(round(renderer.config.data.led.brightness.dimmed * 100)))}}%):</b><br/>
+    {{renderer.config.suntimes[0].strftime("%Y-%m-%d %H:%M:%S %Z")}}
+</div>
+<div class="col-sm-3">
+    <b>Sunrise ({{str(int(round(renderer.config.data.led.brightness.normal * 100)))}}%):</b><br/>
+    {{renderer.config.suntimes[1].strftime("%Y-%m-%d %H:%M:%S %Z")}}
+</div>
+<div class="col-sm-3">
+    <b>Sunset ({{str(int(round(renderer.config.data.led.brightness.dimmed * 100)))}}%):</b><br/>
+    {{renderer.config.suntimes[2].strftime("%Y-%m-%d %H:%M:%S %Z")}}
+</div>
+<div class="col-sm-3">
+    <b>Dusk ({{str(int(round(renderer.config.data.led.brightness.off * 100)))}}%):</b><br/>
+    {{renderer.config.suntimes[3].strftime("%Y-%m-%d %H:%M:%S %Z")}}
+</div>
+</div>
 <hr/>
 <div class="row">
 <div class="col-sm">
+    <h4>Visualizer Information</h4>
     <button type="button" class="btn btn-primary" onClick="window.location='/visualizer/previous';">&lt;</button>
     <span class="dropdown">
             <button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownMenuButton"
