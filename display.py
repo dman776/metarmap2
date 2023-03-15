@@ -181,7 +181,7 @@ class Display(object):
             self.__oled__.text(ICON_WIND, 4)
             self.__oled__.text("{0}SM".format(data['vis']), 5)
             self.__oled__.text(ICON_VISIBILITY, 6)
-            self.__oled__.text("{0:2.2f} in Hg".format(data['altimHg']), 7)
+            self.__oled__.text("{0:2.2f}".format(data['altimHg']), 7)
             self.__oled__.text(ICON_PRESSURE, 8)
             self.__oled__.show()
         except Exception as e:
