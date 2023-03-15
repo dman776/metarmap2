@@ -66,6 +66,15 @@ var LIFRIcon = new L.Icon({
   shadowSize: [41, 41]
 });
 
+var NoneIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-white.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
 	%for m in metars.data:
 	    %if 'latitude' in metars.data[m]:
 	        marker = ""
@@ -77,6 +86,8 @@ var LIFRIcon = new L.Icon({
                 marker = L.marker([{{metars.data[m]['latitude']}},{{metars.data[m]['longitude']}}], {icon: IFRIcon});
             %elif metars.data[m]['flightCategory']=='LIFR':
                 marker = L.marker([{{metars.data[m]['latitude']}},{{metars.data[m]['longitude']}}], {icon: LIFRIcon});
+            %elif metars.data[m]['flightCategory']==None:
+                marker = L.marker([{{metars.data[m]['latitude']}},{{metars.data[m]['longitude']}}], {icon: NoneIcon});
             %end
             marker.bindPopup("{{metars.data[m]['raw']}}").openPopup();
             marker.addTo(map);
