@@ -54,7 +54,7 @@ class FlightCategory(Visualizer):
                 <li>MVFR = <font color='blue'>BLUE</font></li>
                 <li>IFR = <font color='red'>RED</font></li>
                 <li>LIFR = <font color='purple'>PURPLE</font></li>
-                <li>Missing = Blinking <font color='red'>RED</font></li>
+                <li>Flight category is missing (but other data is available) = Blinking <font color='red'>RED</font></li>
             </ul>
             </div>
             <div class="w-100">
