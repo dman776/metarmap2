@@ -17,14 +17,16 @@
                 %if len(metars.data[m].keys()) > 0:
                     %if metars.data[m]['flightCategory']=='VFR':
                         list-group-item-success">
-                    %elif metars.data[m]['flightCategory']=='MVFR':
-                        list-group-item-primary">
-                    %elif metars.data[m]['flightCategory'] == 'IFR':
-                        list-group-item-danger">
-                    %elif metars.data[m]['flightCategory'] == 'LIFR':
-                        list-group-item-info">
-                    %end
-                    <div class="col-1">
+              %elif metars.data[m]['flightCategory']=='MVFR':
+              list-group-item-primary">
+              %elif metars.data[m]['flightCategory'] == 'IFR':
+              list-group-item-danger">
+              %elif metars.data[m]['flightCategory'] == 'LIFR':
+              list-group-item-info">
+              %elif metars.data[m]['flightCategory'] == None:
+              ">
+              %end
+              <div class="col-1">
                         <button type="button" class="badge badge-pill badge-primary" onClick="fetch('/locate/{{i}}');">Find</button>
                     </div>
                     <div class="col-1">{{m}}</div>
