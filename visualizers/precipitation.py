@@ -8,14 +8,13 @@ import datetime
 from pprint import pprint
 import json
 
-from adafruit_led_animation.animation.pulse import Pulse
-
 import lib.safe_logging as safe_logging
 # from lib.config import Config
 import lib.utils as utils
 import lib.colors as colors_lib
 from metar import METAR
 from visualizers.visualizer import Visualizer
+from adafruit_led_animation.animation.pulse import Pulse
 from adafruit_led_animation.animation.solid import Solid
 from adafruit_led_animation.animation.blink import Blink
 

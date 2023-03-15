@@ -11,12 +11,16 @@ Module to handle visualizing Flight Category data
 # import lib.safe_logging as safe_logging
 # from lib.config import Config
 # import lib
-# import lib.utils as utils
+import lib.utils as utils
+import lib.colors as colors_lib
 # from metar import METAR
 from visualizers.visualizer import Visualizer
 
 from adafruit_led_animation.animation.solid import Solid
 from adafruit_led_animation.animation.colorcycle import ColorCycle
+from adafruit_led_animation.animation.blink import Blink
+
+
 # from adafruit_led_animation.color import YELLOW
 
 
@@ -50,6 +54,7 @@ class FlightCategory(Visualizer):
                 <li>MVFR = <font color='blue'>BLUE</font></li>
                 <li>IFR = <font color='red'>RED</font></li>
                 <li>LIFR = <font color='purple'>PURPLE</font></li>
+                <li>Missing = Blinking <font color='red'>RED</font></li>
             </ul>
             </div>
             <div class="w-100">
@@ -59,7 +64,7 @@ class FlightCategory(Visualizer):
 
     def update_data(self, data):
         super().update_data(data)
-
+        colors_by_name = colors_lib.get_colors()
         # loop over all stations
         i = 0
         # for airport in list(self.__stations__):
@@ -76,6 +81,8 @@ class FlightCategory(Visualizer):
                     if self.__config__.data.lightning.animation and airport_data['lightning'] is True:
                         self.__effect__.append(ColorCycle(self.__pix__[i], speed=0.1, colors=lightning_pattern(
                             airport_data['flightCategoryColor'], self.__config__.data.color.weather.lightning)))
+                    elif airport_data['flightCategoryColor'] == self.__config__.data.color.clear:
+                        self.__effect__.append(Blink(self.__pix__[i], speed=1, color=colors_by_name[colors_lib.RED]))
                     else:
                         self.__effect__.append(Solid(self.__pix__[i], color=airport_data['flightCategoryColor']))
                 else:  # airport key not found in metar data

@@ -3,7 +3,7 @@
 # Darryl Quinn 2023
 # Free for personal use. Prohibited for commercial without consent
 #
-__version__ = "1.3.3"
+__version__ = "1.3.4"
 
 import threading
 import time

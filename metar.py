@@ -3,7 +3,7 @@ Module to handle METAR fetching and processing
 """
 
 import datetime
-
+import sys
 # import urllib3.request
 import urllib.request
 from urllib.error import HTTPError, URLError
@@ -91,6 +91,7 @@ class METAR(object):
 
             try:
                 m = utils.find_in_list("station_id", airport, metars)
+
                 if len(m) > 0:
                     metar = m[0]
                 else:
@@ -108,10 +109,10 @@ class METAR(object):
             stationId = metar['station_id']
 
             if 'flight_category' not in metar:
-                safe_logging.safe_log("Missing flight category, skipping " + stationId)
-                missingCondList.append(stationId)
-                self.data[stationId] = {}
-                continue
+                safe_logging.safe_log("Missing flight category: " + stationId)
+            #     missingCondList.append(stationId)
+            #     self.data[stationId] = {}
+            #     continue
 
             rawMetar = metar['raw_text'] if 'raw_text' in metar else None
             flightCategory = metar['flight_category'] if 'flight_category' in metar else None
@@ -209,19 +210,18 @@ class METAR(object):
 
 
 if __name__ == '__main__':
-    airportstr = '{"KDWH": {"text": "Hooks", "display": false, "visits": 0},'\
-                '"KIAH": {"text": "IAH", "display": false, "visits": 0},'\
-                '"KLVJ": {"text": "", "display": false, "visits": 0}}'
-    airports = json.loads(airportstr)
+    # airportstr = '{"KDWH": {"text": "Hooks", "display": false, "visits": 0},'\
+    #             '"KIAH": {"text": "IAH", "display": false, "visits": 0},'\
+    #             '"KLVJ": {"text": "", "display": false, "visits": 0}}'
+    # airports = json.loads(airportstr)
 
     # with open('airports.json') as f:
     #     data = f.read()
     # airports = json.loads(data)
 
-    config = Config("config.json")
-    metars = METAR(airports, config, fetch=True)
-    pprint(metars.data)
+    config = Config("config.json", "0.0.0")
+    metars = METAR(config, fetch=True)
+    # pprint(metars.data)
     pprint("missing: " + str(metars.missing_stations()))
     # pprint("all: " + str(metars.stations()))
-    # pprint(metars.data['KDWH'], indent=4)
-
+    pprint(metars.data['KBYY'], indent=4)
