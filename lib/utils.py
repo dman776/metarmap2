@@ -53,11 +53,12 @@ def get_sun_times(config):
     else:
         safe_logging.safe_log("[u]" + str(city))
         sun = astral.sun.sun(city.observer, date=datetime.now().date(), tzinfo=city.timezone)
-        DAWN = sun['dawn']
-        SUNRISE = sun['sunrise']
-        SUNSET = sun['sunset']
-        DUSK = sun['dusk']
-    return DAWN, SUNRISE, SUNSET, DUSK
+        # DAWN = sun['dawn']
+        # SUNRISE = sun['sunrise']
+        # SUNSET = sun['sunset']
+        # DUSK = sun['dusk']
+    # return DAWN, SUNRISE, SUNSET, DUSK
+    return sun
 
 
 def find_in_list(akey, avalue, alist):

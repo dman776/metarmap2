@@ -3,7 +3,7 @@
 # Darryl Quinn 2023
 # Free for personal use. Prohibited for commercial without consent
 #
-__version__ = "1.3.2"
+__version__ = "1.3.3"
 
 import threading
 import time
@@ -72,14 +72,21 @@ def update_data():
 
 def sched_load_suntimes():
     safe_logging.safe_log("[sched]load suntimes")
-    (DAWN, SUNRISE, SUNSET, DUSK) = config.suntimes
-
+    # (DAWN, SUNRISE, SUNSET, DUSK) = config.suntimes
     # clear schedule/set schedule
     schedule.clear("suntimes")
-    schedule.every().day.at(SUNSET.strftime("%H:%M")).do(sched_set_brightness, level=config.data.led.brightness.dimmed).tag("suntimes")
-    schedule.every().day.at(DUSK.strftime("%H:%M")).do(sched_set_brightness, level=config.data.led.brightness.off).tag("suntimes")
-    schedule.every().day.at(DAWN.strftime("%H:%M")).do(sched_set_brightness, level=config.data.led.brightness.dimmed).tag("suntimes")
-    schedule.every().day.at(SUNRISE.strftime("%H:%M")).do(sched_set_brightness, level=config.data.led.brightness.normal).tag("suntimes")
+    schedule.every().day.at(config.suntimes['sunset'].strftime("%H:%M")).do(sched_set_brightness,
+                                                                            level=config.data.led.brightness.dimmed).tag(
+        "suntimes")
+    schedule.every().day.at(config.suntimes['dusk'].strftime("%H:%M")).do(sched_set_brightness,
+                                                                          level=config.data.led.brightness.off).tag(
+        "suntimes")
+    schedule.every().day.at(config.suntimes['dawn'].strftime("%H:%M")).do(sched_set_brightness,
+                                                                          level=config.data.led.brightness.dimmed).tag(
+        "suntimes")
+    schedule.every().day.at(config.suntimes['sunrise'].strftime("%H:%M")).do(sched_set_brightness,
+                                                                             level=config.data.led.brightness.normal).tag(
+        "suntimes")
     for j in schedule.get_jobs("suntimes"):
         safe_logging.safe_log("[c]" + str(j) + " next run: " + str(j.next_run))
 
