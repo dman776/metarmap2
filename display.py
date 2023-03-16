@@ -4,11 +4,7 @@
 # import datetime
 #
 # import lib.config
-try:
-    from config import Config
-except ImportError as e:
-    pass
-
+from config import Config
 from lib import utils
 
 from renderer import Renderer

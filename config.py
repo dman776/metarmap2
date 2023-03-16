@@ -2,8 +2,6 @@ import json
 import sys
 from json import JSONEncoder
 import lib.safe_logging as safe_logging
-# from renderer import Renderer
-# from display import Display
 from pprint import pprint
 from types import SimpleNamespace
 from lib import utils
