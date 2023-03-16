@@ -116,12 +116,13 @@ class Display(object):
     method to stop the looping thread
     """
 
-    def stop(self):
+    def stop(self, clear=True):
         self.event.set()
-        self.__oled__.clear()
+        if clear:
+            self.__oled__.clear()
 
     def restart(self):
-        self.stop()
+        self.stop(False)
         self.__thread__.join()
         self.event.clear()
         self.__thread__ = threading.Thread(target=self.loop)
