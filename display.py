@@ -144,11 +144,17 @@ class Display(object):
         if len(dat) > 0:
             with self.lock:
                 self.page1(sta, dat)
+                if self.event.is_set():
+                    return
                 time.sleep(delay)
                 self.page2(sta, dat)
+                if self.event.is_set():
+                    return
                 time.sleep(delay)
         else:
             with self.lock:
+                if self.event.is_set():
+                    return
                 self.page_unavailable(sta)
                 time.sleep(delay)
 
