@@ -89,11 +89,11 @@ function config_edit(key, value) {
 % val = config.data.led.inittest
 <div class="form-check">
         <input class="form-check-input" type="checkbox"
-        {{"checked" if renderer.config.data.led.inittest else ""}}
-        value="{{str(val).lower()}}"
-        id="li"
-        onChange="config_edit_boolean(this, '{{key}}');">
-        <label class="form-check-label" for="li">Show test pattern on init *</label>
+        {{"checked" if config.data.led.inittest else ""}}
+    value="{{str(val).lower()}}"
+    id="li"
+    onChange="config_edit_boolean(this, '{{key}}');">
+    <label class="form-check-label" for="li">Show test pattern on init *</label>
     </div>
 </div>
 <hr />
