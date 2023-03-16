@@ -1,7 +1,7 @@
 import pprint
 import os, sys
 import bottle
-from bottle import hook, route, run, request, abort, response, static_file
+from bottle import auth_basic
 import metar
 from renderer import Renderer
 from display import Display
@@ -12,15 +12,27 @@ from lib.safe_logging import safe_log
 import threading
 import io
 
-CONFIGURATION_HOST_PORT = 8080
-
 
 class WebServer(object):
     """
     Class to handle running a REST endpoint to handle configuration.
     """
+
+    def __init__(self, host, port, metars: metar.METAR, config: Config):
+        self._port = port
+        self._host = host
+        self._app = bottle.Bottle()
+        self._routes()
+        self._metarsObj = metars
+        self._config: Config = config
+        self._renderer: Renderer = config.renderer
+        self._display: Display = config.display
+        self._pixels: NeoPixel = self._renderer.pixels()
+        self._thread = None
+        bottle.TEMPLATE_PATH.insert(0, "./templates")
+
     def run(
-        self
+            self
     ):
         """
         Starts the server.
@@ -34,20 +46,7 @@ class WebServer(object):
         if self._app is not None:
             self._app.close()
 
-    def __init__(self, host, port, metars: metar.METAR, config: Config):
-        self._port = port
-        self._host = host
-        self._app = bottle.Bottle()
-        self._route()
-        self._metarsObj = metars
-        self._config = config
-        self._renderer = config.renderer
-        self._display = config.display
-        self._pixels: NeoPixel = self._renderer.pixels()
-        self._thread = None
-        bottle.TEMPLATE_PATH.insert(0, "./templates")
-
-    def _route(self):
+    def _routes(self):
         self._app.route("/", method="GET", callback=self._index)
         self._app.route("/metars", method="GET", callback=self._metars)
         self._app.route("/raw", method="GET", callback=self._raw)
@@ -69,6 +68,12 @@ class WebServer(object):
         self._app.route("/visualizer/<visnum>", method="GET", callback=self._visualizer)
         self._app.route("/visualizer/next", method="GET", callback=self._visualizernext)
         self._app.route("/visualizer/previous", method="GET", callback=self._visualizerprevious)
+
+    def is_authenticated_user(user, password):
+        if user.lower() == "pi" and password == "pi":
+            return True
+        else:
+            return False
 
     def _index(self):
         return bottle.template('index.tpl', config=self._config)
@@ -95,44 +100,53 @@ class WebServer(object):
     def _rawcode(self, code):
         return "<b>" + code + "</b>: " + self._metarsObj.data[code]['raw'] + "<br />"
 
+    @auth_basic(is_authenticated_user)
     def _get_config(self):
         return bottle.template('config.tpl', config=self._config)
 
     def _get_config_airports(self):
         return bottle.template('airports.tpl', config=self._config)
 
+    @auth_basic(is_authenticated_user)
     def _airport_edit(self, oldkey, newkey):
         self._config.edit_airport(oldkey, newkey)
         return bottle.redirect("/config/airports")
 
+    @auth_basic(is_authenticated_user)
     def _airport_edit_prop(self, airport, key, value):
         self._config.edit_airport_property(airport, key, value)
         return bottle.redirect("/config/airports")
 
+    @auth_basic(is_authenticated_user)
     def _edit_config(self, key, value):
         self._config.edit(key, value)
         self._renderer.refresh()
         return bottle.template('config.tpl', config=self._config)
 
+    @auth_basic(is_authenticated_user)
     def _fetch(self):
         self._metarsObj.fetch()
         while self._metarsObj.is_fetching():
             pass
+        self._renderer.update_data(self._metarsObj)
         return bottle.template('index.tpl', config=self._config)
 
     def _debug(self):
         return bottle.template('debug.tpl', metars=self._metarsObj, config=self._config)
 
+    @auth_basic(is_authenticated_user)
     def _restart(self):
         if self._display:
             self._display.stop()
         self._renderer.clear()
         utils.restart()
 
+    @auth_basic(is_authenticated_user)
     def _update(self):
         return utils.update()
         # return bottle.template('index.tpl', renderer=self._renderer)
 
+    @auth_basic(is_authenticated_user)
     def _brightness(self, level):
         self._renderer.brightness(float(level))
         return bottle.template('index.tpl', renderer=self._renderer, config=self._config)
@@ -141,14 +155,17 @@ class WebServer(object):
         self._renderer.locate(pixnum)
         return bottle.template('metars.tpl', metars=self._metarsObj, renderer=self._renderer, config=self._config)
 
+    @auth_basic(is_authenticated_user)
     def _visualizer(self, visnum):
         self._renderer.visualizer = int(visnum)
         return bottle.template('index.tpl', renderer=self._renderer, config=self._config)
 
+    @auth_basic(is_authenticated_user)
     def _visualizernext(self):
         self._renderer.visualizer_next()
         return bottle.template('index.tpl', renderer=self._renderer, config=self._config)
 
+    @auth_basic(is_authenticated_user)
     def _visualizerprevious(self):
         self._renderer.visualizer_previous()
         return bottle.template('index.tpl', renderer=self._renderer, config=self._config)
