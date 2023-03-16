@@ -47,15 +47,9 @@ class WebServer(object):
             self._app.close()
 
     def _routes(self):
-        self._app.route("/",
-                        method="GET",
-                        callback=self._index)
-        self._app.route("/metars",
-                        method="GET",
-                        callback=self._metars)
-        self._app.route("/raw",
-                        method="GET",
-                        callback=self._raw)
+        self._app.route("/", method="GET", callback=self._index)
+        self._app.route("/metars", method="GET", callback=self._metars)
+        self._app.route("/raw", method="GET", callback=self._raw)
         self._app.route("/map", method="GET", callback=self._map)
         self._app.route("/raw/<code>", method="GET", callback=self._rawcode)
         self._app.route("/fetch", method="GET", callback=self._fetch)
