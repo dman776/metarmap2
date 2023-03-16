@@ -50,19 +50,19 @@
 <div class="row">
 <div class="col-sm-3">
     <b>Dawn ({{str(int(round(config.data.led.brightness.dimmed * 100)))}}%):</b><br/>
-    {{renderer.config.suntimes['dawn'].strftime("%Y-%m-%d %H:%M:%S %Z")}}
+    {{config.suntimes['dawn'].strftime("%Y-%m-%d %H:%M:%S %Z")}}
 </div>
 <div class="col-sm-3">
     <b>Sunrise ({{str(int(round(config.data.led.brightness.normal * 100)))}}%):</b><br/>
-    {{renderer.config.suntimes['sunrise'].strftime("%Y-%m-%d %H:%M:%S %Z")}}
+    {{config.suntimes['sunrise'].strftime("%Y-%m-%d %H:%M:%S %Z")}}
 </div>
 <div class="col-sm-3">
     <b>Sunset ({{str(int(round(config.data.led.brightness.dimmed * 100)))}}%):</b><br/>
-    {{renderer.config.suntimes['sunset'].strftime("%Y-%m-%d %H:%M:%S %Z")}}
+    {{config.suntimes['sunset'].strftime("%Y-%m-%d %H:%M:%S %Z")}}
 </div>
 <div class="col-sm-3">
     <b>Dusk ({{str(int(round(config.data.led.brightness.off * 100)))}}%):</b><br/>
-    {{renderer.config.suntimes['dusk'].strftime("%Y-%m-%d %H:%M:%S %Z")}}
+    {{config.suntimes['dusk'].strftime("%Y-%m-%d %H:%M:%S %Z")}}
 </div>
 </div>
 <hr/>
