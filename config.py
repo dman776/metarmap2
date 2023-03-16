@@ -96,8 +96,7 @@ class Config(object):
         with open(self.__data__.airports_file, "w") as f:
             f.write(json.dumps(self.__airports__, indent=4))
         self.read_airports()
-        # refresh display to pick up new config???
-        self.display.event.clear()
+        # TODO: refresh display loop to pick up new config
 
     def edit_airport(self, oldkey, newkey):
         # need to keep the existing order
