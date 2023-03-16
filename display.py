@@ -108,19 +108,30 @@ class Display(object):
     """
     method to start the looping thread
     """
+
     def start(self):
         self.__thread__.start()
 
     """
     method to stop the looping thread
     """
+
     def stop(self):
         self.event.set()
         self.__oled__.clear()
 
+    def restart(self):
+        self.stop()
+        self.__thread__.join()
+        self.__thread__ = threading.Thread(target=self.loop)
+        self.__thread__.daemon = True
+        self.start()
+
     def loop(self):
         while not self.event.is_set():
             for airport in self.__airports__.keys():
+                if self.event.is_set():
+                    return
                 i = utils.index_in_list(airport, self.__airports__)
                 if self.__airports__[airport]['display']:
                     if self.__config__.data.display_screen.locate_active:
