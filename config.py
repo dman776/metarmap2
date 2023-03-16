@@ -29,8 +29,8 @@ class Config(object):
         self.suntimes = utils.get_sun_times(self)
         self.__airports__ = {}
         self.read_airports()
-        self.__renderer__ = None
-        self.__display__ = None
+        self.__renderer__ = None  # set later (for convenience)
+        self.__display__ = None  # set later (for convenience)
 
     def read(self):
         with open(self.__file__, 'r') as f:

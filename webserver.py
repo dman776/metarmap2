@@ -5,6 +5,7 @@ from bottle import hook, route, run, request, abort, response, static_file
 import metar
 from renderer import Renderer
 from display import Display
+from config import Config
 from neopixel import NeoPixel
 from lib import utils
 from lib.safe_logging import safe_log
@@ -33,16 +34,16 @@ class WebServer(object):
         if self._app is not None:
             self._app.close()
 
-    def __init__(self, host, port, metars: metar.METAR, renderer: Renderer, display: Display):
+    def __init__(self, host, port, metars: metar.METAR, config: Config):
         self._port = port
         self._host = host
         self._app = bottle.Bottle()
         self._route()
         self._metarsObj = metars
-        self._renderer = renderer
-        self._display = display
-        self._config = renderer.config
-        self._pixels: NeoPixel = renderer.pixels()
+        self._config = config
+        self._renderer = config.renderer
+        self._display = config.display
+        self._pixels: NeoPixel = self._renderer.pixels()
         self._thread = None
         bottle.TEMPLATE_PATH.insert(0, "./templates")
 

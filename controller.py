@@ -3,7 +3,7 @@
 # Darryl Quinn 2023
 # Free for personal use. Prohibited for commercial without consent
 #
-__version__ = "1.4.1"
+__version__ = "1.4.2"
 
 import threading
 import time
@@ -167,7 +167,7 @@ if __name__ == '__main__':
     schedule.every().day.at('00:00').do(sched_load_suntimes)    # load sun times and dim the map appropriately
 
     # Start up Web Server to handle UI
-    web_server = webserver.WebServer("0.0.0.0", 80, metars, renderer, disp)
+    web_server = webserver.WebServer("0.0.0.0", 80, metars, config)
     web_server.run()
 
     # ======================================================================================
