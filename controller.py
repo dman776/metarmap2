@@ -166,7 +166,7 @@ if __name__ == '__main__':
     schedule.every().day.at('00:00').do(sched_load_suntimes)    # load sun times and dim the map appropriately
 
     # Start up Web Server to handle UI
-    web_server = webserver.WebServer("0.0.0.0", 80, metars, config)
+    web_server = webserver.WebServer("0.0.0.0", config.data.web_server.port, metars, config)
     web_server.run()
 
     # ======================================================================================

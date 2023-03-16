@@ -1,4 +1,9 @@
 {
+    "web_server": {
+        "user": "metar",
+        "password": "map",
+        "port": 80
+    },
     "airports_file": "airports.json",
     "led": {
         "count": 50,

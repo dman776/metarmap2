@@ -47,30 +47,46 @@ class WebServer(object):
             self._app.close()
 
     def _routes(self):
-        self._app.route("/", method="GET", callback=self._index)
-        self._app.route("/metars", method="GET", callback=self._metars)
-        self._app.route("/raw", method="GET", callback=self._raw)
+        self._app.route("/",
+                        method="GET",
+                        callback=self._index)
+        self._app.route("/metars",
+                        method="GET",
+                        callback=self._metars)
+        self._app.route("/raw",
+                        method="GET",
+                        callback=self._raw)
         self._app.route("/map", method="GET", callback=self._map)
         self._app.route("/raw/<code>", method="GET", callback=self._rawcode)
         self._app.route("/fetch", method="GET", callback=self._fetch)
-        self._app.route("/config", method="GET", callback=self._get_config)
-        self._app.route("/config/edit/<key>/<value>", method="GET", callback=self._edit_config)
-        self._app.route("/config/airports", method="GET", callback=self._get_config_airports)
-        self._app.route("/config/airports/edit/<oldkey>/<newkey>", method="GET",
-                        callback=self._airport_edit)
-        self._app.route("/config/airports/edit/prop/<airport>/<key>/<value>", method="GET",
-                        callback=self._airport_edit_prop)
         self._app.route("/debug", method="GET", callback=self._debug)
-        self._app.route("/update", method="GET", callback=self._update)
-        self._app.route("/restart", method="GET", callback=self._restart)
-        self._app.route("/brightness/<level>", method="GET", callback=self._brightness)
+        self._app.route("/config", method="GET", callback=self._get_config,
+                        apply=auth_basic(self.is_authenticated_user))
+        self._app.route("/config/edit/<key>/<value>", method="GET", callback=self._edit_config,
+                        apply=auth_basic(self.is_authenticated_user))
+        self._app.route("/config/airports", method="GET", callback=self._get_config_airports,
+                        apply=auth_basic(self.is_authenticated_user))
+        self._app.route("/config/airports/edit/<oldkey>/<newkey>", method="GET", callback=self._airport_edit,
+                        apply=auth_basic(self.is_authenticated_user))
+        self._app.route("/config/airports/edit/prop/<airport>/<key>/<value>", method="GET",
+                        callback=self._airport_edit_prop,
+                        apply=auth_basic(self.is_authenticated_user))
+        self._app.route("/update", method="GET", callback=self._update,
+                        apply=auth_basic(self.is_authenticated_user))
+        self._app.route("/restart", method="GET", callback=self._restart,
+                        apply=auth_basic(self.is_authenticated_user))
+        self._app.route("/brightness/<level>", method="GET", callback=self._brightness,
+                        apply=auth_basic(self.is_authenticated_user))
         self._app.route("/locate/<pixnum>", method="GET", callback=self._locate)
-        self._app.route("/visualizer/<visnum>", method="GET", callback=self._visualizer)
-        self._app.route("/visualizer/next", method="GET", callback=self._visualizernext)
-        self._app.route("/visualizer/previous", method="GET", callback=self._visualizerprevious)
+        self._app.route("/visualizer/<visnum>", method="GET", callback=self._visualizer,
+                        apply=auth_basic(self.is_authenticated_user))
+        self._app.route("/visualizer/next", method="GET", callback=self._visualizernext,
+                        apply=auth_basic(self.is_authenticated_user))
+        self._app.route("/visualizer/previous", method="GET", callback=self._visualizerprevious,
+                        apply=auth_basic(self.is_authenticated_user))
 
-    def is_authenticated_user(user, password):
-        if user.lower() == "pi" and password == "pi":
+    def is_authenticated_user(self, user, password):
+        if user.lower() == self._config.data.web_server.user and password == self._config.data.web_server.password:
             return True
         else:
             return False
@@ -100,30 +116,25 @@ class WebServer(object):
     def _rawcode(self, code):
         return "<b>" + code + "</b>: " + self._metarsObj.data[code]['raw'] + "<br />"
 
-    @auth_basic(is_authenticated_user)
     def _get_config(self):
         return bottle.template('config.tpl', config=self._config)
 
     def _get_config_airports(self):
         return bottle.template('airports.tpl', config=self._config)
 
-    @auth_basic(is_authenticated_user)
     def _airport_edit(self, oldkey, newkey):
         self._config.edit_airport(oldkey, newkey)
         return bottle.redirect("/config/airports")
 
-    @auth_basic(is_authenticated_user)
     def _airport_edit_prop(self, airport, key, value):
         self._config.edit_airport_property(airport, key, value)
         return bottle.redirect("/config/airports")
 
-    @auth_basic(is_authenticated_user)
     def _edit_config(self, key, value):
         self._config.edit(key, value)
         self._renderer.refresh()
         return bottle.template('config.tpl', config=self._config)
 
-    @auth_basic(is_authenticated_user)
     def _fetch(self):
         self._metarsObj.fetch()
         while self._metarsObj.is_fetching():
@@ -134,19 +145,16 @@ class WebServer(object):
     def _debug(self):
         return bottle.template('debug.tpl', metars=self._metarsObj, config=self._config)
 
-    @auth_basic(is_authenticated_user)
     def _restart(self):
         if self._display:
             self._display.stop()
         self._renderer.clear()
         utils.restart()
 
-    @auth_basic(is_authenticated_user)
     def _update(self):
         return utils.update()
         # return bottle.template('index.tpl', renderer=self._renderer)
 
-    @auth_basic(is_authenticated_user)
     def _brightness(self, level):
         self._renderer.brightness(float(level))
         return bottle.template('index.tpl', renderer=self._renderer, config=self._config)
@@ -155,17 +163,14 @@ class WebServer(object):
         self._renderer.locate(pixnum)
         return bottle.template('metars.tpl', metars=self._metarsObj, renderer=self._renderer, config=self._config)
 
-    @auth_basic(is_authenticated_user)
     def _visualizer(self, visnum):
         self._renderer.visualizer = int(visnum)
         return bottle.template('index.tpl', renderer=self._renderer, config=self._config)
 
-    @auth_basic(is_authenticated_user)
     def _visualizernext(self):
         self._renderer.visualizer_next()
         return bottle.template('index.tpl', renderer=self._renderer, config=self._config)
 
-    @auth_basic(is_authenticated_user)
     def _visualizerprevious(self):
         self._renderer.visualizer_previous()
         return bottle.template('index.tpl', renderer=self._renderer, config=self._config)
