@@ -54,32 +54,25 @@ class WebServer(object):
         self._app.route("/raw/<code>", method="GET", callback=self._rawcode)
         self._app.route("/fetch", method="GET", callback=self._fetch)
         self._app.route("/debug", method="GET", callback=self._debug)
-        self._app.route("/config", method="GET", callback=self._get_config,
-                        apply=auth_basic(self.is_authenticated_user))
-        self._app.route("/config/edit/<key>/<value>", method="GET", callback=self._edit_config,
-                        apply=auth_basic(self.is_authenticated_user))
-        self._app.route("/config/airports", method="GET", callback=self._get_config_airports,
-                        apply=auth_basic(self.is_authenticated_user))
-        self._app.route("/config/airports/edit/<oldkey>/<newkey>", method="GET", callback=self._airport_edit,
-                        apply=auth_basic(self.is_authenticated_user))
-        self._app.route("/config/airports/edit/prop/<airport>/<key>/<value>", method="GET",
-                        callback=self._airport_edit_prop,
-                        apply=auth_basic(self.is_authenticated_user))
-        self._app.route("/update", method="GET", callback=self._update,
-                        apply=auth_basic(self.is_authenticated_user))
-        self._app.route("/restart", method="GET", callback=self._restart,
-                        apply=auth_basic(self.is_authenticated_user))
-        self._app.route("/brightness/<level>", method="GET", callback=self._brightness,
-                        apply=auth_basic(self.is_authenticated_user))
         self._app.route("/locate/<pixnum>", method="GET", callback=self._locate)
-        self._app.route("/visualizer/<visnum>", method="GET", callback=self._visualizer,
-                        apply=auth_basic(self.is_authenticated_user))
-        self._app.route("/visualizer/next", method="GET", callback=self._visualizernext,
-                        apply=auth_basic(self.is_authenticated_user))
+        self._app.route("/config", method="GET", callback=self._get_config, apply=auth_basic(self.is_auth))
+        self._app.route("/config/edit/<key>/<value>", method="GET", callback=self._edit_config,
+                        apply=auth_basic(self.is_auth))
+        self._app.route("/config/airports", method="GET", callback=self._get_config_airports,
+                        apply=auth_basic(self.is_auth))
+        self._app.route("/config/airports/edit/<oldkey>/<newkey>", method="GET", callback=self._airport_edit,
+                        apply=auth_basic(self.is_auth))
+        self._app.route("/config/airports/edit/prop/<airport>/<key>/<value>", method="GET",
+                        callback=self._airport_edit_prop, apply=auth_basic(self.is_auth))
+        self._app.route("/update", method="GET", callback=self._update, apply=auth_basic(self.is_auth))
+        self._app.route("/restart", method="GET", callback=self._restart, apply=auth_basic(self.is_auth))
+        self._app.route("/brightness/<level>", method="GET", callback=self._brightness, apply=auth_basic(self.is_auth))
+        self._app.route("/visualizer/<visnum>", method="GET", callback=self._visualizer, apply=auth_basic(self.is_auth))
+        self._app.route("/visualizer/next", method="GET", callback=self._visualizernext, apply=auth_basic(self.is_auth))
         self._app.route("/visualizer/previous", method="GET", callback=self._visualizerprevious,
-                        apply=auth_basic(self.is_authenticated_user))
+                        apply=auth_basic(self.is_auth))
 
-    def is_authenticated_user(self, user, password):
+    def is_auth(self, user, password):
         if user.lower() == self._config.data.web_server.user and password == self._config.data.web_server.password:
             return True
         else:
