@@ -80,8 +80,10 @@ Automatically dims (2 levels) based on the current location of the map (via conf
 	* `sudo systemctl enable metarmap.service`
 * To start the service manually
   * `sudo systemctl start metarmap.service`
+  * or use `./start.sh`
 * To stop the service manually
-  * `sudo systemctl stop metarmap.service`
+    * `sudo systemctl stop metarmap.service`
+    * or use `./stop.sh`
 
 ## Changelist
 To see a list of changes to the metar script over time, refer to [CHANGELIST.md](CHANGELIST.md)
