@@ -71,10 +71,10 @@ class WebServer(object):
         self._app.route("/visualizer/previous", method="GET", callback=self._visualizerprevious)
 
     def _index(self):
-        return bottle.template('index.tpl', renderer=self._renderer)
+        return bottle.template('index.tpl', config=self._config)
 
     def _metars(self):
-        return bottle.template('metars.tpl', metars=self._metarsObj, renderer=self._renderer)
+        return bottle.template('metars.tpl', metars=self._metarsObj, config=self._config)
 
     def _raw(self):
         buf = io.StringIO()
@@ -90,39 +90,38 @@ class WebServer(object):
         return buf.read()
 
     def _map(self):
-        return bottle.template('map.tpl', metars=self._metarsObj, config=self._config, renderer=self._renderer)
+        return bottle.template('map.tpl', metars=self._metarsObj, config=self._config)
 
     def _rawcode(self, code):
         return "<b>" + code + "</b>: " + self._metarsObj.data[code]['raw'] + "<br />"
 
     def _get_config(self):
-        return bottle.template('config.tpl', renderer=self._renderer)
+        return bottle.template('config.tpl', config=self._config)
 
     def _get_config_airports(self):
-        return bottle.template('airports.tpl', airports=self._config.airports, config=self._config,
-                               renderer=self._renderer)
+        return bottle.template('airports.tpl', config=self._config)
 
     def _airport_edit(self, oldkey, newkey):
-        self._renderer.config.edit_airport(oldkey, newkey)
+        self._config.edit_airport(oldkey, newkey)
         return bottle.redirect("/config/airports")
 
     def _airport_edit_prop(self, airport, key, value):
-        self._renderer.config.edit_airport_property(airport, key, value)
+        self._config.edit_airport_property(airport, key, value)
         return bottle.redirect("/config/airports")
 
     def _edit_config(self, key, value):
-        self._renderer.config.edit(key, value)
+        self._config.edit(key, value)
         self._renderer.refresh()
-        return bottle.template('config.tpl', renderer=self._renderer)
+        return bottle.template('config.tpl', config=self._config)
 
     def _fetch(self):
         self._metarsObj.fetch()
         while self._metarsObj.is_fetching():
             pass
-        return bottle.template('index.tpl', renderer=self._renderer)
+        return bottle.template('index.tpl', config=self._config)
 
     def _debug(self):
-        return bottle.template('debug.tpl', metars=self._metarsObj, renderer=self._renderer)
+        return bottle.template('debug.tpl', metars=self._metarsObj, config=self._config)
 
     def _restart(self):
         if self._display:
@@ -136,20 +135,20 @@ class WebServer(object):
 
     def _brightness(self, level):
         self._renderer.brightness(float(level))
-        return bottle.template('index.tpl', renderer=self._renderer)
+        return bottle.template('index.tpl', renderer=self._renderer, config=self._config)
 
     def _locate(self, pixnum):
         self._renderer.locate(pixnum)
-        return bottle.template('metars.tpl', metars=self._metarsObj, renderer=self._renderer)
+        return bottle.template('metars.tpl', metars=self._metarsObj, renderer=self._renderer, config=self._config)
 
     def _visualizer(self, visnum):
         self._renderer.visualizer = int(visnum)
-        return bottle.template('index.tpl', renderer=self._renderer)
+        return bottle.template('index.tpl', renderer=self._renderer, config=self._config)
 
     def _visualizernext(self):
         self._renderer.visualizer_next()
-        return bottle.template('index.tpl', renderer=self._renderer)
+        return bottle.template('index.tpl', renderer=self._renderer, config=self._config)
 
     def _visualizerprevious(self):
         self._renderer.visualizer_previous()
-        return bottle.template('index.tpl', renderer=self._renderer)
+        return bottle.template('index.tpl', renderer=self._renderer, config=self._config)

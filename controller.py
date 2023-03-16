@@ -3,7 +3,7 @@
 # Darryl Quinn 2023
 # Free for personal use. Prohibited for commercial without consent
 #
-__version__ = "1.4.2"
+__version__ = "1.5.0"
 
 import threading
 import time
@@ -108,7 +108,6 @@ if __name__ == '__main__':
     signal.signal(signal.SIGTERM, signal_handler)
 
     safe_logging.safe_log("[c]" + "Starting controller.py at " + datetime.now().strftime('%d/%m/%Y %H:%M'))
-
     safe_logging.safe_log("[c]" + "Testing to see if www.aviationweather.gov is reachable...")
     # wait until we can reach www.aviationweather.gov
     while lib.utils.is_pingable("www.aviationweather.gov") != 0:
@@ -116,7 +115,7 @@ if __name__ == '__main__':
         time.sleep(1)
     safe_logging.safe_log("[c]" + "done.")
 
-    config = Config("config.json", __version__)
+    config = Config("config.json")
 
     # load sunrise/sunset times into scheduler for dynamic dimming
     sched_load_suntimes()

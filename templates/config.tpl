@@ -21,23 +21,23 @@ function config_edit(key, value) {
 <hr/>
 <h3>Visualizer Settings</h3>
 <div class="row">
-    % key = "visualizer.active"
-    % val = renderer.config.data.visualizer.active
-    <div class="dropdown show">
+% key = "visualizer.active"
+% val = config.data.visualizer.active
+<div class="dropdown show">
       <button class="btn btn-secondary dropdown-toggle" type="button" id="defaultVisualizer" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
         Default Visualizer
       </button>
-      <div class="dropdown-menu" aria-labelledby="defaultVisualizer">
-        %for i in range(0, len(renderer.visualizers)):
-            <a class="dropdown-item" onClick="config_edit('{{key}}', '{{i}}');">{{renderer.visualizers[i].name}}</a>
+    <div class="dropdown-menu" aria-labelledby="defaultVisualizer">
+        %for i in range(0, len(config.renderer.visualizers)):
+        <a class="dropdown-item" onClick="config_edit('{{key}}', '{{i}}');">{{config.renderer.visualizers[i].name}}</a>
         %end
-      </div>
+    </div>
     </div>&nbsp;
 </div>
 <div class="row">
-    % key = "lightning.animation"
-    % val = renderer.config.data.lightning.animation
-    <div class="form-check">
+% key = "lightning.animation"
+% val = config.data.lightning.animation
+<div class="form-check">
         <input class="form-check-input" type="checkbox"
         {{"checked" if val else ""}}
         value="{{str(val).lower()}}"
@@ -49,9 +49,9 @@ function config_edit(key, value) {
 <hr />
 <h3>Display Screen</h3>
 <div class="row">
-    % key = "display_screen.enabled"
-    % val = renderer.config.data.display_screen.enabled
-    <div class="form-check">
+% key = "display_screen.enabled"
+% val = config.data.display_screen.enabled
+<div class="form-check">
         <input class="form-check-input" type="checkbox"
         {{"checked" if val else ""}}
         value="{{str(val).lower()}}"
@@ -61,9 +61,9 @@ function config_edit(key, value) {
     </div>
 </div>
 <div class="row">
-    % key = "display_screen.locate_active"
-    % val = renderer.config.data.display_screen.locate_active
-    <div class="form-check">
+% key = "display_screen.locate_active"
+% val = config.data.display_screen.locate_active
+<div class="form-check">
         <input class="form-check-input" type="checkbox"
         {{"checked" if val else ""}}
         value="{{str(val).lower()}}"
@@ -73,9 +73,9 @@ function config_edit(key, value) {
     </div>
 </div>
 <div class="row">
-    % key = "display_screen.delay"
-    % val = renderer.config.data.display_screen.delay
-    <div class="form-check">
+% key = "display_screen.delay"
+% val = config.data.display_screen.delay
+<div class="form-check">
         <input type="range" class="form-range" min="0" max="30" step="1" id="dsd"
                onChange="config_edit('{{key}}', this.value);document.getElementById('dsd_label').innerText=this.value + ' sec delay';"
                value="{{val}}" />
@@ -85,9 +85,9 @@ function config_edit(key, value) {
 <hr />
 <h3>LED Pixels</h3>
 <div class="row">
-    % key = "led.inittest"
-    % val = renderer.config.data.led.inittest
-    <div class="form-check">
+% key = "led.inittest"
+% val = config.data.led.inittest
+<div class="form-check">
         <input class="form-check-input" type="checkbox"
         {{"checked" if renderer.config.data.led.inittest else ""}}
         value="{{str(val).lower()}}"

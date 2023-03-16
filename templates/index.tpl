@@ -44,24 +44,24 @@
     <input type="range" class="form-range" min="0" max="1" step="0.01" id="brightness"
            onChange="fetch('/brightness/' + this.value);document.getElementById('brt_label').innerText=Math.round(this.value*100) + '%';"
            value="{{renderer.pixels().brightness}}"/>
-    <label id="brt_label">{{round(renderer.pixels().brightness * 100)}}%</label>
+    <label id="brt_label">{{round(config.renderer.pixels().brightness * 100)}}%</label>
 </div>
 </div>
 <div class="row">
 <div class="col-sm-3">
-    <b>Dawn ({{str(int(round(renderer.config.data.led.brightness.dimmed * 100)))}}%):</b><br/>
+    <b>Dawn ({{str(int(round(config.data.led.brightness.dimmed * 100)))}}%):</b><br/>
     {{renderer.config.suntimes['dawn'].strftime("%Y-%m-%d %H:%M:%S %Z")}}
 </div>
 <div class="col-sm-3">
-    <b>Sunrise ({{str(int(round(renderer.config.data.led.brightness.normal * 100)))}}%):</b><br/>
+    <b>Sunrise ({{str(int(round(config.data.led.brightness.normal * 100)))}}%):</b><br/>
     {{renderer.config.suntimes['sunrise'].strftime("%Y-%m-%d %H:%M:%S %Z")}}
 </div>
 <div class="col-sm-3">
-    <b>Sunset ({{str(int(round(renderer.config.data.led.brightness.dimmed * 100)))}}%):</b><br/>
+    <b>Sunset ({{str(int(round(config.data.led.brightness.dimmed * 100)))}}%):</b><br/>
     {{renderer.config.suntimes['sunset'].strftime("%Y-%m-%d %H:%M:%S %Z")}}
 </div>
 <div class="col-sm-3">
-    <b>Dusk ({{str(int(round(renderer.config.data.led.brightness.off * 100)))}}%):</b><br/>
+    <b>Dusk ({{str(int(round(config.data.led.brightness.off * 100)))}}%):</b><br/>
     {{renderer.config.suntimes['dusk'].strftime("%Y-%m-%d %H:%M:%S %Z")}}
 </div>
 </div>
@@ -77,9 +77,9 @@
                 Visualizer
             </button>
             <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                %for i in range(0, len(renderer.visualizers)):
+                %for i in range(0, len(config.renderer.visualizers)):
                 <a class="dropdown-item"
-                   onClick="window.location='/visualizer/{{i}}'">{{renderer.visualizers[i].name}}</a>
+                   onClick="window.location='/visualizer/{{i}}'">{{config.renderer.visualizers[i].name}}</a>
                 %end
             </div>
         </span>
@@ -88,17 +88,18 @@
 </div>
 <div class="row">
 <div class="col-sm">
-    <b>{{renderer.visualizer[1].name}}</b>
+    <b>{{config.renderer.visualizer[1].name}}</b>
 </div>
 </div>
 <div class="row">
 <div class="col-sm">
-    {{!renderer.visualizer[1].description}}
+    {{!config.renderer.visualizer[1].description}}
 </div>
 </div>&nbsp;
 <div class="row">
 <div class="col-sm">
-    This visualizer will {{"not" if renderer.visualizer[1].exclusive else ""}} allow other functions to interrupt the
+    This visualizer will {{"not" if config.renderer.visualizer[1].exclusive else ""}} allow other functions to interrupt
+    the
     map.
 </div>
 </div>&nbsp;

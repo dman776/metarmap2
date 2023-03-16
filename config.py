@@ -14,15 +14,17 @@ except ModuleNotFoundError:
 except NotImplementedError:
     pass
 
+__version__ = "1.5.0"
+
 
 class Config(object):
-    def __init__(self, file, app_version):
+    def __init__(self, file):
         """
         Creates a new config object
         """
         self.__file__ = file
         self.__data__ = {}
-        self.app_version = app_version
+        self.app_version = __version__
         self.LED_PIN = None
         self.LED_ORDER = None
         self.read()

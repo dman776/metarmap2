@@ -26,7 +26,7 @@ function config_edit(key, newkey) {
 <h4>Airports</h4>
 <form class="form-inline">
     % i = 0
-    %for a in airports.keys():
+    %for a in config.airports.keys():
     <div class="form-row w-100">
         <div class="input-group col-md-1">
             <label class="sr-only">Pixel #</label>
@@ -40,8 +40,8 @@ function config_edit(key, newkey) {
         <div class=" input-group col-md-4">
             <div class="form-check mb-2 mr-sm-2">
                 <input class="form-check-input" type="checkbox" id="is_oled"
-                       {{"checked" if airports[a]['display']==True else ""}}
-                value="{{str(airports[a]['display']).lower()}}"
+                       {{"checked" if config.airports[a]['display']==True else ""}}
+                value="{{str(config.airports[a]['display']).lower()}}"
                 onChange="config_edit_boolean(this, '{{a}}', 'display');"
                 />
                 <label class="form-check-label" for="is_oled">OLED Display</label>
