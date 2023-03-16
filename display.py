@@ -121,13 +121,11 @@ class Display(object):
         self.__oled__.clear()
 
     def restart(self):
-        self.event.set()
-        safe_log("join")
+        self.stop()
         self.__thread__.join()
-        safe_log("done.  new thread...")
+        self.event.clear()
         self.__thread__ = threading.Thread(target=self.loop)
         self.__thread__.daemon = True
-        safe_log("start")
         self.start()
 
     def loop(self):
