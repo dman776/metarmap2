@@ -132,24 +132,24 @@ class Display(object):
     def loop(self):
         while not self.event.is_set():
             for airport in self.__airports__.keys():
-                if self.event.is_set():
-                    return
                 i = utils.index_in_list(airport, self.__airports__)
                 if self.__airports__[airport]['display']:
                     if self.__config__.data.display_screen.locate_active:
                         self.__renderer__.locate(i)
                     self.show_metar(airport, self.__data__.data[airport], self.__config__.data.display_screen.delay)
+                if self.event.is_set():
+                    return
 
     def show_metar(self, sta, dat, delay):
         if len(dat) > 0:
             with self.lock:
+                if self.event.is_set():
+                    return
                 self.page1(sta, dat)
-                if self.event.is_set():
-                    return
                 time.sleep(delay)
-                self.page2(sta, dat)
                 if self.event.is_set():
                     return
+                self.page2(sta, dat)
                 time.sleep(delay)
         else:
             with self.lock:
