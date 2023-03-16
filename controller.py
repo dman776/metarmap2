@@ -3,7 +3,7 @@
 # Darryl Quinn 2023
 # Free for personal use. Prohibited for commercial without consent
 #
-__version__ = "1.3.5"
+__version__ = "1.4.0"
 
 import threading
 import time
@@ -146,11 +146,13 @@ if __name__ == '__main__':
 
     renderer = renderer.Renderer(pixels, pix_subs, metars, config, visualizers)
     renderer.visualizer = config.data.visualizer.active
+    config.renderer = renderer
 
     # Init DISPLAY
     disp: Display
     if config.data.display_screen.enabled:
-        disp = Display(config.airports, metars, renderer)
+        disp = Display(config, metars)
+        config.display = disp
         disp.message("MAP", display.ICON_INFO,
                      "Starting..")
     else:

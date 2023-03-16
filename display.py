@@ -4,6 +4,7 @@
 # import datetime
 #
 # import lib.config
+from config import Config
 from lib import utils
 
 from renderer import Renderer
@@ -87,7 +88,7 @@ class Display(object):
     """
     lock = threading.Lock()
 
-    def __init__(self, airports, data, renderer: Renderer):
+    def __init__(self, config: Config, data):
         self.width = 128
         self.height = 64
 
@@ -96,10 +97,10 @@ class Display(object):
         self.__oled__ = OledText(self.__i2c__, self.width, self.height)
         self.__oled__.auto_show = False
         self.__page_layouts__ = define_page_layouts()
-        self.__airports__ = airports
         self.__data__ = data
-        self.__renderer__ = renderer
-        self.__config__ = renderer.__config__
+        self.__config__ = config
+        self.__airports__ = config.airports
+        self.__renderer__ = config.renderer
         self.__thread__ = threading.Thread(target=self.loop)
         self.__thread__.daemon = True
         self.__location__ = utils.get_location(self.__renderer__.config.data.geo.city)

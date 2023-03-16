@@ -2,7 +2,8 @@ import json
 import sys
 from json import JSONEncoder
 import lib.safe_logging as safe_logging
-
+from renderer import Renderer
+from display import Display
 from pprint import pprint
 from types import SimpleNamespace
 from lib import utils
@@ -30,6 +31,8 @@ class Config(object):
         self.suntimes = utils.get_sun_times(self)
         self.__airports__ = {}
         self.read_airports()
+        self.__renderer__ = None
+        self.__display__ = None
 
     def read(self):
         with open(self.__file__, 'r') as f:
@@ -57,6 +60,22 @@ class Config(object):
         code = compile("self.__data__." + key + "=" + str(value), "<string>", "exec")
         exec(code)
         self.write()
+
+    @property
+    def renderer(self):
+        return self.__renderer__
+
+    @renderer.setter
+    def renderer(self, ren):
+        self.__renderer__ = ren
+
+    @property
+    def display(self):
+        return self.__display__
+
+    @display.setter
+    def display(self, dis):
+        self.__display__ = dis
 
     @property
     def data(self):
