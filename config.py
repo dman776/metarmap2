@@ -92,11 +92,11 @@ class Config(object):
         self.__airports__ = json.loads(fdata)
 
     def write_airports(self):
+        self.display.event.set()
         with open(self.__data__.airports_file, "w") as f:
             f.write(json.dumps(self.__airports__, indent=4))
         self.read_airports()
-        # refresh display to pick up new config
-        self.display.event.set()
+        # refresh display to pick up new config???
         self.display.event.clear()
 
     def edit_airport(self, oldkey, newkey):
