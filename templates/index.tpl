@@ -43,7 +43,7 @@
     <label for="brightness" class="form-label">Brightness</label>&nbsp;
     <input type="range" class="form-range" min="0" max="1" step="0.01" id="brightness"
            onChange="fetch('/brightness/' + this.value);document.getElementById('brt_label').innerText=Math.round(this.value*100) + '%';"
-           value="{{renderer.pixels().brightness}}"/>
+           value="{{config.renderer.pixels().brightness}}"/>
     <label id="brt_label">{{round(config.renderer.pixels().brightness * 100)}}%</label>
 </div>
 </div>
