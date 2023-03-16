@@ -70,7 +70,9 @@ Automatically dims (2 levels) based on the current location of the map (via conf
 * Test the Neopixels (it needs to run with root permissions to access the GPIO pins):
   * `sudo python3 test1.py`
   * Press 'CTRL-C' to stop the test
-* Make appropriate changes to the **[airports](airports.json)** file for the airports you want to use (and 'display' on the OLED screen)
+* Make appropriate changes to the **[airports](airports.json)** file for the airports you want to use (and 'display' on
+  the OLED screen)
+* Change the user and password in the web_server section of the **[config](config.json)** file from the defaults.
 
 ## Install the service
 * To run the script automatically when you power the Raspberry Pi, install the systemd service
