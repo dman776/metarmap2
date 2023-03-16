@@ -127,7 +127,7 @@ class Display(object):
                         self.__renderer__.locate(i)
                     self.show_metar(airport, self.__data__.data[airport], self.__config__.data.display_screen.delay)
                 if self.event.is_set():
-                    break
+                    return
 
     def show_metar(self, sta, dat, delay):
         if len(dat) > 0:
