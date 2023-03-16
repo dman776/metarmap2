@@ -6,7 +6,10 @@ from datetime import datetime
 import pytz
 import lib.safe_logging as safe_logging
 import metar
-from config import Config
+try:
+    from config import Config
+except ImportError as e:
+    pass
 
 from adafruit_led_animation.sequence import AnimateOnce
 from adafruit_led_animation.group import AnimationGroup
