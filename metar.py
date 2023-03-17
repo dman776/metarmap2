@@ -148,16 +148,13 @@ class METAR(object):
         safe_logging.safe_log("[m]Processing complete.")
 
     def __colors_by_category__(self, category):
-        if category == "VFR":
-            return self.__config__.data.color.cat.vfr
-        elif category == "MVFR":
-            return self.__config__.data.color.cat.mvfr
-        elif category == "IFR":
-            return self.__config__.data.color.cat.ifr
-        elif category == "LIFR":
-            return self.__config__.data.color.cat.lifr
-        else:
-            return self.__config__.data.color.clear
+        color_map = {
+            "VFR": self.__config__.data.color.cat.vfr,
+            "MVFR": self.__config__.data.color.cat.mvfr,
+            "IFR": self.__config__.data.color.cat.ifr,
+            "LIFR": self.__config__.data.color.cat.lifr,
+        }
+        return color_map.get(category, self.__config__.data.color.clear)
 
     def missing_stations(self):
         """
