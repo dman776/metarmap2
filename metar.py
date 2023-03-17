@@ -50,9 +50,9 @@ class METAR(object):
             safe_logging.safe_log("[m]Fetching completed.")
             self.__process__(content)
         except requests.exceptions.RequestException as e:
-            safe_logging.safe_log(f"[m]Error occurred: {e}")
+            safe_logging.safe_log(f"[m]Error occurred (RequestException): {e}")
         except Exception as e:
-            safe_logging.safe_log(f"[m]Error occurred: {e}")
+            safe_logging.safe_log(f"[m]Error occurred: {e.with_traceback()}")
         finally:
             self.__is_fetching__ = False
             if callback is not None:
@@ -70,7 +70,6 @@ class METAR(object):
         safe_logging.safe_log("[m]Processing...")
         jcontent = xmltodict.parse(content)
         metars = jcontent['response']['data']['METAR']
-
         self.data = {
             "NULL": {"raw": "", "flightCategory": "", "windDir": "", "windSpeed": 0, "windGustSpeed": 0,
                      "windGust": False,
@@ -89,7 +88,7 @@ class METAR(object):
                 missing_stations.append(airport)
                 continue
             except Exception as e:
-                safe_logging.safe_log(f"[m] {e}")
+                safe_logging.safe_log(f"[m] {e} metar: {metars[airport]}")
                 continue
 
             station_id = metar['station_id']
@@ -101,8 +100,15 @@ class METAR(object):
             wind_gust = wind_gust_speed > 0
             lightning = 'LTG' in metar.get('raw_text', '')
             elevation_m = int(round(float(metar.get('elevation_m', 0))))
-            temp_c = int(round(float(metar.get('temp_c', ''))))
-            dewpoint_c = int(round(float(metar.get('dewpoint_c', ''))))
+
+            temp_c = metar.get('temp_c')
+            if temp_c is not None:
+                temp_c = int(round(float(temp_c)))
+
+            dewpoint_c = metar.get('dewpoint_c')
+            if dewpoint_c is not None:
+                dewpoint_c = int(round(float(dewpoint_c)))
+
             vis = int(round(float(metar.get('visibility_statute_mi', 0))))
             altim_hg = float(round(float(metar.get('altim_in_hg', 0)), 2))
             obs = metar.get('wx_string', '')
