@@ -3,7 +3,6 @@
 # Darryl Quinn 2023
 # Free for personal use. Prohibited for commercial without consent
 #
-__version__ = "1.5.0"
 
 import threading
 import time
@@ -45,6 +44,7 @@ thread_lock_object = threading.Lock()
 
 try:
     import RPi.GPIO as GPIO
+
     GPIO.setmode(GPIO.BOARD)
 except ModuleNotFoundError:
     pass
@@ -55,14 +55,13 @@ except ValueError:
 
 # ---------------------------------------------------------------------------
 # Globals
+__version__ = "1.5.0"
+CONFIG_FILE = "config.json"
 config = None
 
 
-def init_pixel_subsets(apixels: neopixel):
-    p = []
-    for i in range(0, 50):
-        p.append(PixelSubset(apixels, i, i + 1))
-    return p
+def init_pixel_subsets(apixels: neopixel, pixel_count: int):
+    return [PixelSubset(apixels, i, i + 1) for i in range(pixel_count)]
 
 
 def update_data():
@@ -72,23 +71,25 @@ def update_data():
 
 def sched_load_suntimes():
     safe_logging.safe_log("[sched]load suntimes")
-    # (DAWN, SUNRISE, SUNSET, DUSK) = config.suntimes
-    # clear schedule/set schedule
-    schedule.clear("suntimes")
-    schedule.every().day.at(config.suntimes['sunset'].strftime("%H:%M")).do(sched_set_brightness,
-                                                                            level=config.data.led.brightness.dimmed).tag(
-        "suntimes")
-    schedule.every().day.at(config.suntimes['dusk'].strftime("%H:%M")).do(sched_set_brightness,
-                                                                          level=config.data.led.brightness.off).tag(
-        "suntimes")
-    schedule.every().day.at(config.suntimes['dawn'].strftime("%H:%M")).do(sched_set_brightness,
-                                                                          level=config.data.led.brightness.dimmed).tag(
-        "suntimes")
-    schedule.every().day.at(config.suntimes['sunrise'].strftime("%H:%M")).do(sched_set_brightness,
-                                                                             level=config.data.led.brightness.normal).tag(
-        "suntimes")
-    for j in schedule.get_jobs("suntimes"):
-        safe_logging.safe_log("[c]" + str(j) + " next run: " + str(j.next_run))
+    with schedule as sched:
+        sched.clear("suntimes")
+        times = {
+            'sunset': config.suntimes['sunset'],
+            'dusk': config.suntimes['dusk'],
+            'dawn': config.suntimes['dawn'],
+            'sunrise': config.suntimes['sunrise']
+        }
+        brightness_levels = {
+            'sunset': config.data.led.brightness.dimmed,
+            'dusk': config.data.led.brightness.off,
+            'dawn': config.data.led.brightness.dimmed,
+            'sunrise': config.data.led.brightness.normal
+        }
+        for key, value in times.items():
+            sched.every().day.at(value.strftime("%H:%M")).do(sched_set_brightness,
+                                                             level=brightness_levels[key]).tag("suntimes")
+        for j in sched.get_jobs("suntimes"):
+            safe_logging.safe_log("[c]" + str(j) + " next run: " + str(j.next_run))
 
 
 def sched_set_brightness(level):
@@ -109,27 +110,23 @@ if __name__ == '__main__':
 
     safe_logging.safe_log("[c]" + "Starting controller.py at " + datetime.now().strftime('%d/%m/%Y %H:%M'))
     safe_logging.safe_log("[c]" + "Testing to see if www.aviationweather.gov is reachable...")
-    # wait until we can reach www.aviationweather.gov
     while lib.utils.is_pingable("www.aviationweather.gov") != 0:
         safe_logging.safe_log("[c]" + ".")
         time.sleep(1)
     safe_logging.safe_log("[c]" + "done.")
 
-    config = Config("config.json")
+    config = Config(CONFIG_FILE)
 
     # load sunrise/sunset times into scheduler for dynamic dimming
     sched_load_suntimes()
 
-    # Start loading the METARs in the background
     safe_logging.safe_log("[c]" + "Get weather for all airports...")
     metars = metar.METAR(config, fetch=True)
 
-    # init neopixels
     pixels = neopixel.NeoPixel(config.LED_PIN, config.data.led.count, brightness=config.data.led.brightness.normal,
                                pixel_order=config.LED_ORDER, auto_write=False)
-    pix_subs = init_pixel_subsets(pixels)   # individual pixels
+    pix_subs = init_pixel_subsets(pixels, config.data.led.count)  # individual pixels
 
-    # Load all the visualizers
     visualizers = [
         FlightCategoryVisualizer(metars.data, pix_subs, config),
         WindVisualizer(metars.data, pix_subs, config),
@@ -162,8 +159,9 @@ if __name__ == '__main__':
         renderer.animate_once(RainbowComet(pixels, speed=0.05, tail_length=5, bounce=False))
 
     # Job Scheduler setup --------------
-    schedule.every(10).minutes.do(update_data)                  # Start up METAR update thread
-    schedule.every().day.at('00:00').do(sched_load_suntimes)    # load sun times and dim the map appropriately
+    with schedule as sched:
+        sched.every(10).minutes.do(update_data)  # Start up METAR update thread
+        sched.every().day.at('00:00').do(sched_load_suntimes)  # load sun times and dim the map appropriately
 
     # Start up Web Server to handle UI
     web_server = webserver.WebServer("0.0.0.0", config.data.web_server.port, metars, config)
