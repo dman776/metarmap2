@@ -67,17 +67,26 @@ class FlightCategory(Visualizer):
         super().update_data(data)
         # loop over all stations
         for i, airport in enumerate(list(self.__data__.keys())):
-            # Skip NULL entries
-            if "NULL" in airport:
+            if "NULL" in airport or not self.__data__[airport]:  # NULL or no metar data at all
                 self.__effect__.append(Solid(self.__pix__[i], color=colors_lib.get_colors()[colors_lib.OFF]))
                 continue
             airport_data = self.__data__.get(airport, {})
-            flight_category_color = airport_data.get('flightCategoryColor', self.__config__.data.color.clear)
+            flight_category = airport_data.get('flightCategory')
+            flight_category_color = self.__colors_by_category__(flight_category)
 
             if self.__config__.data.lightning.animation and airport_data.get('lightning', False):
                 self.__effect__.append(ColorCycle(self.__pix__[i], speed=0.1, colors=lightning_pattern(
                     flight_category_color, self.__config__.data.color.weather.lightning)))
-            elif flight_category_color == self.__config__.data.color.clear:
+            elif flight_category is None:  # ie. not reporting flight_cat
                 self.__effect__.append(Blink(self.__pix__[i], speed=1, color=colors_lib.get_colors()[colors_lib.RED]))
             else:
                 self.__effect__.append(Solid(self.__pix__[i], color=flight_category_color))
+
+    def __colors_by_category__(self, category):
+        color_map = {
+            "VFR": self.__config__.data.color.cat.vfr,
+            "MVFR": self.__config__.data.color.cat.mvfr,
+            "IFR": self.__config__.data.color.cat.ifr,
+            "LIFR": self.__config__.data.color.cat.lifr,
+        }
+        return color_map.get(category, self.__config__.data.color.clear)

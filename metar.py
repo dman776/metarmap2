@@ -95,7 +95,7 @@ class METAR(object):
             station_id = metar['station_id']
             flight_category = metar.get('flight_category')
             raw_metar = metar.get('raw_text')
-            flight_category_color = self.__colors_by_category__(flight_category)
+            # flight_category_color = self.__colors_by_category__(flight_category)
             wind_dir = metar.get('wind_dir_degrees', '')
             wind_speed = int(metar.get('wind_speed_kt', 0))
             wind_gust_speed = int(metar.get('wind_gust_kt', 0))
@@ -126,7 +126,6 @@ class METAR(object):
                 "raw": raw_metar,
                 "elevation_m": elevation_m,
                 "flightCategory": flight_category,
-                "flightCategoryColor": flight_category_color,
                 "windDir": wind_dir,
                 "windSpeed": wind_speed,
                 "windGustSpeed": wind_gust_speed,
@@ -147,14 +146,6 @@ class METAR(object):
         safe_logging.safe_log(f"[m]Missing stations: {missing_stations}")
         safe_logging.safe_log("[m]Processing complete.")
 
-    def __colors_by_category__(self, category):
-        color_map = {
-            "VFR": self.__config__.data.color.cat.vfr,
-            "MVFR": self.__config__.data.color.cat.mvfr,
-            "IFR": self.__config__.data.color.cat.ifr,
-            "LIFR": self.__config__.data.color.cat.lifr,
-        }
-        return color_map.get(category, self.__config__.data.color.clear)
 
     def missing_stations(self):
         """
