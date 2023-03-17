@@ -7,7 +7,7 @@ import time
 import datetime
 from pprint import pprint
 import json
-
+from typing import Union
 import lib.safe_logging as safe_logging
 from config import Config
 import lib.utils as utils
@@ -18,71 +18,70 @@ from adafruit_led_animation.animation.solid import Solid
 
 STANDARD_PRESSURE = 29.92
 
-def get_color_by_da(da: int, elevation_f: int) -> list:
+
+def get_color_by_da(da: float, elevation_f: float) -> list:
     """
     Given a DA reading, return a RGB color to show on the map.
     Args:
-        density altitude (int): The DA reading from a metar in feet.
+        da (float): The DA reading from a metar in feet.
+        elevation_f (int): The elevation of the station in feet.
     Returns:
         list: The RGB color to show on the map for the station.
     """
-
     colors_by_name = colors_lib.get_colors()
 
-    daf = round(da/elevation_f)     # DA factor
+    da_factor = round(da / elevation_f)
 
-    if da is None:
-        return colors_by_name[colors_lib.OFF]
-
-    # if da == elevation_f:
-    #     return colors_by_name[colors_lib.BLUE]
-
-    if daf < -20:
+    if da_factor < -20:
         return colors_by_name[colors_lib.GREEN]
 
-    if daf in range(-20, -10):
+    if -20 <= da_factor < -10:
+        proportion = utils.get_proportion_between_floats(-20, da_factor, -10)
         return colors_lib.get_color_mix(
-            colors_by_name[colors_lib.GREEN], colors_by_name[colors_lib.BLUE],
-            utils.get_proportion_between_floats(-20, daf, -10))
+            colors_by_name[colors_lib.GREEN], colors_by_name[colors_lib.BLUE], proportion)
 
-    if daf in range(-10, -5):
+    if -10 <= da_factor < -5:
+        proportion = utils.get_proportion_between_floats(-10, da_factor, -5)
         return colors_lib.get_color_mix(
-            colors_by_name[colors_lib.BLUE], colors_by_name[colors_lib.LIGHT_BLUE],
-            utils.get_proportion_between_floats(-10, daf, -5))
+            colors_by_name[colors_lib.BLUE], colors_by_name[colors_lib.LIGHT_BLUE], proportion)
 
-    if daf in range(-5, 0):
+    if -5 <= da_factor < 0:
+        proportion = utils.get_proportion_between_floats(-5, da_factor, 0)
         return colors_lib.get_color_mix(
-            colors_by_name[colors_lib.LIGHT_BLUE], colors_by_name[colors_lib.DARK_GRAY],
-            utils.get_proportion_between_floats(-5, daf, 0))
+            colors_by_name[colors_lib.LIGHT_BLUE], colors_by_name[colors_lib.DARK_GRAY], proportion)
 
-    # if daf in range(0, 30):
-    #     return colors_lib.get_color_mix(
-    #         [1, 1, 1], colors_by_name[colors_lib.DARK_RED],
-    #         utils.get_proportion_between_floats(0, daf, 30))
-
-    # if daf in range(10, 20):
-    #     return colors_lib.get_color_mix(
-    #         colors_by_name[colors_lib.YELLOW], colors_by_name[colors_lib.LIGHT_RED],
-    #         utils.get_proportion_between_floats(10, daf, 20))
-
-    if daf in range(0, 40):
+    if 0 <= da_factor < 40:
+        proportion = utils.get_proportion_between_floats(0, da_factor, 40)
         return colors_lib.get_color_mix(
-            colors_by_name[colors_lib.DARK_GRAY], colors_by_name[colors_lib.RED],
-            utils.get_proportion_between_floats(0, daf, 40))
+            colors_by_name[colors_lib.DARK_GRAY], colors_by_name[colors_lib.RED], proportion)
 
-    if daf >= 40:
-        return colors_by_name[colors_lib.RED]
+    return colors_by_name[colors_lib.RED]
 
 
-def meters_to_feet(m):
+def meters_to_feet(m: float) -> float:
     return m * 3.28084
 
 
-def calculate_density_altitude(pressure, field_elevation, oat: float):
-    fef = meters_to_feet(field_elevation)
+def calculate_density_altitude(pressure: float, field_elevation_m: float, oat: float) -> Union[None, float]:
+    """
+    Calculates the density altitude given the pressure (in inHg), field elevation (in meters),
+    and the outside air temperature (in Celsius).
+
+    Args:
+        pressure (float): The pressure reading in inHg.
+        field_elevation_m (float): The field elevation in meters.
+        oat (float): The outside air temperature in Celsius.
+
+    Returns:
+        Union[None, float]: The density altitude in feet or None if any of the input parameters is None.
+    """
+    if None in [pressure, field_elevation_m, oat]:
+        return None
+
+    fef = meters_to_feet(field_elevation_m)
     pa = (STANDARD_PRESSURE - pressure) * 1000 + fef
     isa = 15 - 1.98 * fef / 1000
-    da = pa + 118.8 * (float(oat) - isa)
+    da = pa + 118.8 * (oat - isa)
     return da
 
 
@@ -120,30 +119,26 @@ class DensityAltitude(Visualizer):
     def update_data(self, data):
         super().update_data(data)
 
-        # loop over all stations
-        i = 0
-        # for airport in list(self.__stations__):
-        for airport in list(self.__data__.keys()):
-            # Skip NULL entries
+        for i, airport in enumerate(self.__data__):
             if "NULL" in airport:
                 self.__effect__.append(Solid(self.__pix__[i], color=[0, 0, 0]))
-                i += 1
                 continue
-            airport_data = self.__data__.get(airport, None)
 
-            if len(airport_data.keys()) > 0:
-                if airport_data is not None and airport_data['altimHg'] != "" and airport_data['elevation_m'] != ""  and airport_data['tempC'] != "":
-                    da = calculate_density_altitude(airport_data['altimHg'], meters_to_feet(airport_data['elevation_m']), airport_data['tempC'])
-                    daf = round(da/meters_to_feet(airport_data['elevation_m']))     # density altitude factor
-                    pcolor = get_color_by_da(da, meters_to_feet(airport_data['elevation_m']))
-                    # safe_logging.safe_log("STA: " + airport + " " + str(round(da/meters_to_feet(airport_data['elevation_m']))))
-                    # if daf >= 40: effect should BLINK
-                    # else:
-                    self.__effect__.append(Solid(self.__pix__[i], color=pcolor))
-                else:  # airport key not found in metar data
-                    self.__effect__.append(Solid(self.__pix__[i], color=[0, 0, 0]))
-            else:  # airport data is empty METAR data
+            airport_data = self.__data__[airport]
+
+            if airport_data is None:
                 self.__effect__.append(Solid(self.__pix__[i], color=[0, 0, 0]))
-            i += 1
+                continue
 
+            if not all([airport_data['altimHg'], airport_data['elevation_m'], airport_data['tempC']]):
+                self.__effect__.append(Solid(self.__pix__[i], color=[0, 0, 0]))
+                continue
 
+            density_altitude = calculate_density_altitude(
+                airport_data['altimHg'],
+                airport_data['elevation_m'],
+                airport_data['tempC']
+            )
+            density_altitude_factor = round(density_altitude / meters_to_feet(airport_data['elevation_m']))
+            color = get_color_by_da(density_altitude, meters_to_feet(airport_data['elevation_m']))
+            self.__effect__.append(Solid(self.__pix__[i], color=color))
