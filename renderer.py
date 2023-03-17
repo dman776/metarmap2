@@ -133,16 +133,18 @@ class Renderer(object):
     def adjust_brightness_for_time(self):
         safe_logging.safe_log("[r]adjust brightness for time")
         right_now = datetime.now(pytz.utc)
-        # (DAWN, SUNRISE, SUNSET, DUSK) = self.__config__.suntimes
-
-        if self.__config__.suntimes['dawn'] < right_now < self.__config__.suntimes['sunrise']:
-            self.brightness(self.__config__.data.led.brightness.dimmed)
-        elif self.__config__.suntimes['sunrise'] < right_now < self.__config__.suntimes['sunset']:
-            self.brightness(self.__config__.data.led.brightness.normal)
-        elif self.__config__.suntimes['sunset'] < right_now < self.__config__.suntimes['dusk']:
-            self.brightness(self.__config__.data.led.brightness.dimmed)
-        else:
-            self.brightness(self.__config__.data.led.brightness.off)
+        time_ranges = {
+            'dawn': (self.__config__.suntimes['dawn'], self.__config__.suntimes['sunrise']),
+            'daytime': (self.__config__.suntimes['sunrise'], self.__config__.suntimes['sunset']),
+            'dusk': (self.__config__.suntimes['sunset'], self.__config__.suntimes['dusk']),
+            'night': (self.__config__.suntimes['dusk'], self.__config__.suntimes['dawn'])
+        }
+        for name, (start, end) in time_ranges.items():
+            if start < right_now < end:
+                self.brightness(self.__config__.data.led.brightness[name])
+                return
+        # if current time doesn't fall within any time range, turn off the LED
+        self.brightness(self.__config__.data.led.brightness.off)
 
 
 if __name__ == '__main__':
