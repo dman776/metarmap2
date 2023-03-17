@@ -2,19 +2,16 @@
 Module to handle METAR fetching and processing
 """
 
-import datetime
+from datetime import datetime
 import sys
-# import urllib3.request
-import urllib.request
-from urllib.error import HTTPError, URLError
-import socket
-# import xml.etree.ElementTree as ET
+import requests
 import xmltodict
 from pprint import pprint
-import json
 import lib.safe_logging as safe_logging
 from config import Config
 import lib.utils as utils
+from collections import defaultdict
+from typing import Dict, List
 
 
 class METAR(object):
@@ -40,30 +37,28 @@ class METAR(object):
     def fetch(self, callback=None):
         try:
             self.__is_fetching__ = True
-            safe_logging.safe_log("[m]" + "Fetching...")
+            safe_logging.safe_log("[m]Fetching...")
             url = "https://www.aviationweather.gov/adds/dataserver_current/httpparam?dataSource=metars&requestType=retrieve&format=xml&hoursBeforeNow=5&mostRecentForEachStation=true&stationString=" + \
-                  ",".join(
-                      [item for item in list(self.__airports__.keys()) if "NULL" not in item])
-            req = urllib.request.Request(url, headers={
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.198 Safari/537.36 Edg/86.0.622.69'})
-            content = urllib.request.urlopen(req, timeout=30).read()
+                  ",".join([item for item in list(self.__airports__.keys()) if "NULL" not in item])
+            response = requests.get(url, headers={
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.198 Safari/537.36 Edg/86.0.622.69'},
+                                    timeout=30, verify=True)
+            response.raise_for_status()
+            content = response.content
             self.__is_fetching__ = False
-            self.lastFetchTime = datetime.datetime.now()
-            safe_logging.safe_log("[m]" + "Fetching completed.")
+            self.lastFetchTime = datetime.now()
+            safe_logging.safe_log("[m]Fetching completed.")
             self.__process__(content)
-        except HTTPError as e:
-            safe_logging.safe_log("[m]HTTPError: " + str(e))
-        except URLError as e:
-            safe_logging.safe_log("[m]URLError: " + str(e))
+        except requests.exceptions.RequestException as e:
+            safe_logging.safe_log(f"[m]Error occurred: {e}")
         except Exception as e:
-            safe_logging.safe_log("[m]" + str(e))
+            safe_logging.safe_log(f"[m]Error occurred: {e}")
         finally:
             self.__is_fetching__ = False
             if callback is not None:
-                safe_logging.safe_log("[m]" + "Calling callback function...")
+                safe_logging.safe_log("[m]Calling callback function...")
                 callback()
-                safe_logging.safe_log("[m]" + "done.")
-        return
+                safe_logging.safe_log("[m]done.")
 
     def is_fetching(self):
         """
@@ -72,117 +67,85 @@ class METAR(object):
         return self.__is_fetching__
 
     def __process__(self, content):
-        safe_logging.safe_log("[m]" + "Processing...")
-        # Retrieve flying conditions from the service response and store in a dictionary for each airport
+        safe_logging.safe_log("[m]Processing...")
         jcontent = xmltodict.parse(content)
         metars = jcontent['response']['data']['METAR']
 
         self.data = {
-            "NULL": {"raw": "", "flightCategory": "", "windDir": "", "windSpeed": 0, "windGustSpeed": 0, "windGust": False,
+            "NULL": {"raw": "", "flightCategory": "", "windDir": "", "windSpeed": 0, "windGustSpeed": 0,
+                     "windGust": False,
                      "lightning": False, "tempC": 0, "dewpointC": 0, "vis": 0, "altimHg": 0, "obs": "",
-                     "skyConditions": {}, "latitude": "", "longitude": "",  "obsTime": datetime.datetime.now()}}
+                     "skyConditions": {}, "latitude": "", "longitude": "", "obsTime": datetime.now()}}
         self.data.pop("NULL")
-        stationList = []
-        missingCondList = []
 
-        for airport in list(self.__airports__.keys()):
-            # safe_logging.safe_log(airport)
-            # station_id = ""
+        station_list = []
+        missing_stations = []
 
+        for airport in self.__airports__:
             try:
-                m = utils.find_in_list("station_id", airport, metars)
-
-                if len(m) > 0:
-                    metar = m[0]
-                else:
-                    # could not find an entry in the metars for the airport
-                    self.data[airport] = {}
-                    missingCondList.append(airport)
-                    continue
-            except IndexError:
-                missingCondList.append(airport)
+                metar = next(m for m in metars if m['station_id'] == airport)
+            except StopIteration:
                 self.data[airport] = {}
+                missing_stations.append(airport)
                 continue
             except Exception as e:
-                safe_logging.safe_log("[m]" + str(e))
+                safe_logging.safe_log(f"[m] {e}")
+                continue
 
-            stationId = metar['station_id']
-
-            if 'flight_category' not in metar:
-                safe_logging.safe_log("Missing flight category: " + stationId)
-            #     missingCondList.append(stationId)
-            #     self.data[stationId] = {}
-            #     continue
-
-            rawMetar = metar['raw_text'] if 'raw_text' in metar else None
-            flightCategory = metar['flight_category'] if 'flight_category' in metar else None
-            flightCategoryColor = self.__colors_by_category__(flightCategory)
-            windDir = ""
-            windSpeed = 0
-            windGustSpeed = 0
-            windGust = False
-            lightning = False
-            elevation_m = 0.0
-            tempC = ''
-            dewpointC = ''
-            vis = 0
-            altimHg = 0.0
-            obs = ""
-            skyConditions = []
-            latitude = metar['latitude'] or ""
-            longitude = metar['longitude'] or ""
-
-            if 'elevation_m' in metar:
-                elevation_m = int(round(float(metar['elevation_m'])))
-            if 'wind_gust_kt' in metar:
-                windGustSpeed = int(metar['wind_gust_kt'])
-                windGust = (True if windGustSpeed > 0 else False)
-            if 'wind_speed_kt' in metar:
-                windSpeed = int(metar['wind_speed_kt'])
-            if 'wind_dir_degrees' in metar:
-                windDir = metar['wind_dir_degrees']
-            if 'temp_c' in metar:
-                tempC = int(round(float(metar['temp_c'])))
-            if 'dewpoint_c' in metar:
-                dewpointC = int(round(float(metar['dewpoint_c'])))
-            if 'visibility_statute_mi' in metar:
-                vis = int(round(float(metar['visibility_statute_mi'])))
-            if 'altim_in_hg' in metar:
-                altimHg = float(round(float(metar['altim_in_hg']), 2))
-            if 'wx_string'in metar:
-                obs = metar['wx_string']
-            if 'observation_time'in metar:
-                obsTime = datetime.datetime.fromisoformat(metar['observation_time'].replace("Z", "+00:00"))
+            station_id = metar['station_id']
+            flight_category = metar.get('flight_category')
+            raw_metar = metar.get('raw_text')
+            flight_category_color = self.__colors_by_category__(flight_category)
+            wind_dir = metar.get('wind_dir_degrees', '')
+            wind_speed = int(metar.get('wind_speed_kt', 0))
+            wind_gust_speed = int(metar.get('wind_gust_kt', 0))
+            wind_gust = wind_gust_speed > 0
+            lightning = 'LTG' in metar.get('raw_text', '')
+            elevation_m = int(round(float(metar.get('elevation_m', 0))))
+            temp_c = int(round(float(metar.get('temp_c', ''))))
+            dewpoint_c = int(round(float(metar.get('dewpoint_c', ''))))
+            vis = int(round(float(metar.get('visibility_statute_mi', 0))))
+            altim_hg = float(round(float(metar.get('altim_in_hg', 0)), 2))
+            obs = metar.get('wx_string', '')
+            obs_time = datetime.fromisoformat(metar.get('observation_time', '').replace("Z", "+00:00"))
+            latitude = metar.get('latitude', '')
+            longitude = metar.get('longitude', '')
 
             if 'raw_text' in metar:
-                rawText = metar['raw_text']
-                lightning = True if 'LTG' in rawText else False
+                raw_text = metar.get('raw_text')
+                lightning = True if 'LTG' in raw_text else False
 
+            sky_conditions = []
             if "sky_condition" in metar:
-                skyCond = {}
-                if isinstance(metar['sky_condition'], list):
-                    for sc in metar['sky_condition']:
-                        skyCond = {"cover": sc['@sky_cover'],
-                               "cloudBaseFt": int(sc.get('@cloud_base_ft_agl', "0"))}
-                elif isinstance(metar['sky_condition'], dict):
-                    skyCond = {"cover": metar['sky_condition']['@sky_cover'],
-                               "cloudBaseFt": int(metar['sky_condition'].get('@cloud_base_ft_agl', "0"))}
-                skyConditions.append(skyCond)
+                for sc in metar['sky_condition'] if isinstance(metar['sky_condition'], list) else [
+                    metar['sky_condition']]:
+                    sky_cond = {"cover": sc.get('@sky_cover', ''), "cloudBaseFt": int(sc.get('@cloud_base_ft_agl', 0))}
+                    sky_conditions.append(sky_cond)
 
-            self.data[stationId] = {"raw": rawMetar,
-                                    "elevation_m": elevation_m,
-                                    "flightCategory": flightCategory,
-                                    "flightCategoryColor": flightCategoryColor,
-                                    "windDir": windDir, "windSpeed": windSpeed, "windGustSpeed": windGustSpeed,
-                                    "windGust": windGust, "vis": vis, "obs": obs,
-                                    "tempC": tempC, "dewpointC": dewpointC, "altimHg": altimHg,
-                                    "lightning": lightning, "skyConditions": skyConditions, "obsTime": obsTime,
-                                    "latitude": latitude, "longitude": longitude}
-            stationList.append(stationId)
-        self.__missing_stations__ = missingCondList
-        self.__stations__ = stationList
-        safe_logging.safe_log("[m]" + "Processing complete.")
-        return
+            self.data[station_id] = {
+                "raw": raw_metar,
+                "elevation_m": elevation_m,
+                "flightCategory": flight_category,
+                "flightCategoryColor": flight_category_color,
+                "windDir": wind_dir,
+                "windSpeed": wind_speed,
+                "windGustSpeed": wind_gust_speed,
+                "windGust": wind_gust,
+                "vis": vis,
+                "obs": obs,
+                "tempC": temp_c,
+                "dewpointC": dewpoint_c,
+                "altimHg": altim_hg,
+                "lightning": lightning,
+                "skyConditions": sky_conditions,
+                "obsTime": obs_time,
+                "latitude": latitude,
+                "longitude": longitude}
+            station_list.append(station_id)
+        self.__missing_stations__ = missing_stations
+        self.__stations__ = station_list
+        safe_logging.safe_log(f"[m]Missing stations: {missing_stations}")
+        safe_logging.safe_log("[m]Processing complete.")
 
     def __colors_by_category__(self, category):
         if category == "VFR":
@@ -219,9 +182,9 @@ if __name__ == '__main__':
     #     data = f.read()
     # airports = json.loads(data)
 
-    config = Config("config.json", "0.0.0")
+    config = Config("config.json")
     metars = METAR(config, fetch=True)
-    # pprint(metars.data)
-    pprint("missing: " + str(metars.missing_stations()))
+    pprint(metars.data)
+    # pprint("missing: " + str(metars.missing_stations()))
     # pprint("all: " + str(metars.stations()))
-    pprint(metars.data['KBYY'], indent=4)
+    # pprint(metars.data['KDWH'], indent=4)
