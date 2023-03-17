@@ -126,7 +126,7 @@ class DensityAltitude(Visualizer):
 
             airport_data = self.__data__[airport]
 
-            if airport_data is None:
+            if not airport_data:
                 self.__effect__.append(Solid(self.__pix__[i], color=[0, 0, 0]))
                 continue
 
