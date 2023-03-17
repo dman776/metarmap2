@@ -95,7 +95,6 @@ class METAR(object):
             station_id = metar['station_id']
             flight_category = metar.get('flight_category')
             raw_metar = metar.get('raw_text')
-            # flight_category_color = self.__colors_by_category__(flight_category)
             wind_dir = metar.get('wind_dir_degrees', '')
             wind_speed = int(metar.get('wind_speed_kt', 0))
             wind_gust_speed = int(metar.get('wind_gust_kt', 0))
