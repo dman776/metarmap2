@@ -103,14 +103,11 @@ class DensityAltitude(Visualizer):
             Display the density altitude (DA) relative to field elevation (FE) (ie. Density altitude factor).
             <div class="w-100">
             <ul>
-                <li>DA = FE =<font color='blue'>BLUE</font></li>
-                <li>DA/FE (aka. Density altitude factor, DAF) < -40 = <font color='green'>GREEN</font></li>
-                <li>DAF between -40 (<font color='green'>GREEN</font>) and -20 (<font color='blue'>BLUE</font>)</li>
-                <li>DAF between -20 (<font color='blue'>BLUE</font>) and -10 (<font color='lightblue'>LIGHT BLUE</font>)</li>
-                <li>DAF between -10 (<font color='lightblue'>LIGHT BLUE</font>) and 0 (<font color='gray'>GRAY</font>)</li>
-                <li>DAF between 0 (<font color='gray'>GRAY</font>) and 30 (<font color='darkred'>DARK RED</font>)</li>
-                <li>DAF between 30 (<font color='darkred'>DARK RED</font>) and 40 (<font color='red'>RED</font>)</li>
-                <li>DAF between 0 (<font color='gray'>GRAY</font>) and 30 (<font color='darkred'>DARK RED</font>)</li>
+                <li>DA/FE (aka. Density altitude factor, DAF) < -20 = <font color='green'>GREEN</font></li>
+                <li>DAF between -20 (<font color='green'>GREEN</font>) and -10 (<font color='blue'>BLUE</font>)</li>
+                <li>DAF between -10 (<font color='blue'>BLUE</font>) and -5 (<font color='lightblue'>LIGHT BLUE</font>)</li>
+                <li>DAF between -5 (<font color='lightblue'>LIGHT BLUE</font>) and 0 (<font color='gray'>GRAY</font>)</li>
+                <li>DAF between 0 (<font color='gray'>GRAY</font>) and 40 (<font color='red'>RED</font>)</li>
                 <li>DAF Greater than 40 =<font color='red'>RED</font></li>
             </ul>
             </div>
