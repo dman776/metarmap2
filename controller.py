@@ -71,8 +71,8 @@ def update_data():
 
 def sched_load_suntimes():
     safe_logging.safe_log("[sched]load suntimes")
-    with schedule as sched:
-        sched.clear("suntimes")
+    with schedule as s:
+        s.clear("suntimes")
         times = {
             'sunset': config.suntimes['sunset'],
             'dusk': config.suntimes['dusk'],
@@ -86,9 +86,9 @@ def sched_load_suntimes():
             'sunrise': config.data.led.brightness.normal
         }
         for key, value in times.items():
-            sched.every().day.at(value.strftime("%H:%M")).do(sched_set_brightness,
-                                                             level=brightness_levels[key]).tag("suntimes")
-        for j in sched.get_jobs("suntimes"):
+            s.every().day.at(value.strftime("%H:%M")).do(sched_set_brightness,
+                                                         level=brightness_levels[key]).tag("suntimes")
+        for j in s.get_jobs("suntimes"):
             safe_logging.safe_log("[c]" + str(j) + " next run: " + str(j.next_run))
 
 
