@@ -87,8 +87,8 @@ def sched_load_suntimes():
     for key, value in times.items():
         schedule.every().day.at(value.strftime("%H:%M")).do(sched_set_brightness,
                                                             level=brightness_levels[key]).tag("suntimes")
-    for j in schedule.get_jobs("suntimes"):
-        safe_logging.safe_log("[c]" + str(j) + " next run: " + str(j.next_run))
+    # for j in schedule.get_jobs("suntimes"):
+    #     safe_logging.safe_log("[c]" + str(j) + " next run: " + str(j.next_run))
 
 
 def sched_set_brightness(level):
