@@ -37,7 +37,7 @@ class WebServer(object):
         """
         Starts the server.
         """
-        safe_log("localhost = {}:{}".format(self._host, self._port))
+        safe_log(f"localhost = {self._host}:{self._port}")
         self._thread = threading.Thread(target=self._app.run, kwargs=dict(host=self._host, port=self._port))
         self._thread.daemon = True
         self._thread.start()
@@ -86,14 +86,10 @@ class WebServer(object):
 
     def _raw(self):
         buf = io.StringIO()
-        for s in self._metarsObj.data.keys():
-            if 'raw' in self._metarsObj.data[s]:
-                buf.write("<b>" + s + "</b>: " + self._metarsObj.data[s]['raw'] + "<br />")
-            else:
-                buf.write("<b>" + s + "</b>: N/A<br />")
-        buf.write("<pre><code>")
-        buf.write(pprint.pformat(self._metarsObj.data, indent=4))
-        buf.write("</code></pre>")
+        raw_strs = (f"<b>{s}</b>: {self._metarsObj.data[s].get('raw', 'N/A')}<br />" for s in
+                    self._metarsObj.data.keys())
+        buf.write(''.join(raw_strs))
+        buf.write(f"<pre><code>{pprint.pformat(self._metarsObj.data, indent=4)}</code></pre>")
         buf.seek(0)
         return buf.read()
 
