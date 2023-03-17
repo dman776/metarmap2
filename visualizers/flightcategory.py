@@ -65,31 +65,19 @@ class FlightCategory(Visualizer):
 
     def update_data(self, data):
         super().update_data(data)
-        colors_by_name = colors_lib.get_colors()
         # loop over all stations
-        i = 0
-        # for airport in list(self.__stations__):
-        for airport in list(self.__data__.keys()):
+        for i, airport in enumerate(list(self.__data__.keys())):
             # Skip NULL entries
             if "NULL" in airport:
-                self.__effect__.append(Solid(self.__pix__[i], color=[0, 0, 0]))
-                i += 1
+                self.__effect__.append(Solid(self.__pix__[i], color=colors_lib.get_colors()[colors_lib.OFF]))
                 continue
-            airport_data = self.__data__.get(airport, None)
+            airport_data = self.__data__.get(airport, {})
+            flight_category_color = airport_data.get('flightCategoryColor', self.__config__.data.color.clear)
 
-            if len(airport_data.keys()) > 0:
-                if airport_data is not None:
-                    if self.__config__.data.lightning.animation and airport_data['lightning'] is True:
-                        self.__effect__.append(ColorCycle(self.__pix__[i], speed=0.1, colors=lightning_pattern(
-                            airport_data['flightCategoryColor'], self.__config__.data.color.weather.lightning)))
-                    elif airport_data['flightCategoryColor'] == self.__config__.data.color.clear:
-                        self.__effect__.append(Blink(self.__pix__[i], speed=1, color=colors_by_name[colors_lib.RED]))
-                    else:
-                        self.__effect__.append(Solid(self.__pix__[i], color=airport_data['flightCategoryColor']))
-                else:  # airport key not found in metar data
-                    self.__effect__.append(Solid(self.__pix__[i], color=[0, 0, 0]))
-            else:  # airport data is empty METAR data
-                self.__effect__.append(Solid(self.__pix__[i], color=[0, 0, 0]))
-            i += 1
-
-
+            if self.__config__.data.lightning.animation and airport_data.get('lightning', False):
+                self.__effect__.append(ColorCycle(self.__pix__[i], speed=0.1, colors=lightning_pattern(
+                    flight_category_color, self.__config__.data.color.weather.lightning)))
+            elif flight_category_color == self.__config__.data.color.clear:
+                self.__effect__.append(Blink(self.__pix__[i], speed=1, color=colors_lib.get_colors()[colors_lib.RED]))
+            else:
+                self.__effect__.append(Solid(self.__pix__[i], color=flight_category_color))
