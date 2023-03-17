@@ -158,9 +158,8 @@ if __name__ == '__main__':
         renderer.animate_once(RainbowComet(pixels, speed=0.05, tail_length=5, bounce=False))
 
     # Job Scheduler setup --------------
-    with schedule as sched:
-        sched.every(10).minutes.do(update_data)  # Start up METAR update thread
-        sched.every().day.at('00:00').do(sched_load_suntimes)  # load sun times and dim the map appropriately
+    schedule.every(10).minutes.do(update_data)  # Start up METAR update thread
+    schedule.every().day.at('00:00').do(sched_load_suntimes)  # load sun times and dim the map appropriately
 
     # Start up Web Server to handle UI
     web_server = webserver.WebServer("0.0.0.0", config.data.web_server.port, metars, config)
