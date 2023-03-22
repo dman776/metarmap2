@@ -47,7 +47,7 @@ class Precipitation(Visualizer):
                 <li>Rain = Solid <font color='blue'>BLUE</font></li>
                 <li>Heavy Rain = Blinking <font color='blue'>BLUE</font> every second</li>
                 <li>Thunderstorms in vicinity = Blinking <font color='gold'>YELLOW</font> every second</li>
-                <li>Other = Blinking <font color='red'>RED</font> every second</li>
+                <li>Other/Unknown = Blinking <font color='red'>RED</font> every second</li>
             </ul>
             </div>
         """
@@ -114,6 +114,8 @@ class Precipitation(Visualizer):
             return Pulse(pixel, speed=0.1, period=4, color=self.__config__.data.color.weather.fog)
         elif "HZ" in obs:
             return Solid(pixel, color=self.__config__.data.color.weather.haze)
+        elif "UP" in obs:
+            return Blink(pixel, speed=1, color=colors_by_name[colors_lib.RED])
         else:
             safe_logging.safe_log("[v]missing observation code=" + str(obs))
             return Blink(pixel, speed=1, color=colors_by_name[colors_lib.RED])
