@@ -98,7 +98,11 @@
         }
     },
     "visualizer": {
-        "active": 0
+        "active": 0,
+        "auto_rotate": {
+            "enabled": false,
+            "delay_seconds": 60
+        }
     },
     "lightning": {
         "animation": true

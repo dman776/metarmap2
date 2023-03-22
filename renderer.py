@@ -104,11 +104,18 @@ class Renderer(object):
     def refresh(self):
         self.visualizer = self.active_visualizer
 
-    def visualizer_next(self):
+    def visualizer_next(self, skip_exclusive=False):
         totalnum = len(self.__visualizers__)
+
         vnum = self.active_visualizer + 1
         if vnum >= totalnum:
             vnum = 0
+
+        while skip_exclusive and self.__visualizers__[vnum].exclusive:
+            vnum += 1
+            if vnum >= totalnum:
+                vnum = 0
+
         self.visualizer = vnum
 
     def visualizer_previous(self):

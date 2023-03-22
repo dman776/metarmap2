@@ -55,7 +55,7 @@ except ValueError:
 
 # ---------------------------------------------------------------------------
 # Globals
-__version__ = "1.5.2"
+__version__ = "1.6.0"
 CONFIG_FILE = "config.json"
 config = None
 
@@ -94,6 +94,10 @@ def sched_load_suntimes():
 def sched_set_brightness(level):
     safe_logging.safe_log("[sched]set brightness: " + str(level))
     renderer.brightness(level)
+
+
+def sched_rotate_visualizer():
+    renderer.visualizer_next(skip_exclusive=True)
 
 
 def signal_handler(sig, frame):
@@ -160,6 +164,10 @@ if __name__ == '__main__':
     # Job Scheduler setup --------------
     schedule.every(10).minutes.do(update_data)  # Start up METAR update thread
     schedule.every().day.at('00:00').do(sched_load_suntimes)  # load sun times and dim the map appropriately
+
+    if config.data.visualizer.auto_rotate.enabled:
+        delay_secs = config.data.visualizer.auto_rotate.delay_seconds
+        schedule.every(delay_secs).seconds.do(sched_rotate_visualizer).tag("rotate_visualizer")
 
     # Start up Web Server to handle UI
     web_server = webserver.WebServer("0.0.0.0", config.data.web_server.port, metars, config)
