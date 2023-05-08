@@ -15,6 +15,7 @@
 </script>
 <div class="py-5 text-center">
 <h2>Home</h2>
+<h3>{{myIP}}</h3>
 </div>
 <hr/>
 <div class="row">
