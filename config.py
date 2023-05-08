@@ -1,4 +1,3 @@
-import importlib
 import json
 import sys
 from json import JSONEncoder
@@ -6,9 +5,6 @@ import lib.safe_logging as safe_logging
 from pprint import pprint
 from types import SimpleNamespace
 from lib import utils
-import inspect
-import pkgutil
-import patches
 
 try:
     import board
@@ -120,30 +116,6 @@ class Config(object):
         self.__airports__[airport][key] = value
         self.write_airports()
 
-    def get_list_of_patches(self):
-        patches = importlib.import_module("patches")
-        classes = []
-        for _, name, ispkg in pkgutil.iter_modules(patches.__path__):
-            if not ispkg:
-                module = importlib.import_module(f"patches.{name}")
-                for _, cls in inspect.getmembers(module, inspect.isclass):
-                    if cls.__module__.startswith("patches"):
-                        classes.append(cls)
-        return classes
-
-    def apply_patches(self, restart=True):
-        patches = self.data.patches
-        for p in config.get_list_of_patches():
-            m = importlib.import_module(p.__module__)
-            c = eval("m.Patch()")
-            if c.name not in patches:
-                c.patch()
-                self.read()
-                patches.append(c.name)
-        self.edit('patches', patches)
-        if restart:
-            utils.restart()
-
 
 class MyJsonEncoder(JSONEncoder):
     def default(self, o):
@@ -151,11 +123,11 @@ class MyJsonEncoder(JSONEncoder):
 
 
 if __name__ == '__main__':
-    safe_logging.safe_log("[cfg]" + "Config")
+    # safe_logging.safe_log("[cfg]" + "Config")
     config = Config("config.json")
-    config.apply_patches(restart=False)
-
     # config.edit("display_screen.enabled", False)
     # config.edit("display_screen.delay", "0.6")
     # config.edit("display_screen.locate_active", True)
     # pprint(config.airports)
+
+

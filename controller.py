@@ -120,8 +120,6 @@ if __name__ == '__main__':
 
     config = Config(CONFIG_FILE)
 
-    # TODO: see if we need to apply patches
-
     # load sunrise/sunset times into scheduler for dynamic dimming
     sched_load_suntimes()
 

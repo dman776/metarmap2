@@ -11,13 +11,6 @@ from lib import utils
 from lib.safe_logging import safe_log
 import threading
 import io
-import socket
-
-
-def my_ip():
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.connect(('8.8.8.8', 1))  # connect() for UDP doesn't send packets
-    return s.getsockname()[0]
 
 
 class WebServer(object):
@@ -36,7 +29,6 @@ class WebServer(object):
         self._display: Display = config.display
         self._pixels: NeoPixel = self._renderer.pixels()
         self._thread = None
-        self._myIP = my_ip()
         bottle.TEMPLATE_PATH.insert(0, "./templates")
 
     def run(
@@ -87,7 +79,7 @@ class WebServer(object):
             return False
 
     def _index(self):
-        return bottle.template('index.tpl', config=self._config, myIP=self._myIP)
+        return bottle.template('index.tpl', config=self._config)
 
     def _metars(self):
         return bottle.template('metars.tpl', metars=self._metarsObj, config=self._config)
