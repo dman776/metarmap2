@@ -86,7 +86,7 @@ class WebServer(object):
             return False
 
     def _index(self):
-        return bottle.template('index.tpl', config=self._config, myIP=self.my_ip())
+        return bottle.template('index.tpl', config=self._config, myIP=self._myIP)
 
     def _metars(self):
         return bottle.template('metars.tpl', metars=self._metarsObj, config=self._config)
