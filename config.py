@@ -14,7 +14,7 @@ except ModuleNotFoundError:
 except NotImplementedError:
     pass
 
-__version__ = "1.7.0"
+__version__ = "1.7.1"
 
 
 class Config(object):

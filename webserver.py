@@ -73,11 +73,10 @@ class WebServer(object):
                         callback=self._airport_edit_prop, apply=auth_basic(self.is_auth))
         self._app.route("/update", method="GET", callback=self._update, apply=auth_basic(self.is_auth))
         self._app.route("/restart", method="GET", callback=self._restart, apply=auth_basic(self.is_auth))
-        self._app.route("/brightness/<level>", method="GET", callback=self._brightness, apply=auth_basic(self.is_auth))
-        self._app.route("/visualizer/<visnum>", method="GET", callback=self._visualizer, apply=auth_basic(self.is_auth))
-        self._app.route("/visualizer/next", method="GET", callback=self._visualizernext, apply=auth_basic(self.is_auth))
-        self._app.route("/visualizer/previous", method="GET", callback=self._visualizerprevious,
-                        apply=auth_basic(self.is_auth))
+        self._app.route("/brightness/<level>", method="GET", callback=self._brightness)
+        self._app.route("/visualizer/<visnum>", method="GET", callback=self._visualizer)
+        self._app.route("/visualizer/next", method="GET", callback=self._visualizernext)
+        self._app.route("/visualizer/previous", method="GET", callback=self._visualizerprevious)
 
     def is_auth(self, user, password):
         if user.lower() == self._config.data.web_server.user and password == self._config.data.web_server.password:
