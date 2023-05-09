@@ -36,6 +36,7 @@ class WebServer(object):
         self._display: Display = config.display
         self._pixels: NeoPixel = self._renderer.pixels()
         self._thread = None
+        self._myIP = my_ip()
         bottle.TEMPLATE_PATH.insert(0, "./templates")
 
     def run(
@@ -85,7 +86,7 @@ class WebServer(object):
             return False
 
     def _index(self):
-        return bottle.template('index.tpl', config=self._config, myIP=my_ip())
+        return bottle.template('index.tpl', config=self._config, myIP=self.my_ip())
 
     def _metars(self):
         return bottle.template('metars.tpl', metars=self._metarsObj, config=self._config)
@@ -129,7 +130,7 @@ class WebServer(object):
         while self._metarsObj.is_fetching():
             pass
         self._renderer.update_data(self._metarsObj)
-        return bottle.template('index.tpl', config=self._config)
+        return bottle.template('index.tpl', config=self._config, myIP=self._myIP)
 
     def _debug(self):
         return bottle.template('debug.tpl', metars=self._metarsObj, config=self._config)
@@ -146,7 +147,7 @@ class WebServer(object):
 
     def _brightness(self, level):
         self._renderer.brightness(float(level))
-        return bottle.template('index.tpl', renderer=self._renderer, config=self._config)
+        return bottle.template('index.tpl', renderer=self._renderer, config=self._config, myIP=self._myIP)
 
     def _locate(self, pixnum):
         self._renderer.locate(pixnum)
@@ -154,12 +155,12 @@ class WebServer(object):
 
     def _visualizer(self, visnum):
         self._renderer.visualizer = int(visnum)
-        return bottle.template('index.tpl', renderer=self._renderer, config=self._config)
+        return bottle.template('index.tpl', renderer=self._renderer, config=self._config, myIP=self._myIP)
 
     def _visualizernext(self):
         self._renderer.visualizer_next()
-        return bottle.template('index.tpl', renderer=self._renderer, config=self._config)
+        return bottle.template('index.tpl', renderer=self._renderer, config=self._config, myIP=self._myIP)
 
     def _visualizerprevious(self):
         self._renderer.visualizer_previous()
-        return bottle.template('index.tpl', renderer=self._renderer, config=self._config)
+        return bottle.template('index.tpl', renderer=self._renderer, config=self._config, myIP=self._myIP)
