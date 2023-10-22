@@ -112,7 +112,11 @@ class METAR(object):
             if dewpoint_c is not None:
                 dewpoint_c = int(round(float(dewpoint_c)))
 
-            vis = int(round(float(metar.get('visibility_statute_mi', 0))))
+            tvis = metar.get('visibility_statute_mi', 0)
+            tvis = tvis.replase("+", "")
+            vis = int(round(float(tvis)))
+
+            # vis = int(round(float(metar.get('visibility_statute_mi', 0))))
             altim_hg = float(round(float(metar.get('altim_in_hg', 0)), 2))
             obs = metar.get('wx_string', '')
             obs_time = datetime.fromisoformat(metar.get('observation_time', '').replace("Z", "+00:00"))
