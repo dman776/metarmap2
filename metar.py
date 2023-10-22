@@ -113,7 +113,7 @@ class METAR(object):
                 dewpoint_c = int(round(float(dewpoint_c)))
 
             tvis = metar.get('visibility_statute_mi', 0)
-            tvis = tvis.replase("+", "")
+            tvis = tvis.replace("+", "")
             vis = int(round(float(tvis)))
 
             # vis = int(round(float(metar.get('visibility_statute_mi', 0))))
