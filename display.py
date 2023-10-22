@@ -185,7 +185,7 @@ class Display(object):
             self.__oled__.text("", 8)
             self.__oled__.show()
         except Exception as e:
-            safe_log(station + ": " + str(e))
+            safe_log("[d].page_unavailable: " + station + ": " + str(e))
 
     def page1(self, station, data):
         try:
@@ -205,7 +205,7 @@ class Display(object):
             self.__oled__.text(ICON_PRESSURE, 8)
             self.__oled__.show()
         except Exception as e:
-            safe_log(station + ": " + str(e))
+            safe_log("[d].page1: " + station + ": " + str(e))
 
     def page2(self, station, data):
         tz = timezone(self.__location__.timezone)
@@ -231,7 +231,4 @@ class Display(object):
             self.__oled__.text(ICON_DATE, 8)
             self.__oled__.show()
         except Exception as e:
-            safe_log(station + ": " + str(e))
-
-
-
+            safe_log("[d].page2: " + station + ": " + str(e))
