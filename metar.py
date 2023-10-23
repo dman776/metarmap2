@@ -112,7 +112,7 @@ class METAR(object):
             if dewpoint_c is not None:
                 dewpoint_c = int(round(float(dewpoint_c)))
 
-            tvis = metar.get('visibility_statute_mi', 0)
+            tvis = metar.get('visibility_statute_mi', "0")
             tvis = tvis.replace("+", "")
             vis = int(round(float(tvis)))
 
