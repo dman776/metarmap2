@@ -192,11 +192,15 @@ class Display(object):
             self.__oled__.layout = self.__page_layouts__[1]
             self.__oled__.text(station)
             self.__oled__.text(data["flightCategory"], 2)
-            if int(data['windSpeed']) > 0:
-                windline = "{0:03d}@{1:02d}".format(int(data["windDir"]), int(data["windSpeed"])) + \
-                      ("G{0:2d}".format(int(data["windGustSpeed"])) if data["windGust"] else "")
+            if isinstance(data['windSpeed'], int):
+                if int(data['windSpeed']) > 0:
+                    windline = "{0:03d}@{1:02d}".format(int(data["windDir"]), int(data["windSpeed"])) + \
+                               ("G{0:2d}".format(int(data["windGustSpeed"])) if data["windGust"] else "")
+                else:
+                    windline = "CALM"
             else:
-                windline = "CALM"
+                windline = data['windSpeed']
+
             self.__oled__.text(windline, 3)
             self.__oled__.text(ICON_WIND, 4)
             self.__oled__.text("{0}SM".format(data['vis']), 5)
