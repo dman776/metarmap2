@@ -199,6 +199,7 @@ class Display(object):
                 else:
                     windline = "CALM"
             else:
+                # TODO: need to account for VRB03KT
                 windline = data['windSpeed']
 
             self.__oled__.text(windline, 3)

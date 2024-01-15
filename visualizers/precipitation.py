@@ -17,6 +17,7 @@ from visualizers.visualizer import Visualizer
 from adafruit_led_animation.animation.pulse import Pulse
 from adafruit_led_animation.animation.solid import Solid
 from adafruit_led_animation.animation.blink import Blink
+from adafruit_led_animation.animation.sparkle import Sparkle
 
 
 class Precipitation(Visualizer):
@@ -47,6 +48,8 @@ class Precipitation(Visualizer):
                 <li>Rain = Solid <font color='blue'>BLUE</font></li>
                 <li>Heavy Rain = Blinking <font color='blue'>BLUE</font> every second</li>
                 <li>Thunderstorms in vicinity = Blinking <font color='gold'>YELLOW</font> every second</li>
+                <li>Light Snow = Sparkle GRAY</li>
+                <li>Light Snow = Sparkle WHITE</li>
                 <li>Other/Unknown = Blinking <font color='red'>RED</font> every second</li>
             </ul>
             </div>
@@ -114,6 +117,10 @@ class Precipitation(Visualizer):
             return Pulse(pixel, speed=0.1, period=4, color=self.__config__.data.color.weather.fog)
         elif "HZ" in obs:
             return Solid(pixel, color=self.__config__.data.color.weather.haze)
+        elif "-SN" in obs:
+            return Pulse(pixel, speed=0.1, period=2, color=colors_by_name[colors_lib.DARK_GRAY])
+        elif "SN" in obs:
+            return Pulse(pixel, speed=0.1, period=1, color=colors_by_name[colors_lib.WHITE])
         elif "UP" in obs:
             return Blink(pixel, speed=1, color=colors_by_name[colors_lib.RED])
         else:
