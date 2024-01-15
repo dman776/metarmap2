@@ -122,16 +122,16 @@ class Precipitation(Visualizer):
             return Pulse(pixel, speed=0.1, period=4, color=self.__config__.data.color.weather.drizzle)
         elif "DZ" in obs:
             return Solid(pixel, color=self.__config__.data.color.weather.drizzle)
-        elif "-UP" in obs:
-            return Blink(pixel, speed=1, color=colors_by_name[colors_lib.LIGHT_RED])
-        elif "UP" in obs:
-            return Blink(pixel, speed=1, color=colors_by_name[colors_lib.RED])
         elif "FG" in obs:
             return Pulse(pixel, speed=0.1, period=4, color=self.__config__.data.color.weather.fog)
         elif "HZ" in obs:
             return Solid(pixel, color=self.__config__.data.color.weather.haze)
         elif "BR" in obs:
             return Solid(pixel, color=self.__config__.data.color.weather.mist)
+        elif "-UP" in obs:
+            return Blink(pixel, speed=1, color=colors_by_name[colors_lib.LIGHT_RED])
+        elif "UP" in obs:
+            return Blink(pixel, speed=1, color=colors_by_name[colors_lib.RED])
         else:
             safe_logging.safe_log("[v]missing observation code=" + str(obs))
             return Blink(pixel, speed=1, color=colors_by_name[colors_lib.RED])
