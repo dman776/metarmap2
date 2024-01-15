@@ -124,6 +124,8 @@ class Precipitation(Visualizer):
             return Pulse(pixel, speed=0.1, period=1, color=colors_by_name[colors_lib.DARK_GRAY])
         elif "SN" in obs:
             return Pulse(pixel, speed=0.1, period=0.5, color=colors_by_name[colors_lib.WHITE])
+        elif "-UP" in obs:
+            return Blink(pixel, speed=1, color=colors_by_name[colors_lib.LIGHT_RED])
         elif "UP" in obs:
             return Blink(pixel, speed=1, color=colors_by_name[colors_lib.RED])
         else:
