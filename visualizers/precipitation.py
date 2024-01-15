@@ -104,10 +104,16 @@ class Precipitation(Visualizer):
             return Blink(pixel, speed=1, color=self.__config__.data.color.weather.lightning)
         elif "TS" in obs:
             return Blink(pixel, speed=1, color=self.__config__.data.color.weather.lightning)
-        elif "-RA" in obs:
-            return Pulse(pixel, speed=0.1, period=4, color=self.__config__.data.color.weather.rain)
+        elif "-FZDZ" in obs:
+            return Pulse(pixel, speed=0.1, period=0.5, color=self.__config__.data.color.weather.drizzle)
         elif "-FZRA" in obs:
             return Pulse(pixel, speed=0.1, period=2, color=self.__config__.data.color.weather.rain)
+        elif "-SN" in obs:
+            return Pulse(pixel, speed=0.1, period=2, color=colors_by_name[colors_lib.WHITE])
+        elif "SN" in obs:
+            return Pulse(pixel, speed=0.1, period=1, color=colors_by_name[colors_lib.WHITE])
+        elif "-RA" in obs:
+            return Pulse(pixel, speed=0.1, period=4, color=self.__config__.data.color.weather.rain)
         elif "RA" in obs:
             return Solid(pixel, color=self.__config__.data.color.weather.rain)
         elif "+RA" in obs:
@@ -116,22 +122,16 @@ class Precipitation(Visualizer):
             return Pulse(pixel, speed=0.1, period=4, color=self.__config__.data.color.weather.drizzle)
         elif "DZ" in obs:
             return Solid(pixel, color=self.__config__.data.color.weather.drizzle)
-        elif "-FZDZ" in obs:
-            return Pulse(pixel, speed=0.1, period=0.5, color=self.__config__.data.color.weather.drizzle)
-        elif "BR" in obs:
-            return Solid(pixel, color=self.__config__.data.color.weather.mist)
-        elif "FG" in obs:
-            return Pulse(pixel, speed=0.1, period=4, color=self.__config__.data.color.weather.fog)
-        elif "HZ" in obs:
-            return Solid(pixel, color=self.__config__.data.color.weather.haze)
-        elif "-SN" in obs:
-            return Pulse(pixel, speed=0.1, period=2, color=colors_by_name[colors_lib.WHITE])
-        elif "SN" in obs:
-            return Pulse(pixel, speed=0.1, period=1, color=colors_by_name[colors_lib.WHITE])
         elif "-UP" in obs:
             return Blink(pixel, speed=1, color=colors_by_name[colors_lib.LIGHT_RED])
         elif "UP" in obs:
             return Blink(pixel, speed=1, color=colors_by_name[colors_lib.RED])
+        elif "FG" in obs:
+            return Pulse(pixel, speed=0.1, period=4, color=self.__config__.data.color.weather.fog)
+        elif "HZ" in obs:
+            return Solid(pixel, color=self.__config__.data.color.weather.haze)
+        elif "BR" in obs:
+            return Solid(pixel, color=self.__config__.data.color.weather.mist)
         else:
             safe_logging.safe_log("[v]missing observation code=" + str(obs))
             return Blink(pixel, speed=1, color=colors_by_name[colors_lib.RED])
