@@ -48,6 +48,7 @@ class Precipitation(Visualizer):
                 <li>Mist = Solid <font color='blue'>DARK BLUE</font></li>
                 <li>Light Rain = Pulsing <font color='blue'>BLUE</font> every 4 seconds</li>
                 <li>Rain = Solid <font color='blue'>BLUE</font></li>
+                <li>Light Freezing Rain = Pulsing <font color='green'>BLUE</font> every 2 seconds</li>
                 <li>Heavy Rain = Blinking <font color='blue'>BLUE</font> every second</li>
                 <li>Thunderstorms in vicinity = Blinking <font color='gold'>YELLOW</font> every second</li>
                 <li>Light Snow = Pulsing WHITE every 2 sec</li>
@@ -106,7 +107,7 @@ class Precipitation(Visualizer):
         elif "-RA" in obs:
             return Pulse(pixel, speed=0.1, period=4, color=self.__config__.data.color.weather.rain)
         elif "-FZRA" in obs:
-            return Pulse(pixel, speed=0.1, period=0.5, color=self.__config__.data.color.weather.rain)
+            return Pulse(pixel, speed=0.1, period=2, color=self.__config__.data.color.weather.rain)
         elif "RA" in obs:
             return Solid(pixel, color=self.__config__.data.color.weather.rain)
         elif "+RA" in obs:
