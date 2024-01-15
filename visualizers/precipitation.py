@@ -105,6 +105,8 @@ class Precipitation(Visualizer):
             return Blink(pixel, speed=1, color=self.__config__.data.color.weather.lightning)
         elif "-RA" in obs:
             return Pulse(pixel, speed=0.1, period=4, color=self.__config__.data.color.weather.rain)
+        elif "-FZRA" in obs:
+            return Pulse(pixel, speed=0.1, period=0.5, color=self.__config__.data.color.weather.rain)
         elif "RA" in obs:
             return Solid(pixel, color=self.__config__.data.color.weather.rain)
         elif "+RA" in obs:
