@@ -121,7 +121,7 @@ class Precipitation(Visualizer):
         elif "HZ" in obs:
             return Solid(pixel, color=self.__config__.data.color.weather.haze)
         elif "-SN" in obs:
-            return Pulse(pixel, speed=0.1, period=1, color=colors_by_name[colors_lib.DARK_GRAY])
+            return Pulse(pixel, speed=0.1, period=1, color=colors_by_name[colors_lib.WHITE])
         elif "SN" in obs:
             return Pulse(pixel, speed=0.1, period=0.5, color=colors_by_name[colors_lib.WHITE])
         elif "-UP" in obs:
