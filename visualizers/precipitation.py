@@ -43,6 +43,7 @@ class Precipitation(Visualizer):
                 <li>Fog = Pulsing 6% WHITE every 4 seconds</li>
                 <li>Light Drizzle = Pulsing <font color='green'>GREEN</font> every 4 seconds</li>
                 <li>Drizzle = Solid <font color='green'>GREEN</font></li>
+                <li>Light Freezing Drizzle = Pulsing <font color='green'>GREEN</font></li>
                 <li>Mist = Solid <font color='blue'>DARK BLUE</font></li>
                 <li>Light Rain = Pulsing <font color='blue'>BLUE</font> every 4 seconds</li>
                 <li>Rain = Solid <font color='blue'>BLUE</font></li>
@@ -111,6 +112,8 @@ class Precipitation(Visualizer):
             return Pulse(pixel, speed=0.1, period=4, color=self.__config__.data.color.weather.drizzle)
         elif "DZ" in obs:
             return Solid(pixel, color=self.__config__.data.color.weather.drizzle)
+        elif "-FZDZ" in obs:
+            return Pulse(pixel, speed=0.1, period=0.5, color=self.__config__.data.color.weather.drizzle)
         elif "BR" in obs:
             return Solid(pixel, color=self.__config__.data.color.weather.mist)
         elif "FG" in obs:
