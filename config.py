@@ -14,7 +14,7 @@ except ModuleNotFoundError:
 except NotImplementedError:
     pass
 
-__version__ = "1.15.2"
+__version__ = "1.15.3"
 
 
 class Config(object):
@@ -28,7 +28,7 @@ class Config(object):
         self.LED_PIN = None
         self.LED_ORDER = None
         self.read()
-        self.suntimes = utils.get_sun_times(self)
+        self.suntimes = None
         self.__airports__ = {}
         self.read_airports()
         self.__renderer__ = None  # set later (for convenience)
