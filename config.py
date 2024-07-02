@@ -14,7 +14,7 @@ except ModuleNotFoundError:
 except NotImplementedError:
     pass
 
-__version__ = "1.15.1"
+__version__ = "1.15.2"
 
 
 class Config(object):
@@ -81,8 +81,9 @@ class Config(object):
     def data(self):
         return self.__data__
 
-    def set_suntimes(self, suntimes):
-        self.suntimes = suntimes
+    def set_suntimes(self):
+        # self.suntimes = suntimes
+        self.suntimes = utils.get_sun_times(self)
 
     @property
     def airports(self):

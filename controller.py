@@ -55,7 +55,7 @@ except ValueError:
 
 # ---------------------------------------------------------------------------
 # Globals
-__version__ = "1.15.1"
+__version__ = "1.15.2"
 CONFIG_FILE = "config.json"
 config = None
 
@@ -72,6 +72,7 @@ def update_data():
 def sched_load_suntimes():
     safe_logging.safe_log("[sched]load suntimes")
     schedule.clear("suntimes")
+    config.set_suntimes()  # reload suntimes everyday
     times = {
         'sunset': config.suntimes['sunset'],
         'dusk': config.suntimes['dusk'],
