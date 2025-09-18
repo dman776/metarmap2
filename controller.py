@@ -55,7 +55,7 @@ except ValueError:
 
 # ---------------------------------------------------------------------------
 # Globals
-__version__ = "1.15.3"
+__version__ = "1.16.0"
 CONFIG_FILE = "config.json"
 config = None
 

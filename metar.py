@@ -40,7 +40,9 @@ class METAR(object):
             safe_logging.safe_log("[m]Fetching...")
             # url = "https://www.aviationweather.gov/adds/dataserver_current/httpparam?dataSource=metars&requestType=retrieve&format=xml&hoursBeforeNow=5&mostRecentForEachStation=true&stationString=" + \
             #       ",".join([item for item in list(self.__airports__.keys()) if "NULL" not in item])
-            url = "https://aviationweather.gov/cgi-bin/data/dataserver.php?dataSource=metars&requestType=retrieve&format=xml&hoursBeforeNow=5&mostRecentForEachStation=true&stationString=" + \
+            # url = "https://aviationweather.gov/cgi-bin/data/dataserver.php?dataSource=metars&requestType=retrieve&format=xml&hoursBeforeNow=5&mostRecentForEachStation=true&stationString=" + \
+            #       ",".join([item for item in list(self.__airports__.keys()) if "NULL" not in item])
+            url = "https://aviationweather.gov/api/data/metar?format=xml&hours=5&ids=" + \
                   ",".join([item for item in list(self.__airports__.keys()) if "NULL" not in item])
 
             response = requests.get(url, headers={
