@@ -13,6 +13,7 @@ import threading
 import io
 import json
 import socket
+from datetime import datetime
 
 
 def my_ip():
@@ -80,6 +81,7 @@ class WebServer(object):
         self._app.route("/visualizer/next", method="GET", callback=self._visualizernext)
         self._app.route("/visualizer/previous", method="GET", callback=self._visualizerprevious)
         self._app.route("/api/status", method="GET", callback=self._api_status)
+        self._app.route("/static/<filename:path>", method="GET", callback=self._static)
 
     def is_auth(self, user, password):
         if user.lower() == self._config.data.web_server.user and password == self._config.data.web_server.password:
@@ -87,11 +89,62 @@ class WebServer(object):
         else:
             return False
 
+    def _template(self, name, **kwargs):
+        return bottle.template(name, config=self._config, myIP=self._myIP, **kwargs)
+
+    def _stations(self):
+        """
+        One entry per airport (in LED order, skipping NULL placeholders) for the templates.
+        """
+        stations = []
+        for pixel, (code, props) in enumerate(self._config.airports.items()):
+            if "NULL" in code:
+                continue
+            m = self._metarsObj.data.get(code) or {}
+            text = props.get("text")
+            stations.append({
+                "code": code,
+                "pixel": pixel,
+                "name": text if isinstance(text, str) else "",
+                "display": props.get("display", False),
+                "has_data": bool(m),
+                "cat": m.get("flightCategory") or None,
+                "raw": m.get("raw"),
+                "obsTime": m.get("obsTime"),
+                "lat": m.get("latitude"),
+                "lon": m.get("longitude"),
+            })
+        return stations
+
+    def _sun_schedule(self):
+        """
+        Today's brightness schedule, with the next change flagged.
+        """
+        suntimes = self._config.suntimes
+        if not suntimes:
+            return []
+        levels = self._config.data.led.brightness
+        schedule = [{"name": name.capitalize(), "time": suntimes[name], "level": level, "next": False}
+                    for name, level in (("dawn", levels.dimmed), ("sunrise", levels.normal),
+                                        ("sunset", levels.dimmed), ("dusk", levels.off))]
+        now = datetime.now(schedule[0]["time"].tzinfo)
+        upcoming = [s for s in schedule if s["time"] > now]
+        if upcoming:
+            upcoming[0]["next"] = True
+        return schedule
+
+    def _render_index(self):
+        return self._template('index.tpl', metars=self._metarsObj, stations=self._stations(),
+                              schedule=self._sun_schedule())
+
+    def _static(self, filename):
+        return bottle.static_file(filename, root="./static")
+
     def _index(self):
-        return bottle.template('index.tpl', config=self._config, myIP=self._myIP)
+        return self._render_index()
 
     def _metars(self):
-        return bottle.template('metars.tpl', metars=self._metarsObj, config=self._config)
+        return self._template('metars.tpl', metars=self._metarsObj, stations=self._stations())
 
     def _raw(self):
         buf = io.StringIO()
@@ -103,16 +156,16 @@ class WebServer(object):
         return buf.read()
 
     def _map(self):
-        return bottle.template('map.tpl', metars=self._metarsObj, config=self._config)
+        return self._template('map.tpl', stations=self._stations())
 
     def _rawcode(self, code):
         return "<b>" + code + "</b>: " + self._metarsObj.data[code]['raw'] + "<br />"
 
     def _get_config(self):
-        return bottle.template('config.tpl', config=self._config)
+        return self._template('config.tpl')
 
     def _get_config_airports(self):
-        return bottle.template('airports.tpl', config=self._config)
+        return self._template('airports.tpl', stations=self._stations())
 
     def _airport_edit(self, oldkey, newkey):
         self._config.edit_airport(oldkey, newkey)
@@ -125,17 +178,17 @@ class WebServer(object):
     def _edit_config(self, key, value):
         self._config.edit(key, value)
         self._renderer.refresh()
-        return bottle.template('config.tpl', config=self._config)
+        return self._template('config.tpl')
 
     def _fetch(self):
         self._metarsObj.fetch()
         while self._metarsObj.is_fetching():
             pass
         self._renderer.update_data(self._metarsObj)
-        return bottle.template('index.tpl', config=self._config, myIP=self._myIP)
+        return self._render_index()
 
     def _debug(self):
-        return bottle.template('debug.tpl', metars=self._metarsObj, config=self._config)
+        return self._template('debug.tpl', metars=self._metarsObj, renderer=self._renderer)
 
     def _restart(self):
         if self._display:
@@ -149,23 +202,23 @@ class WebServer(object):
 
     def _brightness(self, level):
         self._renderer.brightness(float(level))
-        return bottle.template('index.tpl', renderer=self._renderer, config=self._config, myIP=self._myIP)
+        return self._render_index()
 
     def _locate(self, pixnum):
         self._renderer.locate(pixnum)
-        return bottle.template('metars.tpl', metars=self._metarsObj, renderer=self._renderer, config=self._config)
+        return self._metars()
 
     def _visualizer(self, visnum):
         self._renderer.visualizer = int(visnum)
-        return bottle.template('index.tpl', renderer=self._renderer, config=self._config, myIP=self._myIP)
+        return self._render_index()
 
     def _visualizernext(self):
         self._renderer.visualizer_next()
-        return bottle.template('index.tpl', renderer=self._renderer, config=self._config, myIP=self._myIP)
+        return self._render_index()
 
     def _visualizerprevious(self):
         self._renderer.visualizer_previous()
-        return bottle.template('index.tpl', renderer=self._renderer, config=self._config, myIP=self._myIP)
+        return self._render_index()
 
     def _api_status(self):
         """
@@ -206,7 +259,8 @@ class WebServer(object):
             "version": self._config.app_version,
             "ip": self._myIP,
             "brightness": self._pixels.brightness,
-            "visualizer": {"active": active_num, "name": active_vis.name, "exclusive": active_vis.exclusive},
+            "visualizer": {"active": active_num, "name": active_vis.name, "exclusive": active_vis.exclusive,
+                           "description": active_vis.description, "legend": active_vis.legend},
             "visualizers": [{"index": i, "name": v.name, "exclusive": v.exclusive}
                             for i, v in enumerate(self._renderer.visualizers)],
             "config": {

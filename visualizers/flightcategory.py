@@ -14,7 +14,7 @@ Module to handle visualizing Flight Category data
 import lib.utils as utils
 import lib.colors as colors_lib
 # from metar import METAR
-from visualizers.visualizer import Visualizer
+from visualizers.visualizer import Visualizer, legend_item
 
 from adafruit_led_animation.animation.solid import Solid
 from adafruit_led_animation.animation.colorcycle import ColorCycle
@@ -46,22 +46,25 @@ class FlightCategory(Visualizer):
 
     @property
     def description(self):
-        return """
-            Display the flight category (ie. VFR, MVFR, IFR, LIFR).
-            <div class="w-100">
-            <ul>
-                <li>VFR = <font color='green'>GREEN</font></li>
-                <li>MVFR = <font color='blue'>BLUE</font></li>
-                <li>IFR = <font color='red'>RED</font></li>
-                <li>LIFR = <font color='purple'>PURPLE</font></li>
-                <li>Flight category is missing (but other data is available) = Blinking <font color='red'>RED</font></li>
-                <li>Metar not available = OFF</li>
-            </ul>
-            </div>
-            <div class="w-100">
-            Lightning will be indicated by flashing <font color='gold'>YELLOW</font> (if configured).
-            </div>
-        """
+        return "Display the flight category (ie. VFR, MVFR, IFR, LIFR)."
+
+    @property
+    def legend(self):
+        c = colors_lib.get_colors()
+        cat = self.__config__.data.color.cat
+        items = [
+            legend_item("VFR", "Green", cat.vfr),
+            legend_item("MVFR", "Blue", cat.mvfr),
+            legend_item("IFR", "Red", cat.ifr),
+            legend_item("LIFR", "Purple", cat.lifr),
+            legend_item("Flight category missing", "Blinking red (other METAR data is available)",
+                        c[colors_lib.RED], effect="blink", period=2),
+        ]
+        if self.__config__.data.lightning.animation:
+            items.append(legend_item("Lightning", "Yellow flashes over the flight category color",
+                                     cat.vfr, self.__config__.data.color.weather.lightning, effect="flash"))
+        items.append(legend_item("METAR not available", "Off"))
+        return items
 
     def update_data(self, data):
         super().update_data(data)

@@ -16,7 +16,7 @@ import lib.colors as colors_lib
 from metar import METAR
 import neopixel
 import board
-from visualizers.visualizer import Visualizer
+from visualizers.visualizer import Visualizer, legend_item
 
 from adafruit_led_animation.animation.blink import Blink
 from adafruit_led_animation.animation.pulse import Pulse
@@ -97,21 +97,20 @@ class Temperature(Visualizer):
 
     @property
     def description(self):
-        return """
-            Display the temperature in degrees Fahrenheit.
-            <div class="w-100">
-            <ul>
-                <li>Less than 0&deg;=WHITE</li>
-                <li>Between 0&deg; and 40&deg; varies between WHITE and <font color='purple'>PURPLE</font></li>
-                <li>Between 40&deg; and 60&deg; varies between <font color='purple'>PURPLE</font> and <font color='blue'>BLUE</font></li>
-                <li>Between 60&deg; and 70&deg; varies between <font color='blue'>BLUE</font> and <font color='green'>GREEN</font></li>
-                <li>Between 70&deg; and 80&deg; varies between <font color='green'>GREEN</font> and <font color='gold'>YELLOW</font></li>
-                <li>Between 80&deg; and 90&deg; varies between <font color='gold'>YELLOW</font> and <font color='orange'>ORANGE</font></li>
-                <li>Between 90&deg; and 100&deg; varies between <font color='orange'>ORANGE</font> and <font color='red'>RED</font></li>
-                <li>Greater than 100&deg;=RED</li>
-            </ul>
-            </div>
-        """
+        return "Display the temperature in degrees Fahrenheit."
+
+    @property
+    def legend(self):
+        c = colors_lib.get_colors()
+        scale = [("0°", colors_lib.WHITE, "white"), ("40°", colors_lib.PURPLE, "purple"),
+                 ("60°", colors_lib.BLUE, "blue"), ("70°", colors_lib.GREEN, "green"),
+                 ("80°", colors_lib.YELLOW, "yellow"), ("90°", colors_lib.ORANGE, "orange"),
+                 ("100°", colors_lib.RED, "red")]
+        items = [legend_item("Below 0°", "White", c[colors_lib.WHITE])]
+        for (lo, lo_color, lo_name), (hi, hi_color, hi_name) in zip(scale, scale[1:]):
+            items.append(legend_item(f"{lo} to {hi}", f"{lo_name.capitalize()} to {hi_name}", c[lo_color], c[hi_color]))
+        items.append(legend_item("Above 100°", "Red", c[colors_lib.RED]))
+        return items
 
     def update_data(self, data):
         super().update_data(data)

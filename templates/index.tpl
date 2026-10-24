@@ -1,130 +1,143 @@
-%include("header.tpl",title="METARMap")
-<script>
-    async function fetch_output(url, destdiv, modalTitleDiv, title) {
-        e = document.getElementById(destdiv);
-        e.innerHTML = "Processing..."
-        mtd = document.getElementById(modalTitleDiv);
-        mtd.innerHTML = title
-        let result;
-        const res = await fetch(url);
-        result = await res.text();
-        e.innerHTML = result;
-        return;
-    }
+%include("header.tpl", title="Home", page="home")
+% active_num, active_vis = config.renderer.visualizer
+% visualizers = config.renderer.visualizers
+% brightness = config.renderer.pixels().brightness
+% cats = ('VFR', 'MVFR', 'IFR', 'LIFR')
+% counts = {c: len([s for s in stations if s['cat'] == c]) for c in cats}
+% no_data = [s['code'] for s in stations if s['cat'] not in cats]
+% below_vfr = sorted([s for s in stations if s['cat'] in ('LIFR', 'IFR', 'MVFR')], key=lambda s: ('LIFR', 'IFR', 'MVFR').index(s['cat']))
+<section class="page-head">
+    <div>
+        <h1>Map status</h1>
+        <p>{{len(stations)}} airports
+            % if metars.lastFetchTime:
+            · METARs fetched <span class="mono">{{metars.lastFetchTime.strftime("%H:%M")}}</span>
+            % end
+        </p>
+    </div>
+    <div class="actions">
+        <button class="btn primary" type="button" data-call="/fetch">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
+            Fetch METARs
+        </button>
+        <button class="btn" type="button" data-call="/update" data-then="dialog" data-title="Update">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+            Update
+        </button>
+        <button class="btn danger" type="button" data-call="/restart" data-then="none" data-confirm="Restart the map now?">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v9"/><path d="M6.3 6.3a8 8 0 1 0 11.4 0"/></svg>
+            Restart
+        </button>
+    </div>
+</section>
 
-</script>
-<div class="py-5 text-center">
-<h2>Home</h2>
-<h4>{{myIP}}</h4>
-</div>
-<hr/>
-<div class="row">
-<div class="col-sm">
-    <button type="button" class="btn btn-primary" onClick="window.location='/';">Home</button>&nbsp;
-    <button type="button" class="btn btn-primary" onClick="window.location='/metars';">Metars</button>&nbsp;
-    <button type="button" class="btn btn-primary" onClick="window.location='/raw';" role="button">Raw Metars</button>&nbsp;
-    <button type="button" class="btn btn-primary" onClick="window.location='/map';" role="button">Map</button>
-</div>
-</div>
-        &nbsp;
-<div class="row">
-<div class="col-sm">
-    <button type="button" class="btn btn-secondary" onClick="window.location='/config';" role="button">Config</button>&nbsp;
-    <button type="button" class="btn btn-secondary"
-            onClick="fetch_output('/update', 'modalBody', 'outputModalTitle', 'Update');" role="button"
-            data-toggle="modal" data-target="#outputModal">Update
-    </button>&nbsp;
-    <button type="button" class="btn btn-secondary" onClick="fetch('/restart');" role="button">Restart</button>&nbsp;
-</div>
-</div>
-<hr/>
-<div class="row">
-<div class="col-sm">
-    <h4>LED Information</h4>
-    <label for="brightness" class="form-label">Brightness</label>&nbsp;
-    <input type="range" class="form-range" min="0" max="1" step="0.01" id="brightness"
-           onChange="fetch('/brightness/' + this.value);document.getElementById('brt_label').innerText=Math.round(this.value*100) + '%';"
-           value="{{config.renderer.pixels().brightness}}"/>
-    <label id="brt_label">{{round(config.renderer.pixels().brightness * 100)}}%</label>
-</div>
-</div>
-<div class="row">
-<div class="col-sm-3">
-    <b>Dawn ({{str(int(round(config.data.led.brightness.dimmed * 100)))}}%):</b><br/>
-    {{config.suntimes['dawn'].strftime("%Y-%m-%d %H:%M:%S %Z")}}
-</div>
-<div class="col-sm-3">
-    <b>Sunrise ({{str(int(round(config.data.led.brightness.normal * 100)))}}%):</b><br/>
-    {{config.suntimes['sunrise'].strftime("%Y-%m-%d %H:%M:%S %Z")}}
-</div>
-<div class="col-sm-3">
-    <b>Sunset ({{str(int(round(config.data.led.brightness.dimmed * 100)))}}%):</b><br/>
-    {{config.suntimes['sunset'].strftime("%Y-%m-%d %H:%M:%S %Z")}}
-</div>
-<div class="col-sm-3">
-    <b>Dusk ({{str(int(round(config.data.led.brightness.off * 100)))}}%):</b><br/>
-    {{config.suntimes['dusk'].strftime("%Y-%m-%d %H:%M:%S %Z")}}
-</div>
-</div>
-<hr/>
-<div class="row">
-<div class="col-sm">
-    <h4>Visualizer Information</h4>
-    <button type="button" class="btn btn-primary" onClick="window.location='/visualizer/previous';">&lt;</button>
-    <span class="dropdown">
-            <button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownMenuButton"
-                    data-toggle="dropdown"
-                    aria-haspopup="true" aria-expanded="false">
-                Visualizer
-            </button>
-            <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                %for i in range(0, len(config.renderer.visualizers)):
-                <a class="dropdown-item"
-                   onClick="window.location='/visualizer/{{i}}'">{{config.renderer.visualizers[i].name}}</a>
-                %end
+<section class="cat-tiles" aria-label="Flight categories">
+    % for c in cats:
+    <div class="card tile {{c.lower()}}">
+        <div class="lbl">{{c}}</div>
+        <div class="row"><span class="n">{{counts[c]}}</span><span class="muted">{{'airport' if counts[c] == 1 else 'airports'}}</span></div>
+    </div>
+    % end
+    <div class="card tile">
+        <div class="lbl">No data</div>
+        <div class="row"><span class="n">{{len(no_data)}}</span><span class="mono muted" style="font-size: 12px">{{' · '.join(no_data[:3])}}{{' …' if len(no_data) > 3 else ''}}</span></div>
+    </div>
+</section>
+
+<section class="split">
+    <div class="main">
+        <div class="card pad">
+            <div class="card-row" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap">
+                <div class="lbl">Visualizer</div>
+                % if active_vis.exclusive:
+                <span class="badge warn">Exclusive · Locate is paused</span>
+                % else:
+                <span class="badge ok">Allows interrupts</span>
+                % end
             </div>
-        </span>
-    <button type="button" class="btn btn-primary" onClick="window.location='/visualizer/next';">&gt;</button>
-</div>
-</div>
-<div class="row">
-<div class="col-sm">
-    <b>{{config.renderer.visualizer[1].name}}</b>
-</div>
-</div>
-<div class="row">
-<div class="col-sm">
-    {{!config.renderer.visualizer[1].description}}
-</div>
-</div>&nbsp;
-<div class="row">
-<div class="col-sm">
-    This visualizer will {{"not" if config.renderer.visualizer[1].exclusive else ""}} allow other functions to interrupt
-    the
-    map.
-</div>
-</div>&nbsp;
-<hr/>
-        <!-- Modal -->
-<div class="modal fade" id="outputModal" tabindex="-1" role="dialog" aria-labelledby="outputModalTitle"
-     aria-hidden="true">
-<div class="modal-dialog modal-dialog-scrollable" role="document">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h5 class="modal-title" id="outputModalTitle"></h5>
-            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-            </button>
-        </div>
-        <div class="modal-body" id="modalBody"></div>
-        <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-            <button type="button" class="btn btn-primary" onClick="fetch('/restart');" data-dismiss="modal"
-                    role="button">Restart
-            </button>
+            <div class="vis-head">
+                <button class="btn icon" type="button" aria-label="Previous visualizer" data-call="/visualizer/previous" data-then="home">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg>
+                </button>
+                <div style="flex: 1; min-width: 0">
+                    <div class="name">{{active_vis.name}}</div>
+                    <div class="desc">{{active_vis.description}}</div>
+                </div>
+                <button class="btn icon" type="button" aria-label="Next visualizer" data-call="/visualizer/next" data-then="home">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+                </button>
+            </div>
+            % legend = active_vis.legend
+            % if legend:
+            <div style="display: flex; flex-direction: column; gap: 10px">
+                <div class="lbl">What the LEDs mean</div>
+                <ul class="legend">
+                    % for item in legend:
+                    %   colors = item['colors']
+                    %   style = ''
+                    %   if len(colors) > 1 and item['effect'] != 'flash':
+                    %     style = '--c: {0}; background: linear-gradient(90deg, {1})'.format(colors[0], ', '.join(colors))
+                    %   elif colors:
+                    %     style = '--c: {0}; --c2: {1}'.format(colors[0], colors[-1])
+                    %   end
+                    %   if item['period']:
+                    %     style += '; --period: {0}s'.format(item['period'])
+                    %   end
+                    %   classes = 'led ' + item['effect'] + (' grad' if len(colors) > 1 and item['effect'] != 'flash' else '')
+                    <li><span class="{{classes}}" style="{{style}}" aria-hidden="true"></span><div><b>{{item['label']}}</b><span class="m">{{item['detail']}}</span></div></li>
+                    % end
+                </ul>
+            </div>
+            % end
+            <div class="chip-row" role="group" aria-label="Choose a visualizer">
+                % for i, v in enumerate(visualizers):
+                <button class="chip" type="button" aria-pressed="{{'true' if i == active_num else 'false'}}" data-call="/visualizer/{{i}}" data-then="home">{{v.name}}</button>
+                % end
+            </div>
         </div>
     </div>
-</div>
-</div>
 
-        %include("footer.tpl")
+    <div class="side">
+        <div class="card pad">
+            <label class="lbl" for="brightness">LED brightness</label>
+            <div class="big" id="brt_label">{{int(round(brightness * 100))}}%</div>
+            <input id="brightness" type="range" min="0" max="1" step="0.01" value="{{brightness}}" data-label="brt_label" data-format="pct">
+            <p class="muted" style="margin: 0; font-size: 13px">Temporary. The schedule below sets it again at the next sun event.</p>
+            % if schedule:
+            <dl class="sched">
+                % for s in schedule:
+                <div{{!' class="next"' if s['next'] else ''}}>
+                    <dt>{{s['name']}}{{' · next' if s['next'] else ''}}</dt>
+                    <dd>{{s['time'].strftime("%H:%M")}} <span>→ {{int(round(s['level'] * 100))}}%</span></dd>
+                </div>
+                % end
+            </dl>
+            % end
+        </div>
+    </div>
+</section>
+
+% if below_vfr:
+<section class="card">
+    <div class="card-head">
+        <h2>Below VFR</h2>
+        <a href="/metars" style="font-size: 14px; font-weight: 500">All METARs →</a>
+    </div>
+    <div class="scroll-x">
+        % for s in below_vfr:
+        <div class="trow brief">
+            <span class="station"><b>{{s['code']}}</b>
+                % if s['name']:
+                <span>{{s['name']}}</span>
+                % end
+            </span>
+            <span class="pill {{s['cat'].lower()}}">{{s['cat']}}</span>
+            <span class="raw" title="{{s['raw']}}">{{s['raw']}}</span>
+            <span class="mono muted" style="font-size: 13px; text-align: right">{{s['obsTime'].strftime("%H:%MZ") if s['obsTime'] else '—'}}</span>
+        </div>
+        % end
+    </div>
+</section>
+% end
+
+%include("footer.tpl")

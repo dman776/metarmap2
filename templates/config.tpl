@@ -1,104 +1,98 @@
-%include("header.tpl",title="METAR List")
-<script>
-function config_edit_boolean(item, key) {
-    fetch('/config/edit/' + key + '/' + item.checked);
-    return;
-}
-function config_edit(key, value) {
-    fetch('/config/edit/' + key + '/' + value);
-    return;
-}
-</script>
-<div class="py-5 text-center">
-    <h2>CONFIG</h2>
+%include("header.tpl", title="Config", page="config")
+% d = config.data
+% def switch(key, val, label, desc='', restart=False, ident=None):
+%   ident = ident or key.replace('.', '-')
+<div class="set">
+    <div>
+        <label class="t" for="{{ident}}">{{label}}
+            % if restart:
+            <span class="rs">Restart</span>
+            % end
+        </label>
+        % if desc:
+        <div class="d">{{desc}}</div>
+        % end
+    </div>
+    <input id="{{ident}}" class="switch" type="checkbox" data-key="{{key}}"{{!' checked' if val else ''}}{{!' data-restart' if restart else ''}}>
 </div>
+% end
+% def slider(key, val, label, desc='', lo=0, hi=1, step=0.01, fmt='pct', restart=False):
+%   ident = key.replace('.', '-')
+<div class="set">
+    <div>
+        <label class="t" for="{{ident}}">{{label}}
+            % if restart:
+            <span class="rs">Restart</span>
+            % end
+        </label>
+        % if desc:
+        <div class="d">{{desc}}</div>
+        % end
+    </div>
+    <div class="range">
+        <input id="{{ident}}" type="range" min="{{lo}}" max="{{hi}}" step="{{step}}" value="{{val}}" data-key="{{key}}" data-label="{{ident}}-val" data-format="{{fmt}}"{{!' data-restart' if restart else ''}}>
+        <span class="val" id="{{ident}}-val">{{'%d%%' % round(val * 100) if fmt == 'pct' else '%g s' % val}}</span>
+    </div>
+</div>
+% end
 
-<div class="row">
-<button type="button" class="btn btn-primary" onClick="window.location='/';">Home</button>
-&nbsp
-<button type="button" class="btn btn-secondary" onClick="window.location='/config/airports';">Airports</button>&nbsp;
-</div>
-<hr/>
-<h3>Visualizer Settings</h3>
-<div class="row">
-% key = "visualizer.active"
-% val = config.data.visualizer.active
-<div class="dropdown show">
-      <button class="btn btn-secondary dropdown-toggle" type="button" id="defaultVisualizer" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-        Default Visualizer
-      </button>
-    <div class="dropdown-menu" aria-labelledby="defaultVisualizer">
-        %for i in range(0, len(config.renderer.visualizers)):
-        <a class="dropdown-item" onClick="config_edit('{{key}}', '{{i}}');">{{config.renderer.visualizers[i].name}}</a>
-        %end
+<section class="page-head">
+    <div>
+        <h1>Configuration</h1>
+        <p>Changes save as you make them.</p>
     </div>
-    </div>&nbsp;
-</div>
-<div class="row">
-% key = "lightning.animation"
-% val = config.data.lightning.animation
-<div class="form-check">
-        <input class="form-check-input" type="checkbox"
-        {{"checked" if val else ""}}
-        value="{{str(val).lower()}}"
-        id="la"
-        onChange="config_edit_boolean(this, '{{key}}');">
-        <label class="form-check-label" for="la">Lightning animation enabled</label>
+    <nav class="subnav" aria-label="Config sections">
+        <a class="chip" href="/config" aria-current="page" style="border-color: var(--accent); color: var(--accent)">Settings</a>
+        <a class="chip" href="/config/airports">Airports</a>
+    </nav>
+</section>
+
+<section class="banner" id="restart-banner" role="status" hidden>
+    <span>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f5b544" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.5"/></svg>
+        Some changes take effect after the map restarts.
+    </span>
+    <button class="btn primary" type="button" data-call="/restart" data-then="none">Restart now</button>
+</section>
+
+<div class="split">
+    <div class="main">
+        <section class="card settings">
+            <h2>Visualizer</h2>
+            <div class="set">
+                <div>
+                    <label class="t" for="visualizer-active">Default visualizer</label>
+                    <div class="d">Shown when the map starts.</div>
+                </div>
+                <select id="visualizer-active" data-key="visualizer.active">
+                    % for i, v in enumerate(config.renderer.visualizers):
+                    <option value="{{i}}"{{!' selected' if i == d.visualizer.active else ''}}>{{v.name}}</option>
+                    % end
+                </select>
+            </div>
+            % switch('lightning.animation', d.lightning.animation, 'Lightning animation', 'Flash airports that report lightning.')
+            % switch('visualizer.auto_rotate.enabled', d.visualizer.auto_rotate.enabled, 'Auto-rotate visualizers', 'Cycle through the visualizers on a timer.', restart=True)
+            % slider('visualizer.auto_rotate.delay_seconds', d.visualizer.auto_rotate.delay_seconds, 'Auto-rotate delay', 'Time on each visualizer.', lo=10, hi=600, step=10, fmt='sec', restart=True)
+        </section>
+
+        <section class="card settings">
+            <h2>Display screen</h2>
+            % switch('display_screen.enabled', d.display_screen.enabled, 'Enabled', 'Show airport details on the OLED screen.', restart=True)
+            % switch('display_screen.locate_active', d.display_screen.locate_active, 'Highlight active airport', 'Pulse the LED of the airport on screen.')
+            % slider('display_screen.delay', d.display_screen.delay, 'Delay per airport', lo=0, hi=30, step=1, fmt='sec')
+        </section>
     </div>
-</div>
-<hr />
-<h3>Display Screen</h3>
-<div class="row">
-% key = "display_screen.enabled"
-% val = config.data.display_screen.enabled
-<div class="form-check">
-        <input class="form-check-input" type="checkbox"
-        {{"checked" if val else ""}}
-        value="{{str(val).lower()}}"
-        id="dse"
-        onChange="config_edit_boolean(this, '{{key}}');">
-        <label class="form-check-label" for="dse">Enabled *</label>
+
+    <div class="side">
+        <section class="card settings">
+            <h2>LED pixels</h2>
+            % switch('led.inittest', d.led.inittest, 'Test pattern on startup', restart=True)
+            % slider('led.brightness.normal', d.led.brightness.normal, 'Daytime brightness', 'Sunrise to sunset.', restart=True)
+            % slider('led.brightness.dimmed', d.led.brightness.dimmed, 'Dawn / dusk brightness', 'Dawn to sunrise, sunset to dusk.', restart=True)
+            % slider('led.brightness.off', d.led.brightness.off, 'Night brightness', 'Dusk to dawn.', restart=True)
+            <p class="muted" style="margin: 0; padding: 0 24px 18px; font-size: 13px">Brightness levels load at midnight or when the map restarts.</p>
+        </section>
     </div>
-</div>
-<div class="row">
-% key = "display_screen.locate_active"
-% val = config.data.display_screen.locate_active
-<div class="form-check">
-        <input class="form-check-input" type="checkbox"
-        {{"checked" if val else ""}}
-        value="{{str(val).lower()}}"
-        id="dsla"
-        onChange="config_edit_boolean(this, '{{key}}');">
-        <label class="form-check-label" for="dsla">Highlight Active Airport</label>
-    </div>
-</div>
-<div class="row">
-% key = "display_screen.delay"
-% val = config.data.display_screen.delay
-<div class="form-check">
-        <input type="range" class="form-range" min="0" max="30" step="1" id="dsd"
-               onChange="config_edit('{{key}}', this.value);document.getElementById('dsd_label').innerText=this.value + ' sec delay';"
-               value="{{val}}" />
-        <label class="form-check-label" id="dsd_label" for="dsd">{{val}} sec delay</label>
-    </div>
-</div>
-<hr />
-<h3>LED Pixels</h3>
-<div class="row">
-% key = "led.inittest"
-% val = config.data.led.inittest
-<div class="form-check">
-        <input class="form-check-input" type="checkbox"
-        {{"checked" if config.data.led.inittest else ""}}
-    value="{{str(val).lower()}}"
-    id="li"
-    onChange="config_edit_boolean(this, '{{key}}');">
-    <label class="form-check-label" for="li">Show test pattern on init *</label>
-    </div>
-</div>
-<hr />
-<div class="row">
-* = Requires a restart
 </div>
 
 %include("footer.tpl")

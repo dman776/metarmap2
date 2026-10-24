@@ -13,7 +13,7 @@ import lib.safe_logging as safe_logging
 import lib.utils as utils
 import lib.colors as colors_lib
 from metar import METAR
-from visualizers.visualizer import Visualizer
+from visualizers.visualizer import Visualizer, legend_item
 from adafruit_led_animation.animation.solid import Solid
 from adafruit_led_animation.animation.blink import Blink
 
@@ -75,24 +75,18 @@ class Visibility(Visualizer):
 
     @property
     def description(self):
-        return """
-            Display the visibility level (ie. 10SM, 6SM, 1/2SM, etc.)
-            <div class="w-100">
-            <ul>
-                <li>Between 9 and 10 Miles = 30% WHITE</li>
-                <li>Between 8 and 9 Miles = 15% WHITE</li>
-                <li>Between 7 and 8 Miles = 8% WHITE</li>
-                <li>Between 6 and 7 Miles = 6% WHITE</li>
-                <li>Between 5 and 6 Miles = 5% WHITE</li>
-                <li>Between 4 and 5 Miles = 4% WHITE</li>
-                <li>Between 3 and 4 Miles = 3% WHITE</li>
-                <li>Between 2 and 3 Miles = 2% WHITE</li>
-                <li>Between 1 and 2 Miles = 1% WHITE</li>
-                <li>Between 0 and 1 Miles = OFF</li>
-                <li>No visibility reported = <font color='red'>RED</font></li>
-            </ul>
-            </div>
-        """
+        return "Display the visibility level (ie. 10SM, 6SM, 1/2SM, etc.). The brighter the LED, the better the visibility."
+
+    @property
+    def legend(self):
+        c = colors_lib.get_colors()
+        return [
+            legend_item("9 to 10 miles", "White (30%)", (255, 255, 255)),
+            legend_item("5 to 9 miles", "Dim white (5-15%)", (150, 150, 150)),
+            legend_item("1 to 5 miles", "Very dim white (1-4%)", (95, 95, 95)),
+            legend_item("Less than 1 mile", "Off"),
+            legend_item("No visibility reported", "Red", c[colors_lib.RED]),
+        ]
 
     def update_data(self, data):
         super().update_data(data)

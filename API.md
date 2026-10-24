@@ -26,7 +26,17 @@ Returns a read-only snapshot of the map's state as `application/json`. No authen
   "version": "1.16.2",
   "ip": "192.168.1.50",
   "brightness": 0.5,
-  "visualizer": { "active": 0, "name": "Flight Category", "exclusive": false },
+  "visualizer": {
+    "active": 0,
+    "name": "Flight Category",
+    "exclusive": false,
+    "description": "Display the flight category (ie. VFR, MVFR, IFR, LIFR).",
+    "legend": [
+      { "label": "VFR", "detail": "Green", "colors": ["#00ff00"], "effect": "solid", "period": null },
+      { "label": "Flight category missing", "detail": "Blinking red (other METAR data is available)",
+        "colors": ["#ff0000"], "effect": "blink", "period": 2 }
+    ]
+  },
   "visualizers": [
     { "index": 0, "name": "Flight Category", "exclusive": false },
     { "index": 1, "name": "Wind", "exclusive": false }
@@ -81,6 +91,7 @@ Returns a read-only snapshot of the map's state as `application/json`. No authen
 | `ip` | IP address of the map |
 | `brightness` | Current LED brightness, `0.0`–`1.0` |
 | `visualizer` | The visualizer that is running now. `exclusive` visualizers ignore `/locate`. |
+| `visualizer.legend` | What the LEDs mean for that visualizer. `colors` are CSS hex colors; two or more mean a gradient across the range. `effect` is `solid`, `blink`, `pulse`, `flash` (the first color with flashes of the second), `chase` or `off`. `period` is the seconds per blink or pulse, or `null`. |
 | `visualizers` | Every visualizer, in index order (the indexes used by `/visualizer/<n>`) |
 | `config` | The saved `config.json` values, keyed by the dotted path accepted by `/config/edit` |
 | `suntimes` | Today's dimming schedule (ISO 8601 with time zone) |
@@ -172,7 +183,7 @@ Both save `airports.json`, restart the OLED display loop, and redirect to `/conf
 
 | Endpoint | Auth | Description |
 |---|---|---|
-| `GET /` | | Home: brightness, sun times and visualizer controls |
+| `GET /` | | Home: flight category counts, visualizer controls and legend, brightness and sun times |
 | `GET /metars` | | Table of METARs for every airport |
 | `GET /map` | | Map of airports colored by flight category |
 | `GET /raw` | | Raw METAR text for every airport, followed by the full parsed data |
@@ -180,3 +191,4 @@ Both save `airports.json`, restart the OLED display loop, and redirect to `/conf
 | `GET /debug` | | Debug information |
 | `GET /config` | yes | Configuration page |
 | `GET /config/airports` | yes | Airport configuration page |
+| `GET /static/<file>` | | Stylesheet and script for the web UI |

@@ -13,7 +13,7 @@ import lib.safe_logging as safe_logging
 import lib.utils as utils
 import lib.colors as colors_lib
 from metar import METAR
-from visualizers.visualizer import Visualizer
+from visualizers.visualizer import Visualizer, legend_item
 from adafruit_led_animation.animation.pulse import Pulse
 from adafruit_led_animation.animation.solid import Solid
 from adafruit_led_animation.animation.blink import Blink
@@ -35,28 +35,31 @@ class Precipitation(Visualizer):
 
     @property
     def description(self):
-        return """
-            Display the current observed precipitation.
-            <div class="w-100">
-            <ul>
-                <li>None = OFF</li>
-                <li>Haze = DARK GRAY</li>
-                <li>Fog = Pulsing 6% WHITE every 4 seconds</li>
-                <li>Light Drizzle = Pulsing <font color='green'>GREEN</font> every 4 seconds</li>
-                <li>Drizzle = Solid <font color='green'>GREEN</font></li>
-                <li>Light Freezing Drizzle = Pulsing <font color='green'>GREEN</font></li>
-                <li>Mist = Solid <font color='blue'>DARK BLUE</font></li>
-                <li>Light Rain = Pulsing <font color='blue'>BLUE</font> every 4 seconds</li>
-                <li>Rain = Solid <font color='blue'>BLUE</font></li>
-                <li>Light Freezing Rain = Pulsing <font color='green'>BLUE</font> every 2 seconds</li>
-                <li>Heavy Rain = Blinking <font color='blue'>BLUE</font> every second</li>
-                <li>Thunderstorms in vicinity = Blinking <font color='gold'>YELLOW</font> every second</li>
-                <li>Light Snow = Pulsing WHITE every 2 sec</li>
-                <li>Snow = Pulsing WHITE every 1 sec</li>
-                <li>Other/Unknown = Blinking <font color='red'>RED</font> every second</li>
-            </ul>
-            </div>
-        """
+        return "Display the current observed precipitation."
+
+    @property
+    def legend(self):
+        c = colors_lib.get_colors()
+        w = self.__config__.data.color.weather
+        return [
+            legend_item("None", "Off"),
+            legend_item("Haze", "Dark gray", w.haze),
+            legend_item("Fog", "Dim white, pulsing every 4 seconds", w.fog, effect="pulse", period=4),
+            legend_item("Light drizzle", "Green, pulsing every 4 seconds", w.drizzle, effect="pulse", period=4),
+            legend_item("Drizzle", "Solid green", w.drizzle),
+            legend_item("Light freezing drizzle", "Green, fast pulse", w.drizzle, effect="pulse", period=0.5),
+            legend_item("Mist", "Dark blue", w.mist),
+            legend_item("Light rain", "Blue, pulsing every 4 seconds", w.rain, effect="pulse", period=4),
+            legend_item("Rain", "Solid blue", w.rain),
+            legend_item("Light freezing rain", "Blue, pulsing every 2 seconds", w.rain, effect="pulse", period=2),
+            legend_item("Heavy rain", "Blinking blue", w.rain, effect="blink", period=2),
+            legend_item("Thunderstorms", "Blinking yellow", w.lightning, effect="blink", period=2),
+            legend_item("Light snow", "White, pulsing every 2 seconds", c[colors_lib.WHITE], effect="pulse", period=2),
+            legend_item("Snow", "White, pulsing every second", c[colors_lib.WHITE], effect="pulse", period=1),
+            legend_item("Light unknown precipitation", "Blinking light red", c[colors_lib.LIGHT_RED],
+                        effect="blink", period=2),
+            legend_item("Other / unknown", "Blinking red", c[colors_lib.RED], effect="blink", period=2),
+        ]
 
     def update_data(self, data):
         super().update_data(data)

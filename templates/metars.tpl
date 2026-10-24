@@ -1,50 +1,65 @@
-%include("header.tpl",title="METAR List")
-<div class="py-5 text-center">
-    <h2>METARS</h2>
-</div>
+%include("header.tpl", title="METARs", page="metars")
+% cats = ('VFR', 'MVFR', 'IFR', 'LIFR')
+<section class="page-head">
+    <div>
+        <h1>METARs</h1>
+        <p>
+            % if metars.lastFetchTime:
+            Fetched <span class="mono">{{metars.lastFetchTime.strftime("%Y-%m-%d %H:%M:%S")}}</span> from aviationweather.gov
+            % else:
+            Not fetched yet
+            % end
+        </p>
+    </div>
+    <button class="btn" type="button" data-call="/fetch">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
+        Fetch now
+    </button>
+</section>
 
-<div class="row">
-    <button type="button" class="btn btn-primary" onClick="window.location='/';">Home</button>&nbsp;
-</div>
+<section class="toolbar">
+    <div class="seg-group" role="group" aria-label="Filter by flight category">
+        <button class="seg" type="button" data-filter="all" aria-pressed="true">All <span class="mono">{{len(stations)}}</span></button>
+        % for c in cats:
+        <button class="seg" type="button" data-filter="{{c}}" aria-pressed="false"><span class="dot {{c.lower()}}"></span>{{c}} <span class="mono">{{len([s for s in stations if s['cat'] == c])}}</span></button>
+        % end
+        <button class="seg" type="button" data-filter="none" aria-pressed="false"><span class="dot"></span>No data <span class="mono">{{len([s for s in stations if s['cat'] not in cats])}}</span></button>
+    </div>
+    <label class="search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <span class="sr-only">Search airports</span>
+        <input id="station-search" type="search" placeholder="Search ICAO, e.g. KHOU" autocomplete="off">
+    </label>
+</section>
 
-<div class="row">
-	<div class="col-md-12 order-md-1">
-        <h4>{{metars.lastFetchTime}}</h4>
-        <ul class="list-group">
-            % i = 0
-    	    %for m in metars.data:
-          <li class="list-group-item d-flex align-items-center\\
-                %if len(metars.data[m].keys()) > 0:
-                    %if metars.data[m]['flightCategory']=='VFR':
-                        list-group-item-success">
-              %elif metars.data[m]['flightCategory']=='MVFR':
-              list-group-item-primary">
-              %elif metars.data[m]['flightCategory'] == 'IFR':
-              list-group-item-danger">
-              %elif metars.data[m]['flightCategory'] == 'LIFR':
-              list-group-item-info">
-              %elif metars.data[m]['flightCategory'] == None:
-              ">
-              %end
-              <div class="col-1">
-                        <button type="button" class="badge badge-pill badge-primary" onClick="fetch('/locate/{{i}}');">Find</button>
-                    </div>
-                    <div class="col-1">{{m}}</div>
-                    <div class="col-1">{{metars.data[m]['flightCategory']}}</div>
-                    <div class="col-7">{{metars.data[m]['raw']}}</div>
-                    <div class="col-2">{{metars.data[m]['obsTime']}}</div>
-                %else:
-                    ">
-                    <div class="col-1"><button type="button" class="badge badge-pill badge-primary" onClick="fetch('/locate/{{i}}');">Find</button></div>
-                    <div class="col-1">{{m}}</div>
-                    <div class="col-1">-</div>
-                    <div class="col-7">Not reporting METAR data</div>
-                    <div class="col-2">-</div>
-                %end
-          </li>
-            % i+=1
-            %end
-    	</ul>
-	</div>
-</div>
+<section class="card" style="overflow: hidden">
+    <div class="scroll-x">
+        <div class="trow metar head"><span>LED</span><span>Station</span><span>Cat</span><span>Raw METAR</span><span>Obs</span><span></span></div>
+        % for s in stations:
+        % cat = s['cat'] if s['cat'] in cats else 'none'
+        <div class="trow metar" data-station="{{s['code']}}" data-cat="{{cat}}">
+            <span class="mono muted">{{s['pixel'] + 1}}</span>
+            <span class="station"><b>{{s['code']}}</b>
+                % if s['name']:
+                <span>{{s['name']}}</span>
+                % end
+            </span>
+            % if s['has_data']:
+            <span class="pill {{cat.lower()}}">{{s['cat'] or '—'}}</span>
+            <span class="raw" title="{{s['raw']}}">{{s['raw']}}</span>
+            <span class="mono muted" style="font-size: 13px">{{s['obsTime'].strftime("%H:%MZ") if s['obsTime'] else '—'}}</span>
+            % else:
+            <span class="pill">—</span>
+            <span class="nodata">Not reporting METAR data</span>
+            <span class="mono muted">—</span>
+            % end
+            <button class="chip sm" type="button" data-call="/locate/{{s['pixel']}}" data-then="none" aria-label="Locate {{s['code']}} on the map">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
+                Locate
+            </button>
+        </div>
+        % end
+    </div>
+</section>
+
 %include("footer.tpl")

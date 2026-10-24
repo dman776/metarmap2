@@ -12,8 +12,9 @@ import lib.safe_logging as safe_logging
 # from lib.config import Config
 import lib
 import lib.utils as utils
+import lib.colors as colors_lib
 from metar import METAR
-from visualizers.visualizer import Visualizer
+from visualizers.visualizer import Visualizer, legend_item
 
 from adafruit_led_animation.animation.blink import Blink
 from adafruit_led_animation.animation.pulse import Pulse
@@ -37,20 +38,17 @@ class WindGusts(Visualizer):
 
     @property
     def description(self):
-        return """
-            Display the wind gusts by Pulsing the Wind colors (from the wind visualizer) at different rates.
-            <div class="w-100">
-            <ul>
-                <li>Between 0 and 10 kts = 10 second pulse</li>
-                <li>Between 11 and 15 kts = 8 second pulse</li>
-                <li>Between 16 and 20 kts = 6 second pulse</li>
-                <li>Between 21 and 25 kts = 4 second pulse</li>
-                <li>Between 26 and 30 kts = 1 second pulse</li>
-                <li>Greater than 30 = 1/2 second pulse</li>
-                <li>No gusts reported = No pulse. Solid flight category.</li>
-            </ul>
-            </div>
-        """
+        return "Display the wind gusts by pulsing the wind colors (from the Wind visualizer) at different rates."
+
+    @property
+    def legend(self):
+        c = colors_lib.get_colors()
+        rates = [("0-10 kts", 10), ("11-15 kts", 8), ("16-20 kts", 6), ("21-25 kts", 4), ("26-30 kts", 1),
+                 ("over 30 kts", 0.5)]
+        items = [legend_item(f"Gusts {kts}", f"Wind color, pulsing every {period} s", c[colors_lib.GREEN],
+                             effect="pulse", period=period) for kts, period in rates]
+        items.append(legend_item("No gusts reported", "No pulse; solid flight category color", c[colors_lib.GREEN]))
+        return items
 
     def update_data(self, data):
         super().update_data(data)

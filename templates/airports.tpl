@@ -1,54 +1,25 @@
-%include("header.tpl",title="Config Airports")
-<script>
-function config_edit_boolean(item, airport, key) {
-    fetch('/config/airports/edit/prop/' + airport + '/' + key + '/' + item.checked);
-    return;
-}
-function config_edit(key, newkey) {
-    window.location='/config/airports/edit/' + key + '/' + newkey;
-    return;
-}
-
-</script>
-<div class="py-5 text-center">
-    <h2>Configure</h2>
-</div>
-
-<div class="row">
-    <div class="col-sm">
-        <button type="button" class="btn btn-primary" onClick="window.location='/';">Home</button>
-        &nbsp
-        <button type="button" class="btn btn-secondary" onClick="window.location='/config';">Config</button>
-        &nbsp
+%include("header.tpl", title="Airports", page="config")
+<section class="page-head">
+    <div>
+        <h1>Airports</h1>
+        <p>{{len(stations)}} airports, one per LED. Edit an ICAO code to move a station; changes save right away.</p>
     </div>
-</div>
+    <nav class="subnav" aria-label="Config sections">
+        <a class="chip" href="/config">Settings</a>
+        <a class="chip" href="/config/airports" aria-current="page" style="border-color: var(--accent); color: var(--accent)">Airports</a>
+    </nav>
+</section>
 
-<h4>Airports</h4>
-<form class="form-inline">
-    % i = 0
-    %for a in config.airports.keys():
-    <div class="form-row w-100">
-        <div class="input-group col-md-1">
-            <label class="sr-only">Pixel #</label>
-            <div>{{i+1}}</div>
-        </div>
-        <div class="input-group col-md-1">
-            <label class="sr-only" for="code">Airport Code</label>
-            <input type="text" class="form-control mb-2 mr-sm-2" id="code" value="{{a}}"
-                   onChange="config_edit('{{a}}', this.value);"/>
-        </div>
-        <div class=" input-group col-md-4">
-            <div class="form-check mb-2 mr-sm-2">
-                <input class="form-check-input" type="checkbox" id="is_oled"
-                       {{"checked" if config.airports[a]['display']==True else ""}}
-                value="{{str(config.airports[a]['display']).lower()}}"
-                onChange="config_edit_boolean(this, '{{a}}', 'display');"
-                />
-                <label class="form-check-label" for="is_oled">OLED Display</label>
-            </div>
-        </div>
+<section class="card">
+    <div class="ap-row trow head" style="border-top: 0"><span>LED</span><span>ICAO</span><span class="ap-name">Name</span><span>OLED</span></div>
+    % for s in stations:
+    <div class="ap-row">
+        <span class="mono muted">{{s['pixel'] + 1}}</span>
+        <input type="text" value="{{s['code']}}" maxlength="4" spellcheck="false" aria-label="Airport for LED {{s['pixel'] + 1}}" data-airport="{{s['code']}}">
+        <span class="ap-name muted">{{s['name']}}</span>
+        <input class="switch" type="checkbox" aria-label="Show {{s['code']}} on the OLED display" data-airport="{{s['code']}}"{{!' checked' if s['display'] else ''}}>
     </div>
-    % i+=1
-    %end
-</form>
+    % end
+</section>
+
 %include("footer.tpl")

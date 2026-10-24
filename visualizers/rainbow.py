@@ -14,7 +14,7 @@ import lib
 import lib.utils as utils
 import lib.colors as colors_lib
 from metar import METAR
-from visualizers.visualizer import Visualizer
+from visualizers.visualizer import Visualizer, legend_item
 from adafruit_led_animation.animation.rainbow import Rainbow
 
 
@@ -34,9 +34,16 @@ class Rainbow1(Visualizer):
 
     @property
     def description(self):
-        return """
-            Display a rainbow pattern across all of the LEDS.
-        """
+        return "Display a rainbow pattern across all of the LEDS."
+
+    @property
+    def legend(self):
+        c = colors_lib.get_colors()
+        return [
+            legend_item("All LEDs", "Cycle through the colors of the rainbow",
+                        *(c[n] for n in (colors_lib.RED, colors_lib.ORANGE, colors_lib.YELLOW,
+                                         colors_lib.GREEN, colors_lib.BLUE, colors_lib.PURPLE))),
+        ]
 
     def update_data(self, data):
         # super().update_data(data)

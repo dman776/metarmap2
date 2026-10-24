@@ -13,7 +13,7 @@ from config import Config
 import lib.utils as utils
 import lib.colors as colors_lib
 from metar import METAR
-from visualizers.visualizer import Visualizer
+from visualizers.visualizer import Visualizer, legend_item
 from adafruit_led_animation.animation.solid import Solid
 
 STANDARD_PRESSURE = 29.92
@@ -99,19 +99,19 @@ class DensityAltitude(Visualizer):
 
     @property
     def description(self):
-        return """
-            Display the density altitude (DA) relative to field elevation (FE) (ie. Density altitude factor).
-            <div class="w-100">
-            <ul>
-                <li>DA/FE (aka. Density altitude factor, DAF) < -20 = <font color='green'>GREEN</font></li>
-                <li>DAF between -20 (<font color='green'>GREEN</font>) and -10 (<font color='blue'>BLUE</font>)</li>
-                <li>DAF between -10 (<font color='blue'>BLUE</font>) and -5 (<font color='lightblue'>LIGHT BLUE</font>)</li>
-                <li>DAF between -5 (<font color='lightblue'>LIGHT BLUE</font>) and 0 (<font color='gray'>GRAY</font>)</li>
-                <li>DAF between 0 (<font color='gray'>GRAY</font>) and 40 (<font color='red'>RED</font>)</li>
-                <li>DAF Greater than 40 =<font color='red'>RED</font></li>
-            </ul>
-            </div>
-        """
+        return "Display the density altitude (DA) relative to field elevation (FE), aka. the density altitude factor (DAF)."
+
+    @property
+    def legend(self):
+        c = colors_lib.get_colors()
+        return [
+            legend_item("DAF below -20", "Green", c[colors_lib.GREEN]),
+            legend_item("DAF -20 to -10", "Green to blue", c[colors_lib.GREEN], c[colors_lib.BLUE]),
+            legend_item("DAF -10 to -5", "Blue to light blue", c[colors_lib.BLUE], c[colors_lib.LIGHT_BLUE]),
+            legend_item("DAF -5 to 0", "Light blue to gray", c[colors_lib.LIGHT_BLUE], c[colors_lib.GRAY]),
+            legend_item("DAF 0 to 40", "Gray to red", c[colors_lib.GRAY], c[colors_lib.RED]),
+            legend_item("DAF above 40", "Red", c[colors_lib.RED]),
+        ]
 
     def update_data(self, data):
         super().update_data(data)

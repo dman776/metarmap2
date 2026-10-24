@@ -13,7 +13,7 @@ import lib.safe_logging as safe_logging
 import lib.utils as utils
 import lib.colors as colors_lib
 from metar import METAR
-from visualizers.visualizer import Visualizer
+from visualizers.visualizer import Visualizer, legend_item
 from adafruit_led_animation.animation.solid import Solid
 
 
@@ -74,17 +74,17 @@ class Pressure(Visualizer):
 
     @property
     def description(self):
-        return """
-            Display the atmospheric pressure.
-            <div class="w-100">
-            <ul>
-                <li>Less than 29.80=<font color='red'>RED</font></li>
-                <li>Between 29.80 and 29.92 varies between <font color='red'>RED</font> and <font color='LightCoral'>LIGHT RED</font></li>
-                <li>Between 29.92 and 30.20 varies between <font color='LightSkyBlue'>LIGHT BLUE</font> and <font color='blue'>BLUE</font></li>
-                <li>Greater than 30.20=<font color='blue'>BLUE</font></li>
-            </ul>
-            </div>
-        """
+        return "Display the atmospheric pressure (inHg)."
+
+    @property
+    def legend(self):
+        c = colors_lib.get_colors()
+        return [
+            legend_item("Below 29.80", "Red", c[colors_lib.RED]),
+            legend_item("29.80 to 29.92", "Red to light red", c[colors_lib.RED], c[colors_lib.LIGHT_RED]),
+            legend_item("29.92 to 30.20", "Light blue to blue", c[colors_lib.LIGHT_BLUE], c[colors_lib.BLUE]),
+            legend_item("Above 30.20", "Blue", c[colors_lib.BLUE]),
+        ]
 
     def update_data(self, data):
         super().update_data(data)

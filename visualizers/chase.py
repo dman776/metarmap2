@@ -14,7 +14,7 @@ import lib
 import lib.utils as utils
 import lib.colors as colors_lib
 from metar import METAR
-from visualizers.visualizer import Visualizer
+from visualizers.visualizer import Visualizer, legend_item
 from adafruit_led_animation.animation.chase import Chase
 
 
@@ -34,12 +34,14 @@ class ChaseTest(Visualizer):
 
     @property
     def description(self):
-        return """
-            Display a simple chase pattern of BLUE LEDS in sequence.
-            <div class="w-100">
-            This visualizer WILL run for ONE COMPLETE animation cycle. (ie. ALL 50 LEDS), then repeat.
-            </div>
-        """
+        return "Display a simple chase pattern of BLUE LEDS in sequence. Runs one complete cycle across all of the LEDs, then repeats."
+
+    @property
+    def legend(self):
+        c = colors_lib.get_colors()
+        return [
+            legend_item("All LEDs", "Blue, lighting in sequence", c[colors_lib.BLUE], effect="chase", period=1),
+        ]
 
     def update_data(self, data):
         self.__effect__.clear()

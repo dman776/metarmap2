@@ -208,3 +208,21 @@ def get_brightness_adjusted_color(
 
     return final_color
 
+
+
+def to_css(color) -> str:
+    """
+    Converts a GRB color (as returned by get_colors() and stored in config.json)
+    to a CSS hex string for the web UI legend.
+    Very dim colors are lifted so they stay visible on screen.
+
+    >>> to_css((255, 0, 0))
+    '#00ff00'
+    >>> to_css((0, 0, 15))
+    '#00005a'
+    """
+    g, r, b = (int(c) for c in color)
+    peak = max(r, g, b)
+    if 0 < peak < 90:
+        r, g, b = (int(c * 90 / peak) for c in (r, g, b))
+    return "#{:02x}{:02x}{:02x}".format(r, g, b)

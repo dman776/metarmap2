@@ -1,36 +1,16 @@
-  <footer class="my-5 pt-5 text-muted text-center text-small">
-      <p class="mb-1">&copy; 2025 Darryl Quinn</p>
-          <ul class="list-inline">
-              <li class="list-inline-item"><a href="http://metarmap.local">metarmap.local</a></li>
-              <li class="list-inline-item">Version: {{config.app_version}}</a>
-          </li>
-          </ul>
-  		</footer>
-  </div>
-  <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
-  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
-  <script>
-  // Example starter JavaScript for disabling form submissions if there are invalid fields
-  (function() {
-  'use strict';
-
-  window.addEventListener('load', function() {
-    // Fetch all the forms we want to apply custom Bootstrap validation styles to
-    var forms = document.getElementsByClassName('needs-validation');
-
-    // Loop over them and prevent submission
-    var validation = Array.prototype.filter.call(forms, function(form) {
-      form.addEventListener('submit', function(event) {
-        if (form.checkValidity() === false) {
-          event.preventDefault();
-          event.stopPropagation();
-        }
-        form.classList.add('was-validated');
-      }, false);
-    });
-  }, false);
-  })();
-  </script>
-  </body>
+% import datetime
+        </main>
+        <footer class="foot">
+            &copy; {{datetime.date.today().year}} Darryl Quinn · <a href="http://metarmap.local">metarmap.local</a> · Version {{config.app_version}}
+        </footer>
+        <dialog id="output" aria-labelledby="output-title">
+            <div class="card-head"><h2 id="output-title">Output</h2></div>
+            <div class="body"></div>
+            <form method="dialog" class="foot-actions">
+                <button class="btn" type="submit">Close</button>
+                <button class="btn primary" type="button" data-call="/restart" data-then="none" data-confirm="Restart the map now?">Restart</button>
+            </form>
+        </dialog>
+        <script src="/static/app.js?v={{config.app_version}}"></script>
+    </body>
 </html>

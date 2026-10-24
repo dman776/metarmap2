@@ -16,7 +16,7 @@ import lib.colors as colors_lib
 from metar import METAR
 import neopixel
 import board
-from visualizers.visualizer import Visualizer
+from visualizers.visualizer import Visualizer, legend_item
 
 from adafruit_led_animation.animation.blink import Blink
 from adafruit_led_animation.animation.pulse import Pulse
@@ -91,21 +91,19 @@ class Wind(Visualizer):
 
     @property
     def description(self):
-        return """
-            Display the current wind speed.
-            <div class="w-100">
-            <ul>
-                <li>Calm=OFF</li>
-                <li>Between 0-5 KTS varies between OFF and <font color='Purple'>PURPLE</font></li>
-                <li>Between 5-10 KTS varies between <font color='purple'>PURPLE</font> and <font color='blue'>BLUE</font></li>
-                <li>Between 10-15 KTS varies between <font color='blue'>BLUE</font> and <font color='green'>GREEN</font></li>
-                <li>Between 15-20 KTS varies between <font color='green'>GREEN</font> and <font color='gold'>YELLOW</font></li>
-                <li>Between 20-25 KTS varies between <font color='gold'>YELLOW</font> and <font color='orange'>ORANGE</font></li>
-                <li>Between 25-30 KTS varies between <font color='orange'>ORANGE</font> and <font color='red'>RED</font></li>
-                <li>Greater than 30 KTS is <font color='red'>RED</font></li>
-            </ul>
-            </div>
-        """
+        return "Display the current wind speed."
+
+    @property
+    def legend(self):
+        c = colors_lib.get_colors()
+        scale = [("0", colors_lib.OFF, "off"), ("5", colors_lib.PURPLE, "purple"), ("10", colors_lib.BLUE, "blue"),
+                 ("15", colors_lib.GREEN, "green"), ("20", colors_lib.YELLOW, "yellow"),
+                 ("25", colors_lib.ORANGE, "orange"), ("30", colors_lib.RED, "red")]
+        items = [legend_item("Calm", "Off")]
+        for (lo, lo_color, lo_name), (hi, hi_color, hi_name) in zip(scale, scale[1:]):
+            items.append(legend_item(f"{lo}-{hi} kts", f"{lo_name.capitalize()} to {hi_name}", c[lo_color], c[hi_color]))
+        items.append(legend_item("Above 30 kts", "Red", c[colors_lib.RED]))
+        return items
 
     def update_data(self, data):
         super().update_data(data)

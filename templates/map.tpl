@@ -1,98 +1,44 @@
-%include("header.tpl",title="METARMap")
-<style>
-    html, body {
-        height: 100%;
-        margin: 0;
-    }
-    .leaflet-container {
-        height: 600px;
-        width: 800px;
-        max-width: 100%;
-        max-height: 100%;
-    }
-</style>
+%include("header.tpl", title="Map", page="map", leaflet=True)
+% import json
+% colors = {'VFR': '#3ddc84', 'MVFR': '#4ea8ff', 'IFR': '#ff5a5a', 'LIFR': '#d77bff'}
+% points = [{'code': s['code'], 'name': s['name'], 'cat': s['cat'], 'raw': s['raw'], 'lat': float(s['lat']), 'lon': float(s['lon']), 'color': colors.get(s['cat'], '#5b6b7e')} for s in stations if s['lat'] and s['lon']]
+<section class="page-head">
+    <div>
+        <h1>Map</h1>
+        <p>Click an airport to see its METAR.</p>
+    </div>
+    <div class="map-legend">
+        % for c in ('VFR', 'MVFR', 'IFR', 'LIFR'):
+        <span><span class="dot {{c.lower()}}"></span>{{c}}</span>
+        % end
+        <span><span class="dot"></span>No category</span>
+    </div>
+</section>
 
+<div id="map" role="region" aria-label="Airport map"></div>
 
-<div class="py-5 text-center">
-    <h2>Map View</h2>
-</div>
-<hr />
-<div class="row">
-    <button type="button" class="btn btn-primary" onClick="window.location='/';">Home</button>&nbsp;
-</div>
-<hr />
-<div id="map"></div>
-<hr />
 <script>
-const map = L.map('map').setView({{config.data.geo.map.center}}, {{config.data.geo.map.zoom}});
-const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-}).addTo(map);
+(function () {
+    const map = L.map('map').setView({{config.data.geo.map.center}}, {{config.data.geo.map.zoom}});
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        className: 'tiles-dark',
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(map);
 
-var VFRIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
-});
-
-var MVFRIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
-});
-
-var IFRIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
-});
-
-var LIFRIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-violet.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
-});
-
-var NoneIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-black.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
-});
-
-	%for m in metars.data:
-	    %if 'latitude' in metars.data[m]:
-	        marker = ""
-	        %if metars.data[m]['flightCategory']=='VFR':
-                marker = L.marker([{{metars.data[m]['latitude']}},{{metars.data[m]['longitude']}}], {icon: VFRIcon});
-            %elif metars.data[m]['flightCategory']=='MVFR':
-                marker = L.marker([{{metars.data[m]['latitude']}},{{metars.data[m]['longitude']}}], {icon: MVFRIcon});
-            %elif metars.data[m]['flightCategory']=='IFR':
-                marker = L.marker([{{metars.data[m]['latitude']}},{{metars.data[m]['longitude']}}], {icon: IFRIcon});
-            %elif metars.data[m]['flightCategory']=='LIFR':
-                marker = L.marker([{{metars.data[m]['latitude']}},{{metars.data[m]['longitude']}}], {icon: LIFRIcon});
-            %elif metars.data[m]['flightCategory']==None:
-                marker = L.marker([{{metars.data[m]['latitude']}},{{metars.data[m]['longitude']}}], {icon: NoneIcon});
-            %end
-            marker.bindPopup("{{metars.data[m]['raw']}}").openPopup();
-            marker.addTo(map);
-	    %end
-	%end
-
+    const points = {{!json.dumps(points).replace('</', '<\\/')}};
+    points.forEach(function (p) {
+        const popup = document.createElement('div');
+        const title = document.createElement('b');
+        title.textContent = p.code + (p.name ? ' · ' + p.name : '') + (p.cat ? ' · ' + p.cat : '');
+        popup.appendChild(title);
+        popup.appendChild(document.createElement('br'));
+        popup.appendChild(document.createTextNode(p.raw || 'No METAR'));
+        L.circleMarker([p.lat, p.lon], {
+            radius: 8, weight: 2, color: '#0b1117', fillColor: p.color, fillOpacity: 1
+        }).bindPopup(popup).addTo(map);
+    });
+})();
 </script>
+
 %include("footer.tpl")

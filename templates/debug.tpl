@@ -1,21 +1,20 @@
-%include("header.tpl",title="DEBUG")
-<div class="py-5 text-center">
-    <h2>DEBUG</h2>
-</div>
+%include("header.tpl", title="Debug")
+% num, vis = renderer.visualizer
+<section class="page-head">
+    <div>
+        <h1>Debug</h1>
+        <p>Active visualizer: {{vis.name}} · METARs fetched {{metars.lastFetchTime or 'never'}}</p>
+    </div>
+    <button class="btn" type="button" data-call="/fetch">Fetch</button>
+</section>
 
-<div class="row">
-  <a class="btn btn-primary" href="/fetch" role="button">Fetch</a>&nbsp;
-</div>
+<section class="card">
+    <div class="card-head"><h2>LED effects</h2><span class="mono muted">{{len(vis.get_effects())}}</span></div>
+    <pre class="dump">
+% for i, e in enumerate(vis.get_effects()):
+{{i}}: {{e}}
+% end
+</pre>
+</section>
 
-<div class="row">
-	<div class="col-md-12 order-md-1">
-        <h4>{{metars.lastFetchTime}}</h4>
-        <ul class="list-group">
-            % v = renderer.visualizer
-    	    %for e in v.__effect__:
-            <li class="list-group-item d-flex align-items-center">{{e}}</li>
-            %end
-    	</ul>
-	</div>
-</div>
 %include("footer.tpl")
