@@ -69,7 +69,7 @@
         el.addEventListener('change', async function () {
             const value = el.type === 'checkbox' ? el.checked : el.value;
             try {
-                await call('/config/edit/' + el.dataset.key + '/' + value);
+                await call('/config/edit/' + el.dataset.key + '/' + encodeURIComponent(value));
                 if (el.hasAttribute('data-restart')) {
                     const banner = document.getElementById('restart-banner');
                     if (banner) banner.hidden = false;
@@ -77,6 +77,16 @@
             } catch (err) {
                 showOutput('Could not save', String(err));
             }
+        });
+    });
+
+    // map center: two inputs saved together as [lat, lon]
+    document.querySelectorAll('[data-center]').forEach(function (el) {
+        el.addEventListener('change', function () {
+            const v = Array.from(document.querySelectorAll('[data-center]')).map(function (i) { return parseFloat(i.value); });
+            if (v.some(isNaN)) return;
+            call('/config/edit/geo.map.center/' + encodeURIComponent(JSON.stringify(v)))
+                .catch(function (err) { showOutput('Could not save', String(err)); });
         });
     });
 

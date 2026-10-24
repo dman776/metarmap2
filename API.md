@@ -99,6 +99,38 @@ Returns a read-only snapshot of the map's state as `application/json`. No authen
 | `missingStations` | Airports that had no METAR in the last fetch |
 | `airports` | Airports in `airports.json` order. `pixel` is the LED index. `text` and `display` are the OLED settings. The METAR fields are `null` when the map has no data for the airport. `windDir` is a string because it can be `VRB`. |
 
+### `GET /api/live`
+
+What the physical map is doing right now. The Map page polls it every second. No authentication.
+
+```json
+{
+  "now": 1792854523.9,
+  "brightness": 0.5,
+  "visualizer": { "active": 0, "name": "Flight Category", "exclusive": false },
+  "strip": null,
+  "leds": [
+    { "code": "KLBX", "pixel": 4, "name": "", "lat": 29.11, "lon": -95.46, "flightCategory": "IFR",
+      "raw": "KLBX 241453Z ... LTG DSNT", "lightning": true,
+      "look": { "effect": "cycle", "colors": ["#ff0000", "...", "#ffff00"], "step": 0.1 } }
+  ],
+  "locate": { "pixel": 5, "at": 1792854523.96 },
+  "display": {
+    "enabled": true,
+    "screen": { "airport": "KGLS", "title": "KGLS", "badge": "LIFR", "page": 1,
+                "lines": [ { "icon": "wind", "text": "150@08" }, { "icon": "visibility", "text": "1SM" },
+                           { "icon": "pressure", "text": "29.98" } ] }
+  }
+}
+```
+
+| Field | Description |
+|---|---|
+| `leds[].look` | The LED's current effect: `solid`, `off`, `blink` (`period` seconds per on/off cycle), `pulse` (`period`), or `cycle` (steps through `colors`, `step` seconds each). Colors are CSS hex colors. |
+| `strip` | Set when one effect drives the whole strip instead: `rainbow` (`period`) or `chase` (`step`, `size`, `spacing`). |
+| `locate` | The last white locate pulse: LED `pixel` and Unix time `at`. `null` until the first one. |
+| `display.screen` | What the OLED shows. `page` is 1 or 2 for an airport, 0 for "Data Unavailable" or a message (then `airport` is `null`). Icons: `wind`, `visibility`, `pressure`, `temp`, `dewpoint`, `date`. |
+
 ## Control
 
 These endpoints change the map immediately. Nothing they change is saved to `config.json`, so the changes are lost on restart. Each one returns the HTML of a UI page; ignore it.
@@ -140,7 +172,7 @@ Saves one value to `config.json`, then refreshes the active visualizer. `key` is
 
 - **Booleans:** send `true` or `false`.
 - **Numbers:** send them as-is, for example `5` or `0.25`.
-- **Strings:** wrap them in quotes and URL-encode them, for example `geo.city` → `%22Dallas%22`.
+- **Strings:** URL-encode them, for example `geo.map.chart` → `Dallas-Ft%20Worth`. Quoting them (`%22Dallas%22`) also still works.
 
 The server runs the value as Python code. Only give this endpoint's credentials to people you trust.
 
@@ -155,6 +187,12 @@ Settings that need a restart:
 - `led.inittest`
 - `visualizer.auto_rotate.enabled`
 - `visualizer.auto_rotate.delay_seconds`
+
+Map page settings (apply the next time the Map page is opened):
+- `geo.map.background`: `sectional`, `satellite` or `radar`
+- `geo.map.chart_type`: `sectional`, `terminal` (VFR Terminal Area) or `ifr_low` (IFR Enroute Low)
+- `geo.map.chart`: the sectional name, as listed in [static/sectionals.json](static/sectionals.json), such as `Houston`. If it's missing or unknown, the map uses the sectional that covers the most airports.
+- `geo.map.view`: `airports` (fit to the airports), `chart` (the whole sectional) or `custom` (`geo.map.center` and `geo.map.zoom`)
 
 The map loads `led.brightness.normal`, `led.brightness.dimmed` and `led.brightness.off` at midnight or when it restarts.
 
@@ -185,7 +223,7 @@ Both save `airports.json`, restart the OLED display loop, and redirect to `/conf
 |---|---|---|
 | `GET /` | | Home: flight category counts, visualizer controls and legend, brightness and sun times |
 | `GET /metars` | | Table of METARs for every airport |
-| `GET /map` | | Map of airports colored by flight category |
+| `GET /map` | | Live mirror of the LEDs and the OLED screen on an FAA chart, satellite or radar background |
 | `GET /raw` | | Raw METAR text for every airport, followed by the full parsed data |
 | `GET /raw/<code>` | | Raw METAR text for one airport |
 | `GET /debug` | | Debug information |

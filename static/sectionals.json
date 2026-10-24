@@ -1,0 +1,390 @@
+{
+ "source": "FAA AeroNav sectional GeoTIFF metadata (bounding coordinates), edition 09/03/2026",
+ "charts": [
+  {
+   "name": "Albuquerque",
+   "west": -110.2247,
+   "east": -101.7638,
+   "south": 31.5016,
+   "north": 36.2875
+  },
+  {
+   "name": "Anchorage",
+   "west": -153.8392,
+   "east": -139.3457,
+   "south": 59.4314,
+   "north": 64.2866
+  },
+  {
+   "name": "Atlanta",
+   "west": -89.2445,
+   "east": -80.7459,
+   "south": 31.8175,
+   "north": 36.6214
+  },
+  {
+   "name": "Bethel",
+   "west": -174.8797,
+   "east": -160.3041,
+   "south": 59.4365,
+   "north": 64.3133
+  },
+  {
+   "name": "Billings",
+   "west": -110.5885,
+   "east": -100.2671,
+   "south": 44.2922,
+   "north": 49.0986
+  },
+  {
+   "name": "Brownsville",
+   "west": -103.7483,
+   "east": -96.5789,
+   "south": 23.5164,
+   "north": 28.2749
+  },
+  {
+   "name": "Cape Lisburne",
+   "west": -175.3751,
+   "east": -154.9301,
+   "south": 67.4136,
+   "north": 72.2935
+  },
+  {
+   "name": "Charlotte",
+   "west": -82.8154,
+   "east": -74.8629,
+   "south": 31.5047,
+   "north": 36.2867
+  },
+  {
+   "name": "Cheyenne",
+   "west": -110.1733,
+   "east": -100.6175,
+   "south": 39.7923,
+   "north": 44.6087
+  },
+  {
+   "name": "Chicago",
+   "west": -94.1786,
+   "east": -84.6186,
+   "south": 39.7654,
+   "north": 44.5946
+  },
+  {
+   "name": "Cincinnati",
+   "west": -86.6129,
+   "east": -77.7121,
+   "south": 35.4965,
+   "north": 40.2938
+  },
+  {
+   "name": "Cold Bay",
+   "west": -165.3586,
+   "east": -154.0825,
+   "south": 53.749,
+   "north": 56.2572
+  },
+  {
+   "name": "Dallas-Ft Worth",
+   "west": -103.2306,
+   "east": -94.7655,
+   "south": 31.52,
+   "north": 36.2811
+  },
+  {
+   "name": "Dawson",
+   "west": -147.6567,
+   "east": -130.7136,
+   "south": 63.4295,
+   "north": 68.3026
+  },
+  {
+   "name": "Denver",
+   "west": -111.9543,
+   "east": -103.7099,
+   "south": 35.324,
+   "north": 40.1255
+  },
+  {
+   "name": "Detroit",
+   "west": -86.1377,
+   "east": -76.6283,
+   "south": 39.4769,
+   "north": 44.3027
+  },
+  {
+   "name": "Dutch Harbor",
+   "west": -174.3722,
+   "east": -163.0764,
+   "south": 51.4436,
+   "north": 56.2542
+  },
+  {
+   "name": "El Paso",
+   "west": -109.8693,
+   "east": -102.442,
+   "south": 27.5264,
+   "north": 32.2723
+  },
+  {
+   "name": "Fairbanks",
+   "west": -160.708,
+   "east": -143.6996,
+   "south": 63.4441,
+   "north": 68.3121
+  },
+  {
+   "name": "Great Falls",
+   "west": -118.5888,
+   "east": -108.2666,
+   "south": 44.2576,
+   "north": 49.0926
+  },
+  {
+   "name": "Green Bay",
+   "west": -94.5248,
+   "east": -84.3142,
+   "south": 43.6111,
+   "north": 48.4226
+  },
+  {
+   "name": "Halifax",
+   "west": -70.0638,
+   "east": -60.6214,
+   "south": 43.4932,
+   "north": 48.2938
+  },
+  {
+   "name": "Hawaiian Islands",
+   "west": -161.757,
+   "east": -153.3616,
+   "south": 17.7097,
+   "north": 24.0193
+  },
+  {
+   "name": "Houston",
+   "west": -97.8728,
+   "east": -90.4408,
+   "south": 27.5573,
+   "north": 32.2747
+  },
+  {
+   "name": "Jacksonville",
+   "west": -85.8837,
+   "east": -78.4317,
+   "south": 27.4853,
+   "north": 32.277
+  },
+  {
+   "name": "Juneau",
+   "west": -142.3608,
+   "east": -129.7026,
+   "south": 55.4411,
+   "north": 60.2869
+  },
+  {
+   "name": "Kansas City",
+   "west": -97.9562,
+   "east": -89.7109,
+   "south": 35.5007,
+   "north": 40.2863
+  },
+  {
+   "name": "Ketchikan",
+   "west": -140.494,
+   "east": -129.2396,
+   "south": 51.4706,
+   "north": 56.2543
+  },
+  {
+   "name": "Klamath Falls",
+   "west": -126.1751,
+   "east": -116.6244,
+   "south": 39.7762,
+   "north": 44.6103
+  },
+  {
+   "name": "Kodiak",
+   "west": -163.3822,
+   "east": -150.6961,
+   "south": 55.4684,
+   "north": 60.2827
+  },
+  {
+   "name": "Lake Huron",
+   "west": -86.5093,
+   "east": -76.3276,
+   "south": 43.5064,
+   "north": 48.3025
+  },
+  {
+   "name": "Las Vegas",
+   "west": -119.544,
+   "east": -110.6997,
+   "south": 35.3405,
+   "north": 40.1207
+  },
+  {
+   "name": "Los Angeles",
+   "west": -122.3953,
+   "east": -114.5087,
+   "south": 31.8966,
+   "north": 36.6724
+  },
+  {
+   "name": "Mariana Islands",
+   "west": 142.8955,
+   "east": 146.5565,
+   "south": 12.5524,
+   "north": 16.1315
+  },
+  {
+   "name": "McGrath",
+   "west": -164.223,
+   "east": -149.8926,
+   "south": 59.4415,
+   "north": 64.2676
+  },
+  {
+   "name": "Memphis",
+   "west": -96.2158,
+   "east": -87.7791,
+   "south": 31.4934,
+   "north": 36.2934
+  },
+  {
+   "name": "Miami",
+   "west": -83.778,
+   "east": -76.3328,
+   "south": 23.7911,
+   "north": 28.5492
+  },
+  {
+   "name": "Montreal",
+   "west": -78.5031,
+   "east": -68.3119,
+   "south": 43.4966,
+   "north": 48.3128
+  },
+  {
+   "name": "New Orleans",
+   "west": -91.8917,
+   "east": -84.44,
+   "south": 27.502,
+   "north": 32.2682
+  },
+  {
+   "name": "New York",
+   "west": -78.1367,
+   "east": -68.6503,
+   "south": 39.4681,
+   "north": 44.2942
+  },
+  {
+   "name": "Nome",
+   "west": -173.6052,
+   "east": -156.6382,
+   "south": 63.4604,
+   "north": 68.3087
+  },
+  {
+   "name": "Omaha",
+   "west": -102.1788,
+   "east": -92.6212,
+   "south": 39.7966,
+   "north": 44.6158
+  },
+  {
+   "name": "Phoenix",
+   "west": -117.1368,
+   "east": -108.7246,
+   "south": 31.2225,
+   "north": 35.9994
+  },
+  {
+   "name": "Point Barrow",
+   "west": -159.6154,
+   "east": -139.1262,
+   "south": 67.4249,
+   "north": 72.3428
+  },
+  {
+   "name": "Salt Lake City",
+   "west": -118.1617,
+   "east": -108.6185,
+   "south": 39.7851,
+   "north": 44.6048
+  },
+  {
+   "name": "Samoan Islands",
+   "west": -172.875,
+   "east": -169.3459,
+   "south": -14.7696,
+   "north": -13.1767
+  },
+  {
+   "name": "San Antonio",
+   "west": -103.9028,
+   "east": -96.3441,
+   "south": 27.5512,
+   "north": 32.2749
+  },
+  {
+   "name": "San Francisco",
+   "west": -125.9465,
+   "east": -117.6333,
+   "south": 35.8571,
+   "north": 40.6395
+  },
+  {
+   "name": "Seattle",
+   "west": -126.5803,
+   "east": -116.2665,
+   "south": 44.2844,
+   "north": 49.0945
+  },
+  {
+   "name": "Seward",
+   "west": -154.1684,
+   "east": -139.9494,
+   "south": 59.0327,
+   "north": 61.5981
+  },
+  {
+   "name": "St Louis",
+   "west": -92.6489,
+   "east": -83.7406,
+   "south": 35.4989,
+   "north": 40.2999
+  },
+  {
+   "name": "Twin Cities",
+   "west": -102.608,
+   "east": -92.2636,
+   "south": 44.2851,
+   "north": 49.1052
+  },
+  {
+   "name": "Washington",
+   "west": -79.9482,
+   "east": -71.6512,
+   "south": 35.4981,
+   "north": 40.2792
+  },
+  {
+   "name": "Western Aleutian Islands",
+   "west": 168.1678,
+   "east": 187.6496,
+   "south": 50.7546,
+   "north": 53.2873
+  },
+  {
+   "name": "Wichita",
+   "west": -104.9114,
+   "east": -96.6256,
+   "south": 35.5076,
+   "north": 40.3007
+  }
+ ]
+}

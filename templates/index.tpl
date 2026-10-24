@@ -67,28 +67,7 @@
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
                 </button>
             </div>
-            % legend = active_vis.legend
-            % if legend:
-            <div style="display: flex; flex-direction: column; gap: 10px">
-                <div class="lbl">What the LEDs mean</div>
-                <ul class="legend">
-                    % for item in legend:
-                    %   colors = item['colors']
-                    %   style = ''
-                    %   if len(colors) > 1 and item['effect'] != 'flash':
-                    %     style = '--c: {0}; background: linear-gradient(90deg, {1})'.format(colors[0], ', '.join(colors))
-                    %   elif colors:
-                    %     style = '--c: {0}; --c2: {1}'.format(colors[0], colors[-1])
-                    %   end
-                    %   if item['period']:
-                    %     style += '; --period: {0}s'.format(item['period'])
-                    %   end
-                    %   classes = 'led ' + item['effect'] + (' grad' if len(colors) > 1 and item['effect'] != 'flash' else '')
-                    <li><span class="{{classes}}" style="{{style}}" aria-hidden="true"></span><div><b>{{item['label']}}</b><span class="m">{{item['detail']}}</span></div></li>
-                    % end
-                </ul>
-            </div>
-            % end
+            %include("legend.tpl", legend=active_vis.legend)
             <div class="chip-row" role="group" aria-label="Choose a visualizer">
                 % for i, v in enumerate(visualizers):
                 <button class="chip" type="button" aria-pressed="{{'true' if i == active_num else 'false'}}" data-call="/visualizer/{{i}}" data-then="home">{{v.name}}</button>

@@ -2,9 +2,11 @@
 Module to handle METAR fetching and processing
 """
 
+import time
 from datetime import datetime
 import pytz
 import lib.safe_logging as safe_logging
+import lib.colors as colors_lib
 import metar
 try:
     from config import Config
@@ -15,6 +17,36 @@ from adafruit_led_animation.sequence import AnimateOnce
 from adafruit_led_animation.group import AnimationGroup
 from adafruit_led_animation.animation.pulse import Pulse
 from adafruit_led_animation.color import WHITE
+
+
+def describe_effect(effect):
+    """
+    Describes one LED animation so the web UI can replay it.
+    Returns the pixels it drives (None = the whole strip) and how it looks.
+    """
+    kind = type(effect).__name__
+    ranges = getattr(effect.pixel_object, "_ranges", None)
+    pixels = [r[0] for r in ranges] if ranges else None
+    css = lambda colors: [colors_lib.to_css(c) for c in colors if c is not None]
+    speed = effect.speed
+    if kind == "Solid":
+        look = {"effect": "solid", "colors": css([effect.color])}
+    elif kind == "Blink":
+        look = {"effect": "blink", "colors": css([effect.colors[0]]), "period": speed * 2}
+    elif kind == "Pulse":
+        look = {"effect": "pulse", "colors": css([effect.color]), "period": effect._period}
+    elif kind == "ColorCycle":
+        look = {"effect": "cycle", "colors": css(effect.colors), "step": speed}
+    elif kind == "Rainbow":
+        look = {"effect": "rainbow", "colors": [], "period": effect._period}
+    elif kind == "Chase":
+        look = {"effect": "chase", "colors": css([effect.color]), "step": speed,
+                "size": effect._size, "spacing": effect._spacing}
+    else:
+        look = {"effect": "solid", "colors": css([effect.color])}
+    if look["effect"] == "solid" and look["colors"] == ["#000000"]:
+        look = {"effect": "off", "colors": []}
+    return pixels, look
 
 
 class Renderer(object):
@@ -36,6 +68,7 @@ class Renderer(object):
         self.__visualizers__: list = visualizers
         self.__vis__ = visualizers[0]
         self.active_visualizer: int = 0
+        self.last_locate = None  # {"pixel": n, "at": epoch seconds} of the last locate() pulse
         self.adjust_brightness_for_time()
         self.clear()
 
@@ -84,7 +117,26 @@ class Renderer(object):
 
     def locate(self, pixnum):
         if not self.__visualizers__[self.active_visualizer].exclusive:
+            self.last_locate = {"pixel": int(pixnum), "at": time.time()}
             self.animate_once(Pulse(self.__pix__[int(pixnum)], speed=0.1, period=1, color=WHITE), False)
+
+    def led_states(self):
+        """
+        What every LED is doing right now, indexed by pixel, plus any effect that drives the whole strip.
+        """
+        leds, strip = {}, None
+        for effect in self.__vis__.get_effects():
+            try:
+                pixels, look = describe_effect(effect)
+            except Exception as e:
+                safe_logging.safe_log("[r]describe effect: " + str(e))
+                continue
+            if pixels is None:
+                strip = look
+            else:
+                for p in pixels:
+                    leds[p] = look
+        return leds, strip
 
     @property
     # returns [number, visualizer]

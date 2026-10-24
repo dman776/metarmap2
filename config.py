@@ -1,3 +1,4 @@
+import ast
 import json
 import sys
 from json import JSONEncoder
@@ -57,6 +58,10 @@ class Config(object):
     def edit(self, key, value):
         if value in ['true', 'false']:
             value = value.capitalize()
+        try:
+            ast.literal_eval(str(value))
+        except (ValueError, SyntaxError):
+            value = repr(value)  # plain text, e.g. a chart name
         code = compile("self.__data__." + key + "=" + str(value), "<string>", "exec")
         exec(code)
         self.write()

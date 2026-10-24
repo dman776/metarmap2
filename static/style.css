@@ -176,6 +176,12 @@ select:focus, input[type=text]:focus, input[type=search]:focus { outline: 2px so
 .set .range input { width: 220px; }
 .set .val { display: inline-block; min-width: 56px; text-align: right; font-family: var(--mono); }
 .rs { display: inline-block; margin-left: 8px; font-size: 11px; font-weight: 600; color: var(--accent); border: 1px solid var(--accent-line); border-radius: 999px; padding: 2px 8px; vertical-align: 2px; }
+.radios { display: flex; flex-direction: column; gap: 4px; min-width: 240px; }
+.radios > label { display: flex; align-items: center; gap: 10px; min-height: 40px; font-size: 14px; cursor: pointer; }
+.radios input[type=radio] { accent-color: var(--accent); width: 18px; height: 18px; margin: 0; }
+.coords { display: flex; gap: 8px; padding-left: 28px; }
+.coords label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.coords input { width: 92px; min-height: 36px; font-family: var(--mono); }
 .banner { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 14px 20px; border-radius: 12px; background: var(--accent-soft); border: 1px solid var(--accent-line); font-size: 14px; }
 .banner > span { display: flex; align-items: center; gap: 12px; }
 .subnav { display: flex; gap: 4px; }
@@ -183,11 +189,63 @@ select:focus, input[type=text]:focus, input[type=search]:focus { outline: 2px so
 .ap-row input[type=text] { font-family: var(--mono); min-height: 40px; width: 100%; text-transform: uppercase; }
 
 /* map */
-#map { height: 640px; max-height: 75vh; border-radius: var(--radius); border: 1px solid var(--line); background: var(--surface); }
-.leaflet-popup-content { font: 13px var(--mono); }
+.live-map { height: 72vh; min-height: 480px; border-radius: var(--radius); border: 1px solid var(--line); background: #c9d8c0; z-index: 0; }
 .tiles-dark { filter: invert(1) hue-rotate(180deg) brightness(.85) contrast(.9) saturate(.6); }
-.map-legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 13px; color: var(--text-2); }
-.map-legend span { display: inline-flex; align-items: center; gap: 8px; }
+.vis-switch { display: flex; align-items: center; gap: 8px; }
+.vis-name { min-width: 170px; text-align: center; display: flex; flex-direction: column; }
+.vis-name b { font-size: 16px; }
+
+.mled { position: relative; }
+.mled-dot { --c: #fff; position: absolute; left: -6px; top: -6px; width: 12px; height: 12px; padding: 0; border: 0; border-radius: 50%; cursor: pointer;
+    background: radial-gradient(circle, #fff 0 16%, var(--c) 40%, var(--c) 56%, transparent 74%);
+    box-shadow: 0 0 9px 3px var(--c), 0 0 26px 9px color-mix(in srgb, var(--c) 40%, transparent); }
+.mled-dot.off { background: #1b222b; border: 1px solid #0b1117; box-shadow: inset 0 1px 3px rgba(0, 0, 0, .8), 0 0 0 2px rgba(255, 255, 255, .35); opacity: 1 !important; }
+.mled-dot::after { content: ""; position: absolute; inset: -5px; border-radius: 50%; pointer-events: none; opacity: 0;
+    background: radial-gradient(circle, #fff 0 30%, rgba(255, 255, 255, .85) 45%, transparent 72%); box-shadow: 0 0 22px 10px rgba(255, 255, 255, .55); }
+.mled-dot.locate::after { animation: led-locate 1s ease-in-out 1; }
+.mled-dot.active::before { content: ""; position: absolute; inset: -11px; border-radius: 50%; border: 1.5px solid rgba(255, 255, 255, .8); }
+.mled-dot:focus-visible { outline: 2px solid #ffd27d; outline-offset: 6px; }
+@keyframes led-locate { 0% { opacity: 0; } 50% { opacity: 1; } 100% { opacity: 0; } }
+.mled-code { position: absolute; left: 11px; top: 0; transform: translateY(-50%); font: 600 10px var(--mono); color: var(--text); background: rgba(11, 17, 23, .78); border-radius: 4px; padding: 1px 4px; white-space: nowrap; pointer-events: none; }
+
+.map-panel { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.map-switch { background: rgba(11, 17, 23, .9); border-color: var(--control); box-shadow: 0 6px 18px rgba(0, 0, 0, .35); }
+.map-note { display: flex; flex-direction: column; gap: 6px; padding: 8px 12px; border-radius: 10px; background: rgba(11, 17, 23, .9); border: 1px solid var(--control); font: 12px var(--sans); color: var(--text-2); }
+.map-note b { color: var(--text); }
+.map-note time { font-family: var(--mono); }
+.dbz { display: flex; align-items: center; gap: 8px; font: 10px var(--mono); color: var(--muted); }
+.dbz i { width: 180px; height: 8px; border-radius: 4px; background: linear-gradient(90deg, #64b4ff, #1e6eff, #00d200, #009600, #ffff00, #ffa000, #ff0000, #c80000, #ff00ff); }
+
+.oled { padding: 14px 14px 10px; border-radius: 12px; background: #05070a; border: 1px solid #2a3442; box-shadow: 0 12px 32px rgba(0, 0, 0, .55); }
+.oled-screen { position: relative; width: 256px; height: 128px; background: #000; overflow: hidden; border-radius: 2px; color: #f2f6ff;
+    font-family: "Noto Sans", "DejaVu Sans", sans-serif; font-weight: 500; line-height: 1; text-shadow: 0 0 4px rgba(200, 220, 255, .45); }
+.oled-screen::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+    background-image: repeating-linear-gradient(0deg, rgba(0, 0, 0, .35) 0 1px, transparent 1px 2px), repeating-linear-gradient(90deg, rgba(0, 0, 0, .35) 0 1px, transparent 1px 2px); }
+.oled-screen span { position: absolute; white-space: nowrap; }
+.o-title { left: 0; top: -4px; font-size: 38px; }
+.o-badge { left: 160px; top: 0; font-size: 30px; }
+.o-line { left: 40px; font-size: 27px; }
+.o-l0 { top: 38px; } .o-l1 { top: 72px; } .o-l2 { top: 104px; }
+.o-ico { left: 4px; width: 24px; height: 24px; }
+.o-ico svg { width: 100%; height: 100%; display: block; }
+.o-i0 { top: 40px; } .o-i1 { top: 74px; } .o-i2 { top: 106px; }
+.o-ico-title { left: 220px; top: 2px; }
+.oled-cap { display: flex; justify-content: space-between; gap: 12px; margin-top: 8px; font: 11px var(--mono); color: #6f8096; }
+
+.led-popup .leaflet-popup-content-wrapper, .led-popup .leaflet-popup-tip { background: var(--surface); color: var(--text); border: 1px solid var(--control); }
+.led-popup .leaflet-popup-content { margin: 12px 14px; width: 280px; }
+.led-popup a.leaflet-popup-close-button { color: var(--muted); }
+.pop-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 6px; font: 600 14px var(--mono); }
+.pop-raw { font: 12px/1.5 var(--mono); color: var(--text-2); }
+.leaflet-container .leaflet-control-attribution { background: rgba(11, 17, 23, .75); color: var(--text-2); }
+.leaflet-container .leaflet-control-attribution a { color: var(--accent); }
+
+@media (max-width: 640px) {
+    .oled { padding: 8px 8px 6px; }
+    .oled-screen { transform: scale(.6); transform-origin: top left; margin: 0 -102px -51px 0; }
+    .mled-code { display: none; }
+    .vis-name { min-width: 0; }
+}
 
 /* dialog */
 dialog { width: min(640px, calc(100vw - 32px)); padding: 0; border-radius: var(--radius); border: 1px solid var(--line); background: var(--surface); color: var(--text); }

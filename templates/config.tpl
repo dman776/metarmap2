@@ -81,6 +81,48 @@
             % switch('display_screen.locate_active', d.display_screen.locate_active, 'Highlight active airport', 'Pulse the LED of the airport on screen.')
             % slider('display_screen.delay', d.display_screen.delay, 'Delay per airport', lo=0, hi=30, step=1, fmt='sec')
         </section>
+
+        % m = map_settings
+        <section class="card settings">
+            <h2>Map page</h2>
+            <div class="set">
+                <div><label class="t" for="map-bg">Default background</label><div class="d">Viewers can still switch on the Map page.</div></div>
+                <select id="map-bg" data-key="geo.map.background">
+                    % for value, label in (('sectional', 'FAA chart'), ('satellite', 'Satellite'), ('radar', 'Radar')):
+                    <option value="{{value}}"{{!' selected' if m['background'] == value else ''}}>{{label}}</option>
+                    % end
+                </select>
+            </div>
+            <div class="set">
+                <div><label class="t" for="map-type">Chart type</label><div class="d">Charts update with each FAA edition.</div></div>
+                <select id="map-type" data-key="geo.map.chart_type">
+                    % for value, (service, label, min_zoom) in chart_types.items():
+                    <option value="{{value}}"{{!' selected' if m['chart_type'] == value else ''}}>{{label}}</option>
+                    % end
+                </select>
+            </div>
+            <div class="set">
+                <div><label class="t" for="map-chart">Sectional chart</label><div class="d">The chart printed on your map.</div></div>
+                <select id="map-chart" data-key="geo.map.chart">
+                    % for c in sectionals:
+                    <option{{!' selected' if m['chart'] == c['name'] else ''}}>{{c['name']}}</option>
+                    % end
+                </select>
+            </div>
+            <div class="set" style="align-items: flex-start">
+                <div><div class="t" id="map-view">Starting view</div><div class="d">Where the Map page opens.</div></div>
+                <div role="radiogroup" aria-labelledby="map-view" class="radios">
+                    % for value, label in (('airports', 'Fit to my airports'), ('chart', 'Whole sectional chart'), ('custom', 'Custom center and zoom')):
+                    <label><input type="radio" name="map-view" value="{{value}}" data-key="geo.map.view"{{!' checked' if m['view'] == value else ''}}>{{label}}</label>
+                    % end
+                    <div class="coords">
+                        <label>Latitude<input type="text" inputmode="decimal" value="{{m['center'][0]}}" data-center="0"></label>
+                        <label>Longitude<input type="text" inputmode="decimal" value="{{m['center'][1]}}" data-center="1"></label>
+                        <label>Zoom<input type="text" inputmode="numeric" value="{{m['zoom']}}" data-key="geo.map.zoom"></label>
+                    </div>
+                </div>
+            </div>
+        </section>
     </div>
 
     <div class="side">

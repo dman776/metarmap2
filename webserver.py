@@ -13,7 +13,21 @@ import threading
 import io
 import json
 import socket
+import time
 from datetime import datetime
+
+
+# FAA AIS tile services: (service name, label, lowest zoom level the FAA has tiles for); all stop at 12
+CHART_TYPES = {
+    "sectional": ("VFR_Sectional", "VFR Sectional", 8),
+    "terminal": ("VFR_Terminal", "VFR Terminal Area", 10),
+    "ifr_low": ("IFR_AreaLow", "IFR Enroute Low", 7),
+}
+
+
+def load_sectionals():
+    with open("./static/sectionals.json") as f:
+        return json.load(f)["charts"]
 
 
 def my_ip():
@@ -39,6 +53,7 @@ class WebServer(object):
         self._pixels: NeoPixel = self._renderer.pixels()
         self._thread = None
         self._myIP = my_ip()
+        self._sectionals = load_sectionals()
         bottle.TEMPLATE_PATH.insert(0, "./templates")
 
     def run(
@@ -81,6 +96,7 @@ class WebServer(object):
         self._app.route("/visualizer/next", method="GET", callback=self._visualizernext)
         self._app.route("/visualizer/previous", method="GET", callback=self._visualizerprevious)
         self._app.route("/api/status", method="GET", callback=self._api_status)
+        self._app.route("/api/live", method="GET", callback=self._api_live)
         self._app.route("/static/<filename:path>", method="GET", callback=self._static)
 
     def is_auth(self, user, password):
@@ -133,6 +149,45 @@ class WebServer(object):
             upcoming[0]["next"] = True
         return schedule
 
+    def _map_settings(self):
+        """
+        Map page settings from config.json (geo.map), with defaults for older config files.
+        """
+        m = self._config.data.geo.map
+        chart = getattr(m, "chart", None)
+        if not any(c["name"] == chart for c in self._sectionals):
+            chart = self._chart_for_airports()
+        chart_type = getattr(m, "chart_type", "sectional")
+        if chart_type not in CHART_TYPES:
+            chart_type = "sectional"
+        return {
+            "background": getattr(m, "background", "sectional"),
+            "chart_type": chart_type,
+            "chart_service": CHART_TYPES[chart_type][0],
+            "chart_label": CHART_TYPES[chart_type][1],
+            "chart_min_zoom": CHART_TYPES[chart_type][2],
+            "chart": chart,
+            "chart_bounds": next((c for c in self._sectionals if c["name"] == chart), None),
+            "view": getattr(m, "view", "airports"),
+            "center": list(m.center),
+            "zoom": m.zoom,
+        }
+
+    def _chart_for_airports(self):
+        """
+        The sectional that covers the most airports, used when none is configured.
+        """
+        points = [(float(s["lat"]), float(s["lon"])) for s in self._stations() if s["lat"] and s["lon"]]
+
+        def covered(c):
+            return sum(1 for lat, lon in points if c["south"] <= lat <= c["north"] and c["west"] <= lon <= c["east"])
+        best = max(self._sectionals, key=covered)
+        return best["name"] if covered(best) else None
+
+    def _render_config(self):
+        return self._template('config.tpl', map_settings=self._map_settings(), sectionals=self._sectionals,
+                              chart_types=CHART_TYPES)
+
     def _render_index(self):
         return self._template('index.tpl', metars=self._metarsObj, stations=self._stations(),
                               schedule=self._sun_schedule())
@@ -156,13 +211,13 @@ class WebServer(object):
         return buf.read()
 
     def _map(self):
-        return self._template('map.tpl', stations=self._stations())
+        return self._template('map.tpl', settings=self._map_settings())
 
     def _rawcode(self, code):
         return "<b>" + code + "</b>: " + self._metarsObj.data[code]['raw'] + "<br />"
 
     def _get_config(self):
-        return self._template('config.tpl')
+        return self._render_config()
 
     def _get_config_airports(self):
         return self._template('airports.tpl', stations=self._stations())
@@ -178,7 +233,7 @@ class WebServer(object):
     def _edit_config(self, key, value):
         self._config.edit(key, value)
         self._renderer.refresh()
-        return self._template('config.tpl')
+        return self._render_config()
 
     def _fetch(self):
         self._metarsObj.fetch()
@@ -219,6 +274,46 @@ class WebServer(object):
     def _visualizerprevious(self):
         self._renderer.visualizer_previous()
         return self._render_index()
+
+    def _api_live(self):
+        """
+        What the physical map is doing right now: every LED's effect, the OLED screen and the last locate pulse.
+        Polled by the Map page.
+        """
+        def num(v):
+            try:
+                return float(v)
+            except (TypeError, ValueError):
+                return None
+
+        led_looks, strip = self._renderer.led_states()
+        active_num, active_vis = self._renderer.visualizer
+        display = self._display if self._config.data.display_screen.enabled else None
+        leds = []
+        for s in self._stations():
+            m = self._metarsObj.data.get(s["code"]) or {}
+            leds.append({
+                "code": s["code"],
+                "pixel": s["pixel"],
+                "name": s["name"],
+                "lat": num(s["lat"]),
+                "lon": num(s["lon"]),
+                "flightCategory": s["cat"],
+                "raw": s["raw"],
+                "lightning": m.get("lightning", False),
+                "look": led_looks.get(s["pixel"], {"effect": "off", "colors": []}),
+            })
+        live = {
+            "now": time.time(),
+            "brightness": self._pixels.brightness,
+            "visualizer": {"active": active_num, "name": active_vis.name, "exclusive": active_vis.exclusive},
+            "strip": strip,
+            "leds": leds,
+            "locate": self._renderer.last_locate,
+            "display": {"enabled": display is not None, "screen": display.screen if display else None},
+        }
+        bottle.response.content_type = "application/json"
+        return json.dumps(live)
 
     def _api_status(self):
         """

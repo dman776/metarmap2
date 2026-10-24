@@ -45,6 +45,54 @@ ICON_DEWPOINT = "\uf73d"
 ICON_DATE = "\uf017"
 
 
+def wind_text(data):
+    if isinstance(data['windSpeed'], int):
+        if int(data['windSpeed']) > 0:
+            if str(data["windDir"]).upper() == "VRB":
+                wind_dir = "VRB"
+            else:
+                wind_dir = "{0:03d}".format(int(data["windDir"]))
+
+            return "{0}@{1:02d}".format(
+                wind_dir,
+                int(data["windSpeed"])
+            ) + (
+                "G{0:02d}".format(int(data["windGustSpeed"])) if data.get("windGust") else ""
+            )
+        return "CALM"
+    return data['windSpeed']
+
+
+def temp_text(celsius):
+    return "{0}\N{DEGREE SIGN}C / {1:.0f}\N{DEGREE SIGN}F".format(celsius, utils.celsius_to_fahrenheit(celsius))
+
+
+def screen_for(station, data, page, tz=None):
+    """
+    What the screen shows for one airport: page 1 (wind, visibility, pressure),
+    page 2 (temperature, dewpoint, time) or page 0 (no data).
+    Returned as a dict so the web UI can mirror the OLED.
+    """
+    if page == 0:
+        return {"airport": station, "title": station, "badge": "", "page": 0,
+                "lines": [{"icon": "", "text": "Data"}, {"icon": "", "text": "Unavailable"}, {"icon": "", "text": ""}]}
+    if page == 1:
+        lines = [{"icon": "wind", "text": wind_text(data)},
+                 {"icon": "visibility", "text": "{0}SM".format(data['vis'])},
+                 {"icon": "pressure", "text": "{0:2.2f}".format(data['altimHg'])}]
+    else:
+        has_temp = isinstance(data['tempC'], int)
+        obs = data["obsTime"]
+        lines = [{"icon": "temp", "text": temp_text(data['tempC']) if has_temp else ""},
+                 {"icon": "dewpoint", "text": temp_text(data['dewpointC']) if has_temp else ""},
+                 {"icon": "date", "text": "{0} {1}".format(obs.astimezone(tz).strftime("%H:%MC"), obs.strftime("%H:%MZ"))}]
+    return {"airport": station, "title": station, "badge": data["flightCategory"] or "", "page": page, "lines": lines}
+
+
+ICONS = {"wind": ICON_WIND, "visibility": ICON_VISIBILITY, "pressure": ICON_PRESSURE, "temp": ICON_TEMP,
+         "dewpoint": ICON_DEWPOINT, "date": ICON_DATE, "info": ICON_INFO, "": ""}
+
+
 def define_page_layouts():
     pl = []
     # Message/Info
@@ -104,6 +152,11 @@ class Display(object):
         self.__thread__ = threading.Thread(target=self.loop)
         self.__thread__.daemon = True
         self.__location__ = utils.get_location(self.__renderer__.config.data.geo.city)
+        self.__screen__ = None  # what is on the OLED right now (mirrored by the web UI)
+
+    @property
+    def screen(self):
+        return self.__screen__
 
     """
     method to start the looping thread
@@ -120,6 +173,7 @@ class Display(object):
         self.event.set()
         if clear:
             self.__oled__.clear()
+            self.__screen__ = None
 
     def restart(self):
         self.stop(False)
@@ -168,82 +222,37 @@ class Display(object):
                 self.__oled__.text(line2, 4)
                 self.__oled__.text(line3, 5)
                 self.__oled__.show()
+                self.__screen__ = {"airport": None, "title": title, "badge": "", "page": 0,
+                                   "icon": next((k for k, v in ICONS.items() if v == icon and k), ""),
+                                   "lines": [{"icon": "", "text": t} for t in (line1, line2, line3)]}
             except Exception as e:
                 safe_log("[d]: " + str(e))
 
+    def show_screen(self, screen):
+        self.__oled__.layout = self.__page_layouts__[1 if screen["page"] < 2 else 2]
+        self.__oled__.text(screen["title"])
+        self.__oled__.text(screen["badge"], 2)
+        for n, line in enumerate(screen["lines"]):
+            self.__oled__.text(line["text"], 3 + n * 2)
+            self.__oled__.text(ICONS[line["icon"]], 4 + n * 2)
+        self.__oled__.show()
+        self.__screen__ = screen
+
     def page_unavailable(self, station):
         try:
-            self.__oled__.layout = self.__page_layouts__[1]
-            self.__oled__.text(station)
-            self.__oled__.text("", 2)
-
-            self.__oled__.text("Data", 3)
-            self.__oled__.text("", 4)
-            self.__oled__.text("Unavailable", 5)
-            self.__oled__.text("", 6)
-            self.__oled__.text("", 7)
-            self.__oled__.text("", 8)
-            self.__oled__.show()
+            self.show_screen(screen_for(station, None, 0))
         except Exception as e:
             safe_log("[d].page_unavailable: " + station + ": " + str(e))
 
     def page1(self, station, data):
         try:
-            self.__oled__.layout = self.__page_layouts__[1]
-            self.__oled__.text(station)
-            self.__oled__.text(data["flightCategory"], 2)
-
-            if isinstance(data['windSpeed'], int):
-                if int(data['windSpeed']) > 0:
-                    if str(data["windDir"]).upper() == "VRB":
-                        wind_dir = "VRB"
-                    else:
-                        wind_dir = "{0:03d}".format(int(data["windDir"]))
-
-                    windline = "{0}@{1:02d}".format(
-                        wind_dir,
-                        int(data["windSpeed"])
-                    ) + (
-                                   "G{0:02d}".format(int(data["windGustSpeed"])) if data.get("windGust") else ""
-                               )
-                else:
-                    windline = "CALM"
-            else:
-                # TODO: need to account for VRB03KT fully (already partially handled above)
-                windline = data['windSpeed']
-
-            self.__oled__.text(windline, 3)
-            self.__oled__.text(ICON_WIND, 4)
-            self.__oled__.text("{0}SM".format(data['vis']), 5)
-            self.__oled__.text(ICON_VISIBILITY, 6)
-            self.__oled__.text("{0:2.2f}".format(data['altimHg']), 7)
-            self.__oled__.text(ICON_PRESSURE, 8)
-            self.__oled__.show()
+            self.show_screen(screen_for(station, data, 1))
         except Exception as e:
             safe_log("[d].page1: " + station + ": " + str(e))
 
     def page2(self, station, data):
         tz = timezone(self.__location__.timezone)
-
         try:
-            self.__oled__.layout = self.__page_layouts__[2]
-            self.__oled__.text(station)
-            self.__oled__.text(data["flightCategory"], 2)
-            if isinstance(data['tempC'], int):
-                self.__oled__.text("{0}\N{DEGREE SIGN}C / {1:.0f}\N{DEGREE SIGN}F".format(data['tempC'],
-                                                                                          utils.celsius_to_fahrenheit(
-                                                                                              data['tempC'])), 3)
-            self.__oled__.text(ICON_TEMP, 4)
-
-            if isinstance(data['tempC'], int):
-                self.__oled__.text("{0}\N{DEGREE SIGN}C / {1:.0f}\N{DEGREE SIGN}F".format(data['dewpointC'],
-                                                                                          utils.celsius_to_fahrenheit(
-                                                                                              data['dewpointC'])), 5)
-            self.__oled__.text(ICON_DEWPOINT, 6)
-            self.__oled__.text(
-                "{0} {1}".format(data["obsTime"].astimezone(tz).strftime("%H:%MC"), data["obsTime"].strftime("%H:%MZ")),
-                7)
-            self.__oled__.text(ICON_DATE, 8)
-            self.__oled__.show()
+            self.show_screen(screen_for(station, data, 2, tz))
         except Exception as e:
             safe_log("[d].page2: " + station + ": " + str(e))
