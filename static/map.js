@@ -98,6 +98,30 @@
     try { saved = localStorage.getItem('metarmap.background'); } catch (e) { /* private mode */ }
     useBackground(saved || settings.background);
 
+    // ---- legend: what the LEDs mean for the active visualizer (rendered by the server, shown on the map) -----------
+
+    const LegendControl = L.Control.extend({
+        options: {position: 'bottomleft'},
+        onAdd: function () {
+            const source = document.querySelector('#legend-source .legend');
+            const box = L.DomUtil.create('details', 'map-key');
+            if (!source) {
+                box.hidden = true;
+                return box;
+            }
+            const title = document.querySelector('.vis-name b');
+            const summary = L.DomUtil.create('summary', '', box);
+            summary.textContent = 'What the LEDs mean' + (title ? ' · ' + title.textContent : '');
+            box.append(source.cloneNode(true));
+            // open on a wide screen; on a phone it would cover the map
+            box.open = window.matchMedia('(min-width: 900px)').matches;
+            L.DomEvent.disableClickPropagation(box);
+            L.DomEvent.disableScrollPropagation(box);
+            return box;
+        }
+    });
+    new LegendControl().addTo(map);
+
     // ---- OLED window -------------------------------------------------------------------------
     const ICONS = {
         wind: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M3 8h11a3 3 0 1 0-3-3"/><path d="M3 12h16a3 3 0 1 1-3 3"/><path d="M3 16h7"/></svg>',

@@ -19,10 +19,11 @@
 
 <div id="map" class="live-map" role="region" aria-label="Map of airport LEDs"></div>
 
-<section class="card pad">
+<div id="legend-source" hidden>
     %include("legend.tpl", legend=active_vis.legend)
-    <p class="muted" style="margin: 0; font-size: 13px">LEDs are drawn at full brightness. The map itself is at {{int(round(config.renderer.pixels().brightness * 100))}}% right now. A white ring marks the airport on the OLED screen.</p>
-</section>
+</div>
+
+<p class="muted" style="margin: 0; font-size: 13px">LEDs are drawn at full brightness. The map itself is at {{int(round(config.renderer.pixels().brightness * 100))}}% right now. A white ring marks the airport on the OLED screen.</p>
 
 <script id="map-settings" type="application/json">{{!json.dumps(settings).replace('</', '<\\/')}}</script>
 <script src="/static/map.js?v={{config.app_version}}"></script>

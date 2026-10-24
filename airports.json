@@ -57,7 +57,7 @@
     },
     "KCLL": {
         "text": 14,
-        "display": true
+        "display": false
     },
     "KLXY": {
         "text": 15,
@@ -69,7 +69,7 @@
     },
     "KDKR": {
         "text": "Crockett",
-        "display": true
+        "display": false
     },
     "KUTS": {
         "text": "Huntsville",
@@ -109,7 +109,7 @@
     },
     "KLCH": {
         "text": "Lake Charles",
-        "display": true
+        "display": false
     },
     "KCWF": {
         "text": 28,
@@ -125,7 +125,7 @@
     },
     "KHUM": {
         "text": 31,
-        "display": true
+        "display": false
     },
     "KAPS": {
         "text": "Port of South Louisiana",
@@ -169,7 +169,7 @@
     },
     "KOCH": {
         "text": "Nacogdoches",
-        "display": true
+        "display": false
     },
     "KJSO": {
         "text": 43,

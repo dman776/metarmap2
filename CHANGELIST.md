@@ -1,3 +1,7 @@
+### dman776 2.2.6 (2026-10-24)
+
+- Map page: the "What the LEDs mean" legend is now on the map (bottom left), collapsible, and starts collapsed on phones
+
 ### dman776 2.2.5 (2026-10-24)
 
 - Fixed stale METARs: the map now asks for each station's latest report (asking for 5 hours of reports could hit the
