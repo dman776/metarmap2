@@ -11,6 +11,7 @@ from lib import utils
 from lib.safe_logging import safe_log
 import threading
 import io
+import json
 import socket
 
 
@@ -78,6 +79,7 @@ class WebServer(object):
         self._app.route("/visualizer/<visnum>", method="GET", callback=self._visualizer)
         self._app.route("/visualizer/next", method="GET", callback=self._visualizernext)
         self._app.route("/visualizer/previous", method="GET", callback=self._visualizerprevious)
+        self._app.route("/api/status", method="GET", callback=self._api_status)
 
     def is_auth(self, user, password):
         if user.lower() == self._config.data.web_server.user and password == self._config.data.web_server.password:
@@ -164,3 +166,66 @@ class WebServer(object):
     def _visualizerprevious(self):
         self._renderer.visualizer_previous()
         return bottle.template('index.tpl', renderer=self._renderer, config=self._config, myIP=self._myIP)
+
+    def _api_status(self):
+        """
+        Read-only JSON snapshot of the map state (used by the Home Assistant integration).
+        """
+        def iso(dt):
+            return dt.isoformat() if dt is not None else None
+
+        cfg = self._config.data
+        active_num, active_vis = self._renderer.visualizer
+        suntimes = self._config.suntimes or {}
+
+        airports = []
+        for index, (code, props) in enumerate(self._config.airports.items()):
+            if "NULL" in code:
+                continue
+            m = self._metarsObj.data.get(code, {})
+            airports.append({
+                "code": code,
+                "pixel": index,
+                "text": props.get("text"),
+                "display": props.get("display", False),
+                "flightCategory": m.get("flightCategory"),
+                "raw": m.get("raw"),
+                "windDir": m.get("windDir"),
+                "windSpeed": m.get("windSpeed"),
+                "windGustSpeed": m.get("windGustSpeed"),
+                "vis": m.get("vis"),
+                "obs": m.get("obs"),
+                "tempC": m.get("tempC"),
+                "dewpointC": m.get("dewpointC"),
+                "altimHg": m.get("altimHg"),
+                "lightning": m.get("lightning"),
+                "obsTime": iso(m.get("obsTime")),
+            })
+
+        status = {
+            "version": self._config.app_version,
+            "ip": self._myIP,
+            "brightness": self._pixels.brightness,
+            "visualizer": {"active": active_num, "name": active_vis.name, "exclusive": active_vis.exclusive},
+            "visualizers": [{"index": i, "name": v.name, "exclusive": v.exclusive}
+                            for i, v in enumerate(self._renderer.visualizers)],
+            "config": {
+                "visualizer.active": cfg.visualizer.active,
+                "visualizer.auto_rotate.enabled": cfg.visualizer.auto_rotate.enabled,
+                "visualizer.auto_rotate.delay_seconds": cfg.visualizer.auto_rotate.delay_seconds,
+                "lightning.animation": cfg.lightning.animation,
+                "display_screen.enabled": cfg.display_screen.enabled,
+                "display_screen.locate_active": cfg.display_screen.locate_active,
+                "display_screen.delay": cfg.display_screen.delay,
+                "led.inittest": cfg.led.inittest,
+                "led.brightness.normal": cfg.led.brightness.normal,
+                "led.brightness.dimmed": cfg.led.brightness.dimmed,
+                "led.brightness.off": cfg.led.brightness.off,
+            },
+            "suntimes": {k: iso(suntimes.get(k)) for k in ("dawn", "sunrise", "sunset", "dusk")},
+            "lastFetchTime": iso(self._metarsObj.lastFetchTime),
+            "missingStations": self._metarsObj.missing_stations(),
+            "airports": airports,
+        }
+        bottle.response.content_type = "application/json"
+        return json.dumps(status)

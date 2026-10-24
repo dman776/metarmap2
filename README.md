@@ -13,6 +13,24 @@ Raspberry Pi project to visualize flight conditions on a map using NeoPixel RGB 
 This allows you to browse to your map at http://raspberrypi.local (or appropriate hostname) to control and configure the
 map.
 
+### Web API
+Everything in the web UI can also be done over HTTP, for scripts and home automation. `GET /api/status` returns the map's current state as JSON. See **[API.md](API.md)** for the full endpoint reference.
+
+```sh
+curl http://metarmap.local/api/status                            # current state (JSON)
+curl http://metarmap.local/brightness/0.25                       # set LED brightness
+curl http://metarmap.local/visualizer/next                       # next visualizer
+curl -u metar:map http://metarmap.local/config/edit/lightning.animation/false
+```
+
+### Home Assistant
+The [metarmap2_ha](https://github.com/dman776/metarmap2_ha) custom integration controls the map from Home Assistant through this API. It provides:
+- a brightness light and a visualizer selector
+- fetch and restart buttons
+- config switches and numbers
+- flight-category sensors
+- a `metarmap.locate` action
+
 ## Mini OLED display
 This functionality allows you to connect a small mini LED display to show the METAR information of the airports.
 For this functionality to work, you will need to a compatible LED display.
@@ -25,8 +43,13 @@ here: https://slingtsi.rueker.com/adding-a-mini-display-to-show-metar-informatio
 * Wind Gusts
 * Temperature
 * Pressure
+* Precipitation
 * Visibility
 * Density Altitude
+* Rainbow
+* Chase
+
+Switch between them from the web UI or the [API](API.md#control). If you turn on `visualizer.auto_rotate` in [config.json](config.json), the map rotates through them automatically.
 
 ## Detailed instructions
 I've created detailed instructions about the setup and parts used
