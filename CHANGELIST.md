@@ -1,3 +1,7 @@
+### dman776 2.2.1 (2026-10-24)
+
+- New airplane logo in the web UI, plus a matching browser tab icon
+
 ### dman776 2.2 (2026-10-24)
 
 - Map page is now a live mirror of the physical map: every LED's real color and effect (blinking, pulsing, lightning flashes, rainbow, chase), the white locate pulse, and a window showing the OLED screen
