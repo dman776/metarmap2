@@ -14,12 +14,16 @@
         btn.setAttribute('aria-busy', on ? 'true' : 'false');
     }
 
-    // <button data-call="/url" data-then="reload|home|none" data-confirm="Are you sure?">
+    // <button data-call="/url" data-then="reload|home|dialog|restart|none" data-confirm="Are you sure?">
     document.addEventListener('click', async function (e) {
         const btn = e.target.closest('[data-call]');
         if (!btn) return;
         e.preventDefault();
         if (btn.dataset.confirm && !window.confirm(btn.dataset.confirm)) return;
+        if (btn.dataset.then === 'restart') {
+            restartMap(btn.dataset.call);
+            return;
+        }
         busy(btn, true);
         try {
             const text = await call(btn.dataset.call);
@@ -37,6 +41,122 @@
         } finally {
             busy(btn, false);
         }
+    });
+
+    // ---- restart: close any popup, wait, then reload once the map answers again ------------------------------
+
+    const RESTART_WAIT_S = 30;
+    const RESTART_POLL_MS = 3000;
+    const RESTART_GIVE_UP_S = 90;  // after the wait; then reload anyway
+
+    async function mapIsUp() {
+        const ctrl = new AbortController();
+        const timer = setTimeout(function () { ctrl.abort(); }, 2500);
+        try {
+            const res = await fetch('/api/status', {cache: 'no-store', signal: ctrl.signal});
+            return res.ok;
+        } catch (err) {
+            return false;
+        } finally {
+            clearTimeout(timer);
+        }
+    }
+
+    function restartMap(url) {
+        document.querySelectorAll('dialog[open]').forEach(function (d) { d.close(); });
+        // the map restarts before it can answer, so don't wait for a response
+        fetch(url, {credentials: 'same-origin'}).catch(function () {});
+
+        const overlay = document.createElement('div');
+        overlay.className = 'restarting';
+        overlay.setAttribute('role', 'status');
+        const card = document.createElement('div');
+        card.className = 'card restarting-card';
+        const title = document.createElement('h2');
+        title.textContent = 'Restarting the map';
+        const label = document.createElement('p');
+        const bar = document.createElement('progress');
+        bar.className = 'update-bar';
+        bar.max = RESTART_WAIT_S;
+        bar.value = 0;
+        card.append(title, label, bar);
+        overlay.append(card);
+        document.body.append(overlay);
+
+        let left = RESTART_WAIT_S;
+        const tick = function () {
+            label.textContent = 'Reloading this page in ' + left + ' s';
+            bar.value = RESTART_WAIT_S - left;
+        };
+        tick();
+        const countdown = setInterval(async function () {
+            left -= 1;
+            if (left > 0) {
+                tick();
+                return;
+            }
+            clearInterval(countdown);
+            bar.removeAttribute('value');  // indeterminate while waiting
+            label.textContent = 'Waiting for the map to come back…';
+            const giveUp = Date.now() + RESTART_GIVE_UP_S * 1000;
+            while (Date.now() < giveUp && !(await mapIsUp())) {
+                await new Promise(function (resolve) { setTimeout(resolve, RESTART_POLL_MS); });
+            }
+            window.location.reload();
+        }, 1000);
+    }
+
+    // ---- update: a progress bar instead of git's output ----------------------------------------------------------
+
+    async function runUpdate(btn) {
+        const dlg = document.getElementById('update-dialog');
+        if (!dlg) return;
+        const label = dlg.querySelector('.update-label');
+        const bar = dlg.querySelector('.update-bar');
+        const errors = dlg.querySelector('.update-errors');
+        const restart = dlg.querySelector('.update-restart');
+        label.textContent = 'Starting';
+        bar.value = 0;
+        errors.hidden = true;
+        restart.hidden = true;
+        dlg.showModal();
+        busy(btn, true);
+        try {
+            let res = await fetch('/update/start', {method: 'POST', credentials: 'same-origin'});
+            if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+            let job = await res.json();
+            while (!job.done) {
+                bar.value = job.fraction;
+                label.textContent = job.label + '…';
+                await new Promise(function (resolve) { setTimeout(resolve, 500); });
+                res = await fetch('/update/progress', {cache: 'no-store', credentials: 'same-origin'});
+                if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+                job = await res.json();
+            }
+            bar.value = 1;
+            if (job.ok) {
+                label.textContent = job.changed ? 'Update installed. Restart the map to start using it.'
+                    : 'Already up to date.';
+                restart.hidden = !job.changed;
+            } else {
+                label.textContent = 'Update failed.';
+                errors.textContent = (job.errors || []).join('\n');
+                errors.hidden = !errors.textContent;
+            }
+        } catch (err) {
+            label.textContent = 'Update failed.';
+            errors.textContent = String(err);
+            errors.hidden = false;
+        } finally {
+            busy(btn, false);
+        }
+    }
+
+    document.addEventListener('click', function (e) {
+        const btn = e.target.closest('[data-update]');
+        if (!btn) return;
+        e.preventDefault();
+        runUpdate(btn);
     });
 
     // output dialog (update log, errors)

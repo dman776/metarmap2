@@ -2,7 +2,7 @@ import json
 from lib import utils
 from metarmap.settings import Settings
 
-__version__ = "2.2.4"
+__version__ = "2.2.5"
 
 
 class Config(object):

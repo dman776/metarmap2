@@ -1,3 +1,19 @@
+### dman776 2.2.5 (2026-10-24)
+
+- Fixed stale METARs: the map now asks for each station's latest report (asking for 5 hours of reports could hit the
+  API's 400-report limit and drop the newest ones); a latest report older than 5 hours counts as not reporting
+- Update shows a progress bar instead of git's output, and only shows details if it fails
+- Restart closes any open popup, waits 30 seconds, then reloads the page once the map is back
+- Update runs git as the owner of the map's folder (e.g. `pi`) instead of root, and gives back files earlier updates
+  left owned by root, so file permissions stay consistent
+- Fixed a startup crash on the Pi caused by a conflicting `GPIO.setmode()` call
+- Crashes are now written to metarmap.log as well as the system journal
+- Removed "Raw" from the menu (the `/raw` page is still there)
+- The map runs without a Raspberry Pi: with no LED strip or OLED screen it uses in-memory stand-ins, and the web UI
+  works as usual (see Development in the README)
+- Restructured the LED renderer and OLED loop behind small interfaces, with tests; the LEDs and OLED show exactly
+  what they did before
+
 ### dman776 2.2.4 (2026-10-24)
 
 - Restructured the visualizers so each one only decides how an airport's LED looks; the LEDs show exactly what they did before

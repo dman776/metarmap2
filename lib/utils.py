@@ -1,9 +1,9 @@
 from datetime import datetime
-import io
 import os
 import sys
 import subprocess
 import shutil
+import tempfile
 
 try:
     import lib.safe_logging as safe_logging
@@ -108,44 +108,136 @@ def celsius_to_fahrenheit(temperature_celsius: float):
     return (temperature_celsius * (9.0 / 5.0)) + 32.0
 
 
-def update():
-    buf = io.StringIO()
-    msg = "[u]starting update... "
-    safe_logging.safe_log(msg)
-    buf.write(msg + "<br />")
+CONFIG_FILES = ("config.json", "airports.json")
 
-    msg = "[u]saving config files to /tmp... "
-    safe_logging.safe_log(msg)
-    buf.write(msg + "<br />")
-    shutil.copy2(os.getcwd() + "/config.json", "/tmp")
-    shutil.copy2(os.getcwd() + "/airports.json", "/tmp")
 
-    msg = "[u]git reset... "
-    safe_logging.safe_log(msg)
-    buf.write(msg + "<br />")
-    result = subprocess.run(["/usr/bin/git", "reset", "--hard"], capture_output=True, text=True)
-    safe_logging.safe_log("[u]" + result.stdout)
-    buf.write("[u]" + result.stdout + "<br />")
+def _repo_owner(repo):
+    st = os.stat(repo)
+    return st.st_uid, st.st_gid
 
-    msg = "[u]updating from github..."
-    safe_logging.safe_log(msg)
-    buf.write(msg + "<br />")
-    result = subprocess.run(["/usr/bin/git", "pull"], capture_output=True, text=True)
-    safe_logging.safe_log("[u]" + result.stdout)
-    buf.write("[u]" + result.stdout + "<br />")
 
-    msg = "[u]restoring config files from /tmp... "
-    safe_logging.safe_log(msg)
-    buf.write(msg + "<br />")
-    shutil.copy2("/tmp/config.json", os.getcwd())
-    shutil.copy2("/tmp/airports.json", os.getcwd())
+def _as_owner(uid, gid):
+    """
+    Extra subprocess.run() arguments that run a command as the repo's owner (e.g. pi) when the map runs as root,
+    so files git creates belong to that user. Empty when there's no need to switch user.
+    """
+    if os.geteuid() != 0 or uid == 0:
+        return {}
+    import pwd
+    account = pwd.getpwuid(uid)
+    env = {**os.environ, "HOME": account.pw_dir, "USER": account.pw_name, "LOGNAME": account.pw_name}
+    return {"user": uid, "group": gid, "env": env}
 
-    msg = "[u]update complete"
-    safe_logging.safe_log(msg)
-    buf.write(msg + "<br />")
 
-    buf.seek(0)
-    return buf.read()
+def _fix_ownership(repo, uid, gid):
+    """
+    Gives files that earlier updates (run as root) left owned by root back to the repo's owner.
+    Returns how many were changed.
+    """
+    if os.geteuid() != 0 or uid == 0:
+        return 0
+    changed = 0
+    for dirpath, dirnames, filenames in os.walk(repo):
+        for path in [dirpath] + [os.path.join(dirpath, f) for f in filenames]:
+            st = os.lstat(path)
+            if (st.st_uid, st.st_gid) != (uid, gid):
+                os.lchown(path, uid, gid)
+                changed += 1
+    return changed
+
+
+class UpdateResult:
+    """What run_update() did: ok, whether the code changed, a log, and any git errors."""
+
+    def __init__(self):
+        self.ok = False
+        self.changed = False
+        self.log = []
+        self.errors = []
+
+
+def run_update(repo=None, progress=None):
+    """
+    Updates the map's code from GitHub (git reset --hard, then git pull), keeping config.json and airports.json.
+    Git runs as the owner of the folder, not root, so file ownership stays consistent.
+
+    progress: optional callback(fraction 0..1, label) for the web UI's progress bar.
+    Returns an UpdateResult.
+    """
+    repo = repo or os.getcwd()
+    result = UpdateResult()
+
+    def step(fraction, label):
+        if progress:
+            progress(fraction, label)
+
+    def say(msg):
+        safe_logging.safe_log("[u]" + msg)
+        result.log.append("[u]" + msg)
+
+    def git(*args, quiet=False):
+        done = subprocess.run([shutil.which("git") or "/usr/bin/git", "-C", repo, *args],
+                              capture_output=True, text=True, **as_owner)
+        if not quiet:
+            for text in (done.stdout.strip(), done.stderr.strip()):
+                if text:
+                    say(text)
+        if done.returncode != 0:
+            message = f"git {' '.join(args)} failed (exit code {done.returncode})"
+            say(message)
+            result.errors.append(done.stderr.strip() or message)
+        return done
+
+    step(0.0, "Starting")
+    say("starting update... ")
+    uid, gid = _repo_owner(repo)
+    as_owner = _as_owner(uid, gid)
+    if as_owner:
+        step(0.05, "Checking file ownership")
+        say(f"running git as {as_owner['env']['USER']}")
+        fixed = _fix_ownership(repo, uid, gid)
+        if fixed:
+            say(f"gave {fixed} files back to {as_owner['env']['USER']}")
+    before = git("rev-parse", "HEAD", quiet=True).stdout.strip()
+
+    step(0.15, "Saving your settings")
+    say("saving config files... ")
+    saved = tempfile.mkdtemp(prefix="metarmap-update-")
+    for name in CONFIG_FILES:
+        if os.path.exists(os.path.join(repo, name)):
+            shutil.copy2(os.path.join(repo, name), saved)
+
+    step(0.25, "Resetting local changes")
+    say("git reset... ")
+    ok = git("reset", "--hard").returncode == 0
+    if ok:
+        step(0.4, "Downloading the update")
+        say("updating from github...")
+        ok = git("pull").returncode == 0
+
+    step(0.9, "Restoring your settings")
+    say("restoring config files... ")
+    for name in CONFIG_FILES:
+        backup = os.path.join(saved, name)
+        if os.path.exists(backup):
+            target = os.path.join(repo, name)
+            shutil.copy2(backup, target)
+            if as_owner:
+                os.chown(target, uid, gid)
+    shutil.rmtree(saved, ignore_errors=True)
+
+    result.ok = ok
+    result.changed = ok and git("rev-parse", "HEAD", quiet=True).stdout.strip() != before
+    say("update complete" if ok else "update FAILED; see the messages above")
+    step(1.0, "Done" if ok else "Failed")
+    return result
+
+
+def update(repo=None):
+    """
+    Runs the update and returns its log as HTML (used by GET /update and the Home Assistant integration).
+    """
+    return "".join(line + "<br />" for line in run_update(repo).log)
 
 
 def restart():

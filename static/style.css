@@ -258,6 +258,21 @@ dialog .card-head { padding: 16px 20px; }
 dialog .body { padding: 16px 20px; max-height: 60vh; overflow: auto; font: 13px/1.6 var(--mono); white-space: pre-wrap; color: var(--text-2); }
 dialog .foot-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--line); }
 
+.update-body { padding: 18px 20px 6px; display: flex; flex-direction: column; gap: 12px; }
+.update-label { margin: 0; font-size: 15px; color: var(--text); }
+.update-errors { margin: 0; padding: 10px 12px; max-height: 30vh; overflow: auto; border-radius: 8px; background: var(--sunken); font: 12px/1.5 var(--mono); color: #ffb4b4; white-space: pre-wrap; }
+progress.update-bar { -webkit-appearance: none; appearance: none; width: 100%; height: 10px; border: 0; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+progress.update-bar::-webkit-progress-bar { background: var(--surface-2); border-radius: 999px; }
+progress.update-bar::-webkit-progress-value { background: var(--accent); border-radius: 999px; transition: width .3s; }
+progress.update-bar::-moz-progress-bar { background: var(--accent); border-radius: 999px; }
+progress.update-bar:indeterminate { background: linear-gradient(90deg, var(--surface-2) 0 30%, var(--accent) 50%, var(--surface-2) 70% 100%) 0 0 / 300% 100%; animation: bar-wait 1.4s linear infinite; }
+progress.update-bar:indeterminate::-webkit-progress-bar { background: transparent; }
+@keyframes bar-wait { from { background-position: 100% 0; } to { background-position: 0 0; } }
+.restarting { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(6, 10, 16, .78); }
+.restarting-card { width: min(420px, 100%); padding: 22px 24px; display: flex; flex-direction: column; gap: 12px; }
+.restarting-card h2 { font-size: 18px; }
+.restarting-card p { margin: 0; color: var(--text-2); }
+
 pre.dump { margin: 0; padding: 16px 20px; overflow: auto; font: 13px/1.6 var(--mono); color: var(--text-2); }
 
 @media (max-width: 640px) {

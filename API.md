@@ -214,7 +214,9 @@ Both save `airports.json`, restart the OLED display loop, and redirect to `/conf
 
 | Endpoint | Description |
 |---|---|
-| `GET /update` | Runs `git reset --hard` and `git pull` in the install directory, keeping `config.json` and `airports.json`. Returns the output as HTML. Restart afterwards to use the new code. |
+| `GET /update` | Runs `git reset --hard` and `git pull` in the install directory, keeping `config.json` and `airports.json`. Waits until it's done and returns the output as HTML. Restart afterwards to use the new code. |
+| `POST /update/start` | Starts the same update in the background (or reports the one already running) and returns its progress, as below. Used by the web UI's progress bar. |
+| `GET /update/progress` | Progress of the update started with `/update/start`: `{"fraction": 0.4, "label": "Downloading the update", "done": false, "ok": null, "changed": null, "errors": []}`. When `done`, `ok` says whether it worked, `changed` whether new code was downloaded, and `errors` holds git's error messages. |
 | `GET /restart` | Clears the LEDs and restarts the controller process. The connection usually drops before a response is sent. |
 
 ## Web UI pages

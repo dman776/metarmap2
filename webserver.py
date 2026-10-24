@@ -52,6 +52,8 @@ class WebServer(object):
         self._thread = None
         self._myIP = my_ip()
         self._sectionals = load_sectionals()
+        self._update_job = None  # progress of the update started from the web UI
+        self._update_lock = threading.Lock()
         bottle.TEMPLATE_PATH.insert(0, "./templates")
 
     def run(
@@ -88,6 +90,9 @@ class WebServer(object):
         self._app.route("/config/airports/edit/prop/<airport>/<key>/<value>", method="GET",
                         callback=self._airport_edit_prop, apply=auth_basic(self.is_auth))
         self._app.route("/update", method="GET", callback=self._update, apply=auth_basic(self.is_auth))
+        self._app.route("/update/start", method="POST", callback=self._update_start, apply=auth_basic(self.is_auth))
+        self._app.route("/update/progress", method="GET", callback=self._update_progress,
+                        apply=auth_basic(self.is_auth))
         self._app.route("/restart", method="GET", callback=self._restart, apply=auth_basic(self.is_auth))
         self._app.route("/brightness/<level>", method="GET", callback=self._brightness)
         self._app.route("/visualizer/<visnum>", method="GET", callback=self._visualizer)
@@ -256,7 +261,39 @@ class WebServer(object):
 
     def _update(self):
         return utils.update()
-        # return bottle.template('index.tpl', renderer=self._renderer)
+
+    def _update_start(self):
+        """
+        Starts the update in the background; the web UI polls /update/progress for its progress bar.
+        If an update is already running, reports that one instead of starting another.
+        """
+        with self._update_lock:
+            if self._update_job is None or self._update_job["done"]:
+                job = {"fraction": 0.0, "label": "Starting", "done": False, "ok": None, "changed": None,
+                       "errors": []}
+                self._update_job = job
+
+                def progress(fraction, label):
+                    job["fraction"], job["label"] = fraction, label
+
+                def run():
+                    try:
+                        result = utils.run_update(progress=progress)
+                        job.update(ok=result.ok, changed=result.changed, errors=result.errors)
+                    except Exception as e:
+                        safe_log(f"[w]update failed: {e}")
+                        job.update(ok=False, changed=False, errors=[str(e)])
+                    finally:
+                        job["done"] = True
+
+                threading.Thread(target=run, name="update", daemon=True).start()
+        bottle.response.status = 202
+        return self._update_progress()
+
+    def _update_progress(self):
+        bottle.response.content_type = "application/json"
+        return json.dumps(self._update_job or {"fraction": 0.0, "label": "", "done": True, "ok": None,
+                                               "changed": None, "errors": []})
 
     def _brightness(self, level):
         self._renderer.brightness(float(level))

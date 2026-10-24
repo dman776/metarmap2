@@ -52,7 +52,7 @@
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f5b544" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.5"/></svg>
         Some changes take effect after the map restarts.
     </span>
-    <button class="btn primary" type="button" data-call="/restart" data-then="none">Restart now</button>
+    <button class="btn primary" type="button" data-call="/restart" data-then="restart">Restart now</button>
 </section>
 
 <div class="split">

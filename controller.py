@@ -40,7 +40,7 @@ thread_lock_object = threading.Lock()
 
 # ---------------------------------------------------------------------------
 # Globals
-__version__ = "2.2.4"
+__version__ = "2.2.5"
 CONFIG_FILE = "config.json"
 config = None
 
