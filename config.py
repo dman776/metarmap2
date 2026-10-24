@@ -2,14 +2,6 @@ import json
 from lib import utils
 from metarmap.settings import Settings
 
-try:
-    import board
-    import neopixel
-except ModuleNotFoundError:
-    pass
-except NotImplementedError:
-    pass
-
 __version__ = "2.2.4"
 
 
@@ -21,8 +13,6 @@ class Config(object):
         self.__file__ = file
         self.__data__ = Settings()
         self.app_version = __version__
-        self.LED_PIN = None
-        self.LED_ORDER = None
         self.read()
         self.suntimes = None
         self.__airports__ = {}
@@ -32,15 +22,6 @@ class Config(object):
 
     def read(self):
         self.__data__ = Settings.load(self.__file__)
-        self.__post_process__()
-
-    def __post_process__(self):
-        # LED config (only available on the Pi)
-        try:
-            self.LED_PIN = getattr(board, "D" + str(self.__data__.led.pin), None)
-            self.LED_ORDER = getattr(neopixel, self.__data__.led.order, None)
-        except NameError:
-            pass
 
     def write(self):
         self.__data__.save(self.__file__)

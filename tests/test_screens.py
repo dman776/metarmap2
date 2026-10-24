@@ -1,10 +1,11 @@
-"""Tests for what the OLED shows (display.screen_for and its helpers). No hardware needed."""
+"""Tests for what the OLED shows (metarmap/oled/screens.py). No hardware needed."""
 from datetime import datetime, timezone
 
 import pytest
 import pytz
 
-import display
+from metarmap.oled import screens
+from metarmap.oled.screen import GLYPHS
 
 CENTRAL = pytz.timezone("America/Chicago")
 
@@ -26,11 +27,11 @@ def texts(screen):
     ({"windSpeed": 5, "windDir": ""}, "VRB@05"),  # speed but no direction reported
 ])
 def test_wind_text(data, expected):
-    assert display.wind_text(data) == expected
+    assert screens.wind_text(data) == expected
 
 
 def test_page1():
-    screen = display.screen_for("KHOU", KHOU, 1)
+    screen = screens.screen_for("KHOU", KHOU, 1)
     assert screen["title"] == "KHOU"
     assert screen["badge"] == "VFR"
     assert screen["airport"] == "KHOU"
@@ -39,25 +40,25 @@ def test_page1():
 
 
 def test_page2_converts_time_to_local():
-    screen = display.screen_for("KHOU", KHOU, 2, CENTRAL)
+    screen = screens.screen_for("KHOU", KHOU, 2, CENTRAL)
     assert texts(screen) == ["28°C / 82°F", "16°C / 61°F", "12:53C 17:53Z"]
     assert [line["icon"] for line in screen["lines"]] == ["temp", "dewpoint", "date"]
 
 
 def test_page2_missing_values_show_dashes():
     data = {**KHOU, "tempC": None, "dewpointC": None, "obsTime": None}
-    screen = display.screen_for("KHOU", data, 2, CENTRAL)
-    assert texts(screen) == [display.MISSING] * 3
+    screen = screens.screen_for("KHOU", data, 2, CENTRAL)
+    assert texts(screen) == [screens.MISSING] * 3
 
 
 def test_page1_missing_values_show_dashes():
-    screen = display.screen_for("KTST", {"flightCategory": None}, 1)
+    screen = screens.screen_for("KTST", {"flightCategory": None}, 1)
     assert screen["badge"] == ""
-    assert texts(screen) == [display.MISSING] * 3
+    assert texts(screen) == [screens.MISSING] * 3
 
 
 def test_unavailable_page():
-    screen = display.screen_for("KDKR", None, 0)
+    screen = screens.screen_for("KDKR", None, 0)
     assert screen["page"] == 0
     assert screen["badge"] == ""
     assert texts(screen) == ["Data", "Unavailable", ""]
@@ -65,5 +66,35 @@ def test_unavailable_page():
 
 def test_every_icon_has_a_glyph():
     for page in (1, 2):
-        for line in display.screen_for("KHOU", KHOU, page, CENTRAL)["lines"]:
-            assert line["icon"] in display.ICONS
+        for line in screens.screen_for("KHOU", KHOU, page, CENTRAL)["lines"]:
+            assert line["icon"] in GLYPHS
+
+
+def test_every_icon_name_has_a_glyph():
+    for name in screens.ICON_NAMES:
+        assert GLYPHS[name]
+
+
+def test_screens_are_marked_as_airport_pages():
+    assert screens.screen_for("KHOU", KHOU, 1)["kind"] == "airport"
+    assert screens.screen_for("KHOU", None, 0)["kind"] == "airport"
+
+
+def test_message_screen():
+    m = screens.message_screen("MAP", "info", "Starting..")
+    assert m["kind"] == "message"
+    assert m["airport"] is None
+    assert m["icon"] == "info"
+    assert texts(m) == ["Starting..", "", ""]
+
+
+def test_airports_to_show_keeps_led_order():
+    airports = {"KHOU": {"display": True}, "KIAH": {"display": False}, "NULL1": {}, "KGLS": {"display": True}}
+    assert screens.airports_to_show(airports) == [(0, "KHOU"), (3, "KGLS")]
+    assert screens.airports_to_show({}) == []
+
+
+def test_pages_for():
+    assert screens.pages_for(KHOU) == (1, 2)
+    assert screens.pages_for({}) == (0,)
+    assert screens.pages_for(None) == (0,)

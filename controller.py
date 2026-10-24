@@ -10,7 +10,6 @@ import traceback
 from datetime import datetime
 import signal
 
-import display
 import lib.utils
 import webserver
 import renderer
@@ -21,8 +20,9 @@ import schedule
 
 from lib import safe_logging
 import metar as metar
-from adafruit_led_animation.helper import PixelSubset
 from adafruit_led_animation.animation.rainbowcomet import RainbowComet
+from metarmap.leds.strip import open_strip
+from metarmap.oled.screen import open_screen
 
 from visualizers.flightcategory import FlightCategory as FlightCategoryVisualizer
 from visualizers.wind import Wind as WindVisualizer
@@ -34,11 +34,6 @@ from visualizers.precipitation import Precipitation as PrecipitationVisualizer
 from visualizers.density_altitude import DensityAltitude as DensityAltitudeVisualizer
 from visualizers.chase import Chase as ChaseVisualizer
 from visualizers.rainbow import Rainbow as RainbowVisualizer
-
-try:
-    import neopixel
-except ModuleNotFoundError:
-    pass
 
 thread_lock_object = threading.Lock()
 
@@ -58,10 +53,6 @@ except ValueError:
 __version__ = "2.2.4"
 CONFIG_FILE = "config.json"
 config = None
-
-
-def init_pixel_subsets(apixels: neopixel, pixel_count: int):
-    return [PixelSubset(apixels, i, i + 1) for i in range(pixel_count)]
 
 
 def update_data():
@@ -108,11 +99,9 @@ def sched_watch_display():
     disp = config.display
     if disp is None:
         return
-    # each airport shows two pages of `delay` seconds, plus up to a second for the locate pulse
-    limit = max(60, 4 * config.data.display_screen.delay + 10)
-    idle = time.time() - disp.last_change
-    if not disp.is_alive() or idle > limit:
-        safe_logging.safe_log(f"[c]display watchdog: thread alive={disp.is_alive()}, idle {idle:.0f}s; restarting")
+    reason = disp.stalled()
+    if reason:
+        safe_logging.safe_log(f"[c]display watchdog: {reason}; restarting")
         try:
             disp.restart(timeout=5)
         except Exception as e:
@@ -156,34 +145,33 @@ if __name__ == '__main__':
     safe_logging.safe_log("[c]" + "Get weather for all airports...")
     metars = metar.METAR(config, fetch=True)
 
-    pixels = neopixel.NeoPixel(config.LED_PIN, config.data.led.count, brightness=config.data.led.brightness.normal,
-                               pixel_order=config.LED_ORDER, auto_write=False)
-    pix_subs = init_pixel_subsets(pixels, config.data.led.count)  # individual pixels
+    # the NeoPixel strip on the Pi; an in-memory strip anywhere else
+    pixels = open_strip(config.data.led)
 
     visualizers = [
-        FlightCategoryVisualizer(metars.data, pix_subs, config),
-        WindVisualizer(metars.data, pix_subs, config),
-        WindGustsVisualizer(metars.data, pix_subs, config),
-        PressureVisualizer(metars.data, pix_subs, config),
-        PrecipitationVisualizer(metars.data, pix_subs, config),
-        TemperatureVisualizer(metars.data, pix_subs, config),
-        VisibilityVisualizer(metars.data, pix_subs, config),
-        DensityAltitudeVisualizer(metars.data, pix_subs, config),
-        RainbowVisualizer(metars.data, pixels, config),
-        ChaseVisualizer(metars.data, pixels, config)
+        FlightCategoryVisualizer(config),
+        WindVisualizer(config),
+        WindGustsVisualizer(config),
+        PressureVisualizer(config),
+        PrecipitationVisualizer(config),
+        TemperatureVisualizer(config),
+        VisibilityVisualizer(config),
+        DensityAltitudeVisualizer(config),
+        RainbowVisualizer(config),
+        ChaseVisualizer(config)
     ]
 
-    renderer = renderer.Renderer(pixels, pix_subs, metars, config, visualizers)
+    renderer = renderer.Renderer(pixels, metars, config, visualizers)
     renderer.visualizer = config.data.visualizer.active
     config.renderer = renderer
 
     # Init DISPLAY
     disp: Display
     if config.data.display_screen.enabled:
-        disp = Display(config, metars)
+        # the OLED on the Pi; an in-memory screen anywhere else (the web UI still mirrors it)
+        disp = Display(config, metars, open_screen())
         config.display = disp
-        disp.message("MAP", display.ICON_INFO,
-                     "Starting..")
+        disp.message("MAP", "info", "Starting..")
     else:
         disp = None
 

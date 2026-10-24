@@ -4,7 +4,9 @@ Data models shared across the map: METAR data, flight categories and LED looks.
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Iterable, List, Optional, Sequence, Tuple, TypedDict
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, TypedDict
+
+import lib.colors as colors_lib
 
 # A color as stored in config.json and lib/colors.py: (green, red, blue), each 0-255
 Color = Tuple[int, int, int]
@@ -104,3 +106,21 @@ class Look:
     @property
     def color(self) -> Optional[Color]:
         return self.colors[0] if self.colors else None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        The look for the web UI (/api/live): CSS colors plus only the timing fields the effect uses.
+        A solid black LED is reported as off.
+        """
+        css = [colors_lib.to_css(c) for c in self.colors]
+        if self.effect == "off" or (self.effect == "solid" and css == ["#000000"]):
+            return {"effect": "off", "colors": []}
+        out: Dict[str, Any] = {"effect": self.effect, "colors": css}
+        if self.effect in ("blink", "pulse", "rainbow"):
+            out["period"] = self.period
+        if self.effect in ("cycle", "chase"):
+            out["step"] = self.step
+        if self.effect == "chase":
+            out["size"] = self.size
+            out["spacing"] = self.spacing
+        return out

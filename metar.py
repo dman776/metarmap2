@@ -2,15 +2,20 @@
 Module to handle METAR fetching and processing
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 import traceback
 import requests
 import xmltodict
 from pprint import pprint
 import lib.safe_logging as safe_logging
 from config import Config
+from metarmap.clock import Clock
 
-API_URL = "https://aviationweather.gov/api/data/metar?format=xml&hours=5&ids="
+# without `hours`, the API returns each station's latest report. (With hours=5 it returned up to ~13 reports per
+# station and stopped at 400, so a long airport list could lose the newest ones.)
+API_URL = "https://aviationweather.gov/api/data/metar?format=xml&ids="
+# a station whose latest report is older than this counts as not reporting (the API returns it however old it is)
+MAX_REPORT_AGE = timedelta(hours=5)
 USER_AGENT = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
               "Chrome/86.0.4240.198 Safari/537.36 Edg/86.0.622.69")
 
@@ -20,12 +25,13 @@ class METAR(object):
     Object to control and handle METARs.
     """
 
-    def __init__(self, cfg, fetch=False):
+    def __init__(self, cfg, fetch=False, clock: Clock = None):
         """
         Creates a new METAR class.
         """
 
         self.__config__ = cfg
+        self.__clock__ = clock or Clock()
         self.__is_fetching__ = False
         self.__missing_stations__ = []
         self.__stations__ = []
@@ -71,16 +77,19 @@ class METAR(object):
         if isinstance(metars, dict):  # xmltodict returns a single METAR as a dict, not a list
             metars = [metars]
 
-        # several reports per station come back (hours=5); the first one is the latest
+        # keep each station's newest report, by its time rather than its position in the response
         by_station = {}
         for m in metars:
             if isinstance(m, dict) and m.get('station_id'):
-                by_station.setdefault(m['station_id'], m)
+                current = by_station.get(m['station_id'])
+                if current is None or (m.get('observation_time') or '') > (current.get('observation_time') or ''):
+                    by_station[m['station_id']] = m
 
         # build the new data separately, then swap it in, so readers never see a half-filled dict
         data = {}
         station_list = []
         missing_stations = []
+        oldest_allowed = self.__clock__.now() - MAX_REPORT_AGE
         for airport in list(self.__config__.airports):
             metar = by_station.get(airport)
             if metar is None:
@@ -88,7 +97,14 @@ class METAR(object):
                 missing_stations.append(airport)
                 continue
             try:
-                data[airport] = self.__parse__(metar)
+                parsed = self.__parse__(metar)
+                if parsed["obsTime"] is not None and parsed["obsTime"] < oldest_allowed:
+                    safe_logging.safe_log(f"[m]{airport}: latest report is from {parsed['obsTime']:%Y-%m-%d %H:%MZ}; "
+                                          f"treating it as not reporting")
+                    data[airport] = {}
+                    missing_stations.append(airport)
+                    continue
+                data[airport] = parsed
                 station_list.append(airport)
             except Exception as e:
                 # one malformed report only affects its own airport

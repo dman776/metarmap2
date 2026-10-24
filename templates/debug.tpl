@@ -1,5 +1,6 @@
 %include("header.tpl", title="Debug")
 % num, vis = renderer.visualizer
+% looks = renderer.looks
 <section class="page-head">
     <div>
         <h1>Debug</h1>
@@ -9,10 +10,13 @@
 </section>
 
 <section class="card">
-    <div class="card-head"><h2>LED effects</h2><span class="mono muted">{{len(vis.get_effects())}}</span></div>
+    <div class="card-head"><h2>LED looks</h2><span class="mono muted">{{len(looks) if looks else 'whole strip'}}</span></div>
     <pre class="dump">
-% for i, e in enumerate(vis.get_effects()):
-{{i}}: {{e}}
+% if renderer.strip_look is not None:
+strip: {{renderer.strip_look}}
+% end
+% for i, (code, look) in enumerate(zip(metars.data, looks)):
+{{i}} {{code}}: {{look}}
 % end
 </pre>
 </section>

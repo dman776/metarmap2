@@ -5,7 +5,6 @@ import metar
 from renderer import Renderer
 from display import Display
 from config import Config
-from neopixel import NeoPixel
 from lib import utils
 from lib.safe_logging import safe_log
 import threading
@@ -49,7 +48,7 @@ class WebServer(object):
         self._config: Config = config
         self._renderer: Renderer = config.renderer
         self._display: Display = config.display
-        self._pixels: NeoPixel = self._renderer.pixels()
+        self._pixels = self._renderer.pixels()
         self._thread = None
         self._myIP = my_ip()
         self._sectionals = load_sectionals()

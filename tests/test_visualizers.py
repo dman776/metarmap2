@@ -32,7 +32,7 @@ def settings():
 
 
 def make(cls, settings):
-    return cls(data={}, pix=None, config=SimpleNamespace(data=settings))
+    return cls(SimpleNamespace(data=settings))
 
 
 def metar(**fields):

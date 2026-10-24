@@ -108,5 +108,16 @@ Automatically dims (2 levels) based on the current location of the map (via conf
     * `sudo systemctl stop metarmap.service`
     * or use `./stop.sh`
 
+## Development
+You can work on the map without a Raspberry Pi. When there's no LED strip or OLED screen, the map uses in-memory
+stand-ins, and the web UI (including the live Map page and its OLED window) works as usual with real METARs.
+
+* Set up: `python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"`
+* Run the tests: `.venv/bin/pytest`
+* Check the code: `.venv/bin/ruff check .`
+* Run the map: `.venv/bin/python controller.py`
+  * The web server uses `web_server.port` from **[config](config.json)** (80 by default, which needs `sudo`).
+    For a laptop, set it to something like 8080 and open http://localhost:8080.
+
 ## Changelist
 To see a list of changes to the metar script over time, refer to [CHANGELIST.md](CHANGELIST.md)

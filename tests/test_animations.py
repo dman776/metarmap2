@@ -1,30 +1,15 @@
-"""Tests for turning Looks into LED animations (metarmap/animations.py) and for the Look model."""
+"""Tests for turning Looks into LED animations (metarmap/leds/animations.py) and for the Look model."""
 import pytest
 from adafruit_led_animation.helper import PixelSubset
 
-from metarmap.animations import animation_for
+from metarmap.leds.animations import animation_for
+from metarmap.leds.strip import FakeStrip
 from metarmap.models import FlightCategory, Look
-
-
-class FakeStrip(list):
-    """Enough of a NeoPixel object for the animation library."""
-    def __init__(self, n=10):
-        super().__init__([(0, 0, 0)] * n)
-        self.n = n
-        self.auto_write = False
-        self.brightness = 1.0
-
-    def show(self):
-        pass
-
-    def fill(self, color):
-        for i in range(len(self)):
-            self[i] = color
 
 
 @pytest.fixture
 def pixel():
-    return PixelSubset(FakeStrip(), 0, 1)
+    return PixelSubset(FakeStrip(10), 0, 1)
 
 
 def test_solid(pixel):

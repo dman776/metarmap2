@@ -1,8 +1,6 @@
 from typing import List, Optional
 
-from lib import safe_logging
 import lib.colors as colors_lib
-from metarmap.animations import animation_for
 from metarmap.models import Look, Metar
 
 
@@ -28,20 +26,17 @@ def legend_item(label, detail, *colors, effect="solid", period=None):
 
 class Visualizer(object):
     """
-    A way of showing METAR data on the map.
+    A way of showing METAR data on the map: decides how each airport's LED looks.
 
-    Subclasses decide how each airport's LED looks, from its METAR, by overriding look() (or strip_look() to drive
-    the whole strip). That part is pure and testable. This base class turns the looks into LED animations.
+    Subclasses override look() (one airport) or strip_look() (the whole strip). Visualizers don't touch the
+    LEDs; the renderer turns their looks into animations.
     """
     name = ""
     description = ""
     exclusive = False  # True: the visualizer has the whole strip, so locate() is ignored
 
-    def __init__(self, data, pix, config):
-        self.__data__ = data
-        self.__pix__ = pix
+    def __init__(self, config):
         self.__config__ = config
-        self.__effect__ = []
 
     @property
     def settings(self):
@@ -65,15 +60,3 @@ class Visualizer(object):
         List of legend_item() entries describing what the LEDs mean.
         """
         return []
-
-    def get_effects(self):
-        return self.__effect__
-
-    def update_data(self, data):
-        safe_logging.safe_log("[v]updating data in the visualizer ({0})".format(self.name))
-        self.__data__ = data
-        strip = self.strip_look()
-        if strip is not None:
-            self.__effect__ = [animation_for(strip, self.__pix__)]
-        else:
-            self.__effect__ = [animation_for(look, self.__pix__[i]) for i, look in enumerate(self.looks(data))]
