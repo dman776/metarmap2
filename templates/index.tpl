@@ -9,9 +9,14 @@
 <section class="page-head">
     <div>
         <h1>Map status</h1>
-        <p>{{len(stations)}} airports
+        <p>{{len(stations)}} airports · METARs update every 10 minutes</p>
+        <p class="fetched" data-fetched="{{int(metars.lastFetchTime.timestamp()) if metars.lastFetchTime else ''}}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
             % if metars.lastFetchTime:
-            · METARs fetched <span class="mono">{{metars.lastFetchTime.strftime("%H:%M")}}</span>
+            Last METAR fetch <span class="mono">{{metars.lastFetchTime.strftime("%Y-%m-%d %H:%M:%S")}}</span>
+            <span class="ago"></span>
+            % else:
+            METARs not fetched yet
             % end
         </p>
     </div>

@@ -1,3 +1,7 @@
+### dman776 2.2.2 (2026-10-24)
+
+- Home page shows the last METAR fetch time with how long ago it was, and flags it when it is over 20 minutes old
+
 ### dman776 2.2.1 (2026-10-24)
 
 - New airplane logo in the web UI, plus a matching browser tab icon

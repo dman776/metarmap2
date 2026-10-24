@@ -58,6 +58,21 @@
         r.addEventListener('input', function () { if (out) out.textContent = fmt(r.value); });
     });
 
+    // "last METAR fetch" age, kept current while the page is open
+    const fetched = document.querySelector('[data-fetched]');
+    if (fetched && fetched.dataset.fetched) {
+        const at = parseInt(fetched.dataset.fetched, 10) * 1000;
+        const ago = fetched.querySelector('.ago');
+        const tick = function () {
+            const min = Math.max(0, Math.floor((Date.now() - at) / 60000));
+            ago.textContent = '· ' + (min < 1 ? 'just now' : min === 1 ? '1 min ago' : min + ' min ago') +
+                (min >= 20 ? ' · may be stale' : '');
+            fetched.classList.toggle('stale', min >= 20);
+        };
+        tick();
+        setInterval(tick, 30000);
+    }
+
     // brightness slider
     const brt = document.getElementById('brightness');
     if (brt) {
