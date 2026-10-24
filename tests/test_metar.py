@@ -1,0 +1,177 @@
+"""Tests for METAR fetching and parsing (metar.py)."""
+from datetime import datetime, timezone
+
+import pytest
+import requests
+
+import metar
+
+HOUSTON = ("KHOU", "KIAH", "KGLS", "KCLL", "KLBX", "KBPT", "KDKR", "NULL1")
+
+
+def report(station, **fields):
+    """One <METAR> element; fields are added as child elements."""
+    body = "".join(f"<{k}>{v}</{k}>" for k, v in fields.items())
+    return f"<METAR><station_id>{station}</station_id>{body}</METAR>"
+
+
+def response(*reports):
+    return f"<response><data>{''.join(reports)}</data></response>".encode()
+
+
+GOOD = dict(raw_text="KTST 241453Z 14009KT 10SM CLR 28/22 A2995", observation_time="2026-10-24T14:53:00Z",
+            temp_c="28", dewpoint_c="22", wind_dir_degrees="140", wind_speed_kt="9",
+            visibility_statute_mi="10+", altim_in_hg="29.95", flight_category="VFR")
+
+
+@pytest.fixture
+def houston(make_config, fixture_bytes):
+    m = metar.METAR(make_config(*HOUSTON))
+    m.__process__(fixture_bytes("metars_houston.xml"))
+    return m
+
+
+# ---- parsing a real aviationweather.gov response ------------------------------------------------------------
+
+def test_real_response_fields(houston):
+    khou = houston.data["KHOU"]
+    assert khou["flightCategory"] == "VFR"
+    assert khou["windDir"] == "100"
+    assert (khou["windSpeed"], khou["windGustSpeed"], khou["windGust"]) == (13, 19, True)
+    assert khou["vis"] == 10  # "10+" in the XML
+    assert (khou["tempC"], khou["dewpointC"]) == (28, 16)
+    assert khou["altimHg"] == pytest.approx(30.20, abs=0.01)
+    assert khou["obsTime"] == datetime(2026, 10, 24, 17, 53, tzinfo=timezone.utc)
+    assert khou["raw"].startswith("METAR KHOU 241753Z")
+    assert khou["lightning"] is False
+
+
+def test_uses_latest_report_per_station(houston, fixture_bytes):
+    import xmltodict
+    reports = xmltodict.parse(fixture_bytes("metars_houston.xml"))["response"]["data"]["METAR"]
+    khou_times = [r["observation_time"] for r in reports if r["station_id"] == "KHOU"]
+    assert len(khou_times) > 1  # the API returns several hours of reports
+    latest = max(datetime.fromisoformat(t.replace("Z", "+00:00")) for t in khou_times)
+    assert houston.data["KHOU"]["obsTime"] == latest
+
+
+def test_variable_wind_direction(houston):
+    assert houston.data["KBPT"]["windDir"] == "VRB"
+
+
+def test_missing_stations_get_empty_data(houston):
+    assert houston.data["KDKR"] == {}
+    assert houston.data["NULL1"] == {}
+    assert houston.missing_stations() == ["KDKR", "NULL1"]
+    assert "KDKR" not in houston.stations()
+
+
+def test_every_airport_has_an_entry(houston):
+    assert list(houston.data) == list(HOUSTON)
+
+
+# ---- unusual responses -----------------------------------------------------------------------------------------
+
+def test_single_report_response(make_config):
+    # xmltodict returns a lone <METAR> as a dict instead of a list
+    m = metar.METAR(make_config("KTST", "KOTH"))
+    m.__process__(response(report("KTST", **GOOD)))
+    assert m.data["KTST"]["windSpeed"] == 9
+    assert m.data["KOTH"] == {}
+
+
+@pytest.mark.parametrize("xml", [
+    b"<response><data></data></response>",
+    b'<response><data num_results="0"/></response>',
+    b"<response></response>",
+])
+def test_empty_responses(make_config, xml):
+    m = metar.METAR(make_config("KTST"))
+    m.__process__(xml)
+    assert m.data == {"KTST": {}}
+    assert m.missing_stations() == ["KTST"]
+
+
+def test_malformed_report_only_affects_its_airport(make_config):
+    m = metar.METAR(make_config("KONE", "KBAD", "KTWO"))
+    bad = report("KBAD", raw_text="KBAD junk", observation_time="garbage", temp_c="M05")
+    m.__process__(response(report("KONE", **GOOD), bad, report("KTWO", **GOOD)))
+    assert m.data["KBAD"] == {}
+    assert "KBAD" in m.missing_stations()
+    assert m.data["KONE"]["tempC"] == 28
+    assert m.data["KTWO"]["tempC"] == 28  # parsed even though it came after the bad one
+
+
+def test_sparse_report_uses_defaults(make_config):
+    m = metar.METAR(make_config("KTST"))
+    m.__process__(response(report("KTST", raw_text="KTST 241453Z AUTO")))
+    d = m.data["KTST"]
+    assert d["flightCategory"] is None
+    assert (d["windSpeed"], d["vis"], d["altimHg"]) == (0, 0, 0)
+    assert (d["tempC"], d["dewpointC"], d["obsTime"]) == (None, None, None)
+
+
+def test_lightning_flag(make_config):
+    m = metar.METAR(make_config("KTST"))
+    m.__process__(response(report("KTST", **{**GOOD, "raw_text": "KTST 241453Z 14009KT 10SM TS LTG DSNT"})))
+    assert m.data["KTST"]["lightning"] is True
+
+
+def test_data_is_replaced_not_mutated(make_config):
+    """Readers (the OLED loop, the web server) must never see a half-filled dict."""
+    m = metar.METAR(make_config("KTST"))
+    old = {"KTST": {"raw": "old"}}
+    m.data = old
+    m.__process__(response(report("KTST", **GOOD)))
+    assert m.data is not old
+    assert old == {"KTST": {"raw": "old"}}
+
+
+# ---- fetch() ---------------------------------------------------------------------------------------------------
+
+class FakeResponse:
+    def __init__(self, content=b"", status=200):
+        self.content = content
+        self.status = status
+
+    def raise_for_status(self):
+        if self.status >= 400:
+            raise requests.exceptions.HTTPError(f"HTTP {self.status}")
+
+
+def test_fetch_success(monkeypatch, make_config, fixture_bytes):
+    urls = []
+
+    def fake_get(url, **kwargs):
+        urls.append(url)
+        return FakeResponse(fixture_bytes("metars_houston.xml"))
+    monkeypatch.setattr(metar.requests, "get", fake_get)
+
+    m = metar.METAR(make_config(*HOUSTON))
+    m.fetch()
+    assert m.data["KIAH"]["windSpeed"] == 10
+    assert m.lastFetchTime is not None
+    assert not m.is_fetching()
+    assert "NULL1" not in urls[0]
+    assert urls[0].endswith("ids=KHOU,KIAH,KGLS,KCLL,KLBX,KBPT,KDKR")
+
+
+@pytest.mark.parametrize("fake_get", [
+    lambda url, **kw: (_ for _ in ()).throw(requests.exceptions.ConnectionError("no network")),
+    lambda url, **kw: FakeResponse(status=503),
+    lambda url, **kw: FakeResponse(b"<html>not the xml you wanted"),
+])
+def test_fetch_errors_are_contained(monkeypatch, make_config, fake_get):
+    monkeypatch.setattr(metar.requests, "get", fake_get)
+    m = metar.METAR(make_config("KTST"))
+    m.data = {"KTST": {"raw": "previous"}}
+    m.fetch()  # must not raise: it runs on the scheduler in the main loop
+    assert m.data == {"KTST": {"raw": "previous"}}
+    assert not m.is_fetching()
+
+
+def test_fetch_calls_callback_even_on_error(monkeypatch, make_config):
+    monkeypatch.setattr(metar.requests, "get", lambda url, **kw: FakeResponse(status=500))
+    called = []
+    metar.METAR(make_config("KTST")).fetch(callback=lambda: called.append(True))
+    assert called == [True]

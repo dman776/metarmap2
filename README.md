@@ -91,7 +91,7 @@ Automatically dims (2 levels) based on the current location of the map (via conf
   * `cd metarmap2`
 * Attach NeoPixel LEDs to Raspberry Pi. You can find [more details about wiring here](https://learn.adafruit.com/neopixels-on-raspberry-pi/raspberry-pi-wiring).
 * Test the Neopixels (it needs to run with root permissions to access the GPIO pins):
-  * `sudo python3 test1.py`
+  * `sudo python3 tools/test1.py`
   * Press 'CTRL-C' to stop the test
 * Make appropriate changes to the **[airports](airports.json)** file for the airports you want to use (and 'display' on
   the OLED screen)

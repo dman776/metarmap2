@@ -1,5 +1,9 @@
-xmltodict~=0.13.0
-pytz~=2022.7.1
-bottle~=0.12.23
-schedule~=1.1.0
-Pillow~=9.4.0
+# Runtime dependencies (kept in sync with pyproject.toml).
+# On the Raspberry Pi also install the hardware drivers: pip install -e ".[pi]"
+adafruit-circuitpython-led-animation>=2.6
+astral>=2.2
+bottle>=0.12
+pytz
+requests>=2.25
+schedule>=1.1
+xmltodict>=0.13

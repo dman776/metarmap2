@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "metarmap2"
+version = "2.2.3"
+description = "Raspberry Pi METAR map: NeoPixel LEDs, an OLED screen and a web UI"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "Darryl Quinn" }]
+requires-python = ">=3.9"
+dependencies = [
+    "adafruit-circuitpython-led-animation>=2.6",
+    "astral>=2.2",
+    "bottle>=0.12",
+    "pytz",
+    "requests>=2.25",
+    "schedule>=1.1",
+    "xmltodict>=0.13",
+]
+
+[project.optional-dependencies]
+# hardware drivers, only needed on the Raspberry Pi
+pi = [
+    "adafruit-blinka",
+    "adafruit-circuitpython-neopixel",
+    "adafruit-circuitpython-ssd1306",
+    "oled-text",
+    "rpi_ws281x",
+]
+dev = [
+    "pytest>=7",
+    "ruff>=0.6",
+]
+
+[project.urls]
+Homepage = "https://github.com/dman776/metarmap2"
+
+# The code isn't a package yet (that's a later step); installing only pulls in the dependencies:
+#   pip install -e ".[dev]"
+[tool.setuptools]
+py-modules = []
+packages = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra"
+
+[tool.ruff]
+target-version = "py39"
+line-length = 120
+extend-exclude = ["tools"]
+
+[tool.ruff.lint]
+# start with the checks that catch real bugs (syntax errors, undefined names); tighten as the code is cleaned up
+select = ["E9", "F63", "F7", "F82"]
