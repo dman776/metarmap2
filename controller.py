@@ -6,6 +6,7 @@
 
 import threading
 import time
+import traceback
 from datetime import datetime
 import signal
 
@@ -55,7 +56,7 @@ except ValueError:
 
 # ---------------------------------------------------------------------------
 # Globals
-__version__ = "2.2.2"
+__version__ = "2.2.3"
 CONFIG_FILE = "config.json"
 config = None
 
@@ -101,6 +102,34 @@ def sched_rotate_visualizer():
     renderer.visualizer_next(skip_exclusive=True)
 
 
+def sched_watch_display():
+    """
+    Restarts the OLED loop if its thread died or it hasn't moved on for a while.
+    """
+    disp = config.display
+    if disp is None:
+        return
+    # each airport shows two pages of `delay` seconds, plus up to a second for the locate pulse
+    limit = max(60, 4 * config.data.display_screen.delay + 10)
+    idle = time.time() - disp.last_change
+    if not disp.is_alive() or idle > limit:
+        safe_logging.safe_log(f"[c]display watchdog: thread alive={disp.is_alive()}, idle {idle:.0f}s; restarting")
+        try:
+            disp.restart(timeout=5)
+        except Exception as e:
+            # an exception here would end the main loop; just try again next time
+            safe_logging.safe_log(f"[c]display watchdog restart failed: {e}\n{traceback.format_exc()}")
+
+
+def log_thread_exception(args):
+    """
+    Uncaught exceptions in background threads only go to stderr by default; put them in the log too.
+    """
+    name = args.thread.name if args.thread else "?"
+    safe_logging.safe_log(f"[c]uncaught exception in thread {name}: "
+                          + "".join(traceback.format_exception(args.exc_type, args.exc_value, args.exc_traceback)))
+
+
 def signal_handler(sig, frame):
     raise KeyboardInterrupt
 
@@ -111,6 +140,7 @@ def signal_handler(sig, frame):
 if __name__ == '__main__':
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
+    threading.excepthook = log_thread_exception
 
     safe_logging.safe_log("[c]" + "Starting controller.py at " + datetime.now().strftime('%d/%m/%Y %H:%M'))
     safe_logging.safe_log("[c]" + "Testing to see if internet (8.8.8.8) is reachable...")
@@ -165,6 +195,8 @@ if __name__ == '__main__':
     # Job Scheduler setup --------------
     schedule.every(10).minutes.do(update_data)  # Start up METAR update thread
     schedule.every().day.at('00:00').do(sched_load_suntimes)  # load sun times and dim the map appropriately
+    if config.data.display_screen.enabled:
+        schedule.every(15).seconds.do(sched_watch_display)
 
     if config.data.visualizer.auto_rotate.enabled:
         delay_secs = config.data.visualizer.auto_rotate.delay_seconds

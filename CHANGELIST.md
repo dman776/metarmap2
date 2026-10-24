@@ -1,3 +1,14 @@
+### dman776 2.2.3 (2026-10-24)
+
+- Fixed the OLED display occasionally getting stuck and no longer rotating
+  - METAR data is now replaced all at once, so the display never reads a half-updated set of airports
+  - A malformed METAR only affects its own airport (and is logged) instead of stopping processing for the rest
+  - The display loop recovers from errors, picks up airport edits safely, and shows "--" for values it can't format
+  - A watchdog restarts the display if it stops changing for 60 seconds
+  - LED updates from the display's locate pulse and the main loop no longer overlap
+- Errors in background threads are now written to metarmap.log
+- Fixed error handling for METAR fetches that could stop the whole map
+
 ### dman776 2.2.2 (2026-10-24)
 
 - Home page shows the last METAR fetch time with how long ago it was, and flags it when it is over 20 minutes old

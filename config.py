@@ -15,7 +15,7 @@ except ModuleNotFoundError:
 except NotImplementedError:
     pass
 
-__version__ = "2.2.2"
+__version__ = "2.2.3"
 
 
 class Config(object):
@@ -100,12 +100,12 @@ class Config(object):
         self.__airports__ = json.loads(fdata)
 
     def write_airports(self):
-        self.display.event.set()
         with open(self.__data__.airports_file, "w") as f:
             f.write(json.dumps(self.__airports__, indent=4))
         self.read_airports()
         # refresh display loop to pick up new config
-        self.display.restart()
+        if self.display:
+            self.display.restart(timeout=15)
 
     def edit_airport(self, oldkey, newkey):
         # need to keep the existing order

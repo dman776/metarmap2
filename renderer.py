@@ -2,7 +2,9 @@
 Module to handle METAR fetching and processing
 """
 
+import threading
 import time
+import traceback
 from datetime import datetime
 import pytz
 import lib.safe_logging as safe_logging
@@ -69,6 +71,8 @@ class Renderer(object):
         self.__vis__ = visualizers[0]
         self.active_visualizer: int = 0
         self.last_locate = None  # {"pixel": n, "at": epoch seconds} of the last locate() pulse
+        # the main loop and other threads (OLED locate, web) both drive the LEDs; only one at a time
+        self.__lock__ = threading.RLock()
         self.adjust_brightness_for_time()
         self.clear()
 
@@ -83,8 +87,11 @@ class Renderer(object):
                 auto_clear=False,
             )
             self.__animationloop__ = animations
-            while animations.animate():
-                pass
+            while True:
+                # one frame at a time, so locate() can get in between frames
+                with self.__lock__:
+                    if not animations.animate():
+                        break
         except Exception as e:
             safe_logging.safe_log("[r]render error: " + str(e))
 
@@ -107,18 +114,25 @@ class Renderer(object):
         return
 
     def animate_once(self, effect, clear=True):
-        self.stop()
-        animations = AnimateOnce(effect)
-        while animations.animate():
-            pass
-        if clear:
-            self.clear()
-        self.resume()
+        with self.__lock__:
+            self.stop()
+            try:
+                animations = AnimateOnce(effect)
+                while animations.animate():
+                    pass
+                if clear:
+                    self.clear()
+            finally:
+                self.resume()
 
     def locate(self, pixnum):
-        if not self.__visualizers__[self.active_visualizer].exclusive:
+        if self.__visualizers__[self.active_visualizer].exclusive:
+            return
+        try:
             self.last_locate = {"pixel": int(pixnum), "at": time.time()}
             self.animate_once(Pulse(self.__pix__[int(pixnum)], speed=0.1, period=1, color=WHITE), False)
+        except Exception as e:
+            safe_logging.safe_log(f"[r]locate {pixnum}: {e}\n{traceback.format_exc()}")
 
     def led_states(self):
         """
