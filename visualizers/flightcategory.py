@@ -1,57 +1,29 @@
 """
 Module to handle visualizing Flight Category data
 """
-
-# import sys
-# import time
-# import datetime
-# from pprint import pprint
-# import json
-#
-# import lib.safe_logging as safe_logging
-# from lib.config import Config
-# import lib
-import lib.utils as utils
 import lib.colors as colors_lib
-# from metar import METAR
+from metarmap.models import FlightCategory as Category, Look, Metar
 from visualizers.visualizer import Visualizer, legend_item
 
-from adafruit_led_animation.animation.solid import Solid
-from adafruit_led_animation.animation.colorcycle import ColorCycle
-from adafruit_led_animation.animation.blink import Blink
-
-
-# from adafruit_led_animation.color import YELLOW
+LIGHTNING_STEP = 0.1  # seconds per frame of the lightning pattern
 
 
 def lightning_pattern(cat, color):
-    lp = []
-    for i in range(1, 16):
-        lp.append(cat)
-    lp.append(color)
-    return lp
+    """15 frames of the category color, then one lightning flash."""
+    return [cat] * 15 + [color]
 
 
 class FlightCategory(Visualizer):
     """
-    Object to handle FlightCategory
-    Returns a list of Effects on each pixel
+    Colors each airport by its flight category.
     """
-    def __init__(self, data, pix, config):
-        super().__init__(data, pix, config)
-
-    @property
-    def name(self):
-        return "Flight Category"
-
-    @property
-    def description(self):
-        return "Display the flight category (ie. VFR, MVFR, IFR, LIFR)."
+    name = "Flight Category"
+    description = "Display the flight category (ie. VFR, MVFR, IFR, LIFR)."
 
     @property
     def legend(self):
         c = colors_lib.get_colors()
-        cat = self.__config__.data.color.cat
+        cat = self.settings.color.cat
         items = [
             legend_item("VFR", "Green", cat.vfr),
             legend_item("MVFR", "Blue", cat.mvfr),
@@ -60,36 +32,29 @@ class FlightCategory(Visualizer):
             legend_item("Flight category missing", "Blinking red (other METAR data is available)",
                         c[colors_lib.RED], effect="blink", period=2),
         ]
-        if self.__config__.data.lightning.animation:
+        if self.settings.lightning.animation:
             items.append(legend_item("Lightning", "Yellow flashes over the flight category color",
-                                     cat.vfr, self.__config__.data.color.weather.lightning, effect="flash"))
+                                     cat.vfr, self.settings.color.weather.lightning, effect="flash"))
         items.append(legend_item("METAR not available", "Off"))
         return items
 
-    def update_data(self, data):
-        super().update_data(data)
-        # loop over all stations
-        for i, airport in enumerate(list(self.__data__.keys())):
-            if "NULL" in airport or not self.__data__[airport]:  # NULL or no metar data at all
-                self.__effect__.append(Solid(self.__pix__[i], color=colors_lib.get_colors()[colors_lib.OFF]))
-                continue
-            airport_data = self.__data__.get(airport, {})
-            flight_category = airport_data.get('flightCategory')
-            flight_category_color = self.__colors_by_category__(flight_category)
+    def look(self, metar: Metar) -> Look:
+        if not metar:
+            return Look.off()
+        category = metar.get('flightCategory')
+        color = self.color_for(category)
+        if self.settings.lightning.animation and metar.get('lightning', False):
+            return Look.cycle(lightning_pattern(color, self.settings.color.weather.lightning), step=LIGHTNING_STEP)
+        if category is None:  # other data is reported, but not the flight category
+            return Look.blink(colors_lib.get_colors()[colors_lib.RED], period=2)
+        return Look.solid(color)
 
-            if self.__config__.data.lightning.animation and airport_data.get('lightning', False):
-                self.__effect__.append(ColorCycle(self.__pix__[i], speed=0.1, colors=lightning_pattern(
-                    flight_category_color, self.__config__.data.color.weather.lightning)))
-            elif flight_category is None:  # ie. not reporting flight_cat
-                self.__effect__.append(Blink(self.__pix__[i], speed=1, color=colors_lib.get_colors()[colors_lib.RED]))
-            else:
-                self.__effect__.append(Solid(self.__pix__[i], color=flight_category_color))
-
-    def __colors_by_category__(self, category):
+    def color_for(self, category):
+        cat = self.settings.color.cat
         color_map = {
-            "VFR": self.__config__.data.color.cat.vfr,
-            "MVFR": self.__config__.data.color.cat.mvfr,
-            "IFR": self.__config__.data.color.cat.ifr,
-            "LIFR": self.__config__.data.color.cat.lifr,
+            Category.VFR: cat.vfr,
+            Category.MVFR: cat.mvfr,
+            Category.IFR: cat.ifr,
+            Category.LIFR: cat.lifr,
         }
-        return color_map.get(category, self.__config__.data.color.clear)
+        return color_map.get(category, self.settings.color.clear)

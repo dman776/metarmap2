@@ -1,46 +1,24 @@
 """
-Module to handle visualizing Precip data
+Module to handle visualizing Precipitation data
 """
-
-import sys
-import time
-import datetime
-from pprint import pprint
-import json
-
-import lib.safe_logging as safe_logging
-# from lib.config import Config
-import lib.utils as utils
 import lib.colors as colors_lib
-from metar import METAR
+import lib.safe_logging as safe_logging
+from metarmap.models import Look, Metar
 from visualizers.visualizer import Visualizer, legend_item
-from adafruit_led_animation.animation.pulse import Pulse
-from adafruit_led_animation.animation.solid import Solid
-from adafruit_led_animation.animation.blink import Blink
-from adafruit_led_animation.animation.sparkle import Sparkle
 
 
 class Precipitation(Visualizer):
     """
-    Object to handle Precip
-    Returns a list of Effects on each pixel
+    Shows each airport's observed weather (rain, snow, fog, thunderstorms...).
     """
-    def __init__(self, data, pix, config):
-        super().__init__(data, pix, config)
-        self.__exclusive__ = True
-
-    @property
-    def name(self):
-        return "Precipitation"
-
-    @property
-    def description(self):
-        return "Display the current observed precipitation."
+    name = "Precipitation"
+    description = "Display the current observed precipitation."
+    exclusive = True
 
     @property
     def legend(self):
         c = colors_lib.get_colors()
-        w = self.__config__.data.color.weather
+        w = self.settings.color.weather
         return [
             legend_item("None", "Off"),
             legend_item("Haze", "Dark gray", w.haze),
@@ -61,80 +39,50 @@ class Precipitation(Visualizer):
             legend_item("Other / unknown", "Blinking red", c[colors_lib.RED], effect="blink", period=2),
         ]
 
-    def update_data(self, data):
-        super().update_data(data)
+    def look(self, metar: Metar) -> Look:
+        if not metar:
+            return Look.off()
+        return self.look_for_weather(metar['obs'])
 
-        # loop over all stations
-        i = 0
-        # for airport in list(self.__stations__):
-        for airport in list(self.__data__.keys()):
-            # Skip NULL entries
-            if "NULL" in airport:
-                self.__effect__.append(Solid(self.__pix__[i], color=[0, 0, 0]))
-                i += 1
-                continue
-            airport_data = self.__data__.get(airport, None)
-
-            if len(airport_data.keys()) > 0:
-                if airport_data is not None:
-                    p_eff = self.get_effect_by_obs(self.__pix__[i], airport_data['obs'])
-                    self.__effect__.append(p_eff)
-                else:  # airport key not found in metar data
-                    self.__effect__.append(Solid(self.__pix__[i], color=[0, 0, 0]))
-            else:  # airport data is empty METAR data
-                self.__effect__.append(Solid(self.__pix__[i], color=[0, 0, 0]))
-            i += 1
-
-    def get_effect_by_obs(self, pixel, obs: str):
+    def look_for_weather(self, obs: str) -> Look:
         """
-        Given an observation reading, return a RGB color to show on the map.
-        Args:
-            pix (int): the pixel number
-            obs (string): The observation reading from a metar.
-        Returns:
-            pixel effect
+        Given the observed weather codes from a METAR (e.g. "-RA BR"), return how the LED looks.
+        The first matching code wins.
         """
-
-        # -RA = slow pulse 4 sec
-        #  RA = solid color
-        # +RA = blink color 1 sec
-
-        colors_by_name = colors_lib.get_colors()
+        named = colors_lib.get_colors()
+        w = self.settings.color.weather
 
         if obs is None or obs == "":
-            return Solid(pixel, color=colors_by_name[colors_lib.OFF])
-        elif "VCTS" in obs:
-            return Blink(pixel, speed=1, color=self.__config__.data.color.weather.lightning)
-        elif "TS" in obs:
-            return Blink(pixel, speed=1, color=self.__config__.data.color.weather.lightning)
-        elif "-FZDZ" in obs:
-            return Pulse(pixel, speed=0.1, period=0.5, color=self.__config__.data.color.weather.drizzle)
-        elif "-FZRA" in obs:
-            return Pulse(pixel, speed=0.1, period=2, color=self.__config__.data.color.weather.rain)
-        elif "-SN" in obs:
-            return Pulse(pixel, speed=0.1, period=2, color=colors_by_name[colors_lib.WHITE])
-        elif "SN" in obs:
-            return Pulse(pixel, speed=0.1, period=1, color=colors_by_name[colors_lib.WHITE])
-        elif "-RA" in obs:
-            return Pulse(pixel, speed=0.1, period=4, color=self.__config__.data.color.weather.rain)
-        elif "RA" in obs:
-            return Solid(pixel, color=self.__config__.data.color.weather.rain)
-        elif "+RA" in obs:
-            return Blink(pixel, speed=1, color=self.__config__.data.color.weather.rain)
-        elif "-DZ" in obs:
-            return Pulse(pixel, speed=0.1, period=4, color=self.__config__.data.color.weather.drizzle)
-        elif "DZ" in obs:
-            return Solid(pixel, color=self.__config__.data.color.weather.drizzle)
-        elif "FG" in obs:
-            return Pulse(pixel, speed=0.1, period=4, color=self.__config__.data.color.weather.fog)
-        elif "HZ" in obs:
-            return Solid(pixel, color=self.__config__.data.color.weather.haze)
-        elif "BR" in obs:
-            return Solid(pixel, color=self.__config__.data.color.weather.mist)
-        elif "-UP" in obs:
-            return Blink(pixel, speed=1, color=colors_by_name[colors_lib.LIGHT_RED])
-        elif "UP" in obs:
-            return Blink(pixel, speed=1, color=colors_by_name[colors_lib.RED])
-        else:
-            safe_logging.safe_log("[v]missing observation code=" + str(obs))
-            return Blink(pixel, speed=1, color=colors_by_name[colors_lib.RED])
+            return Look.off()
+        if "VCTS" in obs or "TS" in obs:
+            return Look.blink(w.lightning)
+        if "-FZDZ" in obs:
+            return Look.pulse(w.drizzle, period=0.5)
+        if "-FZRA" in obs:
+            return Look.pulse(w.rain, period=2)
+        if "-SN" in obs:
+            return Look.pulse(named[colors_lib.WHITE], period=2)
+        if "SN" in obs:
+            return Look.pulse(named[colors_lib.WHITE], period=1)
+        if "-RA" in obs:
+            return Look.pulse(w.rain, period=4)
+        if "RA" in obs:
+            return Look.solid(w.rain)
+        if "+RA" in obs:  # never reached: "RA" above already matches heavy rain
+            return Look.blink(w.rain)
+        if "-DZ" in obs:
+            return Look.pulse(w.drizzle, period=4)
+        if "DZ" in obs:
+            return Look.solid(w.drizzle)
+        if "FG" in obs:
+            return Look.pulse(w.fog, period=4)
+        if "HZ" in obs:
+            return Look.solid(w.haze)
+        if "BR" in obs:
+            return Look.solid(w.mist)
+        if "-UP" in obs:
+            return Look.blink(named[colors_lib.LIGHT_RED])
+        if "UP" in obs:
+            return Look.blink(named[colors_lib.RED])
+        safe_logging.safe_log("[v]missing observation code=" + str(obs))
+        return Look.blink(named[colors_lib.RED])

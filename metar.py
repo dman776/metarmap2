@@ -3,16 +3,16 @@ Module to handle METAR fetching and processing
 """
 
 from datetime import datetime
-import sys
 import traceback
 import requests
 import xmltodict
 from pprint import pprint
 import lib.safe_logging as safe_logging
 from config import Config
-import lib.utils as utils
-from collections import defaultdict
-from typing import Dict, List
+
+API_URL = "https://aviationweather.gov/api/data/metar?format=xml&hours=5&ids="
+USER_AGENT = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+              "Chrome/86.0.4240.198 Safari/537.36 Edg/86.0.622.69")
 
 
 class METAR(object):
@@ -38,16 +38,8 @@ class METAR(object):
         try:
             self.__is_fetching__ = True
             safe_logging.safe_log("[m]Fetching...")
-            # url = "https://www.aviationweather.gov/adds/dataserver_current/httpparam?dataSource=metars&requestType=retrieve&format=xml&hoursBeforeNow=5&mostRecentForEachStation=true&stationString=" + \
-            #       ",".join([item for item in list(self.__airports__.keys()) if "NULL" not in item])
-            # url = "https://aviationweather.gov/cgi-bin/data/dataserver.php?dataSource=metars&requestType=retrieve&format=xml&hoursBeforeNow=5&mostRecentForEachStation=true&stationString=" + \
-            #       ",".join([item for item in list(self.__airports__.keys()) if "NULL" not in item])
-            url = "https://aviationweather.gov/api/data/metar?format=xml&hours=5&ids=" + \
-                  ",".join([item for item in list(self.__config__.airports.keys()) if "NULL" not in item])
-
-            response = requests.get(url, headers={
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.198 Safari/537.36 Edg/86.0.622.69'},
-                                    timeout=30, verify=True)
+            url = API_URL + ",".join([item for item in list(self.__config__.airports.keys()) if "NULL" not in item])
+            response = requests.get(url, headers={'User-Agent': USER_AGENT}, timeout=30, verify=True)
             response.raise_for_status()
             content = response.content
             self.__is_fetching__ = False

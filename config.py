@@ -1,11 +1,6 @@
-import ast
 import json
-import sys
-from json import JSONEncoder
-import lib.safe_logging as safe_logging
-from pprint import pprint
-from types import SimpleNamespace
 from lib import utils
+from metarmap.settings import Settings
 
 try:
     import board
@@ -15,7 +10,7 @@ except ModuleNotFoundError:
 except NotImplementedError:
     pass
 
-__version__ = "2.2.3"
+__version__ = "2.2.4"
 
 
 class Config(object):
@@ -24,7 +19,7 @@ class Config(object):
         Creates a new config object
         """
         self.__file__ = file
-        self.__data__ = {}
+        self.__data__ = Settings()
         self.app_version = __version__
         self.LED_PIN = None
         self.LED_ORDER = None
@@ -36,34 +31,27 @@ class Config(object):
         self.__display__ = None  # set later (for convenience)
 
     def read(self):
-        with open(self.__file__, 'r') as f:
-            self.__data__ = json.load(f, object_hook=lambda x: SimpleNamespace(**x))
+        self.__data__ = Settings.load(self.__file__)
         self.__post_process__()
-        return
 
     def __post_process__(self):
-        # LED config
+        # LED config (only available on the Pi)
         try:
-            self.LED_PIN = eval("board.D" + str(self.__data__.led.pin))
-            self.LED_ORDER = eval("neopixel." + self.__data__.led.order)
-        except NameError as e:
+            self.LED_PIN = getattr(board, "D" + str(self.__data__.led.pin), None)
+            self.LED_ORDER = getattr(neopixel, self.__data__.led.order, None)
+        except NameError:
             pass
 
     def write(self):
-        with open(self.__file__, 'w') as f:
-            json.dump(self.__data__, f, cls=MyJsonEncoder, indent=4)
+        self.__data__.save(self.__file__)
         self.read()
-        return
 
     def edit(self, key, value):
-        if value in ['true', 'false']:
-            value = value.capitalize()
-        try:
-            ast.literal_eval(str(value))
-        except (ValueError, SyntaxError):
-            value = repr(value)  # plain text, e.g. a chart name
-        code = compile("self.__data__." + key + "=" + str(value), "<string>", "exec")
-        exec(code)
+        """
+        Saves one setting by its dotted path, e.g. edit("display_screen.delay", "5").
+        Raises KeyError for an unknown setting and ValueError for a value of the wrong type.
+        """
+        self.__data__.set(key, value)
         self.write()
 
     @property
@@ -121,11 +109,6 @@ class Config(object):
             value = eval(value)
         self.__airports__[airport][key] = value
         self.write_airports()
-
-
-class MyJsonEncoder(JSONEncoder):
-    def default(self, o):
-        return o.__dict__
 
 
 if __name__ == '__main__':

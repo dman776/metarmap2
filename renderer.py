@@ -12,7 +12,7 @@ import lib.colors as colors_lib
 import metar
 try:
     from config import Config
-except ImportError as e:
+except ImportError:
     pass
 
 from adafruit_led_animation.sequence import AnimateOnce
@@ -29,7 +29,10 @@ def describe_effect(effect):
     kind = type(effect).__name__
     ranges = getattr(effect.pixel_object, "_ranges", None)
     pixels = [r[0] for r in ranges] if ranges else None
-    css = lambda colors: [colors_lib.to_css(c) for c in colors if c is not None]
+
+    def css(colors):
+        return [colors_lib.to_css(c) for c in colors if c is not None]
+
     speed = effect.speed
     if kind == "Solid":
         look = {"effect": "solid", "colors": css([effect.color])}
@@ -65,7 +68,7 @@ class Renderer(object):
         self.__config__: Config = config
         # self.windCycle = False
         self.numAirports = len(self.__stations__)
-        self.__pix__ = pixel_subsets                       # individual pixel submap - used to address one pixel for effects
+        self.__pix__ = pixel_subsets  # individual pixel submap - used to address one pixel for effects
         self.__animationloop__: AnimateOnce = None
         self.__visualizers__: list = visualizers
         self.__vis__ = visualizers[0]

@@ -1,3 +1,13 @@
+### dman776 2.2.4 (2026-10-24)
+
+- Restructured the visualizers so each one only decides how an airport's LED looks; the LEDs show exactly what they did before
+- `config.json` now has a schema: missing settings get defaults, and Config edits are checked against each setting's type
+- Config edits with an unknown setting or a bad value now return a clear error (HTTP 400) instead of failing or adding a stray key
+- Config edits no longer run the value as Python code
+- Chase visualizer adapts to the number of LEDs (`led.count`)
+- Added unit tests (pytest), linting (ruff) and GitHub Actions; development setup is in `pyproject.toml`
+- Moved the LED test and other one-off scripts to `tools/` (the LED test is now `sudo python3 tools/test1.py`)
+
 ### dman776 2.2.3 (2026-10-24)
 
 - Fixed the OLED display occasionally getting stuck and no longer rotating

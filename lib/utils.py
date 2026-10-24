@@ -7,7 +7,7 @@ import shutil
 
 try:
     import lib.safe_logging as safe_logging
-except ModuleNotFoundError as e:
+except ModuleNotFoundError:
     import safe_logging as safe_logging
 
 

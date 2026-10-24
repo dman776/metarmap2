@@ -1,97 +1,51 @@
 """
 Module to handle visualizing Wind data
 """
-
-import sys
-import time
-import datetime
-from pprint import pprint
-import json
-
-import lib.safe_logging as safe_logging
-# from lib.config import Config
-import lib
-import lib.utils as utils
 import lib.colors as colors_lib
-from metar import METAR
-import neopixel
-import board
+import lib.utils as utils
+from metarmap.models import Look, Metar
 from visualizers.visualizer import Visualizer, legend_item
 
-from adafruit_led_animation.animation.blink import Blink
-from adafruit_led_animation.animation.pulse import Pulse
-from adafruit_led_animation.animation.solid import Solid
-from adafruit_led_animation.animation.colorcycle import ColorCycle
-from adafruit_led_animation.color import PURPLE, WHITE, AMBER, JADE, MAGENTA, ORANGE, BLUE, AQUA, RED, GREEN, YELLOW
+# (upper bound in kts, color at the lower bound, color at the upper bound); colors blend in between
+WIND_SCALE = [
+    (5, colors_lib.OFF, colors_lib.PURPLE),
+    (10, colors_lib.PURPLE, colors_lib.BLUE),
+    (15, colors_lib.BLUE, colors_lib.GREEN),
+    (20, colors_lib.GREEN, colors_lib.YELLOW),
+    (25, colors_lib.YELLOW, colors_lib.ORANGE),
+    (30, colors_lib.ORANGE, colors_lib.RED),
+]
 
 
 def get_color_by_wind(wind: float) -> list:
     """
     Given a wind (in kts), return the color
     that should represent that wind on the map.
-
     Args:
         wind (float): A wind speed in kts.
-
     Returns:
-        list: The RGB color to show on the map.
+        list: The color to show on the map.
     """
     colors_by_name = colors_lib.get_colors()
-
     if wind is None:
         return colors_by_name[colors_lib.OFF]
-
     if wind == 0:
         return colors_by_name[colors_lib.DARK_GRAY]
-    if wind < 5:
-        return colors_lib.get_color_mix(
-            colors_by_name[colors_lib.OFF], colors_by_name[colors_lib.PURPLE],
-            utils.get_proportion_between_floats(0, wind, 5))
-
-    if wind < 10:
-        return colors_lib.get_color_mix(
-            colors_by_name[colors_lib.PURPLE], colors_by_name[colors_lib.BLUE],
-            utils.get_proportion_between_floats(5, wind, 10))
-
-    if wind < 15:
-        return colors_lib.get_color_mix(
-            colors_by_name[colors_lib.BLUE], colors_by_name[colors_lib.GREEN],
-            utils.get_proportion_between_floats(10, wind, 15))
-
-    if wind < 20:
-        return colors_lib.get_color_mix(
-            colors_by_name[colors_lib.GREEN], colors_by_name[colors_lib.YELLOW],
-            utils.get_proportion_between_floats(15, wind, 20))
-
-    if wind < 25:
-        return colors_lib.get_color_mix(
-            colors_by_name[colors_lib.YELLOW], colors_by_name[colors_lib.ORANGE],
-            utils.get_proportion_between_floats(20, wind, 25))
-
-    if wind < 30:
-        return colors_lib.get_color_mix(
-            colors_by_name[colors_lib.ORANGE], colors_by_name[colors_lib.RED],
-            utils.get_proportion_between_floats(25, wind, 30))
-
+    low = 0
+    for high, low_color, high_color in WIND_SCALE:
+        if wind < high:
+            return colors_lib.get_color_mix(colors_by_name[low_color], colors_by_name[high_color],
+                                            utils.get_proportion_between_floats(low, wind, high))
+        low = high
     return colors_by_name[colors_lib.RED]
 
 
 class Wind(Visualizer):
     """
-    Object to handle Wind
-    Returns a list of Effects on each pixel
+    Colors each airport by its wind speed.
     """
-
-    def __init__(self, data, pix, config):
-        super().__init__(data, pix, config)
-
-    @property
-    def name(self):
-        return "Wind"
-
-    @property
-    def description(self):
-        return "Display the current wind speed."
+    name = "Wind"
+    description = "Display the current wind speed."
 
     @property
     def legend(self):
@@ -101,32 +55,12 @@ class Wind(Visualizer):
                  ("25", colors_lib.ORANGE, "orange"), ("30", colors_lib.RED, "red")]
         items = [legend_item("Calm", "Off")]
         for (lo, lo_color, lo_name), (hi, hi_color, hi_name) in zip(scale, scale[1:]):
-            items.append(legend_item(f"{lo}-{hi} kts", f"{lo_name.capitalize()} to {hi_name}", c[lo_color], c[hi_color]))
+            items.append(legend_item(f"{lo}-{hi} kts", f"{lo_name.capitalize()} to {hi_name}",
+                                     c[lo_color], c[hi_color]))
         items.append(legend_item("Above 30 kts", "Red", c[colors_lib.RED]))
         return items
 
-    def update_data(self, data):
-        super().update_data(data)
-
-        # loop over all stations
-        i = 0
-        # for airport in list(self.__stations__):
-        for airport in list(self.__data__.keys()):
-            # Skip NULL entries
-            if "NULL" in airport:
-                self.__effect__.append(Solid(self.__pix__[i], color=[0, 0, 0]))
-                i += 1
-                continue
-            airport_data = self.__data__.get(airport, None)
-
-            if len(airport_data.keys()) > 0:
-                if airport_data is not None:
-                    tcolor = get_color_by_wind(airport_data['windSpeed'])
-                    self.__effect__.append(Solid(self.__pix__[i], color=tcolor))
-                else:  # airport key not found in metar data
-                    self.__effect__.append(Solid(self.__pix__[i], color=[0, 0, 0]))
-            else:  # airport data is empty METAR data
-                self.__effect__.append(Solid(self.__pix__[i], color=[0, 0, 0]))
-            i += 1
-
-
+    def look(self, metar: Metar) -> Look:
+        if not metar:
+            return Look.off()
+        return Look.solid(get_color_by_wind(metar['windSpeed']))

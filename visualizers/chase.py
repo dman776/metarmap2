@@ -1,40 +1,19 @@
 """
-Module to handle a chase pattern (for testing and setup)
+Module to handle a chase pattern
 """
-
-import sys
-import time
-import datetime
-from pprint import pprint
-import json
-
-import lib.safe_logging as safe_logging
-# from lib.config import Config
-import lib
-import lib.utils as utils
 import lib.colors as colors_lib
-from metar import METAR
+from metarmap.models import Look
 from visualizers.visualizer import Visualizer, legend_item
-from adafruit_led_animation.animation.chase import Chase
 
 
-class ChaseTest(Visualizer):
+class Chase(Visualizer):
     """
-    Object to handle a test pattern
-    Returns a list of Effects on each pixel
+    One blue LED moving along the strip; useful for checking the wiring order.
     """
-
-    def __init__(self, data, pix, config):
-        super().__init__(data, pix, config)
-        self.__exclusive__ = True
-
-    @property
-    def name(self):
-        return "Chase"
-
-    @property
-    def description(self):
-        return "Display a simple chase pattern of BLUE LEDS in sequence. Runs one complete cycle across all of the LEDs, then repeats."
+    name = "Chase"
+    description = ("Display a simple chase pattern of BLUE LEDS in sequence. "
+                   "Runs one complete cycle across all of the LEDs, then repeats.")
+    exclusive = True
 
     @property
     def legend(self):
@@ -43,6 +22,6 @@ class ChaseTest(Visualizer):
             legend_item("All LEDs", "Blue, lighting in sequence", c[colors_lib.BLUE], effect="chase", period=1),
         ]
 
-    def update_data(self, data):
-        self.__effect__.clear()
-        self.__effect__.append(Chase(self.__pix__, speed=0.1, size=1, spacing=49, color=[0, 0, 255]))
+    def strip_look(self) -> Look:
+        # one lit LED, then the rest of the strip dark, so it walks every LED in turn
+        return Look.chase([0, 0, 255], step=0.1, size=1, spacing=self.settings.led.count - 1)

@@ -1,5 +1,4 @@
 import pprint
-import os, sys
 import bottle
 from bottle import auth_basic
 import metar
@@ -231,7 +230,12 @@ class WebServer(object):
         return bottle.redirect("/config/airports")
 
     def _edit_config(self, key, value):
-        self._config.edit(key, value)
+        try:
+            self._config.edit(key, value)
+        except KeyError:
+            bottle.abort(400, f"Unknown setting: {key}")
+        except ValueError as e:
+            bottle.abort(400, str(e))
         self._renderer.refresh()
         return self._render_config()
 

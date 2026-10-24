@@ -32,11 +32,10 @@ from visualizers.temperature import Temperature as TemperatureVisualizer
 from visualizers.visibility import Visibility as VisibilityVisualizer
 from visualizers.precipitation import Precipitation as PrecipitationVisualizer
 from visualizers.density_altitude import DensityAltitude as DensityAltitudeVisualizer
-from visualizers.chase import ChaseTest as ChaseVisualizer
-from visualizers.rainbow import Rainbow1 as RainbowVisualizer
+from visualizers.chase import Chase as ChaseVisualizer
+from visualizers.rainbow import Rainbow as RainbowVisualizer
 
 try:
-    import board
     import neopixel
 except ModuleNotFoundError:
     pass
@@ -56,7 +55,7 @@ except ValueError:
 
 # ---------------------------------------------------------------------------
 # Globals
-__version__ = "2.2.3"
+__version__ = "2.2.4"
 CONFIG_FILE = "config.json"
 config = None
 

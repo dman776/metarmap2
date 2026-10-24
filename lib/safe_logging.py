@@ -2,18 +2,13 @@
 Logging utilities for the WeatherMap
 """
 
-import inspect
 import traceback
-from datetime import datetime, timedelta
+from datetime import datetime
 
 try:
-    import lib.logger
     from lib.logger import LOGGER
-    import lib.safe_logging as safe_logging
-except ModuleNotFoundError as e:
-    import logger
+except ModuleNotFoundError:
     from logger import LOGGER
-    import safe_logging as safe_logging
 
 
 TAB_TEXT = ' ' * 4
@@ -82,7 +77,7 @@ def __get_indents(
             function_name = cs_info[index].filename
 
         line_num = cs_info[index].lineno
-    except:
+    except Exception:
         pass
 
     return '{}{}:{}: '.format(TAB_TEXT * count, function_name, line_num)

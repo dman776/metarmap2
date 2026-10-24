@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "metarmap2"
-version = "2.2.3"
+version = "2.2.4"
 description = "Raspberry Pi METAR map: NeoPixel LEDs, an OLED screen and a web UI"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -54,5 +54,4 @@ line-length = 120
 extend-exclude = ["tools"]
 
 [tool.ruff.lint]
-# start with the checks that catch real bugs (syntax errors, undefined names); tighten as the code is cleaned up
-select = ["E9", "F63", "F7", "F82"]
+select = ["E", "F"]

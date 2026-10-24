@@ -7,23 +7,23 @@
 from config import Config
 from lib import utils
 
-from renderer import Renderer
 
 # import metar
 # from PIL import Image, ImageDraw, ImageFont
 # import io
 
+import pytz
+from pytz import timezone
+
 try:
+    # OLED drivers: only on the Pi. Blinka's board module raises NotImplementedError on other machines.
     from board import SCL, SDA
     import busio
-    from oled_text import OledText, Layout64, BigLine, SmallLine
-    import adafruit_ssd1306
-    import time
-    from pytz import timezone
-    import pytz
+    from oled_text import OledText, BigLine
+    import adafruit_ssd1306  # noqa: F401 (oled_text needs it; fail early if missing)
 
     noDisplayLibraries = False
-except ImportError:
+except (ImportError, NotImplementedError):
     noDisplayLibraries = True
 
 from lib.safe_logging import safe_log
@@ -31,8 +31,6 @@ import threading
 import time
 import traceback
 
-from adafruit_led_animation.animation.pulse import Pulse
-from adafruit_led_animation.color import RED
 
 offset = -3
 x = 0
