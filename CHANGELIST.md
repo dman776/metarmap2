@@ -1,3 +1,11 @@
+### dman776 2.2 (2026-10-24)
+
+- Map page is now a live mirror of the physical map: every LED's real color and effect (blinking, pulsing, lightning flashes, rainbow, chase), the white locate pulse, and a window showing the OLED screen
+- Map page backgrounds: FAA chart (VFR Sectional, VFR Terminal Area or IFR Enroute Low), satellite, or live NEXRAD weather radar
+- Map page works with any FAA sectional; choose your chart and starting view under Config → Map page (new `geo.map` settings)
+- Added `GET /api/live` for the Map page; the OLED and renderer now report what they are showing
+- Config edits accept plain text values (such as a chart name)
+
 ### dman776 2.1 (2026-10-24)
 
 - Redesigned the web UI: dark theme, top navigation bar, and layouts that work on phones
@@ -6,11 +14,7 @@
 - Visualizer descriptions are now plain text; each visualizer lists its legend in a new `legend` property
 - METARs page: filter by flight category, search by ICAO code, and a Locate button on every row
 - Config page: toggle switches, auto-rotate and schedule brightness settings, and a reminder when a change needs a restart
-- Map page is now a live mirror of the physical map: every LED's real color and effect (blinking, pulsing, lightning flashes, rainbow, chase), the white locate pulse, and a window showing the OLED screen
-- Map page backgrounds: FAA chart (VFR Sectional, VFR Terminal Area or IFR Enroute Low), satellite, or live NEXRAD weather radar
-- Map page works with any FAA sectional; choose your chart and starting view under Config → Map page (new `geo.map` settings)
-- Added `GET /api/live` for the Map page; the OLED and renderer now report what they are showing
-- Config edits accept plain text values (such as a chart name)
+- Map page: darker map with markers colored by flight category
 - Removed Bootstrap, jQuery and Font Awesome; the UI now uses its own stylesheet and script served from `/static`
 - Copyright year in the footer updates automatically
 
