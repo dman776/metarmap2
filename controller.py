@@ -9,6 +9,7 @@ import time
 import traceback
 from datetime import datetime
 import signal
+import sys
 
 import lib.utils
 import webserver
@@ -36,17 +37,6 @@ from visualizers.chase import Chase as ChaseVisualizer
 from visualizers.rainbow import Rainbow as RainbowVisualizer
 
 thread_lock_object = threading.Lock()
-
-try:
-    import RPi.GPIO as GPIO
-
-    GPIO.setmode(GPIO.BOARD)
-except ModuleNotFoundError:
-    pass
-except ValueError:
-    # ws281x causes an exception
-    # when you try to set the board type
-    pass
 
 # ---------------------------------------------------------------------------
 # Globals
@@ -118,6 +108,16 @@ def log_thread_exception(args):
                           + "".join(traceback.format_exception(args.exc_type, args.exc_value, args.exc_traceback)))
 
 
+def log_uncaught_exception(exc_type, exc_value, exc_traceback):
+    """
+    A crash in the main thread only goes to stderr (the systemd journal); put it in the log too.
+    """
+    if not issubclass(exc_type, KeyboardInterrupt):
+        safe_logging.safe_log("[c]uncaught exception: "
+                              + "".join(traceback.format_exception(exc_type, exc_value, exc_traceback)))
+    sys.__excepthook__(exc_type, exc_value, exc_traceback)
+
+
 def signal_handler(sig, frame):
     raise KeyboardInterrupt
 
@@ -129,6 +129,7 @@ if __name__ == '__main__':
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
     threading.excepthook = log_thread_exception
+    sys.excepthook = log_uncaught_exception
 
     safe_logging.safe_log("[c]" + "Starting controller.py at " + datetime.now().strftime('%d/%m/%Y %H:%M'))
     safe_logging.safe_log("[c]" + "Testing to see if internet (8.8.8.8) is reachable...")
