@@ -1,9 +1,13 @@
 """Tests for building and running the whole map (metarmap.app) on an in-memory strip and screen."""
 from collections import Counter
+from datetime import datetime, timedelta
+from pathlib import Path
 
 import pytest
 
 from metarmap import app as app_module
+
+REPO = Path(__file__).parent.parent
 
 
 def jobs(app):
@@ -134,3 +138,37 @@ def test_the_leds_run_when_the_web_port_is_taken(make_app, monkeypatch):
     monkeypatch.setattr(app.renderer, "render", render)
     app_module.run(app)  # no error
     assert len(frames) == 3  # the main loop ran
+
+
+# ---- retrying a failed fetch ----------------------------------------------------------------------------------
+
+def test_a_failed_fetch_is_retried_every_minute_until_it_works(make_app, monkeypatch):
+    app = make_app()
+    results = [False, False, True]
+    monkeypatch.setattr(app.metars, "fetch", lambda: results.pop(0))
+
+    app_module.update_data(app)  # e.g. aviationweather.gov answers 502
+    (retry,) = app.scheduler.get_jobs("retry")
+    assert retry.interval == app_module.RETRY_SECONDS and retry.unit == "seconds"
+    app_module.update_data(app)  # failing again doesn't add a second retry
+    assert len(app.scheduler.get_jobs("retry")) == 1
+
+    retry.next_run = datetime.now() - timedelta(seconds=1)  # only the retry is due
+    app.scheduler.run_pending()  # it works this time, so it stops
+    assert app.scheduler.get_jobs("retry") == []
+    assert jobs(app)["update_data"] == 1  # the regular fetch is still there
+
+
+def test_a_failed_fetch_at_startup_is_retried(tmp_path, monkeypatch):
+    import requests
+    from metarmap import metar
+    from metarmap.leds.strip import FakeStrip
+    from metarmap.oled.screen import FakeScreen
+
+    def bad_gateway(url, **kwargs):
+        raise requests.exceptions.HTTPError("502 Server Error: Bad Gateway")
+    monkeypatch.setattr(metar.requests, "get", bad_gateway)
+    (tmp_path / "config.json").write_text((REPO / "config.json").read_text())
+    app = app_module.build(str(tmp_path / "config.json"), strip=FakeStrip(50), screen=FakeScreen())
+    assert app.metars.last_fetch_ok is False
+    assert len(app.scheduler.get_jobs("retry")) == 1

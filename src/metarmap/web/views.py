@@ -31,16 +31,20 @@ def is_login(web_server, user, password):
 
 # ---- airports ------------------------------------------------------------------------------------------------
 
-def stations(airports, data):
+def stations(airports, data, position=None):
     """
     One entry per airport (in LED order, skipping LEDs with no airport) for the templates.
-    airports: config.airports; data: metars.data
+    airports: config.airports; data: metars.data;
+    position: code -> (lat, lon) or None (metars.position), for airports without a report
     """
     result = []
     for pixel, airport in enumerate(airports):
         if not airport.code:
             continue
         m = data.get(airport.code) or {}
+        lat, lon = m.get("latitude"), m.get("longitude")
+        if not (lat and lon) and position:
+            lat, lon = position(airport.code) or (None, None)
         result.append({
             "code": airport.code,
             "pixel": pixel,
@@ -50,8 +54,8 @@ def stations(airports, data):
             "cat": m.get("flightCategory") or None,
             "raw": m.get("raw"),
             "obsTime": m.get("obsTime"),
-            "lat": m.get("latitude"),
-            "lon": m.get("longitude"),
+            "lat": lat,
+            "lon": lon,
         })
     return result
 

@@ -1,4 +1,5 @@
 """Tests for METAR fetching and parsing (metar.py)."""
+import json
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -161,6 +162,9 @@ class FakeResponse:
         if self.status >= 400:
             raise requests.exceptions.HTTPError(f"HTTP {self.status}")
 
+    def json(self):
+        return json.loads(self.content)
+
 
 def test_fetch_success(monkeypatch, make_config, fixture_bytes):
     urls = []
@@ -171,7 +175,8 @@ def test_fetch_success(monkeypatch, make_config, fixture_bytes):
     monkeypatch.setattr(metar.requests, "get", fake_get)
 
     m = metar.METAR(make_config(*HOUSTON), clock=CLOCK)
-    m.fetch()
+    assert m.last_fetch_ok is None
+    assert m.fetch() is True and m.last_fetch_ok is True
     assert m.data["KIAH"]["windSpeed"] == 10
     assert m.lastFetchTime is not None
     assert not m.is_fetching()
@@ -187,7 +192,8 @@ def test_fetch_errors_are_contained(monkeypatch, make_config, fake_get):
     monkeypatch.setattr(metar.requests, "get", fake_get)
     m = metar.METAR(make_config("KTST"), clock=CLOCK)
     m.data = {"KTST": {"raw": "previous"}}
-    m.fetch()  # must not raise: it runs on the scheduler in the main loop
+    assert m.fetch() is False  # must not raise: it runs on the scheduler in the main loop
+    assert m.last_fetch_ok is False
     assert m.data == {"KTST": {"raw": "previous"}}
     assert not m.is_fetching()
 
@@ -206,3 +212,51 @@ def test_old_reports_count_as_not_reporting(make_config, hours_old, reporting):
     m.__process__(response(report("KTST", **{**GOOD, "observation_time": observed.strftime("%Y-%m-%dT%H:%M:%SZ")})))
     assert bool(m.data["KTST"]) is reporting
     assert ("KTST" in m.missing_stations()) is not reporting
+
+
+# ---- where airports without a report are ----------------------------------------------------------------------
+
+STATIONS = [{"icaoId": "KDKR", "lat": 31.307, "lon": -95.404}, {"icaoId": "KEFD", "lat": 29.606, "lon": -95.16}]
+
+
+def stations_api(monkeypatch, fixture_bytes, stations=STATIONS, fail=False):
+    """Fakes aviationweather.gov (Houston METARs and the station lookup). Returns the codes each lookup asked for."""
+    asked = []
+
+    def fake_get(url, **kwargs):
+        if url.startswith(metar.STATION_URL):
+            asked.append(url[len(metar.STATION_URL):].split(","))
+            return FakeResponse(b"", status=502) if fail else FakeResponse(json.dumps(stations).encode())
+        return FakeResponse(fixture_bytes("metars_houston.xml"))
+    monkeypatch.setattr(metar.requests, "get", fake_get)
+    return asked
+
+
+def test_airports_without_a_report_are_looked_up(monkeypatch, make_config, fixture_bytes):
+    asked = stations_api(monkeypatch, fixture_bytes)
+    m = metar.METAR(make_config("KHOU", "KDKR", "KEFD", "KXXX", ""), clock=CLOCK)
+    m.fetch()
+    assert asked == [["KDKR", "KEFD", "KXXX"]]  # KHOU's METAR has its position
+    assert m.position("KDKR") == (31.307, -95.404)
+    assert m.position("KHOU") == (29.6458, -95.2821)  # from its METAR
+    assert m.position("KXXX") is None  # the lookup doesn't know it
+
+    m.fetch()
+    assert len(asked) == 1  # each code is looked up once, including ones it doesn't know
+
+
+def test_a_failed_lookup_is_tried_again(monkeypatch, make_config, fixture_bytes):
+    stations_api(monkeypatch, fixture_bytes, fail=True)
+    m = metar.METAR(make_config("KDKR"), clock=CLOCK)
+    assert m.fetch() is True  # the METARs still count as fetched
+    assert m.position("KDKR") is None
+    asked = stations_api(monkeypatch, fixture_bytes)
+    m.fetch()
+    assert asked == [["KDKR"]] and m.position("KDKR") == (31.307, -95.404)
+
+
+def test_a_failed_metar_fetch_skips_the_lookup(monkeypatch, make_config):
+    asked = []
+    monkeypatch.setattr(metar.requests, "get", lambda url, **kw: asked.append(url) or FakeResponse(status=502))
+    metar.METAR(make_config("KDKR"), clock=CLOCK).fetch()
+    assert len(asked) == 1

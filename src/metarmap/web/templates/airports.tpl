@@ -2,7 +2,7 @@
 <section class="page-head">
     <div>
         <h1>Airports</h1>
-        <p>{{count}} LEDs, one airport each, in the order they're wired. Changes save right away.</p>
+        <p>{{count}} {{'LED' if count == 1 else 'LEDs'}} in the order they're wired: {{with_airport}} with an airport{{', %d without' % without_airport if without_airport else ''}}. Changes save right away.</p>
     </div>
     <nav class="subnav" aria-label="Config sections">
         <a class="chip" href="/config">Settings</a>

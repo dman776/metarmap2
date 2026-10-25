@@ -127,6 +127,10 @@ def test_airports_page(client):
     app = client.services
     body = client("/config/airports")[1]
     assert body.count('data-field="code"') == app.config.data.led.count
+    assert "50 LEDs in the order they're wired: 50 with an airport." in body
+    client("/config/edit/led.count/52")
+    client("/config/airports/0/code/-")
+    assert "52 LEDs in the order they're wired: 49 with an airport, 3 without." in client("/config/airports")[1]
     assert 'id="restart-banner" role="status" hidden' in body
 
 
@@ -227,6 +231,17 @@ def test_live(services):
     assert live["display"] == {"enabled": True, "screen": {"kind": "message", "title": "MAP"}}
     services.config.data.display_screen.enabled = False
     assert api.live(services)["display"] == {"enabled": False, "screen": None}
+
+
+def test_live_places_airports_without_a_report(services):
+    """The Map page shows them as open rings, so they need a position from the station lookup."""
+    kdkr = next(led for led in api.live(services)["leds"] if led["code"] == "KDKR")
+    assert (kdkr["lat"], kdkr["lon"], kdkr["raw"]) == (None, None, None)
+    services.metars.position = lambda code: (31.307, -95.404) if code == "KDKR" else None
+    kdkr = next(led for led in api.live(services)["leds"] if led["code"] == "KDKR")
+    assert (kdkr["lat"], kdkr["lon"], kdkr["raw"], kdkr["look"]["effect"]) == (31.307, -95.404, None, "off")
+    khou = next(led for led in api.live(services)["leds"] if led["code"] == "KHOU")
+    assert (khou["lat"], khou["lon"]) == (29.6, -95.3)  # a report's own position comes first
 
 
 def test_live_whole_strip_visualizer(services):

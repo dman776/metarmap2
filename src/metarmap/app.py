@@ -44,6 +44,7 @@ from metarmap.visualizers.rainbow import Rainbow as RainbowVisualizer
 
 CONFIG_FILE = "config.json"
 METAR_MINUTES = 10  # how often METARs are fetched
+RETRY_SECONDS = 60  # after a failed fetch (e.g. aviationweather.gov answering 502), how soon to try again
 WATCHDOG_SECONDS = 15  # how often the OLED loop is checked
 
 # in the order of visualizer.active (and the web UI)
@@ -105,6 +106,8 @@ def build(config_file=CONFIG_FILE, strip=None, screen=None, clock: Clock = None,
 def schedule_jobs(app: App):
     s = app.scheduler
     s.every(METAR_MINUTES).minutes.do(update_data, app)
+    if app.metars.last_fetch_ok is False:  # the fetch at startup failed
+        retry_soon(app)
     s.every().day.at("00:00").do(load_suntimes, app)  # new sun times every day, to dim the map at the right times
     schedule_brightness(app)
     if app.display is not None:
@@ -117,8 +120,23 @@ def schedule_jobs(app: App):
 # ---- scheduled jobs ------------------------------------------------------------------------------------------
 
 def update_data(app: App):
-    app.metars.fetch()
+    ok = app.metars.fetch()
     app.renderer.update_data(app.metars)
+    if not ok:
+        retry_soon(app)
+
+
+def retry_soon(app: App):
+    """Tries the fetch again every RETRY_SECONDS until it works, instead of waiting for the next regular one."""
+    if not app.scheduler.get_jobs("retry"):
+        safe_logging.safe_log(f"[c]METAR fetch failed; trying again every {RETRY_SECONDS} s until it works")
+        app.scheduler.every(RETRY_SECONDS).seconds.do(retry_fetch, app).tag("retry")
+
+
+def retry_fetch(app: App):
+    if app.metars.fetch():
+        app.renderer.update_data(app.metars)
+        return schedule.CancelJob
 
 
 def load_suntimes(app: App):

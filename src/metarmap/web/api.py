@@ -91,7 +91,7 @@ def live(services, now=None):
     active_num, active_vis = renderer.visualizer
     display = services.display if services.config.data.display_screen.enabled else None
     leds = []
-    for s in views.stations(services.config.airports, services.metars.data):
+    for s in views.stations(services.config.airports, services.metars.data, getattr(services.metars, "position", None)):
         m = services.metars.data.get(s["code"]) or {}
         leds.append({
             "code": s["code"],

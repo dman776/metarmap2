@@ -126,6 +126,7 @@ What the physical map is doing right now. The Map page polls it every second. No
 
 | Field | Description |
 |---|---|
+| `leds[].lat`, `leds[].lon` | Where the airport is: from its METAR, or for an airport without a report, from aviationweather.gov's station information. `null` if neither knows it. `raw` is `null` for an airport without a report. |
 | `leds[].look` | The LED's current effect: `solid`, `off`, `blink` (`period` seconds per on/off cycle), `pulse` (`period`), or `cycle` (steps through `colors`, `step` seconds each). Colors are CSS hex colors. |
 | `strip` | Set when one effect drives the whole strip instead: `rainbow` (`period`) or `chase` (`step`, `size`, `spacing`). |
 | `locate` | The last white locate pulse: LED `pixel` and Unix time `at`. `null` until the first one. |

@@ -15,6 +15,8 @@ from metarmap.clock import Clock
 # without `hours`, the API returns each station's latest report. (With hours=5 it returned up to ~13 reports per
 # station and stopped at 400, so a long airport list could lose the newest ones.)
 API_URL = "https://aviationweather.gov/api/data/metar?format=xml&ids="
+# where airports are, for airports the METARs don't place (e.g. not reporting); JSON, one entry per known code
+STATION_URL = "https://aviationweather.gov/api/data/stationinfo?format=json&ids="
 # a station whose latest report is older than this counts as not reporting (the API returns it however old it is)
 MAX_REPORT_AGE = timedelta(hours=5)
 USER_AGENT = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -51,10 +53,14 @@ class METAR(object):
         self.__stations__ = []
         self.data = {}
         self.lastFetchTime = None
+        self.last_fetch_ok = None  # None until the first fetch, then whether the last one worked
+        self.positions = {}  # code -> {"lat", "lon"} from STATION_URL, or None if it doesn't know the code
         if fetch:
             self.fetch()
 
     def fetch(self, callback=None):
+        """Fetches and processes the METARs. Returns True if it worked; on an error the old data is kept."""
+        ok = False
         try:
             self.__is_fetching__ = True
             safe_logging.safe_log("[m]Fetching...")
@@ -66,16 +72,54 @@ class METAR(object):
             self.lastFetchTime = datetime.now()
             safe_logging.safe_log("[m]Fetching completed.")
             self.__process__(content)
+            ok = True
+            self.__locate__()
         except requests.exceptions.RequestException as e:
             safe_logging.safe_log(f"[m]Error occurred (RequestException): {e}")
         except Exception as e:
             safe_logging.safe_log(f"[m]Error occurred: {e}\n{traceback.format_exc()}")
         finally:
             self.__is_fetching__ = False
+            self.last_fetch_ok = ok
             if callback is not None:
                 safe_logging.safe_log("[m]Calling callback function...")
                 callback()
                 safe_logging.safe_log("[m]done.")
+        return ok
+
+    def __locate__(self):
+        """
+        Looks up where airports without a report are, so the Map page can still show them. Each code is looked up
+        once; a failed lookup is tried again after the next fetch.
+        """
+        missing = [code for code in airport_codes(self.__config__.airports)
+                   if not (self.data.get(code) or {}).get("latitude") and code not in self.positions]
+        if not missing:
+            return
+        try:
+            response = requests.get(STATION_URL + ",".join(missing), headers={'User-Agent': USER_AGENT}, timeout=30)
+            response.raise_for_status()
+            stations = response.json()
+        except (requests.exceptions.RequestException, ValueError) as e:
+            safe_logging.safe_log(f"[m]Could not look up where {', '.join(missing)} are: {e}")
+            return
+        found = {}
+        for station in stations if isinstance(stations, list) else []:
+            try:
+                code = station.get("icaoId") or station["id"]
+                found[code] = {"lat": float(station["lat"]), "lon": float(station["lon"])}
+            except (KeyError, TypeError, ValueError, AttributeError):
+                continue
+        for code in missing:
+            self.positions[code] = found.get(code)  # None: not a station it knows
+
+    def position(self, code):
+        """Where an airport is, as (lat, lon): from its METAR, else from the station lookup; None if unknown."""
+        m = self.data.get(code) or {}
+        if m.get("latitude") and m.get("longitude"):
+            return float(m["latitude"]), float(m["longitude"])
+        known = self.positions.get(code)
+        return (known["lat"], known["lon"]) if known else None
 
     def is_fetching(self):
         """

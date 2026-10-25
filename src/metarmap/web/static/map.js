@@ -363,11 +363,15 @@
                 if (!el) return;
                 e.dot = el.querySelector('.mled-dot');
             }
-            const f = frame(strip || e.data.look, +pixel, t);
-            const style = f ? '--c:' + f.c + ';opacity:' + Math.max(0.08, f.a).toFixed(2) : '';
+            // an airport with no report is an open ring, unless a whole-strip effect (rainbow, chase) lights its LED
+            const noData = !strip && !e.data.raw;
+            const f = noData ? null : frame(strip || e.data.look, +pixel, t);
+            const style = noData ? 'no-data' : f ? '--c:' + f.c + ';opacity:' + Math.max(0.08, f.a).toFixed(2) : '';
             if (style !== e.style) {
-                e.dot.setAttribute('style', style);
-                e.dot.classList.toggle('off', !f);
+                e.dot.setAttribute('style', noData ? '' : style);
+                e.dot.classList.toggle('off', !f && !noData);
+                e.dot.classList.toggle('no-data', noData);
+                e.dot.parentElement.classList.toggle('no-data', noData);
                 e.style = style;
             }
             const active = e.data.code === activeAirport;
