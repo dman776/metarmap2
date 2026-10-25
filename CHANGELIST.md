@@ -1,3 +1,9 @@
+### dman776 2.6.1 (2026-10-25)
+
+- Fewer greens: only Flight Category's VFR is green now. Wind (and Wind Gusts) 1-9 kt is blue, Density Altitude under
+  1,000 ft above the field is cyan, Temperature 65-79°F is cyan, and Visibility is white over 5 miles, then yellow
+  (3-5), orange (1-3) and red (under 1)
+
 ### dman776 2.6.0 (2026-10-25)
 
 The LEDs now follow one set of rules in every visualizer (see the legends):

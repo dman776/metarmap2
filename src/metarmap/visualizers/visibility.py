@@ -1,20 +1,21 @@
 """
-Visibility: colors each airport by its visibility, with the flight category limits and colors (so red means IFR here
-too): more than 5 miles VFR, 3-5 MVFR, 1 to under 3 IFR, under 1 LIFR.
+Visibility: colors each airport by its visibility, at the flight category limits (over 5 miles, 3-5, 1 to under 3,
+under 1 mile): white when it's good, then yellow, orange and red as it gets worse.
 """
+import metarmap.lib.colors as colors_lib
 from metarmap.models import Look, Metar
 from metarmap.visualizers import style
 from metarmap.visualizers.style import Band
 
 NAME = "Visibility"
-DESCRIPTION = "Display the visibility, in the flight category limits and colors (VFR over 5 miles ... LIFR under 1)."
+DESCRIPTION = "Display the visibility: white over 5 miles, then yellow, orange and red as it gets worse."
 EXCLUSIVE = False
 
 BANDS = [
-    Band(1, lambda s: s.color.cat.lifr, "Under 1 mile (LIFR)", "Purple"),
-    Band(3, lambda s: s.color.cat.ifr, "1 to under 3 miles (IFR)", "Red"),
-    Band(5, lambda s: s.color.cat.mvfr, "3 to 5 miles (MVFR)", "Blue", inclusive=True),
-    Band(None, lambda s: s.color.cat.vfr, "Over 5 miles (VFR)", "Green"),
+    Band(1, colors_lib.RED, "Under 1 mile (LIFR)", "Red"),
+    Band(3, colors_lib.ORANGE, "1 to under 3 miles (IFR)", "Orange"),
+    Band(5, colors_lib.YELLOW, "3 to 5 miles (MVFR)", "Yellow", inclusive=True),
+    Band(None, colors_lib.WHITE, "Over 5 miles (VFR)", "White"),
 ]
 
 

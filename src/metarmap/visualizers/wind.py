@@ -13,7 +13,7 @@ EXCLUSIVE = False
 # also the gust colors in Wind Gusts
 BANDS = [
     Band(1, colors_lib.GRAY, "Calm", "Dim white"),
-    Band(10, colors_lib.GREEN, "1-9 kt", "Green"),
+    Band(10, colors_lib.BLUE, "1-9 kt", "Blue"),
     Band(15, colors_lib.YELLOW, "10-14 kt", "Yellow"),
     Band(25, colors_lib.ORANGE, "15-24 kt", "Orange"),
     Band(None, colors_lib.RED, "25 kt and over", "Red"),

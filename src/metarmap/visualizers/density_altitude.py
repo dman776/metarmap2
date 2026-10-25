@@ -17,7 +17,7 @@ STANDARD_PRESSURE = 29.92
 
 # feet of density altitude above the field elevation
 BANDS = [
-    Band(1000, colors_lib.GREEN, "Less than 1,000 ft above the field", "Green"),
+    Band(1000, colors_lib.LIGHT_BLUE, "Less than 1,000 ft above the field", "Cyan"),
     Band(2000, colors_lib.YELLOW, "1,000-1,999 ft above", "Yellow"),
     Band(3000, colors_lib.ORANGE, "2,000-2,999 ft above", "Orange"),
     Band(None, colors_lib.RED, "3,000 ft or more above", "Red"),

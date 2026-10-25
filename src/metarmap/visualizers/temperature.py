@@ -16,7 +16,7 @@ BANDS = [
     Band(32, colors_lib.WHITE, "Below 32°F (freezing)", "White"),
     Band(50, colors_lib.PURPLE, "32-49°F", "Purple"),
     Band(65, colors_lib.BLUE, "50-64°F", "Blue"),
-    Band(80, colors_lib.GREEN, "65-79°F", "Green"),
+    Band(80, colors_lib.LIGHT_BLUE, "65-79°F", "Cyan"),
     Band(90, colors_lib.YELLOW, "80-89°F", "Yellow"),
     Band(100, colors_lib.ORANGE, "90-99°F", "Orange"),
     Band(None, colors_lib.RED, "100°F and over", "Red"),

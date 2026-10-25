@@ -130,7 +130,7 @@ def test_legends_come_from_the_band_tables(v, settings):
 
 # ---- wind and gusts -----------------------------------------------------------------------------------------
 
-@pytest.mark.parametrize("speed, name", [(0, colors_lib.GRAY), (1, colors_lib.GREEN), (9, colors_lib.GREEN),
+@pytest.mark.parametrize("speed, name", [(0, colors_lib.GRAY), (1, colors_lib.BLUE), (9, colors_lib.BLUE),
                                          (10, colors_lib.YELLOW), (14, colors_lib.YELLOW), (15, colors_lib.ORANGE),
                                          (24, colors_lib.ORANGE), (25, colors_lib.RED), (60, colors_lib.RED)])
 def test_wind_bands(settings, speed, name):
@@ -159,10 +159,10 @@ def test_no_gusts_is_the_wind_color(settings):
 # ---- temperature, pressure, visibility, density altitude ----------------------------------------------------
 
 @pytest.mark.parametrize("celsius, name", [(-10, colors_lib.WHITE), (-1, colors_lib.WHITE), (0, colors_lib.PURPLE),
-                                           (12, colors_lib.BLUE), (20, colors_lib.GREEN), (28, colors_lib.YELLOW),
+                                           (12, colors_lib.BLUE), (20, colors_lib.LIGHT_BLUE), (28, colors_lib.YELLOW),
                                            (35, colors_lib.ORANGE), (40, colors_lib.RED)])
 def test_temperature_bands(settings, celsius, name):
-    """In °F: below 32 (freezing) white, 32-49 purple, 50-64 blue, 65-79 green, 80-89 yellow, 90-99 orange."""
+    """In °F: below 32 (freezing) white, 32-49 purple, 50-64 blue, 65-79 cyan, 80-89 yellow, 90-99 orange."""
     assert temperature.look(metar(tempC=celsius), settings) == Look.solid(C[name])
 
 
@@ -173,15 +173,16 @@ def test_pressure_bands(settings, inhg, name):
     assert pressure.look(metar(altimHg=inhg), settings) == Look.solid(C[name])
 
 
-@pytest.mark.parametrize("miles, category", [(0.25, "lifr"), (0.75, "lifr"), (1, "ifr"), (2.5, "ifr"), (3, "mvfr"),
-                                             (5, "mvfr"), (5.5, "vfr"), (10, "vfr")])
-def test_visibility_in_flight_category_colors(settings, miles, category):
-    look = visibility.look(metar(visibilitySM=miles), settings)
-    assert look == Look.solid(getattr(settings.color.cat, category))
+@pytest.mark.parametrize("miles, name", [(0.25, colors_lib.RED), (0.75, colors_lib.RED), (1, colors_lib.ORANGE),
+                                         (2.5, colors_lib.ORANGE), (3, colors_lib.YELLOW), (5, colors_lib.YELLOW),
+                                         (5.5, colors_lib.WHITE), (10, colors_lib.WHITE)])
+def test_visibility_bands(settings, miles, name):
+    """At the flight category limits: over 5 miles, 3-5, 1 to under 3, under 1."""
+    assert visibility.look(metar(visibilitySM=miles), settings) == Look.solid(C[name])
 
 
 def test_visibility_from_older_data(settings):
-    assert visibility.look(metar(vis=2), settings) == Look.solid(settings.color.cat.ifr)  # no visibilitySM
+    assert visibility.look(metar(vis=2), settings) == Look.solid(C[colors_lib.ORANGE])  # no visibilitySM
 
 
 def test_density_altitude_formula():
@@ -191,8 +192,8 @@ def test_density_altitude_formula():
 
 
 @pytest.mark.parametrize("fields, name", [
-    ({"elevation_m": 0, "tempC": 15, "altimHg": 29.92}, colors_lib.GREEN),  # standard day
-    ({"elevation_m": 0, "tempC": 0, "altimHg": 29.92}, colors_lib.GREEN),  # 0°C at a sea-level field is real data
+    ({"elevation_m": 0, "tempC": 15, "altimHg": 29.92}, colors_lib.LIGHT_BLUE),  # standard day
+    ({"elevation_m": 0, "tempC": 0, "altimHg": 29.92}, colors_lib.LIGHT_BLUE),  # 0°C at a sea-level field is real
     ({"elevation_m": 0, "tempC": 28, "altimHg": 29.92}, colors_lib.YELLOW),
     ({"elevation_m": 0, "tempC": 35, "altimHg": 29.92}, colors_lib.ORANGE),
     ({"elevation_m": 1500, "tempC": 38, "altimHg": 29.7}, colors_lib.RED),
