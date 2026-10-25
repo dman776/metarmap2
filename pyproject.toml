@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "metarmap2"
-version = "2.3.0"
+version = "2.3.1"
 description = "Raspberry Pi METAR map: NeoPixel LEDs, an OLED screen and a web UI"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -44,7 +44,7 @@ metarmap = "metarmap.app:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-metarmap = ["templates/*.tpl", "static/*"]
+metarmap = ["web/templates/*.tpl", "web/static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

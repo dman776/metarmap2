@@ -1,19 +1,12 @@
 %include("header.tpl", title="Home", page="home")
-% active_num, active_vis = renderer.visualizer
-% visualizers = renderer.visualizers
-% brightness = renderer.pixels().brightness
-% cats = ('VFR', 'MVFR', 'IFR', 'LIFR')
-% counts = {c: len([s for s in stations if s['cat'] == c]) for c in cats}
-% no_data = [s['code'] for s in stations if s['cat'] not in cats]
-% below_vfr = sorted([s for s in stations if s['cat'] in ('LIFR', 'IFR', 'MVFR')], key=lambda s: ('LIFR', 'IFR', 'MVFR').index(s['cat']))
 <section class="page-head">
     <div>
         <h1>Map status</h1>
         <p>{{len(stations)}} airports · METARs update every 10 minutes</p>
-        <p class="fetched" data-fetched="{{int(metars.lastFetchTime.timestamp()) if metars.lastFetchTime else ''}}">
+        <p class="fetched" data-fetched="{{int(fetched.timestamp()) if fetched else ''}}">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-            % if metars.lastFetchTime:
-            Last METAR fetch <span class="mono">{{metars.lastFetchTime.strftime("%Y-%m-%d %H:%M:%S")}}</span>
+            % if fetched:
+            Last METAR fetch <span class="mono">{{fetched.strftime("%Y-%m-%d %H:%M:%S")}}</span>
             <span class="ago"></span>
             % else:
             METARs not fetched yet
@@ -54,7 +47,7 @@
         <div class="card pad">
             <div class="card-row" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap">
                 <div class="lbl">Visualizer</div>
-                % if active_vis.exclusive:
+                % if active['exclusive']:
                 <span class="badge warn">Exclusive · Locate is paused</span>
                 % else:
                 <span class="badge ok">Allows interrupts</span>
@@ -65,17 +58,17 @@
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg>
                 </button>
                 <div style="flex: 1; min-width: 0">
-                    <div class="name">{{active_vis.name}}</div>
-                    <div class="desc">{{active_vis.description}}</div>
+                    <div class="name">{{active['name']}}</div>
+                    <div class="desc">{{active['description']}}</div>
                 </div>
                 <button class="btn icon" type="button" aria-label="Next visualizer" data-call="/visualizer/next" data-then="home">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
                 </button>
             </div>
-            %include("legend.tpl", legend=active_vis.legend)
+            %include("legend.tpl", legend=active['legend'])
             <div class="chip-row" role="group" aria-label="Choose a visualizer">
-                % for i, v in enumerate(visualizers):
-                <button class="chip" type="button" aria-pressed="{{'true' if i == active_num else 'false'}}" data-call="/visualizer/{{i}}" data-then="home">{{v.name}}</button>
+                % for i, name in enumerate(visualizers):
+                <button class="chip" type="button" aria-pressed="{{'true' if i == active['index'] else 'false'}}" data-call="/visualizer/{{i}}" data-then="home">{{name}}</button>
                 % end
             </div>
         </div>

@@ -84,23 +84,22 @@ def test_watchdog_restarts_a_dead_display(make_app):
 
 # ---- running --------------------------------------------------------------------------------------------------
 
-class FakeWebServer:
-    def __init__(self, host, port, services):
-        self.port, self.services = port, services
-        self.running = False
+class FakeWebApp:
+    def __init__(self, services):
+        self.services = services
+        self.port = None
+        self.closed = False
 
-    def run(self):
-        self.running = True
-
-    def stop(self):
-        self.running = False
+    def close(self):
+        self.closed = True
 
 
 @pytest.mark.parametrize("error", [KeyboardInterrupt, RuntimeError])
 def test_run_cleans_up_when_stopped(make_app, monkeypatch, error):
     app = make_app(**{"led.inittest": False})
-    servers = []
-    monkeypatch.setattr(app_module, "WebServer", lambda *a: servers.append(FakeWebServer(*a)) or servers[-1])
+    webs = []
+    monkeypatch.setattr(app_module, "create_app", lambda services: webs.append(FakeWebApp(services)) or webs[-1])
+    monkeypatch.setattr(app_module, "serve", lambda web, host, port: setattr(web, "port", port))
     frames = []
 
     def render():
@@ -111,9 +110,9 @@ def test_run_cleans_up_when_stopped(make_app, monkeypatch, error):
 
     app_module.run(app)
 
-    (web,) = servers
+    (web,) = webs
     assert web.services is app and web.port == app.config.data.web_server.port
-    assert not web.running
+    assert web.closed
     assert app.scheduler.jobs == []
     assert app.display.screen is None  # stopped and cleared
     clear = tuple(app.config.data.color.clear)

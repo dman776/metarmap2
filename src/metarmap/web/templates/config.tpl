@@ -1,5 +1,4 @@
 %include("header.tpl", title="Config", page="config")
-% d = config.data
 % def switch(key, val, label, desc='', restart=False, ident=None):
 %   ident = ident or key.replace('.', '-')
 <div class="set">
@@ -65,8 +64,8 @@
                     <div class="d">Shown when the map starts.</div>
                 </div>
                 <select id="visualizer-active" data-key="visualizer.active">
-                    % for i, v in enumerate(renderer.visualizers):
-                    <option value="{{i}}"{{!' selected' if i == d.visualizer.active else ''}}>{{v.name}}</option>
+                    % for i, name in enumerate(visualizers):
+                    <option value="{{i}}"{{!' selected' if i == d.visualizer.active else ''}}>{{name}}</option>
                     % end
                 </select>
             </div>

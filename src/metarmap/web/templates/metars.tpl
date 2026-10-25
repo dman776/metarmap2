@@ -1,11 +1,10 @@
 %include("header.tpl", title="METARs", page="metars")
-% cats = ('VFR', 'MVFR', 'IFR', 'LIFR')
 <section class="page-head">
     <div>
         <h1>METARs</h1>
         <p>
-            % if metars.lastFetchTime:
-            Fetched <span class="mono">{{metars.lastFetchTime.strftime("%Y-%m-%d %H:%M:%S")}}</span> from aviationweather.gov
+            % if fetched:
+            Fetched <span class="mono">{{fetched.strftime("%Y-%m-%d %H:%M:%S")}}</span> from aviationweather.gov
             % else:
             Not fetched yet
             % end
@@ -21,9 +20,9 @@
     <div class="seg-group" role="group" aria-label="Filter by flight category">
         <button class="seg" type="button" data-filter="all" aria-pressed="true">All <span class="mono">{{len(stations)}}</span></button>
         % for c in cats:
-        <button class="seg" type="button" data-filter="{{c}}" aria-pressed="false"><span class="dot {{c.lower()}}"></span>{{c}} <span class="mono">{{len([s for s in stations if s['cat'] == c])}}</span></button>
+        <button class="seg" type="button" data-filter="{{c}}" aria-pressed="false"><span class="dot {{c.lower()}}"></span>{{c}} <span class="mono">{{counts[c]}}</span></button>
         % end
-        <button class="seg" type="button" data-filter="none" aria-pressed="false"><span class="dot"></span>No data <span class="mono">{{len([s for s in stations if s['cat'] not in cats])}}</span></button>
+        <button class="seg" type="button" data-filter="none" aria-pressed="false"><span class="dot"></span>No data <span class="mono">{{len(no_data)}}</span></button>
     </div>
     <label class="search">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>

@@ -129,7 +129,8 @@ The code is the `metarmap` package in `src/metarmap/`:
 * `config.py` and `settings.py`: `config.json` and `airports.json`
 * `metar.py`: fetching METARs; `renderer.py` and `leds/`: the LEDs; `display.py` and `oled/`: the OLED screen
 * `visualizers/`: how each visualizer colors the LEDs
-* `webserver.py`, `templates/` and `static/`: the web UI and API
+* `web/`: the web UI and API. `create_app()` builds it; the routes are in `pages.py`, `api.py` and `control.py`,
+  and `views.py` prepares what each page shows (templates in `web/templates/`, files in `web/static/`)
 
 ## Changelist
 To see a list of changes to the metar script over time, refer to [CHANGELIST.md](CHANGELIST.md)

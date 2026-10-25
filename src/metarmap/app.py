@@ -29,7 +29,7 @@ from metarmap.metar import METAR
 from metarmap.oled.screen import open_screen
 from metarmap.renderer import Renderer
 from metarmap.sun import LEVEL_AT, SunTimes
-from metarmap.webserver import WebServer
+from metarmap.web import create_app, serve
 
 from metarmap.visualizers.flightcategory import FlightCategory as FlightCategoryVisualizer
 from metarmap.visualizers.wind import Wind as WindVisualizer
@@ -173,8 +173,8 @@ def run(app: App):
     if app.config.data.led.inittest:
         app.renderer.animate_once(RainbowComet(app.renderer.pixels(), speed=0.05, tail_length=5, bounce=False))
 
-    web_server = WebServer("0.0.0.0", app.config.data.web_server.port, app)
-    web_server.run()
+    web_app = create_app(app)
+    serve(web_app, "0.0.0.0", app.config.data.web_server.port)
 
     safe_logging.safe_log("[c]" + "Main loop...")
     if app.display is not None:
@@ -188,17 +188,17 @@ def run(app: App):
     except Exception as e:
         safe_logging.safe_log(f"[c]main loop stopped: {e}\n{traceback.format_exc()}")
     finally:
-        shutdown(app, web_server)
+        shutdown(app, web_app)
 
 
-def shutdown(app: App, web_server):
+def shutdown(app: App, web_app):
     safe_logging.safe_log("[c]" + "Cleaning up...")
     app.scheduler.clear()
     if app.display is not None:
         app.display.stop()
     app.renderer.stop()
     app.renderer.clear()
-    web_server.stop()
+    web_app.close()
 
 
 def wait_for_internet():

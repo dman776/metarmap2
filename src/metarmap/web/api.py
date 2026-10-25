@@ -1,0 +1,124 @@
+"""
+The JSON API: /api/status (used by the Home Assistant integration) and /api/live (polled by the Map page).
+See API.md; the field names are part of the API.
+"""
+import json
+import time
+
+import bottle
+
+from metarmap import __version__
+from metarmap.web import views
+
+
+def status(services, ip):
+    """
+    Read-only snapshot of the map state.
+    """
+    def iso(dt):
+        return dt.isoformat() if dt is not None else None
+
+    cfg = services.config.data
+    metars = services.metars
+    active_num, active_vis = services.renderer.visualizer
+    suntimes = services.sun.times or {}
+
+    airports = []
+    for index, (code, props) in enumerate(services.config.airports.items()):
+        if "NULL" in code:
+            continue
+        m = metars.data.get(code, {})
+        airports.append({
+            "code": code,
+            "pixel": index,
+            "text": props.get("text"),
+            "display": props.get("display", False),
+            "flightCategory": m.get("flightCategory"),
+            "raw": m.get("raw"),
+            "windDir": m.get("windDir"),
+            "windSpeed": m.get("windSpeed"),
+            "windGustSpeed": m.get("windGustSpeed"),
+            "vis": m.get("vis"),
+            "obs": m.get("obs"),
+            "tempC": m.get("tempC"),
+            "dewpointC": m.get("dewpointC"),
+            "altimHg": m.get("altimHg"),
+            "lightning": m.get("lightning"),
+            "obsTime": iso(m.get("obsTime")),
+        })
+
+    return {
+        "version": __version__,
+        "ip": ip,
+        "brightness": services.renderer.pixels().brightness,
+        "visualizer": {"active": active_num, "name": active_vis.name, "exclusive": active_vis.exclusive,
+                       "description": active_vis.description, "legend": active_vis.legend},
+        "visualizers": [{"index": i, "name": v.name, "exclusive": v.exclusive}
+                        for i, v in enumerate(services.renderer.visualizers)],
+        "config": {
+            "visualizer.active": cfg.visualizer.active,
+            "visualizer.auto_rotate.enabled": cfg.visualizer.auto_rotate.enabled,
+            "visualizer.auto_rotate.delay_seconds": cfg.visualizer.auto_rotate.delay_seconds,
+            "lightning.animation": cfg.lightning.animation,
+            "display_screen.enabled": cfg.display_screen.enabled,
+            "display_screen.locate_active": cfg.display_screen.locate_active,
+            "display_screen.delay": cfg.display_screen.delay,
+            "led.inittest": cfg.led.inittest,
+            "led.brightness.normal": cfg.led.brightness.normal,
+            "led.brightness.dimmed": cfg.led.brightness.dimmed,
+            "led.brightness.off": cfg.led.brightness.off,
+        },
+        "suntimes": {k: iso(suntimes.get(k)) for k in ("dawn", "sunrise", "sunset", "dusk")},
+        "lastFetchTime": iso(metars.lastFetchTime),
+        "missingStations": metars.missing_stations(),
+        "airports": airports,
+    }
+
+
+def live(services, now=None):
+    """
+    What the physical map is doing right now: every LED's effect, the OLED screen and the last locate pulse.
+    """
+    def num(v):
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return None
+
+    renderer = services.renderer
+    led_looks, strip = renderer.led_states()
+    active_num, active_vis = renderer.visualizer
+    display = services.display if services.config.data.display_screen.enabled else None
+    leds = []
+    for s in views.stations(services.config.airports, services.metars.data):
+        m = services.metars.data.get(s["code"]) or {}
+        leds.append({
+            "code": s["code"],
+            "pixel": s["pixel"],
+            "name": s["name"],
+            "lat": num(s["lat"]),
+            "lon": num(s["lon"]),
+            "flightCategory": s["cat"],
+            "raw": s["raw"],
+            "lightning": m.get("lightning", False),
+            "look": led_looks.get(s["pixel"], {"effect": "off", "colors": []}),
+        })
+    return {
+        "now": now if now is not None else time.time(),
+        "brightness": renderer.pixels().brightness,
+        "visualizer": {"active": active_num, "name": active_vis.name, "exclusive": active_vis.exclusive},
+        "strip": strip,
+        "leds": leds,
+        "locate": renderer.last_locate,
+        "display": {"enabled": display is not None, "screen": display.screen if display else None},
+    }
+
+
+def as_json(data):
+    bottle.response.content_type = "application/json"
+    return json.dumps(data)
+
+
+def add_routes(app, services, site):
+    app.route("/api/status", "GET", lambda: as_json(status(services, site.ip)))
+    app.route("/api/live", "GET", lambda: as_json(live(services)))

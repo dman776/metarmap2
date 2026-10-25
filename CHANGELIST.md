@@ -1,3 +1,10 @@
+### dman776 2.3.1 (2026-10-25)
+
+- Restructured the web UI and API into `metarmap/web/`: `create_app()` replaces the `WebServer` class, the routes are
+  split into pages, API and control, and each page's data is prepared in Python instead of in its template
+- Added tests for the API's fields, the control routes and the background update
+- The pages, API and URLs are unchanged
+
 ### dman776 2.3.0 (2026-10-24)
 
 - The code is now a Python package, `metarmap`, in `src/metarmap/`; run the map with `python3 -m metarmap`
