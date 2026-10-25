@@ -32,7 +32,7 @@ GOOD = dict(raw_text="KTST 241453Z 14009KT 10SM CLR 28/22 A2995", observation_ti
 @pytest.fixture
 def houston(make_config, fixture_bytes):
     m = metar.METAR(make_config(*HOUSTON), clock=CLOCK)
-    m.__process__(fixture_bytes("metars_houston.xml"))
+    m._process(fixture_bytes("metars_houston.xml"))
     return m
 
 
@@ -66,7 +66,7 @@ def test_newest_report_wins_whatever_the_order(make_config):
     middle = report("KTST", **{**GOOD, "observation_time": "2026-10-24T14:53:00Z", "raw_text": "middle"})
     for order in [(older, newer, middle), (newer, middle, older), (middle, older, newer)]:
         m = metar.METAR(make_config("KTST"), clock=CLOCK)
-        m.__process__(response(*order))
+        m._process(response(*order))
         assert m.data["KTST"]["raw"] == "newer"
 
 
@@ -99,7 +99,7 @@ def test_an_airport_on_two_leds_is_fetched_once(make_config):
 def test_single_report_response(make_config):
     # xmltodict returns a lone <METAR> as a dict instead of a list
     m = metar.METAR(make_config("KTST", "KOTH"), clock=CLOCK)
-    m.__process__(response(report("KTST", **GOOD)))
+    m._process(response(report("KTST", **GOOD)))
     assert m.data["KTST"]["windSpeed"] == 9
     assert m.data["KOTH"] == {}
 
@@ -111,7 +111,7 @@ def test_single_report_response(make_config):
 ])
 def test_empty_responses(make_config, xml):
     m = metar.METAR(make_config("KTST"), clock=CLOCK)
-    m.__process__(xml)
+    m._process(xml)
     assert m.data == {"KTST": {}}
     assert m.missing_stations() == ["KTST"]
 
@@ -119,7 +119,7 @@ def test_empty_responses(make_config, xml):
 def test_malformed_report_only_affects_its_airport(make_config):
     m = metar.METAR(make_config("KONE", "KBAD", "KTWO"), clock=CLOCK)
     bad = report("KBAD", raw_text="KBAD junk", observation_time="garbage", temp_c="M05")
-    m.__process__(response(report("KONE", **GOOD), bad, report("KTWO", **GOOD)))
+    m._process(response(report("KONE", **GOOD), bad, report("KTWO", **GOOD)))
     assert m.data["KBAD"] == {}
     assert "KBAD" in m.missing_stations()
     assert m.data["KONE"]["tempC"] == 28
@@ -128,7 +128,7 @@ def test_malformed_report_only_affects_its_airport(make_config):
 
 def test_sparse_report_uses_defaults(make_config):
     m = metar.METAR(make_config("KTST"), clock=CLOCK)
-    m.__process__(response(report("KTST", raw_text="KTST 241453Z AUTO")))
+    m._process(response(report("KTST", raw_text="KTST 241453Z AUTO")))
     d = m.data["KTST"]
     assert d["flightCategory"] is None
     assert (d["windSpeed"], d["vis"], d["altimHg"]) == (0, 0, 0)
@@ -137,7 +137,7 @@ def test_sparse_report_uses_defaults(make_config):
 
 def test_lightning_flag(make_config):
     m = metar.METAR(make_config("KTST"), clock=CLOCK)
-    m.__process__(response(report("KTST", **{**GOOD, "raw_text": "KTST 241453Z 14009KT 10SM TS LTG DSNT"})))
+    m._process(response(report("KTST", **{**GOOD, "raw_text": "KTST 241453Z 14009KT 10SM TS LTG DSNT"})))
     assert m.data["KTST"]["lightning"] is True
 
 
@@ -146,7 +146,7 @@ def test_data_is_replaced_not_mutated(make_config):
     m = metar.METAR(make_config("KTST"), clock=CLOCK)
     old = {"KTST": {"raw": "old"}}
     m.data = old
-    m.__process__(response(report("KTST", **GOOD)))
+    m._process(response(report("KTST", **GOOD)))
     assert m.data is not old
     assert old == {"KTST": {"raw": "old"}}
 
@@ -209,7 +209,7 @@ def test_fetch_calls_callback_even_on_error(monkeypatch, make_config):
 def test_old_reports_count_as_not_reporting(make_config, hours_old, reporting):
     observed = datetime(2026, 10, 24, 18, 0, tzinfo=timezone.utc) - timedelta(hours=hours_old)
     m = metar.METAR(make_config("KTST"), clock=CLOCK)
-    m.__process__(response(report("KTST", **{**GOOD, "observation_time": observed.strftime("%Y-%m-%dT%H:%M:%SZ")})))
+    m._process(response(report("KTST", **{**GOOD, "observation_time": observed.strftime("%Y-%m-%dT%H:%M:%SZ")})))
     assert bool(m.data["KTST"]) is reporting
     assert ("KTST" in m.missing_stations()) is not reporting
 
@@ -261,3 +261,19 @@ def test_a_failed_metar_fetch_skips_the_lookup(monkeypatch, make_config):
     monkeypatch.setattr(metar.requests, "get", lambda url, **kw: asked.append(url) or FakeResponse(status=502))
     metar.METAR(make_config("KDKR"), clock=CLOCK).fetch()
     assert len(asked) == 1
+
+
+# ---- the parsing on its own (no METAR object, no network) ------------------------------------------------------
+
+def test_process_is_a_plain_function(fixture_bytes):
+    data, reporting, missing = metar.process(fixture_bytes("metars_houston.xml"), ["KHOU", "KDKR", "KIAH"],
+                                             CLOCK.now())
+    assert list(data) == ["KHOU", "KDKR", "KIAH"]
+    assert reporting == ["KHOU", "KIAH"] and missing == ["KDKR"]
+    assert data["KIAH"]["windSpeed"] == 10 and data["KDKR"] == {}
+
+
+def test_reports_too_old_count_as_missing(fixture_bytes):
+    later = CLOCK.now() + metar.MAX_REPORT_AGE + timedelta(minutes=1)
+    data, reporting, missing = metar.process(fixture_bytes("metars_houston.xml"), ["KHOU"], later)
+    assert (data, reporting, missing) == ({"KHOU": {}}, [], ["KHOU"])

@@ -34,42 +34,42 @@ class Display(object):
     """
 
     def __init__(self, config: Config, data, screen, renderer=None, clock: Clock = None, tz=None):
-        self.__config__ = config
-        self.__data__ = data
-        self.__device__ = screen
-        self.__renderer__ = renderer
-        self.__clock__ = clock or Clock()
-        self.__tz__ = tz or self.__local_timezone__()
+        self._config = config
+        self._data = data
+        self._device = screen
+        self._renderer = renderer
+        self._clock = clock or Clock()
+        self._tz = tz or self._local_timezone()
         self.lock = threading.Lock()  # drawing; message() and the loop both draw
-        self.__restarting__ = threading.Lock()  # web requests and the watchdog can restart at the same time
+        self._restarting = threading.Lock()  # web requests and the watchdog can restart at the same time
         self.event = threading.Event()
-        self.__thread__ = self.__new_thread__()
-        self.__screen__ = None  # what is on the OLED right now (mirrored by the web UI)
-        self.last_change = self.__clock__.time()  # when the loop last moved on; used by the watchdog
+        self._thread = self._new_thread()
+        self._screen = None  # what is on the OLED right now (mirrored by the web UI)
+        self.last_change = self._clock.time()  # when the loop last moved on; used by the watchdog
 
-    def __local_timezone__(self):
-        location = utils.get_location(self.__config__.data.geo.city)
+    def _local_timezone(self):
+        location = utils.get_location(self._config.data.geo.city)
         return timezone(location.timezone) if location else pytz.utc
 
-    def __new_thread__(self):
+    def _new_thread(self):
         return threading.Thread(target=self.loop, args=(self.event,), name="display", daemon=True)
 
     @property
     def screen(self) -> Optional[dict]:
-        return self.__screen__
+        return self._screen
 
     def is_alive(self):
-        return self.__thread__.is_alive()
+        return self._thread.is_alive()
 
     def start(self):
-        self.last_change = self.__clock__.time()
-        self.__thread__.start()
+        self.last_change = self._clock.time()
+        self._thread.start()
 
     def stop(self, clear=True):
         self.event.set()
         if clear:
-            self.__device__.clear()
-            self.__screen__ = None
+            self._device.clear()
+            self._screen = None
 
     def restart(self, timeout=None):
         """
@@ -77,23 +77,23 @@ class Display(object):
         (e.g. stuck in an I2C write) is abandoned: it has its own stop event, so it can't fight the new one.
         A loop that was never started is left for start() (the web server starts first).
         """
-        with self.__restarting__:
-            if self.__thread__.ident is None:
+        with self._restarting:
+            if self._thread.ident is None:
                 return
             self.stop(False)
-            self.__thread__.join(timeout)
-            if self.__thread__.is_alive():
+            self._thread.join(timeout)
+            if self._thread.is_alive():
                 safe_log("[d]display thread did not stop; starting a new one anyway")
             self.event = threading.Event()
-            self.__thread__ = self.__new_thread__()
+            self._thread = self._new_thread()
             self.start()
 
     def stalled(self) -> Optional[str]:
         """Why the loop needs a restart (it died, or hasn't moved on for too long), or None if it's fine."""
         if not self.is_alive():
             return "thread is not running"
-        idle = self.__clock__.time() - self.last_change
-        if idle > watchdog_limit(self.__config__.data.display_screen.delay):
+        idle = self._clock.time() - self.last_change
+        if idle > watchdog_limit(self._config.data.display_screen.delay):
             return f"no new page for {idle:.0f}s"
         return None
 
@@ -102,30 +102,30 @@ class Display(object):
     def loop(self, event):
         while not event.is_set():
             # a fresh copy each pass: airports can be edited while the loop runs
-            airports = airports_to_show(self.__config__.airports)
+            airports = airports_to_show(self._config.airports)
             for pixel, airport in airports:
                 if event.is_set():
                     return
-                if self.__renderer__ is not None and self.__config__.data.display_screen.locate_active:
+                if self._renderer is not None and self._config.data.display_screen.locate_active:
                     try:
-                        self.__renderer__.locate(pixel)
+                        self._renderer.locate(pixel)
                     except Exception as e:
                         # a failed LED pulse shouldn't cost the airport its pages
                         safe_log(f"[d]locate {airport}: {e}")
                 try:
-                    self.show_airport(airport, self.__data__.data.get(airport) or {},
-                                      self.__config__.data.display_screen.delay, event)
+                    self.show_airport(airport, self._data.data.get(airport) or {},
+                                      self._config.data.display_screen.delay, event)
                 except Exception as e:
                     # never let one airport stop the loop
                     safe_log(f"[d]loop: {airport}: {e}\n{traceback.format_exc()}")
-                    self.__clock__.wait(event, 1)
+                    self._clock.wait(event, 1)
             if not airports:
-                self.last_change = self.__clock__.time()
-                self.__clock__.wait(event, 5)  # nothing to show; don't spin
+                self.last_change = self._clock.time()
+                self._clock.wait(event, 5)  # nothing to show; don't spin
 
     def show_airport(self, airport, metar, delay, event):
         for page in pages_for(metar):
-            if not self.show_page(screen_for(airport, metar, page, self.__tz__), delay, event):
+            if not self.show_page(screen_for(airport, metar, page, self._tz), delay, event):
                 return
 
     def show_page(self, screen, delay, event):
@@ -136,19 +136,19 @@ class Display(object):
         with self.lock:
             if event.is_set():
                 return False
-            self.__draw__(screen)
-        self.last_change = self.__clock__.time()
-        return not self.__clock__.wait(event, delay)
+            self._draw(screen)
+        self.last_change = self._clock.time()
+        return not self._clock.wait(event, delay)
 
     def message(self, title, icon="", line1="", line2="", line3=""):
         """Shows a message, e.g. message("MAP", "info", "Starting..")."""
         with self.lock:
-            self.__draw__(message_screen(title, icon, line1, line2, line3))
+            self._draw(message_screen(title, icon, line1, line2, line3))
 
-    def __draw__(self, screen):
+    def _draw(self, screen):
         try:
-            self.__device__.show(screen)
-            self.__screen__ = screen
+            self._device.show(screen)
+            self._screen = screen
         except Exception as e:
             # e.g. an I2C error; keep going with the next page
             safe_log(f"[d]draw {screen.get('title')}: {e}")

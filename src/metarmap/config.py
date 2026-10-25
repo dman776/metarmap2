@@ -15,7 +15,7 @@ def locked(method):
     """Runs a change under the config's lock: web requests arrive in parallel, and each change saves config.json."""
     @functools.wraps(method)
     def run(self, *args, **kwargs):
-        with self.__lock__:
+        with self._lock:
             return method(self, *args, **kwargs)
     return run
 
@@ -28,38 +28,38 @@ class Config(object):
     airports.json as a backup.
     """
     def __init__(self, file):
-        self.__file__ = file
-        self.__lock__ = threading.RLock()
-        self.__data__ = Settings()
+        self._file = file
+        self._lock = threading.RLock()
+        self._data = Settings()
         self.read()
 
     def read(self):
-        with open(self.__file__) as f:
+        with open(self._file) as f:
             raw = json.load(f)
-        self.__data__ = Settings.from_dict(raw)
+        self._data = Settings.from_dict(raw)
         if "airports" not in raw:
-            self.__migrate__(raw)
+            self._migrate(raw)
         # one entry per LED; LEDs without an entry show nothing
-        airports = self.__data__.airports
-        airports.extend(Airport() for _ in range(self.__data__.led.count - len(airports)))
+        airports = self._data.airports
+        airports.extend(Airport() for _ in range(self._data.led.count - len(airports)))
 
-    def __migrate__(self, raw):
+    def _migrate(self, raw):
         path = raw.get("airports_file", "airports.json")
         try:
             with open(path) as f:
                 old = json.load(f)
         except (OSError, ValueError) as e:
-            safe_log(f"[cfg]no airports in {self.__file__} and can't read {path} ({e}); starting with none")
+            safe_log(f"[cfg]no airports in {self._file} and can't read {path} ({e}); starting with none")
             return
-        self.__data__.airports = airports_from_json(old)
-        self.__data__._extra.pop("airports_file", None)
-        self.__data__.save(self.__file__)
-        safe_log(f"[cfg]moved {len(self.__data__.airports)} airports from {path} into {self.__file__}; "
+        self._data.airports = airports_from_json(old)
+        self._data._extra.pop("airports_file", None)
+        self._data.save(self._file)
+        safe_log(f"[cfg]moved {len(self._data.airports)} airports from {path} into {self._file}; "
                  f"{path} is kept as a backup")
 
     @locked
     def write(self):
-        self.__data__.save(self.__file__)
+        self._data.save(self._file)
         self.read()
 
     @locked
@@ -70,17 +70,17 @@ class Config(object):
         """
         if key == "led.count":
             return self.set_led_count(value)
-        self.__data__.set(key, value)
+        self._data.set(key, value)
         self.write()
 
     @property
     def data(self):
-        return self.__data__
+        return self._data
 
     @property
     def airports(self):
         """The airports, one per LED in LED order (Airport; code is "" for an LED with no airport)."""
-        return self.__data__.airports
+        return self._data.airports
 
     # ---- airports --------------------------------------------------------------------------------------------
 
@@ -93,8 +93,8 @@ class Config(object):
         count = parse_value(count, int, "led.count")
         if not 1 <= count <= MAX_LEDS:
             raise ValueError(f"led.count: {count} is not between 1 and {MAX_LEDS}")
-        self.__data__.led.count = count
-        del self.__data__.airports[count:]
+        self._data.led.count = count
+        del self._data.airports[count:]
         self.write()
 
     @locked
@@ -104,7 +104,7 @@ class Config(object):
         "-" or "" clears the code or name. Raises IndexError for no such LED, and ValueError for another key or
         a code that isn't 3-4 letters and digits.
         """
-        airport = self.airports[self.__pixel__(pixel)]
+        airport = self.airports[self._pixel(pixel)]
         if key == "code":
             airport.code = parse_code(value)
         elif key == "name":
@@ -119,10 +119,10 @@ class Config(object):
     def move_airport(self, src, dst):
         """Moves the airport on LED `src` to LED `dst`; the ones in between shift by one."""
         airports = self.airports
-        airports.insert(self.__pixel__(dst), airports.pop(self.__pixel__(src)))
+        airports.insert(self._pixel(dst), airports.pop(self._pixel(src)))
         self.write()
 
-    def __pixel__(self, pixel):
+    def _pixel(self, pixel):
         pixel = int(pixel)
         if not 0 <= pixel < len(self.airports):
             raise IndexError(f"no LED {pixel}")
@@ -132,11 +132,11 @@ class Config(object):
 
     @locked
     def edit_airport(self, oldkey, newkey):
-        self.set_airport(self.__find__(oldkey), "code", newkey)
+        self.set_airport(self._find(oldkey), "code", newkey)
 
     @locked
     def edit_airport_property(self, airport, key, value):
-        pixel = self.__find__(airport)
+        pixel = self._find(airport)
         if key in ("text", "name"):
             self.set_airport(pixel, "name", value)
         elif key == "display":
@@ -146,7 +146,7 @@ class Config(object):
             self.airports[pixel]._extra[key] = value == "true" if value in ("true", "false") else value
             self.write()
 
-    def __find__(self, code):
+    def _find(self, code):
         for pixel, airport in enumerate(self.airports):
             if airport.code == code:
                 return pixel

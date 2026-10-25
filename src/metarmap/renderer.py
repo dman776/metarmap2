@@ -8,6 +8,7 @@ import metarmap.lib.safe_logging as safe_logging
 from metarmap.clock import Clock
 from metarmap.leds.animations import animation_for
 from metarmap.sun import SunTimes, brightness_for
+from metarmap.visualizers import visualizer
 
 from adafruit_led_animation.sequence import AnimateOnce
 from adafruit_led_animation.group import AnimationGroup
@@ -26,70 +27,71 @@ class Renderer(object):
     sun: today's sun times, for the scheduled brightness
     """
     def __init__(self, strip, metars, config, visualizers, sun: SunTimes, clock: Clock = None):
-        self.__pixels__ = strip
+        self._pixels = strip
         # one addressable subset per LED, so each airport gets its own animation
-        self.__pix__ = [PixelSubset(strip, i, i + 1) for i in range(len(strip))]
-        self.__metars__ = metars
-        self.__config__ = config
-        self.__sun__ = sun
-        self.__clock__ = clock or Clock()
-        self.__visualizers__: list = visualizers
-        self.__vis__ = visualizers[0]
+        self._pix = [PixelSubset(strip, i, i + 1) for i in range(len(strip))]
+        self._metars = metars
+        self._config = config
+        self._sun = sun
+        self._clock = clock or Clock()
+        self._visualizers: list = visualizers
+        self._vis = visualizers[0]
         self.active_visualizer: int = 0
-        self.__looks__ = []  # one Look per airport, in LED order
-        self.__strip_look__ = None  # set instead when one look drives the whole strip
-        self.__animations__ = []
-        self.__animationloop__: AnimateOnce = None
+        self._looks = []  # one Look per airport, in LED order
+        self._strip_look = None  # set instead when one look drives the whole strip
+        self._animations = []
+        self._animationloop: AnimateOnce = None
         self.last_locate = None  # {"pixel": n, "at": epoch seconds} of the last locate() pulse
         # the main loop and other threads (OLED locate, web) both drive the LEDs; only one at a time
-        self.__lock__ = threading.RLock()
+        self._lock = threading.RLock()
         self.adjust_brightness_for_time()
         self.clear()
         self.refresh()
 
     # ---- looks -> animations ------------------------------------------------------------------------------------
 
-    def __rebuild__(self):
-        data = self.__metars__.data
-        strip_look = self.__vis__.strip_look()
+    def _rebuild(self):
+        data = self._metars.data
+        settings = self._config.data
+        strip_look = visualizer.strip_look(self._vis, settings)
         if strip_look is not None:
-            looks, animations = [], [animation_for(strip_look, self.__pixels__)]
+            looks, animations = [], [animation_for(strip_look, self._pixels)]
         else:
-            looks = self.__vis__.looks([a.code for a in self.__config__.data.airports], data)
+            looks = visualizer.looks(self._vis, [a.code for a in settings.airports], data, settings)
             # an airport list longer than the strip can't be shown; extra airports are ignored
-            animations = [animation_for(look, pixel) for look, pixel in zip(looks, self.__pix__)]
-        self.__looks__, self.__strip_look__, self.__animations__ = looks, strip_look, animations
+            animations = [animation_for(look, pixel) for look, pixel in zip(looks, self._pix)]
+        self._looks, self._strip_look, self._animations = looks, strip_look, animations
 
     @property
     def looks(self):
         """The current look of each LED, in airport order."""
-        return list(self.__looks__)
+        return list(self._looks)
 
     @property
     def strip_look(self):
-        return self.__strip_look__
+        return self._strip_look
 
     @property
     def animations(self):
-        return list(self.__animations__)
+        return list(self._animations)
 
     def led_states(self):
         """
         What every LED is doing right now, for the web UI: {pixel: look} plus any look that drives the whole strip.
         """
-        leds = {i: look.to_dict() for i, look in enumerate(self.__looks__)}
-        strip = self.__strip_look__.to_dict() if self.__strip_look__ is not None else None
+        leds = {i: look.to_dict() for i, look in enumerate(self._looks)}
+        strip = self._strip_look.to_dict() if self._strip_look is not None else None
         return leds, strip
 
     # ---- running the LEDs -------------------------------------------------------------------------------------
 
     def render(self):
         try:
-            animations = AnimateOnce(AnimationGroup(*self.__animations__), auto_clear=False)
-            self.__animationloop__ = animations
+            animations = AnimateOnce(AnimationGroup(*self._animations), auto_clear=False)
+            self._animationloop = animations
             while True:
                 # one frame at a time, so locate() can get in between frames
-                with self.__lock__:
+                with self._lock:
                     if not animations.animate():
                         break
         except Exception as e:
@@ -97,23 +99,23 @@ class Renderer(object):
 
     def update_data(self, metars):
         safe_logging.safe_log("[r]" + "updating data in the renderer")
-        self.__metars__ = metars
-        self.__rebuild__()
+        self._metars = metars
+        self._rebuild()
 
     def stop(self):
-        if self.__animationloop__ is not None:
-            self.__animationloop__.freeze()
+        if self._animationloop is not None:
+            self._animationloop.freeze()
 
     def resume(self):
-        if self.__animationloop__ is not None:
-            self.__animationloop__.resume()
+        if self._animationloop is not None:
+            self._animationloop.resume()
 
     def clear(self):
-        self.__pixels__.fill(self.__config__.data.color.clear)
-        self.__pixels__.show()
+        self._pixels.fill(self._config.data.color.clear)
+        self._pixels.show()
 
     def animate_once(self, effect, clear=True):
-        with self.__lock__:
+        with self._lock:
             self.stop()
             try:
                 animations = AnimateOnce(effect)
@@ -126,11 +128,11 @@ class Renderer(object):
 
     def locate(self, pixnum):
         """Pulses one LED white (ignored while an exclusive visualizer is running)."""
-        if self.__vis__.exclusive:
+        if self._vis.EXCLUSIVE:
             return
         try:
-            self.last_locate = {"pixel": int(pixnum), "at": self.__clock__.time()}
-            self.animate_once(Pulse(self.__pix__[int(pixnum)], speed=0.1, period=1, color=WHITE), False)
+            self.last_locate = {"pixel": int(pixnum), "at": self._clock.time()}
+            self.animate_once(Pulse(self._pix[int(pixnum)], speed=0.1, period=1, color=WHITE), False)
         except Exception as e:
             safe_logging.safe_log(f"[r]locate {pixnum}: {e}\n{traceback.format_exc()}")
 
@@ -139,54 +141,54 @@ class Renderer(object):
     @property
     # returns [number, visualizer]
     def visualizer(self):
-        return self.active_visualizer, self.__visualizers__[self.active_visualizer]
+        return self.active_visualizer, self._visualizers[self.active_visualizer]
 
     @property
     def visualizers(self):
-        return self.__visualizers__
+        return self._visualizers
 
     @visualizer.setter
     def visualizer(self, vis):
-        self.__vis__ = self.__visualizers__[vis]
+        self._vis = self._visualizers[vis]
         self.active_visualizer = vis
-        self.__rebuild__()
+        self._rebuild()
 
     def refresh(self):
         self.visualizer = self.active_visualizer
 
     def visualizer_next(self, skip_exclusive=False):
-        total = len(self.__visualizers__)
+        total = len(self._visualizers)
         vnum = (self.active_visualizer + 1) % total
         # stop after one lap, in case every visualizer is exclusive
         for _ in range(total):
-            if not (skip_exclusive and self.__visualizers__[vnum].exclusive):
+            if not (skip_exclusive and self._visualizers[vnum].EXCLUSIVE):
                 break
             vnum = (vnum + 1) % total
         self.visualizer = vnum
 
     def visualizer_previous(self):
-        self.visualizer = (self.active_visualizer - 1) % len(self.__visualizers__)
+        self.visualizer = (self.active_visualizer - 1) % len(self._visualizers)
 
     # ---- brightness -------------------------------------------------------------------------------------------
 
     def brightness(self, level: float):
         if 0 <= level <= 1:
-            self.__pixels__.brightness = level
+            self._pixels.brightness = level
 
     def pixels(self):
-        return self.__pixels__
+        return self._pixels
 
     @property
     def config(self):
-        return self.__config__
+        return self._config
 
     def brightness_for(self, now):
         """The scheduled LED brightness at `now` (timezone-aware), from today's sun times."""
-        return brightness_for(now, self.__sun__.times, self.__config__.data.led.brightness)
+        return brightness_for(now, self._sun.times, self._config.data.led.brightness)
 
     def adjust_brightness_for_time(self):
         safe_logging.safe_log("[r]adjust brightness for time")
-        self.brightness(self.brightness_for(self.__clock__.now()))
+        self.brightness(self.brightness_for(self._clock.now()))
 
 
 if __name__ == '__main__':

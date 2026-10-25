@@ -159,8 +159,10 @@ and the web UI (including the live Map page and its OLED window) works as usual 
 The code is the `metarmap` package in `src/metarmap/`:
 - `app.py` builds the map from `config.json` (settings, METARs, LED renderer, OLED loop, scheduled jobs) and runs it
 - `config.py` and `settings.py`: `config.json`, including the airport on each LED
-- `metar.py`: fetching METARs; `renderer.py` and `leds/`: the LEDs; `display.py` and `oled/`: the OLED screen
-- `visualizers/`: how each visualizer colors the LEDs
+- `metar.py`: reading METARs (`process()`, `parse_report()`) and fetching them (`METAR`); `decode.py`: a METAR in
+  plain English; `renderer.py` and `leds/`: the LEDs; `display.py` and `oled/`: the OLED screen
+- `visualizers/`: how each visualizer colors the LEDs. Each is a module of functions (`NAME`, `legend()`, and
+  `look()` or `strip_look()`); `visualizers.ALL` lists them in order
 - `web/`: the web UI and API. `create_app()` builds it; the routes are in `pages.py`, `api.py` and `control.py`,
   and `views.py` prepares what each page shows (templates in `web/templates/`, files in `web/static/`)
 - `service.py`: switches an older installed `metarmap.service` (one that runs `controller.py`) to the current one

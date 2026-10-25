@@ -1,12 +1,17 @@
 """
-Module to handle visualizing Density Altitude data
+Density Altitude: colors each airport by its density altitude relative to field elevation.
 """
 from typing import Union
 
 import metarmap.lib.colors as colors_lib
 import metarmap.lib.utils as utils
 from metarmap.models import Look, Metar
-from metarmap.visualizers.visualizer import Visualizer, legend_item
+from metarmap.visualizers.visualizer import legend_item
+
+NAME = "Density Altitude"
+DESCRIPTION = ("Display the density altitude (DA) relative to field elevation (FE), "
+               "aka. the density altitude factor (DAF).")
+EXCLUSIVE = False
 
 STANDARD_PRESSURE = 29.92
 
@@ -62,29 +67,21 @@ def calculate_density_altitude(pressure: float, field_elevation_m: float, oat: f
     return pa + 118.8 * (oat - isa)
 
 
-class DensityAltitude(Visualizer):
-    """
-    Colors each airport by its density altitude relative to field elevation.
-    """
-    name = "Density Altitude"
-    description = ("Display the density altitude (DA) relative to field elevation (FE), "
-                   "aka. the density altitude factor (DAF).")
+def legend(settings):
+    c = colors_lib.get_colors()
+    return [
+        legend_item("DAF below -20", "Green", c[colors_lib.GREEN]),
+        legend_item("DAF -20 to -10", "Green to blue", c[colors_lib.GREEN], c[colors_lib.BLUE]),
+        legend_item("DAF -10 to -5", "Blue to light blue", c[colors_lib.BLUE], c[colors_lib.LIGHT_BLUE]),
+        legend_item("DAF -5 to 0", "Light blue to gray", c[colors_lib.LIGHT_BLUE], c[colors_lib.GRAY]),
+        legend_item("DAF 0 to 40", "Gray to red", c[colors_lib.GRAY], c[colors_lib.RED]),
+        legend_item("DAF above 40", "Red", c[colors_lib.RED]),
+    ]
 
-    @property
-    def legend(self):
-        c = colors_lib.get_colors()
-        return [
-            legend_item("DAF below -20", "Green", c[colors_lib.GREEN]),
-            legend_item("DAF -20 to -10", "Green to blue", c[colors_lib.GREEN], c[colors_lib.BLUE]),
-            legend_item("DAF -10 to -5", "Blue to light blue", c[colors_lib.BLUE], c[colors_lib.LIGHT_BLUE]),
-            legend_item("DAF -5 to 0", "Light blue to gray", c[colors_lib.LIGHT_BLUE], c[colors_lib.GRAY]),
-            legend_item("DAF 0 to 40", "Gray to red", c[colors_lib.GRAY], c[colors_lib.RED]),
-            legend_item("DAF above 40", "Red", c[colors_lib.RED]),
-        ]
 
-    def look(self, metar: Metar) -> Look:
-        # needs pressure, a non-zero field elevation, and a temperature (a zero reading counts as missing)
-        if not metar or not all([metar.get('altimHg'), metar.get('elevation_m'), metar.get('tempC')]):
-            return Look.off()
-        density_altitude = calculate_density_altitude(metar['altimHg'], metar['elevation_m'], metar['tempC'])
-        return Look.solid(get_color_by_da(density_altitude, meters_to_feet(metar['elevation_m'])))
+def look(metar: Metar, settings) -> Look:
+    # needs pressure, a non-zero field elevation, and a temperature (a zero reading counts as missing)
+    if not metar or not all([metar.get('altimHg'), metar.get('elevation_m'), metar.get('tempC')]):
+        return Look.off()
+    density_altitude = calculate_density_altitude(metar['altimHg'], metar['elevation_m'], metar['tempC'])
+    return Look.solid(get_color_by_da(density_altitude, meters_to_feet(metar['elevation_m'])))

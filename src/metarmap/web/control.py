@@ -18,13 +18,13 @@ class Updates:
     """The update started from the web UI. It runs in the background; the UI polls its progress."""
 
     def __init__(self, run_update=None):
-        self.__run_update__ = run_update or utils.run_update
-        self.__lock__ = threading.Lock()
+        self._run_update = run_update or utils.run_update
+        self._lock = threading.Lock()
         self.job = None
 
     def start(self):
         """Starts an update, unless one is already running. Returns the running job."""
-        with self.__lock__:
+        with self._lock:
             if self.job is None or self.job["done"]:
                 job = {"fraction": 0.0, "label": "Starting", "done": False, "ok": None, "changed": None,
                        "errors": []}
@@ -35,7 +35,7 @@ class Updates:
 
                 def run():
                     try:
-                        result = self.__run_update__(progress=progress)
+                        result = self._run_update(progress=progress)
                         job.update(ok=result.ok, changed=result.changed, errors=result.errors)
                     except Exception as e:
                         safe_log(f"[w]update failed: {e}")

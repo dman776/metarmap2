@@ -17,8 +17,7 @@ from metarmap.models import Look
 from metarmap.renderer import Renderer
 from metarmap.settings import Airport, Settings
 from metarmap.sun import SunTimes
-from metarmap.visualizers.flightcategory import FlightCategory
-from metarmap.visualizers.rainbow import Rainbow
+from metarmap.visualizers import flightcategory, rainbow
 from metarmap.web import api, control, create_app, views
 
 AUTH = "Basic " + base64.b64encode(b"metar:map").decode()
@@ -115,12 +114,12 @@ def test_config_edit(client):
 def test_airport_edit_restarts_the_display(client):
     app = client.services
     app.display.start()
-    old_thread = app.display.__thread__
+    old_thread = app.display._thread
     code = app.config.airports[1].code
     status, _ = client(f"/config/airports/edit/prop/{code}/display/true")
     assert status == 303 and client.headers["Location"].endswith("/config/airports")
     assert app.config.airports[1].display is True
-    assert app.display.__thread__ is not old_thread and app.display.is_alive()  # restarted, for the new airports
+    assert app.display._thread is not old_thread and app.display.is_alive()  # restarted, for the new airports
 
 
 def test_airports_page(client):
@@ -196,7 +195,7 @@ def services():
     data = {"KHOU": metar("VFR", lightning=True), "KIAH": metar("IFR"), "KDKR": {}}
     metars = SimpleNamespace(data=data, lastFetchTime=datetime(2026, 10, 24, 12, 55), missing_stations=lambda: ["KDKR"])
     sun = SunTimes("Houston", SUN)
-    renderer = Renderer(FakeStrip(4), metars, config, [FlightCategory(config), Rainbow(config)], sun)
+    renderer = Renderer(FakeStrip(4), metars, config, [flightcategory, rainbow], sun)
     display = SimpleNamespace(screen={"kind": "message", "title": "MAP"})
     return SimpleNamespace(config=config, metars=metars, sun=sun, renderer=renderer, display=display)
 

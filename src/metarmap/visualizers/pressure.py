@@ -1,10 +1,14 @@
 """
-Module to handle visualizing Pressure data
+Pressure: colors each airport by its altimeter setting.
 """
 import metarmap.lib.colors as colors_lib
 import metarmap.lib.utils as utils
 from metarmap.models import Look, Metar
-from metarmap.visualizers.visualizer import Visualizer, legend_item
+from metarmap.visualizers.visualizer import legend_item
+
+NAME = "Pressure"
+DESCRIPTION = "Display the atmospheric pressure (inHg)."
+EXCLUSIVE = False
 
 HIGH_PRESSURE = 30.2
 STANDARD_PRESSURE = 29.92
@@ -35,24 +39,17 @@ def get_color_by_pressure(inches_of_mercury: float) -> list:
         utils.get_proportion_between_floats(LOW_PRESSURE, inches_of_mercury, STANDARD_PRESSURE))
 
 
-class Pressure(Visualizer):
-    """
-    Colors each airport by its altimeter setting.
-    """
-    name = "Pressure"
-    description = "Display the atmospheric pressure (inHg)."
+def legend(settings):
+    c = colors_lib.get_colors()
+    return [
+        legend_item("Below 29.80", "Red", c[colors_lib.RED]),
+        legend_item("29.80 to 29.92", "Red to light red", c[colors_lib.RED], c[colors_lib.LIGHT_RED]),
+        legend_item("29.92 to 30.20", "Light blue to blue", c[colors_lib.LIGHT_BLUE], c[colors_lib.BLUE]),
+        legend_item("Above 30.20", "Blue", c[colors_lib.BLUE]),
+    ]
 
-    @property
-    def legend(self):
-        c = colors_lib.get_colors()
-        return [
-            legend_item("Below 29.80", "Red", c[colors_lib.RED]),
-            legend_item("29.80 to 29.92", "Red to light red", c[colors_lib.RED], c[colors_lib.LIGHT_RED]),
-            legend_item("29.92 to 30.20", "Light blue to blue", c[colors_lib.LIGHT_BLUE], c[colors_lib.BLUE]),
-            legend_item("Above 30.20", "Blue", c[colors_lib.BLUE]),
-        ]
 
-    def look(self, metar: Metar) -> Look:
-        if not metar:
-            return Look.off()
-        return Look.solid(get_color_by_pressure(metar['altimHg']))
+def look(metar: Metar, settings) -> Look:
+    if not metar:
+        return Look.off()
+    return Look.solid(get_color_by_pressure(metar['altimHg']))

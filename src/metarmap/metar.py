@@ -7,9 +7,7 @@ from fractions import Fraction
 import traceback
 import requests
 import xmltodict
-from pprint import pprint
 import metarmap.lib.safe_logging as safe_logging
-from metarmap.config import Config
 from metarmap.clock import Clock
 
 # without `hours`, the API returns each station's latest report. (With hours=5 it returned up to ~13 reports per
@@ -36,6 +34,105 @@ def airport_codes(airports):
     return list(dict.fromkeys(a.code for a in airports if a.code))
 
 
+# ---- parsing (no state: the METAR class below fetches and keeps the results) ------------------------------------
+
+def latest_reports(content):
+    """
+    The newest report for each station in an XML response, as {station: report}. Newest by its time rather than
+    its position in the response.
+    """
+    response_data = (xmltodict.parse(content).get('response') or {}).get('data') or {}
+    metars = response_data.get('METAR') or []
+    if isinstance(metars, dict):  # xmltodict returns a single METAR as a dict, not a list
+        metars = [metars]
+    by_station = {}
+    for m in metars:
+        if isinstance(m, dict) and m.get('station_id'):
+            current = by_station.get(m['station_id'])
+            if current is None or (m.get('observation_time') or '') > (current.get('observation_time') or ''):
+                by_station[m['station_id']] = m
+    return by_station
+
+
+def process(content, codes, now):
+    """
+    The METARs for `codes` from an XML response, as (data, reporting, missing): data is {code: parse_report()},
+    or {} for an airport with no report, a report older than MAX_REPORT_AGE before `now`, or one that can't be read.
+    """
+    by_station = latest_reports(content)
+    data, reporting, missing = {}, [], []
+    oldest_allowed = now - MAX_REPORT_AGE
+    for airport in codes:
+        metar = by_station.get(airport)
+        if metar is None:
+            data[airport] = {}
+            missing.append(airport)
+            continue
+        try:
+            parsed = parse_report(metar)
+            if parsed["obsTime"] is not None and parsed["obsTime"] < oldest_allowed:
+                safe_logging.safe_log(f"[m]{airport}: latest report is from {parsed['obsTime']:%Y-%m-%d %H:%MZ}; "
+                                      f"treating it as not reporting")
+                data[airport] = {}
+                missing.append(airport)
+                continue
+            data[airport] = parsed
+            reporting.append(airport)
+        except Exception as e:
+            # one malformed report only affects its own airport
+            safe_logging.safe_log(f"[m]Could not parse METAR for {airport}: {e} raw: {metar.get('raw_text')}\n"
+                                  f"{traceback.format_exc()}")
+            data[airport] = {}
+            missing.append(airport)
+    return data, reporting, missing
+
+
+def parse_report(metar):
+    """
+    Converts one METAR from the XML response into the dict used everywhere else.
+    """
+    def num(key, default=None):
+        value = metar.get(key)
+        if value in (None, ''):
+            return default
+        return float(str(value).replace('+', ''))
+
+    raw_metar = metar.get('raw_text') or ''
+    temp_c = num('temp_c')
+    dewpoint_c = num('dewpoint_c')
+    obs_time = metar.get('observation_time')
+
+    sky_conditions = []
+    sky = metar.get('sky_condition') or []
+    for sc in sky if isinstance(sky, list) else [sky]:
+        sky_conditions.append({"cover": sc.get('@sky_cover', ''),
+                               "cloudBaseFt": int(sc.get('@cloud_base_ft_agl', 0) or 0)})
+
+    wind_gust_speed = int(num('wind_gust_kt', 0))
+    visibility = parse_visibility(metar.get('visibility_statute_mi'))
+    return {
+        "raw": raw_metar,
+        "elevation_m": int(round(num('elevation_m', 0))),
+        "flightCategory": metar.get('flight_category'),
+        "windDir": metar.get('wind_dir_degrees', ''),
+        "windSpeed": int(num('wind_speed_kt', 0)),
+        "windGustSpeed": wind_gust_speed,
+        "windGust": wind_gust_speed > 0,
+        "vis": int(round(visibility or 0)),
+        "visibilitySM": visibility,  # exact (e.g. 0.25), None if not reported
+        "visibilityMore": "+" in str(metar.get('visibility_statute_mi') or ''),  # "10+": more than 10 miles
+        "vertVisFt": int(num('vert_vis_ft')) if num('vert_vis_ft') is not None else None,
+        "obs": metar.get('wx_string', '') or '',
+        "tempC": int(round(temp_c)) if temp_c is not None else None,
+        "dewpointC": int(round(dewpoint_c)) if dewpoint_c is not None else None,
+        "altimHg": round(num('altim_in_hg', 0), 2),
+        "lightning": 'LTG' in raw_metar,
+        "skyConditions": sky_conditions,
+        "obsTime": datetime.fromisoformat(obs_time.replace("Z", "+00:00")) if obs_time else None,
+        "latitude": metar.get('latitude', ''),
+        "longitude": metar.get('longitude', '')}
+
+
 class METAR(object):
     """
     Object to control and handle METARs.
@@ -46,11 +143,11 @@ class METAR(object):
         Creates a new METAR class.
         """
 
-        self.__config__ = cfg
-        self.__clock__ = clock or Clock()
-        self.__is_fetching__ = False
-        self.__missing_stations__ = []
-        self.__stations__ = []
+        self._config = cfg
+        self._clock = clock or Clock()
+        self._is_fetching = False
+        self._missing_stations = []
+        self._stations = []
         self.data = {}
         self.lastFetchTime = None
         self.last_fetch_ok = None  # None until the first fetch, then whether the last one worked
@@ -63,16 +160,16 @@ class METAR(object):
         """Fetches and processes the METARs. Returns True if it worked; on an error the old data is kept."""
         ok = False
         try:
-            self.__is_fetching__ = True
+            self._is_fetching = True
             safe_logging.safe_log("[m]Fetching...")
-            url = API_URL + ",".join(airport_codes(self.__config__.airports))
+            url = API_URL + ",".join(airport_codes(self._config.airports))
             response = requests.get(url, headers={'User-Agent': USER_AGENT}, timeout=30, verify=True)
             response.raise_for_status()
             content = response.content
-            self.__is_fetching__ = False
+            self._is_fetching = False
             self.lastFetchTime = datetime.now()
             safe_logging.safe_log("[m]Fetching completed.")
-            self.__process__(content)
+            self._process(content)
             ok = True
             self.locate()
         except requests.exceptions.RequestException as e:
@@ -80,7 +177,7 @@ class METAR(object):
         except Exception as e:
             safe_logging.safe_log(f"[m]Error occurred: {e}\n{traceback.format_exc()}")
         finally:
-            self.__is_fetching__ = False
+            self._is_fetching = False
             self.last_fetch_ok = ok
             if callback is not None:
                 safe_logging.safe_log("[m]Calling callback function...")
@@ -93,7 +190,7 @@ class METAR(object):
         Looks up where airports without a report are, so the Map page can still show them. Each code is looked up
         once. Returns False if the lookup failed (locate_failed); calling it again tries the same codes again.
         """
-        missing = [code for code in airport_codes(self.__config__.airports)
+        missing = [code for code in airport_codes(self._config.airports)
                    if not (self.data.get(code) or {}).get("latitude") and code not in self.positions]
         self.locate_failed = False
         if not missing:
@@ -129,130 +226,25 @@ class METAR(object):
         """
         Returns True if the class is fetching metars.
         """
-        return self.__is_fetching__
+        return self._is_fetching
 
-    def __process__(self, content):
+    def _process(self, content):
         safe_logging.safe_log("[m]Processing...")
-        jcontent = xmltodict.parse(content)
-        response_data = (jcontent.get('response') or {}).get('data') or {}
-        metars = response_data.get('METAR') or []
-        if isinstance(metars, dict):  # xmltodict returns a single METAR as a dict, not a list
-            metars = [metars]
-
-        # keep each station's newest report, by its time rather than its position in the response
-        by_station = {}
-        for m in metars:
-            if isinstance(m, dict) and m.get('station_id'):
-                current = by_station.get(m['station_id'])
-                if current is None or (m.get('observation_time') or '') > (current.get('observation_time') or ''):
-                    by_station[m['station_id']] = m
-
-        # build the new data separately, then swap it in, so readers never see a half-filled dict
-        data = {}
-        station_list = []
-        missing_stations = []
-        oldest_allowed = self.__clock__.now() - MAX_REPORT_AGE
-        for airport in airport_codes(self.__config__.airports):
-            metar = by_station.get(airport)
-            if metar is None:
-                data[airport] = {}
-                missing_stations.append(airport)
-                continue
-            try:
-                parsed = self.__parse__(metar)
-                if parsed["obsTime"] is not None and parsed["obsTime"] < oldest_allowed:
-                    safe_logging.safe_log(f"[m]{airport}: latest report is from {parsed['obsTime']:%Y-%m-%d %H:%MZ}; "
-                                          f"treating it as not reporting")
-                    data[airport] = {}
-                    missing_stations.append(airport)
-                    continue
-                data[airport] = parsed
-                station_list.append(airport)
-            except Exception as e:
-                # one malformed report only affects its own airport
-                safe_logging.safe_log(f"[m]Could not parse METAR for {airport}: {e} raw: {metar.get('raw_text')}\n"
-                                      f"{traceback.format_exc()}")
-                data[airport] = {}
-                missing_stations.append(airport)
-
-        self.data = data
-        self.__missing_stations__ = missing_stations
-        self.__stations__ = station_list
-        safe_logging.safe_log(f"[m]Missing stations: {missing_stations}")
+        # built separately, then swapped in, so readers never see half-filled data
+        self.data, self._stations, self._missing_stations = process(
+            content, airport_codes(self._config.airports), self._clock.now())
+        safe_logging.safe_log(f"[m]Missing stations: {self._missing_stations}")
         safe_logging.safe_log("[m]Processing complete.")
-
-    @staticmethod
-    def __parse__(metar):
-        """
-        Converts one METAR from the XML response into the dict used everywhere else.
-        """
-        def num(key, default=None):
-            value = metar.get(key)
-            if value in (None, ''):
-                return default
-            return float(str(value).replace('+', ''))
-
-        raw_metar = metar.get('raw_text') or ''
-        temp_c = num('temp_c')
-        dewpoint_c = num('dewpoint_c')
-        obs_time = metar.get('observation_time')
-
-        sky_conditions = []
-        sky = metar.get('sky_condition') or []
-        for sc in sky if isinstance(sky, list) else [sky]:
-            sky_conditions.append({"cover": sc.get('@sky_cover', ''),
-                                   "cloudBaseFt": int(sc.get('@cloud_base_ft_agl', 0) or 0)})
-
-        wind_gust_speed = int(num('wind_gust_kt', 0))
-        visibility = parse_visibility(metar.get('visibility_statute_mi'))
-        return {
-            "raw": raw_metar,
-            "elevation_m": int(round(num('elevation_m', 0))),
-            "flightCategory": metar.get('flight_category'),
-            "windDir": metar.get('wind_dir_degrees', ''),
-            "windSpeed": int(num('wind_speed_kt', 0)),
-            "windGustSpeed": wind_gust_speed,
-            "windGust": wind_gust_speed > 0,
-            "vis": int(round(visibility or 0)),
-            "visibilitySM": visibility,  # exact (e.g. 0.25), None if not reported
-            "visibilityMore": "+" in str(metar.get('visibility_statute_mi') or ''),  # "10+": more than 10 miles
-            "vertVisFt": int(num('vert_vis_ft')) if num('vert_vis_ft') is not None else None,
-            "obs": metar.get('wx_string', '') or '',
-            "tempC": int(round(temp_c)) if temp_c is not None else None,
-            "dewpointC": int(round(dewpoint_c)) if dewpoint_c is not None else None,
-            "altimHg": round(num('altim_in_hg', 0), 2),
-            "lightning": 'LTG' in raw_metar,
-            "skyConditions": sky_conditions,
-            "obsTime": datetime.fromisoformat(obs_time.replace("Z", "+00:00")) if obs_time else None,
-            "latitude": metar.get('latitude', ''),
-            "longitude": metar.get('longitude', '')}
 
     def missing_stations(self):
         """
         Returns a list of missing stations from the fetch
         """
-        return self.__missing_stations__
+        return self._missing_stations
 
     def stations(self):
         """
         Returns a list of all stations from the fetch
         """
-        return self.__stations__
+        return self._stations
 
-
-if __name__ == '__main__':
-    # airportstr = '{"KDWH": {"text": "Hooks", "display": false, "visits": 0},'\
-    #             '"KIAH": {"text": "IAH", "display": false, "visits": 0},'\
-    #             '"KLVJ": {"text": "", "display": false, "visits": 0}}'
-    # airports = json.loads(airportstr)
-
-    # with open('airports.json') as f:
-    #     data = f.read()
-    # airports = json.loads(data)
-
-    config = Config("config.json")
-    metars = METAR(config, fetch=True)
-    pprint(metars.data)
-    # pprint("missing: " + str(metars.missing_stations()))
-    # pprint("all: " + str(metars.stations()))
-    # pprint(metars.data['KDWH'], indent=4)

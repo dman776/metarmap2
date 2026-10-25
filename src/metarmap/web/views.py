@@ -6,6 +6,7 @@ import os
 from datetime import datetime
 
 from metarmap.sun import LEVEL_AT
+from metarmap.visualizers.visualizer import info as visualizer_info
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 CATEGORIES = ("VFR", "MVFR", "IFR", "LIFR")
@@ -83,12 +84,11 @@ def summary(stations):
 def visualizer(renderer):
     """The active visualizer."""
     index, vis = renderer.visualizer
-    return {"index": index, "name": vis.name, "description": vis.description, "exclusive": vis.exclusive,
-            "legend": vis.legend}
+    return {"index": index, **visualizer_info(vis, renderer.config.data)}
 
 
 def visualizer_names(renderer):
-    return [v.name for v in renderer.visualizers]
+    return [v.NAME for v in renderer.visualizers]
 
 
 # ---- brightness schedule -------------------------------------------------------------------------------------

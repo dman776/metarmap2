@@ -8,19 +8,19 @@ from datetime import datetime
 
 LOG_NAME = "metarmap"
 
-__lock__ = threading.Lock()
+_lock = threading.Lock()
 
 
-def __escape__(text):
+def _escape(text):
     """
     Replaces escape sequences do they can be printed.
 
     Funny story. PyDoc can't unit test strings with a CR or LF...
     It gives a white space error.
 
-    >>> __escape__("text")
+    >>> _escape("text")
     'text'
-    >>> __escape__("")
+    >>> _escape("")
     ''
     """
 
@@ -41,42 +41,42 @@ class Logger(object):
     def log_info_message(self, message_to_log, print_to_screen=True):
         """ Log and print at Info level """
         try:
-            __lock__.acquire()
+            _lock.acquire()
 
             if print_to_screen:
                 text = "{} INFO: {}".format(
-                    datetime.utcnow(), __escape__(message_to_log))
+                    datetime.utcnow(), _escape(message_to_log))
                 print(text)
-            self.__logger__.info(__escape__(message_to_log))
+            self._logger.info(_escape(message_to_log))
         finally:
-            __lock__.release()
+            _lock.release()
 
         return message_to_log
 
     def log_warning_message(self, message_to_log):
         """ Log and print at Warning level """
         try:
-            __lock__.acquire()
+            _lock.acquire()
 
             text = "{} WARN: {}".format(datetime.utcnow(), message_to_log)
-            self.__logger__.warning(__escape__(text))
+            self._logger.warning(_escape(text))
         finally:
-            __lock__.release()
+            _lock.release()
 
         return message_to_log
 
     def __init__(self, logger):
-        self.__logger__ = logger
+        self._logger = logger
 
 
-__python_logger__ = logging.getLogger(LOG_NAME)
-__python_logger__.setLevel(logging.DEBUG)
-__handler__ = logging.handlers.RotatingFileHandler(
+_python_logger = logging.getLogger(LOG_NAME)
+_python_logger.setLevel(logging.DEBUG)
+_handler = logging.handlers.RotatingFileHandler(
     "metarmap.log",
     maxBytes=10485760,
     backupCount=10)
-__handler__.setFormatter(logging.Formatter(
+_handler.setFormatter(logging.Formatter(
     '%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-__python_logger__.addHandler(__handler__)
+_python_logger.addHandler(_handler)
 
-LOGGER = Logger(__python_logger__)
+LOGGER = Logger(_python_logger)

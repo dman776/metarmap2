@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 import pytest
 
 from metarmap import decode
-from metarmap.metar import METAR, parse_visibility
+from metarmap.metar import parse_report, parse_visibility
 
 OBS = datetime(2026, 10, 24, 17, 53, tzinfo=timezone.utc)
 
@@ -122,7 +122,7 @@ def test_parse_visibility(value, miles):
 
 
 def test_parsed_reports_have_what_decode_needs():
-    parsed = METAR.__parse__({"raw_text": "METAR KTST 241753Z 00000KT 1/2SM FG VV003", "visibility_statute_mi": "1/2",
+    parsed = parse_report({"raw_text": "METAR KTST 241753Z 00000KT 1/2SM FG VV003", "visibility_statute_mi": "1/2",
                               "wx_string": "FG", "vert_vis_ft": "300", "sky_condition": {"@sky_cover": "OVX"},
                               "observation_time": "2026-10-24T17:53:00Z"})
     assert (parsed["vis"], parsed["visibilitySM"], parsed["visibilityMore"]) == (0, 0.5, False)

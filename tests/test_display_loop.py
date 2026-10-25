@@ -199,7 +199,7 @@ def test_restart_replaces_a_hung_thread():
     d, screen, _, _ = make(renderer=HangingRenderer())
     d.start()
     assert entered.wait(2)
-    old_thread = d._Display__thread__ if hasattr(d, "_Display__thread__") else d.__dict__["__thread__"]
+    old_thread = d._Display__thread__ if hasattr(d, "_Display__thread__") else d.__dict__["_thread"]
     d.restart(timeout=0.2)
     time.sleep(0.2)
     assert old_thread.is_alive()  # still stuck
@@ -235,6 +235,6 @@ def test_parallel_restarts_leave_one_loop():
             t.join()
         time.sleep(0.2)
         loops = [t for t in threading.enumerate() if t.name == "display" and t.is_alive()]
-        assert loops == [d.__thread__]
+        assert loops == [d._thread]
     finally:
         d.stop()

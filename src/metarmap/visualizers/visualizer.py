@@ -1,7 +1,7 @@
 from typing import List, Optional
 
 import metarmap.lib.colors as colors_lib
-from metarmap.models import Look, Metar
+from metarmap.models import Look
 
 
 def legend_item(label, detail, *colors, effect="solid", period=None):
@@ -24,42 +24,30 @@ def legend_item(label, detail, *colors, effect="solid", period=None):
     }
 
 
-class Visualizer(object):
+# ---- using a visualizer -----------------------------------------------------------------------------------------
+#
+# A visualizer is a module in this package with:
+#   NAME, DESCRIPTION   shown in the web UI
+#   EXCLUSIVE           True: it has the whole strip, so locate() is ignored
+#   legend(settings)    legend_item() entries describing what the LEDs mean
+#   look(metar, settings) -> Look        how one airport's LED looks ({} when it has no report), or
+#   strip_look(settings) -> Look         one look for the whole strip (rainbow, chase)
+# Visualizers don't touch the LEDs; the renderer turns their looks into animations.
+
+def strip_look(vis, settings) -> Optional[Look]:
+    """The visualizer's look for the whole strip, or None if it has one look per airport."""
+    return vis.strip_look(settings) if hasattr(vis, "strip_look") else None
+
+
+def looks(vis, codes, data, settings) -> List[Look]:
     """
-    A way of showing METAR data on the map: decides how each airport's LED looks.
-
-    Subclasses override look() (one airport) or strip_look() (the whole strip). Visualizers don't touch the
-    LEDs; the renderer turns their looks into animations.
+    One look per LED. codes: each LED's airport, in LED order ("" for none, which stays dark);
+    data: airport code -> METAR.
     """
-    name = ""
-    description = ""
-    exclusive = False  # True: the visualizer has the whole strip, so locate() is ignored
+    return [vis.look(data.get(code) or {}, settings) if code else Look.off() for code in codes]
 
-    def __init__(self, config):
-        self.__config__ = config
 
-    @property
-    def settings(self):
-        return self.__config__.data
-
-    def look(self, metar: Metar) -> Look:
-        """How one airport's LED looks. metar is {} when the airport has no report."""
-        return Look.off()
-
-    def strip_look(self) -> Optional[Look]:
-        """A look for the whole strip instead of one per airport (rainbow, chase); None for per-airport looks."""
-        return None
-
-    def looks(self, codes, data) -> List[Look]:
-        """
-        One look per LED. codes: each LED's airport, in LED order ("" for none, which stays dark);
-        data: airport code -> METAR.
-        """
-        return [self.look(data.get(code) or {}) if code else Look.off() for code in codes]
-
-    @property
-    def legend(self):
-        """
-        List of legend_item() entries describing what the LEDs mean.
-        """
-        return []
+def info(vis, settings) -> dict:
+    """What the web UI and API show about a visualizer."""
+    return {"name": vis.NAME, "description": vis.DESCRIPTION, "exclusive": vis.EXCLUSIVE,
+            "legend": vis.legend(settings)}

@@ -19,7 +19,7 @@ from typing import Optional
 import schedule
 from adafruit_led_animation.animation.rainbowcomet import RainbowComet
 
-from metarmap import __version__, service
+from metarmap import __version__, service, visualizers
 from metarmap.clock import Clock
 from metarmap.config import Config
 from metarmap.display import Display
@@ -31,35 +31,10 @@ from metarmap.renderer import Renderer
 from metarmap.sun import LEVEL_AT, SunTimes
 from metarmap.web import create_app, serve
 
-from metarmap.visualizers.flightcategory import FlightCategory as FlightCategoryVisualizer
-from metarmap.visualizers.wind import Wind as WindVisualizer
-from metarmap.visualizers.windgusts import WindGusts as WindGustsVisualizer
-from metarmap.visualizers.pressure import Pressure as PressureVisualizer
-from metarmap.visualizers.temperature import Temperature as TemperatureVisualizer
-from metarmap.visualizers.visibility import Visibility as VisibilityVisualizer
-from metarmap.visualizers.precipitation import Precipitation as PrecipitationVisualizer
-from metarmap.visualizers.density_altitude import DensityAltitude as DensityAltitudeVisualizer
-from metarmap.visualizers.chase import Chase as ChaseVisualizer
-from metarmap.visualizers.rainbow import Rainbow as RainbowVisualizer
-
 CONFIG_FILE = "config.json"
 METAR_MINUTES = 10  # how often METARs are fetched
 RETRY_SECONDS = 60  # after a failed fetch or lookup (e.g. aviationweather.gov answering 502), how soon to try again
 WATCHDOG_SECONDS = 15  # how often the OLED loop is checked
-
-# in the order of visualizer.active (and the web UI)
-VISUALIZERS = (
-    FlightCategoryVisualizer,
-    WindVisualizer,
-    WindGustsVisualizer,
-    PressureVisualizer,
-    PrecipitationVisualizer,
-    TemperatureVisualizer,
-    VisibilityVisualizer,
-    DensityAltitudeVisualizer,
-    RainbowVisualizer,
-    ChaseVisualizer,
-)
 
 
 @dataclass
@@ -89,7 +64,7 @@ def build(config_file=CONFIG_FILE, strip=None, screen=None, clock: Clock = None,
 
     if strip is None:
         strip = open_strip(config.data.led)  # the NeoPixel strip on the Pi; an in-memory strip anywhere else
-    renderer = Renderer(strip, metars, config, [vis(config) for vis in VISUALIZERS], sun, clock=clock)
+    renderer = Renderer(strip, metars, config, list(visualizers.ALL), sun, clock=clock)
     renderer.visualizer = config.data.visualizer.active
 
     display = None

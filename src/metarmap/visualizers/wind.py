@@ -1,10 +1,14 @@
 """
-Module to handle visualizing Wind data
+Wind: colors each airport by its wind speed.
 """
 import metarmap.lib.colors as colors_lib
 import metarmap.lib.utils as utils
 from metarmap.models import Look, Metar
-from metarmap.visualizers.visualizer import Visualizer, legend_item
+from metarmap.visualizers.visualizer import legend_item
+
+NAME = "Wind"
+DESCRIPTION = "Display the current wind speed."
+EXCLUSIVE = False
 
 # (upper bound in kts, color at the lower bound, color at the upper bound); colors blend in between
 WIND_SCALE = [
@@ -40,27 +44,20 @@ def get_color_by_wind(wind: float) -> list:
     return colors_by_name[colors_lib.RED]
 
 
-class Wind(Visualizer):
-    """
-    Colors each airport by its wind speed.
-    """
-    name = "Wind"
-    description = "Display the current wind speed."
+def legend(settings):
+    c = colors_lib.get_colors()
+    scale = [("0", colors_lib.OFF, "off"), ("5", colors_lib.PURPLE, "purple"), ("10", colors_lib.BLUE, "blue"),
+             ("15", colors_lib.GREEN, "green"), ("20", colors_lib.YELLOW, "yellow"),
+             ("25", colors_lib.ORANGE, "orange"), ("30", colors_lib.RED, "red")]
+    items = [legend_item("Calm", "Off")]
+    for (lo, lo_color, lo_name), (hi, hi_color, hi_name) in zip(scale, scale[1:]):
+        items.append(legend_item(f"{lo}-{hi} kts", f"{lo_name.capitalize()} to {hi_name}",
+                                 c[lo_color], c[hi_color]))
+    items.append(legend_item("Above 30 kts", "Red", c[colors_lib.RED]))
+    return items
 
-    @property
-    def legend(self):
-        c = colors_lib.get_colors()
-        scale = [("0", colors_lib.OFF, "off"), ("5", colors_lib.PURPLE, "purple"), ("10", colors_lib.BLUE, "blue"),
-                 ("15", colors_lib.GREEN, "green"), ("20", colors_lib.YELLOW, "yellow"),
-                 ("25", colors_lib.ORANGE, "orange"), ("30", colors_lib.RED, "red")]
-        items = [legend_item("Calm", "Off")]
-        for (lo, lo_color, lo_name), (hi, hi_color, hi_name) in zip(scale, scale[1:]):
-            items.append(legend_item(f"{lo}-{hi} kts", f"{lo_name.capitalize()} to {hi_name}",
-                                     c[lo_color], c[hi_color]))
-        items.append(legend_item("Above 30 kts", "Red", c[colors_lib.RED]))
-        return items
 
-    def look(self, metar: Metar) -> Look:
-        if not metar:
-            return Look.off()
-        return Look.solid(get_color_by_wind(metar['windSpeed']))
+def look(metar: Metar, settings) -> Look:
+    if not metar:
+        return Look.off()
+    return Look.solid(get_color_by_wind(metar['windSpeed']))

@@ -11,10 +11,7 @@ from metarmap.models import Look
 from metarmap.settings import Settings
 from metarmap.sun import SunTimes
 from metarmap.renderer import Renderer
-from metarmap.visualizers.flightcategory import FlightCategory
-from metarmap.visualizers.precipitation import Precipitation
-from metarmap.visualizers.rainbow import Rainbow
-from metarmap.visualizers.wind import Wind
+from metarmap.visualizers import flightcategory, precipitation, rainbow, visualizer, wind
 
 NOON = datetime(2026, 10, 24, 17, 0, tzinfo=timezone.utc)
 SUN = {"dawn": NOON.replace(hour=11, minute=58), "sunrise": NOON.replace(hour=12, minute=23),
@@ -44,7 +41,7 @@ def clock():
 
 def make(config, clock, data=DATA, leds=5, visualizers=None):
     strip = FakeStrip(leds)
-    visualizers = visualizers or [FlightCategory(config), Wind(config), Precipitation(config), Rainbow(config)]
+    visualizers = visualizers or [flightcategory, wind, precipitation, rainbow]
     r = Renderer(strip, SimpleNamespace(data=data), config, visualizers, SunTimes("Houston", SUN), clock=clock)
     return r, strip
 
@@ -58,9 +55,9 @@ def draw_frame(renderer):
 
 def test_looks_come_from_the_active_visualizer(config, clock):
     r, _ = make(config, clock)
-    assert r.looks == FlightCategory(config).looks(CODES, DATA)
+    assert r.looks == visualizer.looks(flightcategory, CODES, DATA, config.data)
     r.visualizer = 1
-    assert r.looks == Wind(config).looks(CODES, DATA)
+    assert r.looks == visualizer.looks(wind, CODES, DATA, config.data)
 
 
 def test_first_frame_lights_the_leds(config, clock):
@@ -148,7 +145,7 @@ def test_auto_rotate_skips_exclusive_visualizers(config, clock):
 
 
 def test_skip_exclusive_when_every_visualizer_is_exclusive(config, clock):
-    r, _ = make(config, clock, visualizers=[Precipitation(config), Rainbow(config)])
+    r, _ = make(config, clock, visualizers=[precipitation, rainbow])
     r.visualizer_next(skip_exclusive=True)  # used to loop forever
     assert r.active_visualizer in (0, 1)
 

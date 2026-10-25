@@ -49,11 +49,11 @@ class SSD1306Screen:
         from oled_text import OledText, BigLine
         import adafruit_ssd1306  # noqa: F401 (oled_text needs it; fail early if missing)
 
-        self.__oled__ = OledText(busio.I2C(SCL, SDA), self.WIDTH, self.HEIGHT)
-        self.__oled__.auto_show = False
-        self.__layouts__ = self.__make_layouts__(BigLine)
+        self._oled = OledText(busio.I2C(SCL, SDA), self.WIDTH, self.HEIGHT)
+        self._oled.auto_show = False
+        self._layouts = self._make_layouts(BigLine)
 
-    def __make_layouts__(self, BigLine):
+    def _make_layouts(self, BigLine):
         o = self.OFFSET
         icon = dict(font="FontAwesomeSolid.ttf", size=14)
         message = {
@@ -79,15 +79,15 @@ class SSD1306Screen:
         return {"message": message, 1: airport(6), 2: airport(0)}
 
     def show(self, screen: dict) -> None:
-        oled = self.__oled__
+        oled = self._oled
         if screen["kind"] == "message":
-            oled.layout = self.__layouts__["message"]
+            oled.layout = self._layouts["message"]
             oled.text(screen["title"])
             oled.text(GLYPHS.get(screen.get("icon", ""), ""), 2)
             for n, line in enumerate(screen["lines"]):
                 oled.text(line["text"], 3 + n)
         else:
-            oled.layout = self.__layouts__[2 if screen["page"] == 2 else 1]
+            oled.layout = self._layouts[2 if screen["page"] == 2 else 1]
             oled.text(screen["title"])
             oled.text(screen["badge"], 2)
             for n, line in enumerate(screen["lines"]):
@@ -96,7 +96,7 @@ class SSD1306Screen:
         oled.show()
 
     def clear(self) -> None:
-        self.__oled__.clear()
+        self._oled.clear()
 
 
 def open_screen():

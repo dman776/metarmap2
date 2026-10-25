@@ -52,9 +52,9 @@ def status(services, ip):
         "version": __version__,
         "ip": ip,
         "brightness": services.renderer.pixels().brightness,
-        "visualizer": {"active": active_num, "name": active_vis.name, "exclusive": active_vis.exclusive,
-                       "description": active_vis.description, "legend": active_vis.legend},
-        "visualizers": [{"index": i, "name": v.name, "exclusive": v.exclusive}
+        "visualizer": {"active": active_num, "name": active_vis.NAME, "exclusive": active_vis.EXCLUSIVE,
+                       "description": active_vis.DESCRIPTION, "legend": active_vis.legend(cfg)},
+        "visualizers": [{"index": i, "name": v.NAME, "exclusive": v.EXCLUSIVE}
                         for i, v in enumerate(services.renderer.visualizers)],
         "config": {
             "visualizer.active": cfg.visualizer.active,
@@ -107,7 +107,7 @@ def live(services, now=None):
     return {
         "now": now if now is not None else time.time(),
         "brightness": renderer.pixels().brightness,
-        "visualizer": {"active": active_num, "name": active_vis.name, "exclusive": active_vis.exclusive},
+        "visualizer": {"active": active_num, "name": active_vis.NAME, "exclusive": active_vis.EXCLUSIVE},
         "strip": strip,
         "leds": leds,
         "locate": renderer.last_locate,

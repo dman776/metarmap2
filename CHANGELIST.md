@@ -1,3 +1,9 @@
+### dman776 2.4.3 (2026-10-25)
+
+- Code: the visualizers are modules of plain functions instead of classes; METAR parsing is plain functions
+  (`process()`, `parse_report()`) separate from fetching; attributes like `self.__data__` are now `self._data`.
+  The LEDs, pages and API are unchanged
+
 ### dman776 2.4.2 (2026-10-25)
 
 - Map page: an airport's popup has Raw and Decoded tabs. Decoded shows the report in plain English (wind, visibility,

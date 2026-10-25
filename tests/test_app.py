@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from metarmap import app as app_module
+from metarmap import app as app_module, visualizers
 
 REPO = Path(__file__).parent.parent
 
@@ -20,9 +20,9 @@ def jobs(app):
 def test_build_wires_the_parts_together(make_app):
     app = make_app(**{"visualizer.active": 2})
     assert app.renderer.visualizer[0] == 2
-    assert len(app.renderer.visualizers) == len(app_module.VISUALIZERS)
+    assert app.renderer.visualizers == list(visualizers.ALL)
     assert app.display is not None
-    assert app.display.__renderer__ is app.renderer  # the OLED pulses the LED of the airport on screen
+    assert app.display._renderer is app.renderer  # the OLED pulses the LED of the airport on screen
     assert set(app.sun.times) >= {"dawn", "sunrise", "sunset", "dusk"}
     assert len(app.renderer.pixels()) == app.config.data.led.count
 
@@ -76,7 +76,7 @@ def test_watchdog_restarts_a_dead_display(make_app):
     app = make_app()
     app.display.start()
     app.display.stop(clear=False)  # the loop thread ends, as if it had crashed
-    app.display.__thread__.join(5)
+    app.display._thread.join(5)
     assert app.display.stalled() == "thread is not running"
     app_module.watch_display(app)
     try:

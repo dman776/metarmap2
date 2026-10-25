@@ -1,10 +1,14 @@
 """
-Module to handle visualizing Temperature data
+Temperature: colors each airport by its temperature.
 """
 import metarmap.lib.colors as colors_lib
 import metarmap.lib.utils as utils
 from metarmap.models import Look, Metar
-from metarmap.visualizers.visualizer import Visualizer, legend_item
+from metarmap.visualizers.visualizer import legend_item
+
+NAME = "Temperature"
+DESCRIPTION = "Display the temperature in degrees Fahrenheit."
+EXCLUSIVE = False
 
 # (upper bound in °F, color at the lower bound, color at the upper bound); colors blend in between
 TEMPERATURE_SCALE = [
@@ -44,27 +48,20 @@ def get_color_by_temperature_celsius(temperature_celsius: int) -> list:
     return colors_by_name[colors_lib.RED]
 
 
-class Temperature(Visualizer):
-    """
-    Colors each airport by its temperature.
-    """
-    name = "Temperature"
-    description = "Display the temperature in degrees Fahrenheit."
+def legend(settings):
+    c = colors_lib.get_colors()
+    scale = [("0°", colors_lib.WHITE, "white"), ("40°", colors_lib.PURPLE, "purple"),
+             ("60°", colors_lib.BLUE, "blue"), ("70°", colors_lib.GREEN, "green"),
+             ("80°", colors_lib.YELLOW, "yellow"), ("90°", colors_lib.ORANGE, "orange"),
+             ("100°", colors_lib.RED, "red")]
+    items = [legend_item("Below 0°", "White", c[colors_lib.WHITE])]
+    for (lo, lo_color, lo_name), (hi, hi_color, hi_name) in zip(scale, scale[1:]):
+        items.append(legend_item(f"{lo} to {hi}", f"{lo_name.capitalize()} to {hi_name}", c[lo_color], c[hi_color]))
+    items.append(legend_item("Above 100°", "Red", c[colors_lib.RED]))
+    return items
 
-    @property
-    def legend(self):
-        c = colors_lib.get_colors()
-        scale = [("0°", colors_lib.WHITE, "white"), ("40°", colors_lib.PURPLE, "purple"),
-                 ("60°", colors_lib.BLUE, "blue"), ("70°", colors_lib.GREEN, "green"),
-                 ("80°", colors_lib.YELLOW, "yellow"), ("90°", colors_lib.ORANGE, "orange"),
-                 ("100°", colors_lib.RED, "red")]
-        items = [legend_item("Below 0°", "White", c[colors_lib.WHITE])]
-        for (lo, lo_color, lo_name), (hi, hi_color, hi_name) in zip(scale, scale[1:]):
-            items.append(legend_item(f"{lo} to {hi}", f"{lo_name.capitalize()} to {hi_name}", c[lo_color], c[hi_color]))
-        items.append(legend_item("Above 100°", "Red", c[colors_lib.RED]))
-        return items
 
-    def look(self, metar: Metar) -> Look:
-        if not metar or not isinstance(metar.get('tempC'), int):  # no temperature reported
-            return Look.off()
-        return Look.solid(get_color_by_temperature_celsius(metar['tempC']))
+def look(metar: Metar, settings) -> Look:
+    if not metar or not isinstance(metar.get('tempC'), int):  # no temperature reported
+        return Look.off()
+    return Look.solid(get_color_by_temperature_celsius(metar['tempC']))
