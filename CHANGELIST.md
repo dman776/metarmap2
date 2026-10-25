@@ -1,3 +1,25 @@
+### dman776 2.6.0 (2026-10-25)
+
+The LEDs now follow one set of rules in every visualizer (see the legends):
+
+- An airport with no report is off; a report without the value a visualizer shows is a slow red blink
+- Light weather (`-`) breathes without going dark, moderate is solid, heavy (`+`) blinks between bright and dim,
+  and "in the vicinity" (`VC`) is dim, whatever the weather
+- Precipitation: the color is what it is (rain blue, drizzle dim blue, snow white, freezing rain and drizzle, ice
+  pellets and hail cyan, thunderstorms yellow, squalls, funnel clouds and similar magenta, unknown precipitation
+  orange, fog, smoke, haze and mist as before). The most significant weather wins, two kinds at once (e.g. `-RASN`)
+  alternate, and a thunderstorm with rain or snow alternates their color with yellow. Fixes heavy rain showing solid,
+  freezing rain looking like rain, and ice pellets, hail, squalls and showers nearby blinking red as "unknown". New
+  color settings: `color.weather.snow`, `ice`, `hazard` and `unknown`; `color.weather.drizzle` is no longer used
+- Wind, Temperature, Pressure and Density Altitude use a few solid bands instead of blended colors. Wind: calm dim
+  white, 1-9 kt green, 10-14 yellow, 15-24 orange, 25+ red. Temperature has its own band below freezing. Density
+  Altitude shows how far the density altitude is above the field (under 1,000 ft green ... 3,000 ft or more red)
+- Wind Gusts: the wind's color, alternating with the gusts' color when it's gusting
+- Visibility uses the flight category limits and colors (over 5 miles VFR ... under 1 mile LIFR)
+- The legends are built from the same tables as the colors, so they always match. (Before: Wind said calm was off
+  but showed dark gray, and Wind Gusts described the wrong color)
+- A density altitude for a sea-level airport or at 0°C is no longer treated as missing
+
 ### dman776 2.5.0 (2026-10-25)
 
 - Config > Access: change the web UI login and the Pi's Wi-Fi network from the web UI. On a Raspberry Pi (only), a

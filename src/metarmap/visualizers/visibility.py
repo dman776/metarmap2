@@ -1,50 +1,31 @@
 """
-Visibility: lights each airport white, brighter for better visibility.
+Visibility: colors each airport by its visibility, with the flight category limits and colors (so red means IFR here
+too): more than 5 miles VFR, 3-5 MVFR, 1 to under 3 IFR, under 1 LIFR.
 """
-import metarmap.lib.colors as colors_lib
 from metarmap.models import Look, Metar
-from metarmap.visualizers.visualizer import legend_item
+from metarmap.visualizers import style
+from metarmap.visualizers.style import Band
 
 NAME = "Visibility"
-DESCRIPTION = ("Display the visibility level (ie. 10SM, 6SM, 1/2SM, etc.). "
-               "The brighter the LED, the better the visibility.")
+DESCRIPTION = "Display the visibility, in the flight category limits and colors (VFR over 5 miles ... LIFR under 1)."
 EXCLUSIVE = False
 
-# whole statute miles -> brightness of white; less visibility is dimmer
-VISIBILITY_WHITE = {9: 80, 8: 40, 7: 20, 6: 10, 5: 5, 4: 4, 3: 3, 2: 2, 1: 1}
-
-
-def get_color_by_visibility(vis: float) -> list:
-    """
-    Given a visibility reading, return a color to show on the map.
-    Args:
-        vis (float): The vis reading from a metar in SM
-    Returns:
-        list: The color to show on the map for the station.
-    """
-    colors_by_name = colors_lib.get_colors()
-    if vis is None:
-        return colors_by_name[colors_lib.RED]
-    if vis <= 0:
-        return colors_by_name[colors_lib.OFF]
-    if vis >= 10:
-        return colors_by_name[colors_lib.WHITE]
-    level = VISIBILITY_WHITE.get(int(vis), 0)
-    return [level, level, level]
+BANDS = [
+    Band(1, lambda s: s.color.cat.lifr, "Under 1 mile (LIFR)", "Purple"),
+    Band(3, lambda s: s.color.cat.ifr, "1 to under 3 miles (IFR)", "Red"),
+    Band(5, lambda s: s.color.cat.mvfr, "3 to 5 miles (MVFR)", "Blue", inclusive=True),
+    Band(None, lambda s: s.color.cat.vfr, "Over 5 miles (VFR)", "Green"),
+]
 
 
 def legend(settings):
-    c = colors_lib.get_colors()
-    return [
-        legend_item("9 to 10 miles", "White (30%)", (255, 255, 255)),
-        legend_item("5 to 9 miles", "Dim white (5-15%)", (150, 150, 150)),
-        legend_item("1 to 5 miles", "Very dim white (1-4%)", (95, 95, 95)),
-        legend_item("Less than 1 mile", "Off"),
-        legend_item("No visibility reported", "Red", c[colors_lib.RED]),
-    ]
+    return [*style.band_legend(BANDS, settings), style.missing_legend("visibility"), style.no_report_legend()]
 
 
 def look(metar: Metar, settings) -> Look:
-    if not metar:  # no report at all
-        return Look.blink(colors_lib.get_colors()[colors_lib.RED], period=2)
-    return Look.solid(get_color_by_visibility(metar['vis']))
+    if not metar:
+        return style.no_report()
+    miles = metar.get('visibilitySM', metar.get('vis'))  # exact miles; older data only has the rounded 'vis'
+    if miles is None:
+        return style.missing()
+    return Look.solid(style.band_for(miles, BANDS, settings))

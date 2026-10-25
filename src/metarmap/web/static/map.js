@@ -336,10 +336,12 @@
         switch (look.effect) {
             case 'off':
                 return null;
-            case 'blink':
-                return Math.floor(t / (look.period / 2)) % 2 === 0 ? {c: c[0], a: 1} : null;
-            case 'pulse':
-                return {c: c[0], a: 0.5 - 0.5 * Math.cos(2 * Math.PI * t / look.period)};
+            case 'blink':  // a second color is shown instead of off
+                return Math.floor(t / (look.period / 2)) % 2 === 0 ? {c: c[0], a: 1} : (c[1] ? {c: c[1], a: 1} : null);
+            case 'pulse': {  // between full and look.low (0 = dark)
+                const low = look.low || 0;
+                return {c: c[0], a: low + (1 - low) * (0.5 - 0.5 * Math.cos(2 * Math.PI * t / look.period))};
+            }
             case 'cycle':
                 return {c: c[Math.floor(t / look.step) % c.length], a: 1};
             case 'rainbow':

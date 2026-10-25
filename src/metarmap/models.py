@@ -62,8 +62,8 @@ class Look:
     effect:
       off      - dark
       solid    - colors[0]
-      blink    - colors[0] on/off; period = seconds per on+off cycle
-      pulse    - colors[0] fading in and out; period = seconds per cycle
+      blink    - colors[0] on/off, or alternating with colors[1] if given; period = seconds per on+off cycle
+      pulse    - colors[0] fading in and out; period = seconds per cycle; low = the dimmest point (0: dark)
       cycle    - steps through colors, step seconds each
       rainbow  - whole strip, period = seconds per full rainbow
       chase    - whole strip, colors[0] moving size LEDs at a time, spacing apart, step seconds per move
@@ -74,6 +74,7 @@ class Look:
     step: Optional[float] = None
     size: int = 1
     spacing: int = 0
+    low: float = 0.0
 
     @classmethod
     def off(cls) -> "Look":
@@ -84,12 +85,15 @@ class Look:
         return cls("solid", (_color(color),))
 
     @classmethod
-    def blink(cls, color: Sequence[int], period: float = 2.0) -> "Look":
-        return cls("blink", (_color(color),), period=period)
+    def blink(cls, color: Sequence[int], period: float = 2.0, background: Optional[Sequence[int]] = None) -> "Look":
+        """On and off, or with `background`, alternating between the two colors."""
+        colors = (_color(color),) if background is None else (_color(color), _color(background))
+        return cls("blink", colors, period=period)
 
     @classmethod
-    def pulse(cls, color: Sequence[int], period: float) -> "Look":
-        return cls("pulse", (_color(color),), period=period)
+    def pulse(cls, color: Sequence[int], period: float, low: float = 0.0) -> "Look":
+        """Fading between full brightness and `low` (0: dark; 0.3: never dark, so the color stays readable)."""
+        return cls("pulse", (_color(color),), period=period, low=low)
 
     @classmethod
     def cycle(cls, colors: Iterable[Sequence[int]], step: float) -> "Look":
@@ -118,6 +122,8 @@ class Look:
         out: Dict[str, Any] = {"effect": self.effect, "colors": css}
         if self.effect in ("blink", "pulse", "rainbow"):
             out["period"] = self.period
+        if self.effect == "pulse" and self.low:
+            out["low"] = self.low
         if self.effect in ("cycle", "chase"):
             out["step"] = self.step
         if self.effect == "chase":

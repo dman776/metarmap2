@@ -9,7 +9,7 @@ from metarmap.models import Look
 from metarmap.settings import Settings
 from metarmap import visualizers
 from metarmap.visualizers import (chase, density_altitude, flightcategory, precipitation, pressure, rainbow,
-                                  temperature, visibility, visualizer, wind, windgusts)
+                                  style, temperature, visibility, visualizer, wind, windgusts)
 from metarmap.visualizers.density_altitude import calculate_density_altitude
 
 C = colors_lib.get_colors()
@@ -28,10 +28,6 @@ def metar(**fields):
     return {**base, **fields}
 
 
-def mix(a, b, proportion):
-    return tuple(colors_lib.get_color_mix(C[a], C[b], proportion))
-
-
 # ---- every visualizer ---------------------------------------------------------------------------------------
 
 @pytest.mark.parametrize("v", ALL)
@@ -41,7 +37,7 @@ def test_metadata(v, settings):
     assert v.legend(settings), "every visualizer explains its colors"
     for item in v.legend(settings):
         assert item["label"] and item["detail"]
-        assert item["effect"] in {"solid", "blink", "pulse", "flash", "chase", "off"}
+        assert item["effect"] in {"solid", "blink", "pulse", "flash", "alternate", "chase", "off"}
 
 
 @pytest.mark.parametrize("v", ALL)
@@ -96,160 +92,186 @@ def test_lightning_animation_can_be_turned_off(settings):
     assert look == Look.solid(settings.color.cat.ifr)
 
 
+# ---- the shared conventions (style.py) ---------------------------------------------------------------------
+
+PER_AIRPORT = [v for v in ALL if hasattr(v, "look")]
+RED_BLINK = Look.blink(C[colors_lib.RED], period=2)
+
+
+@pytest.mark.parametrize("v", PER_AIRPORT)
+def test_no_report_is_off_everywhere(v, settings):
+    assert v.look({}, settings) == OFF
+
+
+@pytest.mark.parametrize("v, field", [(wind, "windSpeed"), (windgusts, "windSpeed"), (temperature, "tempC"),
+                                      (pressure, "altimHg"), (visibility, "visibilitySM"),
+                                      (density_altitude, "tempC"), (flightcategory, "flightCategory")])
+def test_a_missing_value_is_a_slow_red_blink_everywhere(v, field, settings):
+    data = metar(**{field: None})
+    if field == "visibilitySM":
+        del data["vis"]  # older data's rounded visibility, used when visibilitySM is absent
+    assert v.look(data, settings) == RED_BLINK
+
+
+def test_intensity():
+    blue = (0, 0, 255)
+    assert style.by_intensity(blue, "-") == Look.pulse(blue, period=4, low=0.3)  # breathing, never dark
+    assert style.by_intensity(blue, "") == Look.solid(blue)
+    assert style.by_intensity(blue, "+") == Look.blink(blue, period=1, background=(0, 0, 76))  # bright and dim
+    assert style.by_intensity(blue, "VC") == Look.solid((0, 0, 76))
+
+
+@pytest.mark.parametrize("v", [wind, temperature, pressure, visibility, density_altitude])
+def test_legends_come_from_the_band_tables(v, settings):
+    rows = v.legend(settings)
+    for band, row in zip(v.BANDS, rows):
+        assert row["label"] == band.label and row["colors"] == [colors_lib.to_css(band.color_for(settings))]
+
+
 # ---- wind and gusts -----------------------------------------------------------------------------------------
 
-@pytest.mark.parametrize("speed, expected", [
-    (0, tuple(C[colors_lib.DARK_GRAY])),
-    (5, tuple(C[colors_lib.PURPLE])),
-    (10, tuple(C[colors_lib.BLUE])),
-    (15, tuple(C[colors_lib.GREEN])),
-    (20, tuple(C[colors_lib.YELLOW])),
-    (25, tuple(C[colors_lib.ORANGE])),
-    (30, tuple(C[colors_lib.RED])),
-    (45, tuple(C[colors_lib.RED])),
-])
-def test_wind_scale_points(settings, speed, expected):
-    assert wind.look(metar(windSpeed=speed), settings).color == expected
+@pytest.mark.parametrize("speed, name", [(0, colors_lib.GRAY), (1, colors_lib.GREEN), (9, colors_lib.GREEN),
+                                         (10, colors_lib.YELLOW), (14, colors_lib.YELLOW), (15, colors_lib.ORANGE),
+                                         (24, colors_lib.ORANGE), (25, colors_lib.RED), (60, colors_lib.RED)])
+def test_wind_bands(settings, speed, name):
+    assert wind.look(metar(windSpeed=speed), settings) == Look.solid(C[name])
 
 
-def test_wind_blends_between_points(settings):
-    assert wind.look(metar(windSpeed=12), settings).color == mix(colors_lib.BLUE, colors_lib.GREEN, 0.4)
-    assert wind.look(metar(windSpeed=2), settings).color == mix(colors_lib.OFF, colors_lib.PURPLE, 0.4)
+def test_calm_is_not_off(settings):
+    """Off means no report; calm is a dim white so the two can't be confused."""
+    assert wind.look(metar(windSpeed=0), settings) != OFF
 
 
-def test_wind_no_report(settings):
-    assert wind.look({}, settings) == OFF
+def test_gusts_alternate_wind_and_gust_colors(settings):
+    look = windgusts.look(metar(windSpeed=12, windGust=True, windGustSpeed=27), settings)
+    assert look == Look.blink(C[colors_lib.YELLOW], period=2, background=C[colors_lib.RED])
 
 
-@pytest.mark.parametrize("gust, period", [(5, 10), (10, 10), (11, 8), (15, 8), (16, 6), (20, 6), (21, 4), (25, 4),
-                                          (26, 1), (30, 1), (31, 0.5), (60, 0.5)])
-def test_gusts_pulse_faster_when_stronger(settings, gust, period):
-    look = windgusts.look(metar(windSpeed=12, windGust=True, windGustSpeed=gust), settings)
-    assert look.effect == "pulse"
-    assert look.period == period
-    assert look.color == wind.look(metar(windSpeed=12), settings).color
+def test_gusts_in_the_same_band_breathe(settings):
+    look = windgusts.look(metar(windSpeed=10, windGust=True, windGustSpeed=14), settings)
+    assert look == Look.pulse(C[colors_lib.YELLOW], period=2, low=0.3)
 
 
-def test_no_gusts_is_solid_wind_color(settings):
-    look = windgusts.look(metar(windSpeed=12), settings)
-    assert look == wind.look(metar(windSpeed=12), settings)
+def test_no_gusts_is_the_wind_color(settings):
+    assert windgusts.look(metar(windSpeed=12), settings) == wind.look(metar(windSpeed=12), settings)
 
 
-# ---- temperature --------------------------------------------------------------------------------------------
+# ---- temperature, pressure, visibility, density altitude ----------------------------------------------------
 
-@pytest.mark.parametrize("celsius, expected", [
-    (-20, tuple(C[colors_lib.WHITE])),  # -4 °F
-    (-15, mix(colors_lib.WHITE, colors_lib.PURPLE, 0.125)),  # 5 °F
-    (10, mix(colors_lib.PURPLE, colors_lib.BLUE, 0.5)),  # 50 °F
-    (25, mix(colors_lib.GREEN, colors_lib.YELLOW, 0.7)),  # 77 °F
-    (40, tuple(C[colors_lib.RED])),  # 104 °F
-])
-def test_temperature_scale(settings, celsius, expected):
-    assert temperature.look(metar(tempC=celsius), settings).color == expected
+@pytest.mark.parametrize("celsius, name", [(-10, colors_lib.WHITE), (-1, colors_lib.WHITE), (0, colors_lib.PURPLE),
+                                           (12, colors_lib.BLUE), (20, colors_lib.GREEN), (28, colors_lib.YELLOW),
+                                           (35, colors_lib.ORANGE), (40, colors_lib.RED)])
+def test_temperature_bands(settings, celsius, name):
+    """In °F: below 32 (freezing) white, 32-49 purple, 50-64 blue, 65-79 green, 80-89 yellow, 90-99 orange."""
+    assert temperature.look(metar(tempC=celsius), settings) == Look.solid(C[name])
 
 
-@pytest.mark.parametrize("data", [{}, metar(tempC=None)])
-def test_temperature_missing_is_off(settings, data):
-    assert temperature.look(data, settings) == OFF
+@pytest.mark.parametrize("inhg, name", [(29.5, colors_lib.RED), (29.85, colors_lib.LIGHT_RED),
+                                        (29.92, colors_lib.LIGHT_BLUE), (30.1, colors_lib.LIGHT_BLUE),
+                                        (30.2, colors_lib.BLUE), (30.6, colors_lib.BLUE)])
+def test_pressure_bands(settings, inhg, name):
+    assert pressure.look(metar(altimHg=inhg), settings) == Look.solid(C[name])
 
 
-# ---- pressure -----------------------------------------------------------------------------------------------
-
-@pytest.mark.parametrize("inhg, expected", [
-    (29.5, tuple(C[colors_lib.RED])),
-    (29.8, tuple(C[colors_lib.RED])),
-    (29.92, tuple(C[colors_lib.LIGHT_RED])),
-    (30.06, mix(colors_lib.LIGHT_BLUE, colors_lib.BLUE, 0.5)),
-    (30.3, tuple(C[colors_lib.BLUE])),
-])
-def test_pressure_scale(settings, inhg, expected):
-    assert pressure.look(metar(altimHg=inhg), settings).color == expected
+@pytest.mark.parametrize("miles, category", [(0.25, "lifr"), (0.75, "lifr"), (1, "ifr"), (2.5, "ifr"), (3, "mvfr"),
+                                             (5, "mvfr"), (5.5, "vfr"), (10, "vfr")])
+def test_visibility_in_flight_category_colors(settings, miles, category):
+    look = visibility.look(metar(visibilitySM=miles), settings)
+    assert look == Look.solid(getattr(settings.color.cat, category))
 
 
-# ---- visibility ---------------------------------------------------------------------------------------------
+def test_visibility_from_older_data(settings):
+    assert visibility.look(metar(vis=2), settings) == Look.solid(settings.color.cat.ifr)  # no visibilitySM
 
-@pytest.mark.parametrize("vis, level", [(10, 255), (9, 80), (8, 40), (7, 20), (6, 10), (5, 5), (4, 4), (3, 3),
-                                        (2, 2), (1, 1)])
-def test_visibility_dims_with_distance(settings, vis, level):
-    assert visibility.look(metar(vis=vis), settings).color == (level, level, level)
-
-
-def test_visibility_zero_is_off(settings):
-    assert visibility.look(metar(vis=0), settings).color == (0, 0, 0)
-
-
-def test_visibility_not_reported_is_red(settings):
-    assert visibility.look(metar(vis=None), settings) == Look.solid(C[colors_lib.RED])
-
-
-def test_visibility_no_report_blinks_red(settings):
-    assert visibility.look({}, settings) == Look.blink(C[colors_lib.RED], period=2)
-
-
-# ---- density altitude ---------------------------------------------------------------------------------------
 
 def test_density_altitude_formula():
-    # standard day at sea level: density altitude == field elevation (0)
+    # standard day at sea level: density altitude = field elevation
     assert calculate_density_altitude(29.92, 0, 15) == pytest.approx(0)
-    assert calculate_density_altitude(None, 100, 20) is None
+    assert calculate_density_altitude(29.92, 1000, 25) > 1000 * 3.28084
 
 
-@pytest.mark.parametrize("fields", [{"tempC": 0}, {"altimHg": 0}, {"elevation_m": 0}, {"tempC": None}])
+@pytest.mark.parametrize("fields, name", [
+    ({"elevation_m": 0, "tempC": 15, "altimHg": 29.92}, colors_lib.GREEN),  # standard day
+    ({"elevation_m": 0, "tempC": 0, "altimHg": 29.92}, colors_lib.GREEN),  # 0°C at a sea-level field is real data
+    ({"elevation_m": 0, "tempC": 28, "altimHg": 29.92}, colors_lib.YELLOW),
+    ({"elevation_m": 0, "tempC": 35, "altimHg": 29.92}, colors_lib.ORANGE),
+    ({"elevation_m": 1500, "tempC": 38, "altimHg": 29.7}, colors_lib.RED),
+])
+def test_density_altitude_bands(settings, fields, name):
+    assert density_altitude.look(metar(**fields), settings) == Look.solid(C[name])
+
+
+@pytest.mark.parametrize("fields", [{"tempC": None}, {"altimHg": 0}, {"elevation_m": None}])
 def test_density_altitude_needs_all_inputs(settings, fields):
-    assert density_altitude.look(metar(**fields), settings) == OFF
-
-
-def test_density_altitude_hot_day_is_red(settings):
-    # 10 m field on a 40 °C day with low pressure: DA is about 98 times the field elevation
-    look = density_altitude.look(metar(elevation_m=10, tempC=40, altimHg=29.7), settings)
-    assert look.color == tuple(C[colors_lib.RED])
-
-
-def test_density_altitude_warm_day_blends_toward_red(settings):
-    # 100 m field, same day: factor about 11, so gray blending toward red
-    look = density_altitude.look(metar(elevation_m=100, tempC=40, altimHg=29.7), settings)
-    assert look.color == mix(colors_lib.DARK_GRAY, colors_lib.RED, 11 / 40)
-
-
-def test_density_altitude_cold_day_is_green(settings):
-    look = density_altitude.look(metar(elevation_m=10, tempC=-20, altimHg=30.4), settings)
-    assert look.color == tuple(C[colors_lib.GREEN])
+    assert density_altitude.look(metar(**fields), settings) == RED_BLINK
 
 
 # ---- precipitation ------------------------------------------------------------------------------------------
 
 def W(settings, name):
-    return getattr(settings.color.weather, name)
+    return tuple(getattr(settings.color.weather, name))
 
 
-@pytest.mark.parametrize("obs, expected", [
-    ("", lambda s: OFF),
-    ("VCTS", lambda s: Look.blink(W(s, "lightning"))),
-    ("TS RA", lambda s: Look.blink(W(s, "lightning"))),
-    ("-FZDZ", lambda s: Look.pulse(W(s, "drizzle"), period=0.5)),
-    ("-FZRA", lambda s: Look.pulse(W(s, "rain"), period=2)),
-    ("-SN", lambda s: Look.pulse(C[colors_lib.WHITE], period=2)),
-    ("SN", lambda s: Look.pulse(C[colors_lib.WHITE], period=1)),
-    ("-RA", lambda s: Look.pulse(W(s, "rain"), period=4)),
-    ("RA", lambda s: Look.solid(W(s, "rain"))),
-    ("-RA BR", lambda s: Look.pulse(W(s, "rain"), period=4)),  # first matching code wins
-    ("-DZ", lambda s: Look.pulse(W(s, "drizzle"), period=4)),
-    ("DZ", lambda s: Look.solid(W(s, "drizzle"))),
-    ("FG", lambda s: Look.pulse(W(s, "fog"), period=4)),
-    ("HZ", lambda s: Look.solid(W(s, "haze"))),
-    ("BR", lambda s: Look.solid(W(s, "mist"))),
-    ("-UP", lambda s: Look.blink(C[colors_lib.LIGHT_RED])),
-    ("UP", lambda s: Look.blink(C[colors_lib.RED])),
-    ("SQ", lambda s: Look.blink(C[colors_lib.RED])),  # anything else
-])
-def test_precipitation(settings, obs, expected):
-    assert precipitation.look(metar(obs=obs), settings) == expected(settings)
+def P(obs, settings):
+    return precipitation.look(metar(obs=obs), settings)
 
 
-@pytest.mark.xfail(strict=True, reason="known bug: '+RA' is matched by the 'RA' rule first, so heavy rain is "
-                                       "solid, not blinking as the legend says")
+@pytest.mark.parametrize("obs, kind", [("RA", "rain"), ("SHRA", "rain"), ("SN", "snow"), ("SG", "snow"),
+                                       ("FZRA", "ice"), ("FZDZ", "ice"), ("PL", "ice"), ("GR", "ice"), ("GS", "ice"),
+                                       ("IC", "ice"), ("SQ", "hazard"), ("FC", "hazard"), ("VA", "hazard"),
+                                       ("UP", "unknown"), ("FG", "fog"), ("FZFG", "fog"), ("FU", "smoke"),
+                                       ("HZ", "haze"), ("DU", "haze"), ("BR", "mist")])
+def test_precipitation_color_is_the_kind(settings, obs, kind):
+    assert P(obs, settings) == Look.solid(W(settings, kind))
+
+
+def test_drizzle_is_a_dimmer_rain(settings):
+    assert P("DZ", settings) == Look.solid(style.dim(W(settings, "rain"), 0.5))
+
+
+@pytest.mark.parametrize("prefix, expected", [("-", "light"), ("", "moderate"), ("+", "heavy"), ("VC", "vicinity")])
+@pytest.mark.parametrize("code, kind", [("RA", "rain"), ("SN", "snow"), ("FZRA", "ice")])
+def test_precipitation_effect_is_the_intensity(settings, prefix, expected, code, kind):
+    """The same effect for the same intensity, whatever falls: -SN looks like -RA, only white."""
+    intensity = {"light": "-", "moderate": "", "heavy": "+", "vicinity": "VC"}[expected]
+    assert P(prefix + code, settings) == style.by_intensity(W(settings, kind), intensity)
+
+
 def test_heavy_rain_blinks(settings):
-    assert precipitation.look(metar(obs="+RA"), settings) == Look.blink(W(settings, "rain"))
+    """The old bug: '+RA' was matched by the 'RA' rule first, so heavy rain was solid."""
+    assert P("+RA", settings).effect == "blink"
+
+
+def test_most_significant_wins(settings):
+    assert P("-RA BR", settings) == style.by_intensity(W(settings, "rain"), "-")  # rain over mist
+    assert P("BR -SN", settings) == style.by_intensity(W(settings, "snow"), "-")  # whatever the order
+    assert P("RA FZDZ", settings).colors[0] == W(settings, "ice")  # ice over rain
+    assert P("SN SQ", settings).colors[0] == W(settings, "hazard")
+
+
+def test_thunderstorms(settings):
+    yellow = W(settings, "lightning")
+    assert P("TS", settings) == Look.blink(yellow, period=1, background=style.dim(yellow))
+    assert P("TSRA", settings) == Look.blink(W(settings, "rain"), period=1, background=yellow)
+    assert P("VCTS", settings) == Look.solid(style.dim(yellow))
+    assert P("-RA TS", settings).effect == "blink"  # a thunderstorm anywhere wins
+
+
+def test_two_kinds_at_once_alternate(settings):
+    assert P("-RASN", settings) == Look.blink(W(settings, "snow"), period=2, background=W(settings, "rain"))
+
+
+def test_showers_of_an_unknown_kind_are_rain(settings):
+    assert P("VCSH", settings) == Look.solid(style.dim(W(settings, "rain")))
+
+
+@pytest.mark.parametrize("obs", ["", None, "NSW"])
+def test_no_weather_is_off(settings, obs):
+    assert P(obs, settings) == OFF
+
+
+def test_unknown_codes_are_a_slow_red_blink(settings):
+    assert P("XX", settings) == RED_BLINK
 
 
 # ---- whole-strip patterns -----------------------------------------------------------------------------------

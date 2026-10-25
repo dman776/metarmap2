@@ -2,7 +2,11 @@
 import pytest
 from adafruit_led_animation.helper import PixelSubset
 
-from metarmap.leds.animations import animation_for
+from adafruit_led_animation.animation.blink import Blink
+from adafruit_led_animation.animation.colorcycle import ColorCycle
+from adafruit_led_animation.animation.pulse import Pulse
+
+from metarmap.leds.animations import PULSE_STEPS, animation_for
 from metarmap.leds.strip import FakeStrip
 from metarmap.models import FlightCategory, Look
 
@@ -80,3 +84,33 @@ def test_looks_are_hashable_and_immutable():
 def test_flight_category_compares_to_strings():
     assert FlightCategory.VFR == "VFR"
     assert FlightCategory("LIFR") is FlightCategory.LIFR
+
+
+# ---- effects built from ColorCycle, so they work with older versions of the LED library -------------------------
+
+def test_two_color_blink_alternates(pixel):
+    a = animation_for(Look.blink((0, 0, 255), period=1, background=(255, 255, 0)), pixel)
+    assert isinstance(a, ColorCycle) and not isinstance(a, Blink)
+    assert a.colors == [(0, 0, 255), (255, 255, 0)]
+
+
+def test_plain_blink_is_unchanged(pixel):
+    assert type(animation_for(Look.blink((0, 0, 255), period=2), pixel)) is Blink
+
+
+def test_pulse_that_never_goes_dark(pixel):
+    a = animation_for(Look.pulse((0, 0, 200), period=4, low=0.3), pixel)
+    assert isinstance(a, ColorCycle)
+    levels = [c[2] for c in a.colors]
+    assert max(levels) == 200 and min(levels) == 60  # 30% at its dimmest
+    assert a.speed == pytest.approx(4 / PULSE_STEPS)
+
+
+def test_plain_pulse_is_unchanged(pixel):
+    assert type(animation_for(Look.pulse((0, 0, 255), period=4), pixel)) is Pulse
+
+
+def test_web_ui_gets_the_floor():
+    assert Look.pulse((0, 0, 255), period=4, low=0.3).to_dict() == {"effect": "pulse", "colors": ["#0000ff"],
+                                                                       "period": 4, "low": 0.3}
+    assert len(Look.blink((0, 0, 255), period=1, background=(0, 0, 76)).to_dict()["colors"]) == 2

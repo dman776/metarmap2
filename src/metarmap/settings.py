@@ -80,7 +80,11 @@ class WeatherColors(_Section):
     smoke: List[int] = field(default_factory=lambda: [75, 75, 75])
     rain: List[int] = field(default_factory=lambda: [0, 0, 255])
     mist: List[int] = field(default_factory=lambda: [0, 0, 15])
-    drizzle: List[int] = field(default_factory=lambda: [255, 0, 0])
+    drizzle: List[int] = field(default_factory=lambda: [255, 0, 0])  # no longer used: drizzle is a dimmer rain
+    snow: List[int] = field(default_factory=lambda: [255, 255, 255])  # white
+    ice: List[int] = field(default_factory=lambda: [255, 0, 255])  # cyan: freezing rain and drizzle, ice pellets, hail
+    hazard: List[int] = field(default_factory=lambda: [0, 255, 255])  # magenta: squalls, funnel clouds, ash, storms
+    unknown: List[int] = field(default_factory=lambda: [126, 255, 0])  # orange: unknown precipitation (UP)
 
 
 @dataclass

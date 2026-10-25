@@ -1,47 +1,27 @@
 """
-Density Altitude: colors each airport by its density altitude relative to field elevation.
+Density Altitude: colors each airport by how far its density altitude is above the field: how much higher the
+airport "feels" to an airplane on a hot day or with low pressure.
 """
 from typing import Union
 
 import metarmap.lib.colors as colors_lib
-import metarmap.lib.utils as utils
 from metarmap.models import Look, Metar
-from metarmap.visualizers.visualizer import legend_item
+from metarmap.visualizers import style
+from metarmap.visualizers.style import Band
 
 NAME = "Density Altitude"
-DESCRIPTION = ("Display the density altitude (DA) relative to field elevation (FE), "
-               "aka. the density altitude factor (DAF).")
+DESCRIPTION = "Display the density altitude above the field elevation (how much higher the airport \"feels\")."
 EXCLUSIVE = False
 
 STANDARD_PRESSURE = 29.92
 
-# (upper bound of the density altitude factor, color at the lower bound, color at the upper bound)
-DA_FACTOR_SCALE = [
-    (-20, -10, colors_lib.GREEN, colors_lib.BLUE),
-    (-10, -5, colors_lib.BLUE, colors_lib.LIGHT_BLUE),
-    (-5, 0, colors_lib.LIGHT_BLUE, colors_lib.DARK_GRAY),
-    (0, 40, colors_lib.DARK_GRAY, colors_lib.RED),
+# feet of density altitude above the field elevation
+BANDS = [
+    Band(1000, colors_lib.GREEN, "Less than 1,000 ft above the field", "Green"),
+    Band(2000, colors_lib.YELLOW, "1,000-1,999 ft above", "Yellow"),
+    Band(3000, colors_lib.ORANGE, "2,000-2,999 ft above", "Orange"),
+    Band(None, colors_lib.RED, "3,000 ft or more above", "Red"),
 ]
-
-
-def get_color_by_da(da: float, elevation_f: float) -> list:
-    """
-    Given a DA reading, return a color to show on the map.
-    Args:
-        da (float): The DA reading from a metar in feet.
-        elevation_f (int): The elevation of the station in feet.
-    Returns:
-        list: The color to show on the map for the station.
-    """
-    colors_by_name = colors_lib.get_colors()
-    da_factor = round(da / elevation_f)
-    if da_factor < -20:
-        return colors_by_name[colors_lib.GREEN]
-    for low, high, low_color, high_color in DA_FACTOR_SCALE:
-        if low <= da_factor < high:
-            return colors_lib.get_color_mix(colors_by_name[low_color], colors_by_name[high_color],
-                                            utils.get_proportion_between_floats(low, da_factor, high))
-    return colors_by_name[colors_lib.RED]
 
 
 def meters_to_feet(m: float) -> float:
@@ -68,20 +48,16 @@ def calculate_density_altitude(pressure: float, field_elevation_m: float, oat: f
 
 
 def legend(settings):
-    c = colors_lib.get_colors()
-    return [
-        legend_item("DAF below -20", "Green", c[colors_lib.GREEN]),
-        legend_item("DAF -20 to -10", "Green to blue", c[colors_lib.GREEN], c[colors_lib.BLUE]),
-        legend_item("DAF -10 to -5", "Blue to light blue", c[colors_lib.BLUE], c[colors_lib.LIGHT_BLUE]),
-        legend_item("DAF -5 to 0", "Light blue to gray", c[colors_lib.LIGHT_BLUE], c[colors_lib.GRAY]),
-        legend_item("DAF 0 to 40", "Gray to red", c[colors_lib.GRAY], c[colors_lib.RED]),
-        legend_item("DAF above 40", "Red", c[colors_lib.RED]),
-    ]
+    return [*style.band_legend(BANDS, settings), style.missing_legend("temperature or altimeter setting"),
+            style.no_report_legend()]
 
 
 def look(metar: Metar, settings) -> Look:
-    # needs pressure, a non-zero field elevation, and a temperature (a zero reading counts as missing)
-    if not metar or not all([metar.get('altimHg'), metar.get('elevation_m'), metar.get('tempC')]):
-        return Look.off()
+    if not metar:
+        return style.no_report()
+    # a sea-level field (0 m) and 0°C are real values; a missing altimeter setting is read as 0
+    if not metar.get('altimHg') or metar.get('elevation_m') is None or metar.get('tempC') is None:
+        return style.missing()
     density_altitude = calculate_density_altitude(metar['altimHg'], metar['elevation_m'], metar['tempC'])
-    return Look.solid(get_color_by_da(density_altitude, meters_to_feet(metar['elevation_m'])))
+    above = density_altitude - meters_to_feet(metar['elevation_m'])
+    return Look.solid(style.band_for(above, BANDS, settings))

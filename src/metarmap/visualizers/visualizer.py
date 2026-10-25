@@ -4,15 +4,17 @@ import metarmap.lib.colors as colors_lib
 from metarmap.models import Look
 
 
-def legend_item(label, detail, *colors, effect="solid", period=None):
+def legend_item(label, detail, *colors, effect="solid", period=None, low=None):
     """
     One entry of a visualizer legend, shown in the web UI.
     Args:
         label (str): what the entry represents (ie. "VFR", "5-10 kts")
         detail (str): how the LED looks (ie. "Green", "Purple to blue")
         colors: GRB colors; two or more colors are drawn as a gradient. None/empty = LED off
-        effect (str): solid, blink, pulse, flash (first color with flashes of the second), chase or off
+        effect (str): solid, blink, pulse, flash (first color with flashes of the second), alternate (two colors in
+            turn), chase or off
         period (float): seconds per blink/pulse cycle, if any
+        low (float): a pulse's dimmest point (0.3: never dark)
     """
     css = [colors_lib.to_css(c) for c in colors if c is not None]
     return {
@@ -21,6 +23,7 @@ def legend_item(label, detail, *colors, effect="solid", period=None):
         "colors": css,
         "effect": effect if css else "off",
         "period": period,
+        "low": low,
     }
 
 

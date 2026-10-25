@@ -4,7 +4,9 @@ A METAR in plain English, for the Map page's Decoded tab: one {"label", "text"} 
 Works on the dict metar.METAR builds for each airport. Weather codes follow the FAA's METAR key (FMH-1, chapter 12:
 intensity, descriptor, then precipitation, obscuration or other phenomena).
 """
+from dataclasses import dataclass
 from fractions import Fraction
+from typing import Optional, Tuple
 
 from metarmap.lib import utils
 
@@ -81,19 +83,45 @@ def weather(wx):
     return text[:1].upper() + text[1:] or None
 
 
-def weather_group(group):
-    code = group
-    intensity, vicinity = "", False
+@dataclass(frozen=True)
+class WeatherGroup:
+    """One group of a METAR's weather, e.g. "-SHRA": intensity "-", descriptor "SH", phenomena ("RA",)."""
+    code: str  # as reported
+    intensity: str = ""  # "-" light, "" moderate, "+" heavy
+    vicinity: bool = False  # VC: in the vicinity, not at the airport
+    descriptor: Optional[str] = None  # MI, PR, BC, DR, BL, SH, TS, FZ
+    phenomena: Tuple[str, ...] = ()  # RA, SN, FG, ...
+
+
+def parse_weather(wx):
+    """The groups in a weather string ("-RA BR"), in order. Groups it can't read are left out."""
+    return [group for group in (parse_weather_group(code) for code in str(wx or "").split()) if group]
+
+
+def parse_weather_group(group):
+    """One weather group, or None if it isn't one (e.g. "NSW", or a code that isn't in the METAR key)."""
+    code, intensity, vicinity = group, "", False
     if code[:1] in INTENSITY:
-        intensity, code = INTENSITY[code[0]], code[1:]
+        intensity, code = code[0], code[1:]
     if code.startswith("VC"):
         vicinity, code = True, code[2:]
     descriptor = None
     if code[:2] in DESCRIPTORS:
         descriptor, code = code[:2], code[2:]
     if len(code) % 2 or any(code[i:i + 2] not in PHENOMENA for i in range(0, len(code), 2)):
-        return group  # not a code we know
-    names = [PHENOMENA[code[i:i + 2]] for i in range(0, len(code), 2)]
+        return None
+    if not code and not descriptor:
+        return None
+    return WeatherGroup(group, intensity, vicinity, descriptor, tuple(code[i:i + 2] for i in range(0, len(code), 2)))
+
+
+def weather_group(group):
+    parsed = parse_weather_group(group)
+    if parsed is None:
+        return group  # not a code we know: shown as it is
+    intensity = INTENSITY.get(parsed.intensity, "")
+    names = [PHENOMENA[p] for p in parsed.phenomena]
+    descriptor = parsed.descriptor
 
     if names == ["funnel cloud"] and intensity == "heavy":
         text = "tornado or waterspout"
@@ -107,7 +135,7 @@ def weather_group(group):
             text = " ".join(t for t in (intensity, DESCRIPTORS[descriptor], " and ".join(names)) if t)
         else:
             text = what
-    if vicinity:
+    if parsed.vicinity:
         text += " in the vicinity"
     return text
 

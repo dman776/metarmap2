@@ -127,7 +127,7 @@ What the physical map is doing right now. The Map page polls it every second. No
 | Field | Description |
 |---|---|
 | `leds[].lat`, `leds[].lon` | Where the airport is: from its METAR, or for an airport without a report, from aviationweather.gov's station information. `null` if neither knows it. `raw` is `null` for an airport without a report. |
-| `leds[].look` | The LED's current effect: `solid`, `off`, `blink` (`period` seconds per on/off cycle), `pulse` (`period`), or `cycle` (steps through `colors`, `step` seconds each). Colors are CSS hex colors. |
+| `leds[].look` | The LED's current effect: `solid`, `off`, `blink` (`period` seconds per on/off cycle; with two `colors` it alternates between them instead of turning off), `pulse` (`period`; `low`, if present, is its dimmest point, e.g. `0.3`, otherwise it fades to off), or `cycle` (steps through `colors`, `step` seconds each). Colors are CSS hex colors. |
 | `strip` | Set when one effect drives the whole strip instead: `rainbow` (`period`) or `chase` (`step`, `size`, `spacing`). |
 | `locate` | The last white locate pulse: LED `pixel` and Unix time `at`. `null` until the first one. |
 | `display.screen` | What the OLED shows. `page` is 1 or 2 for an airport, 0 for "Data Unavailable" or a message (then `airport` is `null`). Icons: `wind`, `visibility`, `pressure`, `temp`, `dewpoint`, `date`. |
