@@ -73,6 +73,17 @@ class Config(object):
         self._data.set(key, value)
         self.write()
 
+    @locked
+    def set_login(self, user, password=None):
+        """
+        Sets the web UI's user name and (unless None or empty) password, saved together.
+        The user name is stored in lower case, which is how logins are compared.
+        """
+        self._data.web_server.user = parse_user(user)
+        if password:
+            self._data.web_server.password = password
+        self.write()
+
     @property
     def data(self):
         return self._data
@@ -151,6 +162,14 @@ class Config(object):
             if airport.code == code:
                 return pixel
         raise KeyError(code)
+
+
+def parse_user(value):
+    """A web UI user name: lower case (logins are compared that way). Raises ValueError for one that can't log in."""
+    user = str(value).strip().lower()
+    if not user or ":" in user or any(ord(ch) < 33 for ch in user):
+        raise ValueError("the user name can't be empty or contain spaces, colons or control characters")
+    return user
 
 
 def parse_code(value):

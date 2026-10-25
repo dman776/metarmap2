@@ -4,6 +4,7 @@ The web UI's pages. Each page function gathers its template's data from the map'
 import io
 import pprint
 
+from metarmap import system
 from metarmap.config import MAX_LEDS
 from metarmap.web import views
 from metarmap.web.site import render
@@ -44,7 +45,10 @@ def debug(services, site):
 def config(services, site):
     settings = views.map_settings(services.config.data.geo.map, site.sectionals, stations(services))
     return render(site, "config.tpl", d=services.config.data, visualizers=views.visualizer_names(services.renderer),
-                  map_settings=settings, sectionals=site.sectionals, chart_types=views.CHART_TYPES)
+                  map_settings=settings, sectionals=site.sectionals, chart_types=views.CHART_TYPES,
+                  # the login user's password only changes on a Raspberry Pi with the map running as root
+                  linux_user=system.login_user() if system.can_set_login_password() else None,
+                  wifi=system.current_wifi())
 
 
 def airports(services, site):

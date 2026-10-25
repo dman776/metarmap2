@@ -93,8 +93,8 @@ footer.foot { border-top: 1px solid #1c2734; padding: 20px 24px; text-align: cen
 .chip.sm:hover { border-color: var(--accent); color: var(--accent); }
 .chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
 input[type=range] { accent-color: var(--accent); width: 100%; height: 28px; margin: 0; }
-select, input[type=text], input[type=search] { min-height: 44px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--control); background: var(--sunken); color: var(--text); font: 500 14px var(--sans); }
-select:focus, input[type=text]:focus, input[type=search]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+select, input[type=text], input[type=search], input[type=password] { min-height: 44px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--control); background: var(--sunken); color: var(--text); font: 500 14px var(--sans); }
+select:focus, input[type=text]:focus, input[type=search]:focus, input[type=password]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 .switch { appearance: none; -webkit-appearance: none; width: 46px; height: 26px; border-radius: 999px; background: var(--control); position: relative; cursor: pointer; margin: 9px 0; flex: none; }
 .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: var(--text-2); transition: transform .15s; }
 .switch:checked { background: var(--accent); }
@@ -178,6 +178,10 @@ select:focus, input[type=text]:focus, input[type=search]:focus { outline: 2px so
 .set .d { font-size: 13px; color: var(--muted); margin-top: 3px; }
 .set .range { display: flex; align-items: center; gap: 12px; }
 .set .range input { width: 220px; }
+.set.access { display: grid; grid-template-columns: 1fr; gap: 10px; }
+.set.access label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
+.set.access input { width: 100%; }
+.set.access .btn { justify-self: start; }
 .set .val { display: inline-block; min-width: 56px; text-align: right; font-family: var(--mono); }
 .rs { display: inline-block; margin-left: 8px; font-size: 11px; font-weight: 600; color: var(--accent); border: 1px solid var(--accent-line); border-radius: 999px; padding: 2px 8px; vertical-align: 2px; }
 .radios { display: flex; flex-direction: column; gap: 4px; min-width: 240px; }

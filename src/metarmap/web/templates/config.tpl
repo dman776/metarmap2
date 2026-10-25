@@ -125,6 +125,33 @@
     </div>
 
     <div class="side">
+        <section class="card settings" id="access">
+            <h2>Access</h2>
+            <form class="set access" data-form="/config/login" data-then="login" autocomplete="off">
+                <div>
+                    <div class="t">Web UI login</div>
+                    <div class="d">For the Config pages.{{!' The Pi&#39;s <b>%s</b> login gets the same password.' % linux_user if linux_user else ''}}</div>
+                </div>
+                <label>User name<input type="text" name="user" value="{{d.web_server.user}}" autocapitalize="none" spellcheck="false" required></label>
+                <label>New password<input type="password" name="password" autocomplete="new-password" placeholder="Unchanged"></label>
+                <label>Confirm password<input type="password" name="confirm" autocomplete="new-password"></label>
+                <button class="btn primary" type="submit">Save login</button>
+            </form>
+            <form class="set access" data-form="/config/wifi" data-then="wifi" autocomplete="off">
+                <div>
+                    <div class="t">Wi-Fi</div>
+                    % if wifi:
+                    <div class="d">Now on <b>{{wifi}}</b>. If the Pi can't join the new network, it goes back to this one.</div>
+                    % else:
+                    <div class="d">If the Pi can't join the new network, it goes back to the one it's on now.</div>
+                    % end
+                </div>
+                <label>Network name<input type="text" name="ssid" maxlength="32" autocapitalize="none" spellcheck="false" required></label>
+                <label>Password<input type="password" name="password" autocomplete="new-password" placeholder="Empty for an open network"></label>
+                <button class="btn" type="submit" data-current="{{wifi or ''}}">Switch network</button>
+            </form>
+        </section>
+
         <section class="card settings">
             <h2>LED pixels</h2>
             % switch('led.inittest', d.led.inittest, 'Test pattern on startup', restart=True)

@@ -255,6 +255,21 @@ Older maps kept the airports in a separate `airports.json`. The first start of a
 moves them into `config.json` (`NULL...` placeholders become LEDs with no airport) and leaves `airports.json` as a
 backup.
 
+### Login and Wi-Fi
+
+Both take a JSON body (`Content-Type: application/json`) so passwords never appear in a URL, and both need
+authentication. A bad value is a 400 with the reason.
+
+| Endpoint | Description |
+|---|---|
+| `POST /config/login` | `{"user": "pilot", "password": "..."}`: sets the web UI login. On a Raspberry Pi (only), the password also becomes the Linux password of the Pi's login user (the owner of the `metarmap2` folder, e.g. `pi`), set with `chpasswd`; that happens first, and if it fails nothing changes (500). Leave out `password` to change only the user name, which is stored in lower case. Returns `{"user": "pilot", "linux_password": "changed for pi"}` (or `"skipped (not a Raspberry Pi)"` on any other machine, or `"skipped (not running as root)"`). The old login stops working at once. |
+| `POST /config/wifi` | `{"ssid": "Cabin", "password": "..."}` (no password for an open network): switches the Pi to that Wi-Fi network 3 seconds after answering `202 {"ssid": "Cabin", "current": "HomeNet", "delay": 3}`. The current network is kept, so if the Pi can't join the new one it goes back. Uses NetworkManager (Bookworm) or `wpa_supplicant` (Bullseye). |
+
+```sh
+curl -u metar:map -H 'Content-Type: application/json' -d '{"user": "pilot", "password": "n3w pass"}' \
+     http://metarmap.local/config/login
+```
+
 ## Maintenance (auth)
 
 | Endpoint | Description |

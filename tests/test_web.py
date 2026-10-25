@@ -39,12 +39,16 @@ class Client:
     def __init__(self, app):
         self.app = app
 
-    def __call__(self, path, method="GET", auth=True):
+    def __call__(self, path, method="GET", auth=True, body=None):
+        data = json.dumps(body).encode() if body is not None else b""
         environ = {"REQUEST_METHOD": method, "PATH_INFO": path, "QUERY_STRING": "", "SERVER_NAME": "test",
                    "SERVER_PORT": "80", "SERVER_PROTOCOL": "HTTP/1.1", "wsgi.url_scheme": "http",
-                   "wsgi.input": io.BytesIO(), "wsgi.errors": io.StringIO()}
-        if auth:
+                   "wsgi.input": io.BytesIO(data), "wsgi.errors": io.StringIO(), "CONTENT_LENGTH": str(len(data)),
+                   "CONTENT_TYPE": "application/json"}
+        if auth is True:
             environ["HTTP_AUTHORIZATION"] = AUTH
+        elif auth:
+            environ["HTTP_AUTHORIZATION"] = "Basic " + base64.b64encode(auth.encode()).decode()
         status, headers = [], []
 
         def start_response(s, h, exc_info=None):
@@ -375,3 +379,92 @@ def test_a_slow_fetch_does_not_hold_up_other_requests(services):
         release.set()
         server.shutdown()
         server.server_close()
+
+
+# ---- Config > Access: the login and Wi-Fi -----------------------------------------------------------------------
+
+@pytest.fixture
+def linux(monkeypatch):
+    """Records Linux password changes instead of making them; fail=True makes chpasswd fail."""
+    calls = SimpleNamespace(passwords=[], fail=False)
+
+    def set_login_password(password):
+        if calls.fail:
+            raise control.system.ChangeFailed("chpasswd failed: simulated")
+        calls.passwords.append(password)
+        return "changed for pi"
+    monkeypatch.setattr(control.system, "set_login_password", set_login_password)
+    return calls
+
+
+def test_change_the_login(client, linux):
+    status, body = client("/config/login", method="POST", body={"user": "Pilot", "password": "n3w pass"})
+    assert status == 200 and json.loads(body) == {"user": "pilot", "linux_password": "changed for pi"}
+    assert linux.passwords == ["n3w pass"]  # the Pi's login user gets the same password
+    web = client.services.config.data.web_server
+    assert (web.user, web.password) == ("pilot", "n3w pass")
+    assert client("/config", auth=True)[0] == 401  # the old login no longer works
+    assert client("/config", auth="pilot:n3w pass")[0] == 200
+
+
+def test_change_only_the_user_name(client, linux):
+    assert client("/config/login", method="POST", body={"user": "pilot"})[0] == 200
+    assert linux.passwords == []
+    assert client.services.config.data.web_server.password == "map"
+
+
+def test_nothing_changes_if_the_linux_password_fails(client, linux):
+    linux.fail = True
+    status, body = client("/config/login", method="POST", body={"user": "pilot", "password": "n3w pass"})
+    assert status == 500 and "nothing was changed" in body
+    web = client.services.config.data.web_server
+    assert (web.user, web.password) == ("metar", "map")
+
+
+@pytest.mark.parametrize("body", [{"user": "two words", "password": "n3w pass"}, {"user": "a:b"},
+                                  {"user": "pilot", "password": "line\nbreak"}, ["not", "an", "object"]])
+def test_bad_logins_change_nothing(client, linux, body):
+    assert client("/config/login", method="POST", body=body)[0] == 400
+    assert linux.passwords == []  # checked before the Linux password is touched
+    assert client.services.config.data.web_server.user == "metar"
+
+
+def test_login_and_wifi_need_a_login(client):
+    assert client("/config/login", method="POST", body={"user": "x"}, auth=False)[0] == 401
+    assert client("/config/wifi", method="POST", body={"ssid": "x"}, auth=False)[0] == 401
+    assert client("/config/login")[0] == 405  # never by GET, so passwords stay out of URLs
+
+
+def test_switch_wifi(client, monkeypatch):
+    switched = threading.Event()
+    calls = []
+    monkeypatch.setattr(control, "WIFI_DELAY", 0)
+    monkeypatch.setattr(control.system, "current_wifi", lambda: "HomeNet")
+    monkeypatch.setattr(control.system, "set_wifi",
+                        lambda ssid, password: calls.append((ssid, password)) or switched.set() or "switching")
+    status, body = client("/config/wifi", method="POST", body={"ssid": " Cabin ", "password": "pinecones"})
+    assert status == 202 and json.loads(body) == {"ssid": "Cabin", "current": "HomeNet", "delay": 0}
+    assert switched.wait(5)  # after answering, in the background
+    assert calls == [("Cabin", "pinecones")]
+
+
+def test_bad_wifi_is_refused(client, monkeypatch):
+    monkeypatch.setattr(control.system, "set_wifi", lambda *a: pytest.fail("must not switch"))
+    assert client("/config/wifi", method="POST", body={"ssid": "Cabin", "password": "short"})[0] == 400
+    assert client("/config/wifi", method="POST", body={"ssid": ""})[0] == 400
+
+
+def test_config_page_shows_access(client, monkeypatch):
+    monkeypatch.setattr(control.system, "current_wifi", lambda: "HomeNet")
+    monkeypatch.setattr(control.system, "login_user", lambda: "pi")
+    monkeypatch.setattr(control.system, "is_root", lambda: True)
+    monkeypatch.setattr(control.system, "is_raspberry_pi", lambda: False)  # e.g. another Linux machine as root
+    assert "login gets the same password" not in client("/config")[1]
+    monkeypatch.setattr(control.system, "is_raspberry_pi", lambda: True)
+    body = client("/config")[1]
+    assert 'data-form="/config/login"' in body and 'data-form="/config/wifi"' in body
+    assert "Now on <b>HomeNet</b>" in body and "<b>pi</b> login gets the same password" in body
+    monkeypatch.setattr(control.system, "is_root", lambda: False)  # e.g. on a laptop: it won't change
+    monkeypatch.setattr(control.system, "current_wifi", lambda: None)
+    body = client("/config")[1]
+    assert "login gets the same password" not in body and "Now on" not in body

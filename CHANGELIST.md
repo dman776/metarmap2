@@ -1,3 +1,10 @@
+### dman776 2.5.0 (2026-10-25)
+
+- Config > Access: change the web UI login and the Pi's Wi-Fi network from the web UI. On a Raspberry Pi (only), a
+  new web UI password also becomes the Linux password of the Pi's login user (e.g. `pi`); if that can't be set,
+  nothing changes. A Wi-Fi change keeps the old network, so the Pi goes back to it if it can't join the new one
+- New `POST /config/login` and `POST /config/wifi` (see API.md); passwords go in the request body, never a URL
+
 ### dman776 2.4.3 (2026-10-25)
 
 - Code: the visualizers are modules of plain functions instead of classes; METAR parsing is plain functions

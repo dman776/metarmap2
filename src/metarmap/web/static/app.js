@@ -215,6 +215,57 @@
         });
     });
 
+    // POSTs JSON (passwords never go in a URL); an error's message is bottle's <pre> text
+    async function postJSON(url, data) {
+        const res = await fetch(url, {
+            method: 'POST', credentials: 'same-origin',
+            headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)
+        });
+        const text = await res.text();
+        if (!res.ok) {
+            const pre = /<pre>([\s\S]*?)<\/pre>/i.exec(text);
+            throw new Error(pre ? pre[1].replace(/&#039;|&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&') : res.status + ' ' + res.statusText);
+        }
+        return JSON.parse(text);
+    }
+
+    // Config > Access: <form data-form="/url" data-then="login|wifi">
+    document.querySelectorAll('form[data-form]').forEach(function (form) {
+        form.addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const data = Object.fromEntries(new FormData(form).entries());
+            const button = form.querySelector('[type=submit]');
+            if (form.dataset.then === 'login') {
+                if (data.password !== data.confirm) {
+                    showOutput('Passwords don’t match', 'Type the same new password in both boxes.');
+                    return;
+                }
+                delete data.confirm;
+            } else if (form.dataset.then === 'wifi') {
+                const current = button.dataset.current;
+                if (!window.confirm('Switch the map to the Wi-Fi network "' + data.ssid + '"?\n\nThis device must join that network too to reach the map.'
+                        + (current ? ' If the map can’t connect, it goes back to "' + current + '".' : ''))) return;
+            }
+            busy(button, true);
+            try {
+                const result = await postJSON(form.dataset.form, data);
+                if (form.dataset.then === 'login') {
+                    showOutput('Login saved', 'Web UI user: ' + result.user + '\nPi password: ' + result.linux_password
+                        + '\n\nYour browser will ask you to log in again with the new details.');
+                    form.querySelectorAll('input[type=password]').forEach(function (i) { i.value = ''; });
+                } else {
+                    showOutput('Switching Wi-Fi', 'In ' + result.delay + ' seconds the map switches to "' + result.ssid + '".\n\n'
+                        + 'Join this device to "' + result.ssid + '", then open http://' + window.location.host + '/ again.'
+                        + (result.current ? '\nIf the map can’t connect, it goes back to "' + result.current + '".' : ''));
+                }
+            } catch (err) {
+                showOutput('Not saved', err.message);
+            } finally {
+                busy(button, false);
+            }
+        });
+    });
+
     // map center: two inputs saved together as [lat, lon]
     document.querySelectorAll('[data-center]').forEach(function (el) {
         el.addEventListener('change', function () {

@@ -93,6 +93,12 @@ Changes save right away. To check the wiring order:
 
 Settings marked **Restart** take effect after the map restarts.
 
+**Config > Access** changes:
+- the web UI login. On a Raspberry Pi, the new password also becomes the password of the Pi's login user
+  (e.g. `pi`), so you don't have two to remember. On any other machine only the web UI login changes.
+- the Wi-Fi network. The Pi switches a few seconds after you save, and keeps the old network: if it can't join
+  the new one, it goes back. To reach the map afterwards, put your phone or computer on the new network too.
+
 Everything is saved in `config.json` in the `metarmap2` folder. To edit that file by hand, stop the map first
 (`./stop.sh`), then start it again (`./start.sh`).
 
