@@ -236,6 +236,20 @@ def test_live_whole_strip_visualizer(services):
     assert live["visualizer"] == {"active": 1, "name": "Rainbow", "exclusive": True}
 
 
+def test_metar(services):
+    m = api.metar(services, "KHOU")
+    assert (m["code"], m["raw"], m["flightCategory"], m["obsTime"]) == ("KHOU", "METAR VFR", "VFR", OBS.isoformat())
+    assert {"label": "Wind", "text": "100° at 5 kt"} in m["decoded"]
+    assert api.metar(services, "KDKR")["decoded"] == []  # on the map, not reporting
+    assert api.metar(services, "KXXX") is None  # not on the map
+
+
+def test_metar_route(services):
+    c = Client(create_app(services, ip=""))
+    assert c.json("/api/metar/khou", auth=False)["code"] == "KHOU"
+    assert c("/api/metar/KXXX", auth=False)[0] == 404
+
+
 def test_api_routes(services):
     c = Client(create_app(services, ip="10.0.0.2"))
     assert c.json("/api/status", auth=False)["airports"][0]["code"] == "KHOU"

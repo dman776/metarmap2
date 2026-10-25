@@ -258,6 +258,13 @@ input.led-count:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 .led-popup a.leaflet-popup-close-button { color: var(--muted); }
 .pop-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 6px; font: 600 14px var(--mono); }
 .pop-raw { font: 12px/1.5 var(--mono); color: var(--text-2); }
+.pop-tabs { display: flex; gap: 4px; margin: 2px 0 8px; }
+.pop-tab { min-height: 30px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--control); background: transparent; color: var(--text-2); font: 500 12px var(--sans); cursor: pointer; }
+.pop-tab[aria-selected="true"] { border-color: var(--accent); color: var(--accent); }
+.pop-tab:focus-visible { outline: 2px solid #ffd27d; outline-offset: 2px; }
+.pop-decoded { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 12px; margin: 0; font: 12px/1.45 var(--sans); }
+.pop-decoded dt { color: var(--muted); }
+.pop-decoded dd { margin: 0; color: var(--text); }
 .leaflet-container .leaflet-control-attribution { background: rgba(11, 17, 23, .75); color: var(--text-2); }
 .leaflet-container .leaflet-control-attribution a { color: var(--accent); }
 

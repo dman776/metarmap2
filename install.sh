@@ -115,7 +115,7 @@ if interactive; then
     if [ -n "${password:-}" ]; then
         setting web_server.password "$password"
     elif [ "$(setting web_server.password)" = "map" ]; then
-        note "The password is still the default (map); change it on the web UI's Config page or rerun this script."
+        note "The password is still the default (map); rerun ./install.sh to change it."
     fi
 
     while true; do

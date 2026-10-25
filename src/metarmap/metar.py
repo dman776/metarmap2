@@ -3,6 +3,7 @@ Module to handle METAR fetching and processing
 """
 
 from datetime import datetime, timedelta
+from fractions import Fraction
 import traceback
 import requests
 import xmltodict
@@ -18,6 +19,14 @@ API_URL = "https://aviationweather.gov/api/data/metar?format=xml&ids="
 MAX_REPORT_AGE = timedelta(hours=5)
 USER_AGENT = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
               "Chrome/86.0.4240.198 Safari/537.36 Edg/86.0.622.69")
+
+
+def parse_visibility(value):
+    """Statute miles from the report: "10+", "6.0", "0.25", "1/2" or "1 1/2" (None if not reported)."""
+    text = str(value or '').replace('+', '').strip()
+    if not text:
+        return None
+    return float(sum(Fraction(part) for part in text.split()))
 
 
 def airport_codes(airports):
@@ -147,6 +156,7 @@ class METAR(object):
                                    "cloudBaseFt": int(sc.get('@cloud_base_ft_agl', 0) or 0)})
 
         wind_gust_speed = int(num('wind_gust_kt', 0))
+        visibility = parse_visibility(metar.get('visibility_statute_mi'))
         return {
             "raw": raw_metar,
             "elevation_m": int(round(num('elevation_m', 0))),
@@ -155,7 +165,10 @@ class METAR(object):
             "windSpeed": int(num('wind_speed_kt', 0)),
             "windGustSpeed": wind_gust_speed,
             "windGust": wind_gust_speed > 0,
-            "vis": int(round(num('visibility_statute_mi', 0))),
+            "vis": int(round(visibility or 0)),
+            "visibilitySM": visibility,  # exact (e.g. 0.25), None if not reported
+            "visibilityMore": "+" in str(metar.get('visibility_statute_mi') or ''),  # "10+": more than 10 miles
+            "vertVisFt": int(num('vert_vis_ft')) if num('vert_vis_ft') is not None else None,
             "obs": metar.get('wx_string', '') or '',
             "tempC": int(round(temp_c)) if temp_c is not None else None,
             "dewpointC": int(round(dewpoint_c)) if dewpoint_c is not None else None,

@@ -1,3 +1,13 @@
+### dman776 Unreleased
+
+- Map page: an airport's popup has Raw and Decoded tabs. Decoded shows the report in plain English (wind, visibility,
+  weather, clouds with the ceiling marked, temperature, dewpoint, altimeter, lightning) and how long ago it was made.
+  The popup remembers the tab you used last
+- New `GET /api/metar/<code>`: an airport's METAR, raw and decoded (see API.md)
+- Visibility reported as a fraction (`1/2`, `1 1/2`) no longer stops an airport's METAR from being read
+- Map page popups open below the zoom and background buttons instead of under them
+- `install.sh` no longer says the web UI password can be changed on the Config page (it can't yet)
+
 ### dman776 2.4.1 (2026-10-25)
 
 - New `install.sh` sets up a Pi in one step: system packages, I2C, a Python environment (`.venv`) with the map's

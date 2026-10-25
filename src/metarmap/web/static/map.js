@@ -193,7 +193,50 @@
     let lastLocateAt = null;
     let viewSet = false;
 
-    function popupFor(led) {
+    // the popup's last tab (raw or decoded), remembered in this browser
+    const TAB_KEY = 'metarmap.popupTab';
+    function savedTab() {
+        try { return window.localStorage.getItem(TAB_KEY) === 'decoded' ? 'decoded' : 'raw'; } catch (e) { return 'raw'; }
+    }
+    function saveTab(tab) {
+        try { window.localStorage.setItem(TAB_KEY, tab); } catch (e) { /* private window: just don't remember */ }
+    }
+
+    function age(iso) {
+        const minutes = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60000));
+        return minutes < 60 ? minutes + ' min ago' : Math.floor(minutes / 60) + ' h ' + (minutes % 60) + ' min ago';
+    }
+
+    // fills the Decoded tab from /api/metar/<code>; resized() lets the popup grow to fit
+    async function loadDecoded(panel, code, resized) {
+        panel.textContent = 'Loading…';
+        try {
+            const res = await fetch('/api/metar/' + encodeURIComponent(code), {credentials: 'same-origin'});
+            if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+            const metar = await res.json();
+            panel.textContent = '';
+            if (!metar.decoded.length) {
+                panel.textContent = 'Not reporting METAR data';
+            } else {
+                const dl = document.createElement('dl');
+                dl.className = 'pop-decoded';
+                metar.decoded.forEach(function (line) {
+                    const dt = document.createElement('dt');
+                    dt.textContent = line.label;
+                    const dd = document.createElement('dd');
+                    dd.textContent = line.text + (line.label === 'Observed' && metar.obsTime ? ' · ' + age(metar.obsTime) : '');
+                    dl.appendChild(dt);
+                    dl.appendChild(dd);
+                });
+                panel.appendChild(dl);
+            }
+        } catch (err) {
+            panel.textContent = 'Could not load the decoded METAR (' + err.message + ')';
+        }
+        resized();
+    }
+
+    function popupFor(led, resized) {
         const box = document.createElement('div');
         const head = document.createElement('div');
         head.className = 'pop-head';
@@ -205,11 +248,45 @@
         pill.textContent = cat || (led.raw ? 'No category' : 'No METAR');
         head.appendChild(b);
         head.appendChild(pill);
+        box.appendChild(head);
+
         const raw = document.createElement('div');
         raw.className = 'pop-raw';
         raw.textContent = led.raw || 'Not reporting METAR data';
-        box.appendChild(head);
+        const decoded = document.createElement('div');
+        decoded.className = 'pop-raw';
+        const panels = {raw: raw, decoded: decoded};
+        let loaded = false;
+
+        const tabs = document.createElement('div');
+        tabs.className = 'pop-tabs';
+        tabs.setAttribute('role', 'tablist');
+        const buttons = {};
+        const show = function (tab) {
+            Object.keys(panels).forEach(function (name) {
+                panels[name].hidden = name !== tab;
+                buttons[name].setAttribute('aria-selected', name === tab ? 'true' : 'false');
+            });
+            if (tab === 'decoded' && !loaded) {
+                loaded = true;
+                loadDecoded(decoded, led.code, resized);
+            }
+            resized();
+        };
+        [['raw', 'Raw'], ['decoded', 'Decoded']].forEach(function (t) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'pop-tab';
+            btn.setAttribute('role', 'tab');
+            btn.textContent = t[1];
+            btn.addEventListener('click', function () { saveTab(t[0]); show(t[0]); });
+            buttons[t[0]] = btn;
+            tabs.appendChild(btn);
+        });
+        box.appendChild(tabs);
         box.appendChild(raw);
+        box.appendChild(decoded);
+        show(savedTab());
         return box;
     }
 
@@ -226,7 +303,13 @@
                 const marker = L.marker([led.lat, led.lon], {icon: icon, keyboard: false}).addTo(map);
                 // the element only exists once the map has a view; animate() looks it up
                 entry = leds[led.pixel] = {marker: marker, dot: null, data: led, style: '', active: false};
-                marker.bindPopup(function () { return popupFor(entry.data); }, {className: 'led-popup'});
+                // content is built on each open (a content function would be rebuilt by every update())
+                // pan clear of the zoom buttons and background switcher along the top of the map
+                marker.bindPopup('', {className: 'led-popup', autoPanPaddingTopLeft: [10, 64]});
+                marker.on('popupopen', function (e) {
+                    const popup = e.popup;
+                    popup.setContent(popupFor(entry.data, function () { if (popup.isOpen()) popup.update(); }));
+                });
             }
             entry.data = led;
             totalPixels = Math.max(totalPixels, led.pixel + 1);

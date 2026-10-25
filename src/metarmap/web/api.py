@@ -8,6 +8,7 @@ import time
 import bottle
 
 from metarmap import __version__
+from metarmap.decode import decode
 from metarmap.web import views
 
 
@@ -114,6 +115,23 @@ def live(services, now=None):
     }
 
 
+def metar(services, code):
+    """
+    One airport's METAR, raw and decoded (the Map page's popup). None if the airport isn't on the map.
+    """
+    if code not in {a.code for a in services.config.airports if a.code}:
+        return None
+    m = services.metars.data.get(code) or {}
+    obs = m.get("obsTime")
+    return {
+        "code": code,
+        "raw": m.get("raw"),
+        "flightCategory": m.get("flightCategory"),
+        "obsTime": obs.isoformat() if obs else None,
+        "decoded": decode(m),
+    }
+
+
 def as_json(data):
     bottle.response.content_type = "application/json"
     return json.dumps(data)
@@ -122,3 +140,5 @@ def as_json(data):
 def add_routes(app, services, site):
     app.route("/api/status", "GET", lambda: as_json(status(services, site.ip)))
     app.route("/api/live", "GET", lambda: as_json(live(services)))
+    app.route("/api/metar/<code>", "GET", lambda code: as_json(metar(services, code.upper())
+                                                             or bottle.abort(404, f"{code} isn't on the map")))

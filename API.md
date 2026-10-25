@@ -131,6 +131,34 @@ What the physical map is doing right now. The Map page polls it every second. No
 | `locate` | The last white locate pulse: LED `pixel` and Unix time `at`. `null` until the first one. |
 | `display.screen` | What the OLED shows. `page` is 1 or 2 for an airport, 0 for "Data Unavailable" or a message (then `airport` is `null`). Icons: `wind`, `visibility`, `pressure`, `temp`, `dewpoint`, `date`. |
 
+### `GET /api/metar/<code>`
+
+One airport's METAR, raw and in plain English. The Map page's Decoded tab uses it. No authentication. The code is
+case-insensitive; an airport that isn't on the map is a 404.
+
+```json
+{
+  "code": "KHOU",
+  "raw": "METAR KHOU 241753Z 10013G19KT 10SM SCT044 28/16 A3020 RMK AO2 ...",
+  "flightCategory": "VFR",
+  "obsTime": "2026-10-24T17:53:00+00:00",
+  "decoded": [
+    { "label": "Observed", "text": "24 Oct 17:53Z" },
+    { "label": "Wind", "text": "100° at 13 kt, gusts 19 kt" },
+    { "label": "Visibility", "text": "10+ miles" },
+    { "label": "Clouds", "text": "Scattered 4,400 ft" },
+    { "label": "Temperature", "text": "28°C / 82°F" },
+    { "label": "Dewpoint", "text": "16°C / 61°F (spread 12°C)" },
+    { "label": "Altimeter", "text": "30.20 inHg" }
+  ]
+}
+```
+
+| Field | Description |
+|---|---|
+| `decoded` | One line per item the report has, in this order: `Observed`, `Wind`, `Visibility`, `Weather` (e.g. `Light rain, mist`), `Clouds` (one line per layer; later layers have an empty `label`, and the ceiling is marked), `Temperature`, `Dewpoint`, `Altimeter`, `Lightning`. Empty when the airport isn't reporting. Weather codes the map doesn't know are shown as they are. |
+| `raw`, `flightCategory`, `obsTime` | `null` when the airport isn't reporting |
+
 ## Control
 
 These endpoints change the map immediately. Nothing they change is saved to `config.json`, so the changes are lost on restart. Each one returns the HTML of a UI page; ignore it.
