@@ -6,19 +6,19 @@ from types import SimpleNamespace
 
 import pytest
 
-import lib.colors as colors_lib
+import metarmap.lib.colors as colors_lib
 from metarmap.models import Look
 from metarmap.settings import Settings
-from visualizers.chase import Chase
-from visualizers.density_altitude import DensityAltitude, calculate_density_altitude
-from visualizers.flightcategory import FlightCategory
-from visualizers.precipitation import Precipitation
-from visualizers.pressure import Pressure
-from visualizers.rainbow import Rainbow
-from visualizers.temperature import Temperature
-from visualizers.visibility import Visibility
-from visualizers.wind import Wind
-from visualizers.windgusts import WindGusts
+from metarmap.visualizers.chase import Chase
+from metarmap.visualizers.density_altitude import DensityAltitude, calculate_density_altitude
+from metarmap.visualizers.flightcategory import FlightCategory
+from metarmap.visualizers.precipitation import Precipitation
+from metarmap.visualizers.pressure import Pressure
+from metarmap.visualizers.rainbow import Rainbow
+from metarmap.visualizers.temperature import Temperature
+from metarmap.visualizers.visibility import Visibility
+from metarmap.visualizers.wind import Wind
+from metarmap.visualizers.windgusts import WindGusts
 
 C = colors_lib.get_colors()
 OFF = Look.off()

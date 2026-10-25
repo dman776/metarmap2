@@ -1,3 +1,16 @@
+### dman776 Unreleased
+
+- The code is now a Python package, `metarmap`, in `src/metarmap/`; run the map with `python3 -m metarmap`
+  (`controller.py` still works, so maps with the old service file keep starting after an update)
+- `metarmap.service` runs `python3 -m metarmap` as root directly instead of through `sudo`. At startup the map
+  switches an installed service file that still runs `controller.py` to the new one (only if it's one of the
+  service files this project shipped; the old one is kept as `metarmap.service.controller-py.bak`). The new service
+  is used from the next reboot or `sudo systemctl restart metarmap`
+- `metarmap/app.py` builds the map in one place instead of using globals; the settings object no longer carries the
+  renderer, OLED loop or sun times around
+- Restart (from the web UI or after an update) starts `python3 -m metarmap`
+- The web UI and API are unchanged
+
 ### dman776 2.2.6 (2026-10-24)
 
 - Map page: the "What the LEDs mean" legend is now on the map (bottom left), collapsible, and starts collapsed on phones

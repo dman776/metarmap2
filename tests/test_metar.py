@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 import requests
 
-import metar
+from metarmap import metar
 from metarmap.clock import FakeClock
 
 # the fixture and GOOD reports are from 2026-10-24 14:53Z-17:53Z

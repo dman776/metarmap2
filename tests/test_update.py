@@ -8,7 +8,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from lib import utils
+from metarmap.lib import utils
 
 
 def git(cwd, *args):

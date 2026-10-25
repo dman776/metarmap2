@@ -9,7 +9,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from display import Display, watchdog_limit
+from metarmap.display import Display, watchdog_limit
 from metarmap.clock import FakeClock
 from metarmap.oled.screen import FakeScreen
 from metarmap.settings import Settings

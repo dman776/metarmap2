@@ -1,5 +1,5 @@
-from lib import safe_logging
-from config import Config
+from metarmap.lib import safe_logging
+from metarmap.config import Config
 
 
 class Patch(object):

@@ -3,7 +3,7 @@ import doctest
 
 import pytest
 
-import lib.colors as colors
+import metarmap.lib.colors as colors
 
 
 def test_doctests():

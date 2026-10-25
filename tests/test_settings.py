@@ -103,7 +103,7 @@ def test_set_cannot_run_code():
 
 
 def test_config_edit_writes_file(tmp_path):
-    from config import Config
+    from metarmap.config import Config
     shutil.copy(REPO / "config.json", tmp_path / "config.json")
     shutil.copy(REPO / "airports.json", tmp_path / "airports.json")
     settings = json.loads((tmp_path / "config.json").read_text())

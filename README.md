@@ -98,9 +98,13 @@ Automatically dims (2 levels) based on the current location of the map (via conf
 * Change the user and password in the web_server section of the **[config](config.json)** file from the defaults.
 
 ## Install the service
-* To run the script automatically when you power the Raspberry Pi, install the systemd service
+* To run the map automatically when you power the Raspberry Pi, install the systemd service
 	* `sudo cp metarmap.service /lib/systemd/system`
+	* `sudo systemctl daemon-reload`
 	* `sudo systemctl enable metarmap.service`
+* The service runs `python3 -m metarmap` from the `metarmap2` folder, which holds `config.json` and `airports.json`.
+  An older service file that runs `controller.py` is switched to the new one when the map starts, unless you
+  changed it (the old one is kept as `metarmap.service.controller-py.bak`).
 * To start the service manually
   * `sudo systemctl start metarmap.service`
   * or use `./start.sh`
@@ -115,9 +119,17 @@ stand-ins, and the web UI (including the live Map page and its OLED window) work
 * Set up: `python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"`
 * Run the tests: `.venv/bin/pytest`
 * Check the code: `.venv/bin/ruff check .`
-* Run the map: `.venv/bin/python controller.py`
+* Run the map: `.venv/bin/python -m metarmap` (or `.venv/bin/metarmap`), from the folder with `config.json`
   * The web server uses `web_server.port` from **[config](config.json)** (80 by default, which needs `sudo`).
     For a laptop, set it to something like 8080 and open http://localhost:8080.
+
+### Code layout
+The code is the `metarmap` package in `src/metarmap/`:
+* `app.py` builds the map from `config.json` (settings, METARs, LED renderer, OLED loop, scheduled jobs) and runs it
+* `config.py` and `settings.py`: `config.json` and `airports.json`
+* `metar.py`: fetching METARs; `renderer.py` and `leds/`: the LEDs; `display.py` and `oled/`: the OLED screen
+* `visualizers/`: how each visualizer colors the LEDs
+* `webserver.py`, `templates/` and `static/`: the web UI and API
 
 ## Changelist
 To see a list of changes to the metar script over time, refer to [CHANGELIST.md](CHANGELIST.md)

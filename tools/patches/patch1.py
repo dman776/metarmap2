@@ -1,6 +1,6 @@
 import sys
 
-from lib import safe_logging
+from metarmap.lib import safe_logging
 # from config import Config
 import json
 from pprint import pprint

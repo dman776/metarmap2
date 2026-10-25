@@ -8,11 +8,12 @@ from metarmap.clock import FakeClock
 from metarmap.leds.strip import FakeStrip
 from metarmap.models import Look
 from metarmap.settings import Settings
-from renderer import Renderer
-from visualizers.flightcategory import FlightCategory
-from visualizers.precipitation import Precipitation
-from visualizers.rainbow import Rainbow
-from visualizers.wind import Wind
+from metarmap.sun import SunTimes
+from metarmap.renderer import Renderer
+from metarmap.visualizers.flightcategory import FlightCategory
+from metarmap.visualizers.precipitation import Precipitation
+from metarmap.visualizers.rainbow import Rainbow
+from metarmap.visualizers.wind import Wind
 
 NOON = datetime(2026, 10, 24, 17, 0, tzinfo=timezone.utc)
 SUN = {"dawn": NOON.replace(hour=11, minute=58), "sunrise": NOON.replace(hour=12, minute=23),
@@ -29,7 +30,7 @@ DATA = {"KHOU": metar("VFR"), "KIAH": metar("IFR", wind=20), "NULL1": {}, "KDKR"
 
 @pytest.fixture
 def config():
-    return SimpleNamespace(data=Settings(), suntimes=SUN)
+    return SimpleNamespace(data=Settings())
 
 
 @pytest.fixture
@@ -40,7 +41,7 @@ def clock():
 def make(config, clock, data=DATA, leds=5, visualizers=None):
     strip = FakeStrip(leds)
     visualizers = visualizers or [FlightCategory(config), Wind(config), Precipitation(config), Rainbow(config)]
-    r = Renderer(strip, SimpleNamespace(data=data), config, visualizers, clock=clock)
+    r = Renderer(strip, SimpleNamespace(data=data), config, visualizers, SunTimes("Houston", SUN), clock=clock)
     return r, strip
 
 

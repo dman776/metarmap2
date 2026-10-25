@@ -4,9 +4,11 @@ After=network-online.target
 
 [Service]
 WorkingDirectory=/home/pi/metarmap2
-ExecStart=sudo /home/pi/metarmap2/controller.py
+Environment=PYTHONPATH=/home/pi/metarmap2/src
+ExecStart=/usr/bin/python3 -m metarmap
 Restart=always
-User=pi
+# root, for the LEDs (GPIO) and port 80
+User=root
 
 [Install]
 WantedBy=multi-user.target

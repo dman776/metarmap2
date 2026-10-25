@@ -1,4 +1,4 @@
-from visualizers import density_altitude
+from metarmap.visualizers import density_altitude
 from pprint import pprint
 
 

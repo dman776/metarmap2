@@ -191,7 +191,7 @@ Settings that need a restart:
 Map page settings (apply the next time the Map page is opened):
 - `geo.map.background`: `sectional`, `satellite` or `radar`
 - `geo.map.chart_type`: `sectional`, `terminal` (VFR Terminal Area) or `ifr_low` (IFR Enroute Low)
-- `geo.map.chart`: the sectional name, as listed in [static/sectionals.json](static/sectionals.json), such as `Houston`. If it's missing or unknown, the map uses the sectional that covers the most airports.
+- `geo.map.chart`: the sectional name, as listed in [sectionals.json](src/metarmap/static/sectionals.json), such as `Houston`. If it's missing or unknown, the map uses the sectional that covers the most airports.
 - `geo.map.view`: `airports` (fit to the airports), `chart` (the whole sectional) or `custom` (`geo.map.center` and `geo.map.zoom`)
 
 The map loads `led.brightness.normal`, `led.brightness.dimmed` and `led.brightness.off` at midnight or when it restarts.
@@ -217,7 +217,7 @@ Both save `airports.json`, restart the OLED display loop, and redirect to `/conf
 | `GET /update` | Runs `git reset --hard` and `git pull` in the install directory, keeping `config.json` and `airports.json`. Waits until it's done and returns the output as HTML. Restart afterwards to use the new code. |
 | `POST /update/start` | Starts the same update in the background (or reports the one already running) and returns its progress, as below. Used by the web UI's progress bar. |
 | `GET /update/progress` | Progress of the update started with `/update/start`: `{"fraction": 0.4, "label": "Downloading the update", "done": false, "ok": null, "changed": null, "errors": []}`. When `done`, `ok` says whether it worked, `changed` whether new code was downloaded, and `errors` holds git's error messages. |
-| `GET /restart` | Clears the LEDs and restarts the controller process. The connection usually drops before a response is sent. |
+| `GET /restart` | Clears the LEDs and restarts the map's process. The connection usually drops before a response is sent. |
 
 ## Web UI pages
 

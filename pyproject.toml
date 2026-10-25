@@ -37,15 +37,18 @@ dev = [
 [project.urls]
 Homepage = "https://github.com/dman776/metarmap2"
 
-# The code isn't a package yet (that's a later step); installing only pulls in the dependencies:
-#   pip install -e ".[dev]"
-[tool.setuptools]
-py-modules = []
-packages = []
+[project.scripts]
+metarmap = "metarmap.app:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+metarmap = ["templates/*.tpl", "static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["."]
+pythonpath = ["src"]
 addopts = "-ra"
 
 [tool.ruff]
