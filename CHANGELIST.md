@@ -1,4 +1,4 @@
-### dman776 Unreleased
+### dman776 2.4.2 (2026-10-25)
 
 - Map page: an airport's popup has Raw and Decoded tabs. Decoded shows the report in plain English (wind, visibility,
   weather, clouds with the ceiling marked, temperature, dewpoint, altimeter, lightning) and how long ago it was made.
