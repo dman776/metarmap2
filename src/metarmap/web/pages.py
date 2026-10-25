@@ -4,6 +4,7 @@ The web UI's pages. Each page function gathers its template's data from the map'
 import io
 import pprint
 
+from metarmap.config import MAX_LEDS
 from metarmap.web import views
 from metarmap.web.site import render
 
@@ -47,7 +48,9 @@ def config(services, site):
 
 
 def airports(services, site):
-    return render(site, "airports.tpl", stations=stations(services))
+    config = services.config
+    return render(site, "airports.tpl", leds=views.leds(config.airports, config.data.led.count),
+                  count=config.data.led.count, strip_leds=len(services.renderer.pixels()), max_leds=MAX_LEDS)
 
 
 def raw(services):

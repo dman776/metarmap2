@@ -1,3 +1,16 @@
+### dman776 2.4.0 (2026-10-25)
+
+- Airports now live in `config.json` as a list, one entry per LED (`code`, `name`, `display`). On its first start the
+  map moves them there from `airports.json`, which it keeps as a backup. `NULL...` placeholders become LEDs with no
+  airport
+- Airports page: set the number of LEDs, move airports up and down, edit names, and clear an LED; changes show on
+  the LEDs right away, and a new airport's METAR is fetched straight away
+- The same airport can be on more than one LED
+- New API routes for airports by LED (see API.md); the older by-code routes still work
+- `/api/status`: an airport's `text` is its name, or `""` (older `airports.json` files had numbers there)
+- Fixed an error when the OLED loop was restarted before it had started (e.g. an airport edit right after startup)
+- Restart waits 15 seconds (was 30) before checking whether the map is back
+
 ### dman776 2.3.1 (2026-10-25)
 
 - Restructured the web UI and API into `metarmap/web/`: `create_app()` replaces the `WebServer` class, the routes are

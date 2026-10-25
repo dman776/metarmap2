@@ -10,7 +10,7 @@ from metarmap.clock import FakeClock
 # the fixture and GOOD reports are from 2026-10-24 14:53Z-17:53Z
 CLOCK = FakeClock(datetime(2026, 10, 24, 18, 0, tzinfo=timezone.utc))
 
-HOUSTON = ("KHOU", "KIAH", "KGLS", "KCLL", "KLBX", "KBPT", "KDKR", "NULL1")
+HOUSTON = ("KHOU", "KIAH", "KGLS", "KCLL", "KLBX", "KBPT", "KDKR", "")  # "": an LED with no airport
 
 
 def report(station, **fields):
@@ -80,13 +80,17 @@ def test_variable_wind_direction(houston):
 
 def test_missing_stations_get_empty_data(houston):
     assert houston.data["KDKR"] == {}
-    assert houston.data["NULL1"] == {}
-    assert houston.missing_stations() == ["KDKR", "NULL1"]
+    assert "" not in houston.data
+    assert houston.missing_stations() == ["KDKR"]
     assert "KDKR" not in houston.stations()
 
 
 def test_every_airport_has_an_entry(houston):
-    assert list(houston.data) == list(HOUSTON)
+    assert list(houston.data) == [code for code in HOUSTON if code]
+
+
+def test_an_airport_on_two_leds_is_fetched_once(make_config):
+    assert metar.airport_codes(make_config("KHOU", "", "KIAH", "KHOU").airports) == ["KHOU", "KIAH"]
 
 
 # ---- unusual responses -----------------------------------------------------------------------------------------
@@ -171,7 +175,6 @@ def test_fetch_success(monkeypatch, make_config, fixture_bytes):
     assert m.data["KIAH"]["windSpeed"] == 10
     assert m.lastFetchTime is not None
     assert not m.is_fetching()
-    assert "NULL1" not in urls[0]
     assert urls[0].endswith("ids=KHOU,KIAH,KGLS,KCLL,KLBX,KBPT,KDKR")
 
 

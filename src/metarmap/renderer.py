@@ -22,6 +22,7 @@ class Renderer(object):
 
     strip: a NeoPixel strip or metarmap.leds.strip.FakeStrip
     metars: anything with a .data dict of airport -> METAR (metar.METAR)
+    config: settings, including the airport on each LED (config.data.airports)
     sun: today's sun times, for the scheduled brightness
     """
     def __init__(self, strip, metars, config, visualizers, sun: SunTimes, clock: Clock = None):
@@ -54,7 +55,7 @@ class Renderer(object):
         if strip_look is not None:
             looks, animations = [], [animation_for(strip_look, self.__pixels__)]
         else:
-            looks = self.__vis__.looks(data)
+            looks = self.__vis__.looks([a.code for a in self.__config__.data.airports], data)
             # an airport list longer than the strip can't be shown; extra airports are ignored
             animations = [animation_for(look, pixel) for look, pixel in zip(looks, self.__pix__)]
         self.__looks__, self.__strip_look__, self.__animations__ = looks, strip_look, animations

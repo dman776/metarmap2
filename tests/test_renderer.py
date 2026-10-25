@@ -4,6 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from conftest import airports
 from metarmap.clock import FakeClock
 from metarmap.leds.strip import FakeStrip
 from metarmap.models import Look
@@ -25,12 +26,15 @@ def metar(category, wind=5, obs=""):
             "obs": obs}
 
 
-DATA = {"KHOU": metar("VFR"), "KIAH": metar("IFR", wind=20), "NULL1": {}, "KDKR": {}, "KGLS": metar("LIFR")}
+CODES = ["KHOU", "KIAH", "", "KDKR", "KGLS"]  # LED 2 has no airport
+DATA = {"KHOU": metar("VFR"), "KIAH": metar("IFR", wind=20), "KDKR": {}, "KGLS": metar("LIFR")}
 
 
 @pytest.fixture
 def config():
-    return SimpleNamespace(data=Settings())
+    settings = Settings()
+    settings.airports = airports(*CODES)
+    return SimpleNamespace(data=settings)
 
 
 @pytest.fixture
@@ -54,9 +58,9 @@ def draw_frame(renderer):
 
 def test_looks_come_from_the_active_visualizer(config, clock):
     r, _ = make(config, clock)
-    assert r.looks == FlightCategory(config).looks(DATA)
+    assert r.looks == FlightCategory(config).looks(CODES, DATA)
     r.visualizer = 1
-    assert r.looks == Wind(config).looks(DATA)
+    assert r.looks == Wind(config).looks(CODES, DATA)
 
 
 def test_first_frame_lights_the_leds(config, clock):
@@ -65,7 +69,7 @@ def test_first_frame_lights_the_leds(config, clock):
     cat = config.data.color.cat
     assert strip[0] == tuple(cat.vfr)
     assert strip[1] == tuple(cat.ifr)
-    assert strip[2] == (0, 0, 0)  # NULL placeholder
+    assert strip[2] == (0, 0, 0)  # no airport
     assert strip[3] == (0, 0, 0)  # no report
     assert strip[4] == tuple(cat.lifr)
 
@@ -93,6 +97,15 @@ def test_update_data_rebuilds_looks(config, clock):
     r, _ = make(config, clock)
     r.update_data(SimpleNamespace(data={**DATA, "KHOU": metar("MVFR")}))
     assert r.looks[0] == Look.solid(config.data.color.cat.mvfr)
+
+
+def test_refresh_picks_up_airport_changes(config, clock):
+    r, _ = make(config, clock)
+    config.data.airports[2].code = "KHOU"
+    config.data.airports.insert(0, config.data.airports.pop(4))  # KGLS to the first LED
+    r.refresh()
+    assert r.looks[0] == Look.solid(config.data.color.cat.lifr)
+    assert r.looks[3] == r.looks[1] == Look.solid(config.data.color.cat.vfr)
 
 
 def test_more_airports_than_leds(config, clock):

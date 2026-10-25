@@ -108,15 +108,23 @@ class Lightning(_Section):
 
 
 @dataclass
+class Airport(_Section):
+    """One LED of the strip and the airport it shows."""
+    code: str = ""  # ICAO code; empty for an LED with no airport
+    name: str = ""  # shown next to the code in the web UI
+    display: bool = False  # show this airport on the OLED screen
+
+
+@dataclass
 class Settings(_Section):
     web_server: WebServer = field(default_factory=WebServer)
-    airports_file: str = "airports.json"
     led: Led = field(default_factory=Led)
     geo: Geo = field(default_factory=Geo)
     display_screen: DisplayScreen = field(default_factory=DisplayScreen)
     color: Colors = field(default_factory=Colors)
     visualizer: VisualizerSettings = field(default_factory=VisualizerSettings)
     lightning: Lightning = field(default_factory=Lightning)
+    airports: List[Airport] = field(default_factory=list)  # in LED order: airports[0] is the first LED
 
     # ---- loading and saving ------------------------------------------------------------------------------------
 
@@ -154,7 +162,7 @@ class Settings(_Section):
         hints = typing.get_type_hints(type(section))
         if name.startswith("_") or name not in {f.name for f in dataclasses.fields(section)}:
             raise KeyError(key)
-        if dataclasses.is_dataclass(getattr(section, name)):
+        if dataclasses.is_dataclass(getattr(section, name)) or _is_section_list(hints[name]):
             raise KeyError(f"{key} is a group of settings, not a single setting")
         converted = _convert(value, hints[name], key)
         setattr(section, name, converted)
@@ -172,6 +180,10 @@ def _from_dict(cls, data):
         known.add(f.name)
         if dataclasses.is_dataclass(hints[f.name]):
             kwargs[f.name] = _from_dict(hints[f.name], data.get(f.name, {}))
+        elif _is_section_list(hints[f.name]):
+            items = data.get(f.name)
+            (item_cls,) = typing.get_args(hints[f.name])
+            kwargs[f.name] = [_from_dict(item_cls, item) for item in (items if isinstance(items, list) else [])]
         elif f.name in data:
             kwargs[f.name] = data[f.name]
     obj = cls(**kwargs)
@@ -185,9 +197,18 @@ def _to_dict(obj):
         if f.name.startswith("_"):
             continue
         value = getattr(obj, f.name)
-        out[f.name] = _to_dict(value) if dataclasses.is_dataclass(value) else value
+        if dataclasses.is_dataclass(value):
+            value = _to_dict(value)
+        elif isinstance(value, list) and value and dataclasses.is_dataclass(value[0]):
+            value = [_to_dict(item) for item in value]
+        out[f.name] = value
     out.update(obj._extra)
     return out
+
+
+def _is_section_list(kind):
+    """A list of settings groups, such as airports."""
+    return typing.get_origin(kind) is list and dataclasses.is_dataclass(typing.get_args(kind)[0])
 
 
 def _convert(value, kind, key):
@@ -225,3 +246,8 @@ def _convert(value, kind, key):
     except (TypeError, ValueError, json.JSONDecodeError):
         raise ValueError(f"{key}: {value!r} is not a valid {getattr(kind, '__name__', kind)}") from None
     raise TypeError(f"{key}: unsupported setting type {kind}")
+
+
+def parse_value(value, kind, key="value"):
+    """Converts text (as it arrives from a URL) to `kind`, like set() does. Raises ValueError if it doesn't fit."""
+    return _convert(value, kind, key)

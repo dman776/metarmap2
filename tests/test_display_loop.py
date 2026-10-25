@@ -9,6 +9,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from conftest import airports
 from metarmap.display import Display, watchdog_limit
 from metarmap.clock import FakeClock
 from metarmap.oled.screen import FakeScreen
@@ -17,8 +18,7 @@ from metarmap.settings import Settings
 GOOD = {"flightCategory": "VFR", "windDir": "100", "windSpeed": 13, "windGustSpeed": 0, "windGust": False,
         "vis": 10, "altimHg": 30.2, "tempC": 28, "dewpointC": 16,
         "obsTime": datetime(2026, 10, 24, 17, 53, tzinfo=timezone.utc)}
-AIRPORTS = {"KHOU": {"display": True}, "KIAH": {"display": False}, "KDKR": {"display": True},
-            "KGLS": {"display": True}}
+AIRPORTS = airports("KHOU", "KIAH", "KDKR", "KGLS", display=("KHOU", "KDKR", "KGLS"))
 DATA = {"KHOU": GOOD, "KIAH": GOOD, "KDKR": {}, "KGLS": {**GOOD, "flightCategory": "LIFR"}}
 
 
@@ -38,7 +38,7 @@ def make(airports=AIRPORTS, data=DATA, delay=5.0, locate_active=True, renderer=N
     settings = Settings()
     settings.display_screen.delay = delay
     settings.display_screen.locate_active = locate_active
-    config = SimpleNamespace(airports=dict(airports), data=settings)
+    config = SimpleNamespace(airports=list(airports), data=settings)
     screen = screen or FakeScreen()
     clock = FakeClock()
     d = Display(config, SimpleNamespace(data=dict(data)), screen, renderer=renderer or FakeRenderer(),
@@ -138,7 +138,7 @@ def test_airport_edits_are_picked_up_on_the_next_pass():
 
     def on_show(s):
         if len(screen.shown) == 1:
-            config.airports = {"KNEW": {"display": True}}  # replaced, like read_airports() does
+            config.airports = airports("KNEW", display=("KNEW",))  # replaced, like Config.read() does
         if len(screen.shown) >= 7:
             d.event.set()
     screen.on_show = on_show
@@ -147,7 +147,7 @@ def test_airport_edits_are_picked_up_on_the_next_pass():
 
 
 def test_nothing_to_show_waits_instead_of_spinning():
-    d, screen, clock, _ = make(airports={"KHOU": {"display": False}})
+    d, screen, clock, _ = make(airports=airports("KHOU"))
     start = clock.time()
     calls = {"n": 0}
     real_wait = clock.wait
@@ -209,3 +209,15 @@ def test_restart_replaces_a_hung_thread():
     old_thread.join(2)
     assert not old_thread.is_alive()  # it noticed its own stop event and exited
     d.stop()
+
+
+def test_restart_before_start_waits_for_start():
+    """The web server starts before the OLED loop; an airport edit in between mustn't fail or start it twice."""
+    d, _, _, _ = make()
+    d.restart(timeout=1)
+    assert not d.is_alive()
+    d.start()
+    try:
+        assert d.is_alive()
+    finally:
+        d.stop()

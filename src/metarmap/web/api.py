@@ -24,15 +24,15 @@ def status(services, ip):
     suntimes = services.sun.times or {}
 
     airports = []
-    for index, (code, props) in enumerate(services.config.airports.items()):
-        if "NULL" in code:
+    for index, airport in enumerate(services.config.airports):
+        if not airport.code:
             continue
-        m = metars.data.get(code, {})
+        m = metars.data.get(airport.code, {})
         airports.append({
-            "code": code,
+            "code": airport.code,
             "pixel": index,
-            "text": props.get("text"),
-            "display": props.get("display", False),
+            "text": airport.name,
+            "display": airport.display,
             "flightCategory": m.get("flightCategory"),
             "raw": m.get("raw"),
             "windDir": m.get("windDir"),

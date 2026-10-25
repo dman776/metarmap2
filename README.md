@@ -93,7 +93,7 @@ Automatically dims (2 levels) based on the current location of the map (via conf
 * Test the Neopixels (it needs to run with root permissions to access the GPIO pins):
   * `sudo python3 tools/test1.py`
   * Press 'CTRL-C' to stop the test
-* Make appropriate changes to the **[airports](airports.json)** file for the airports you want to use (and 'display' on
+* Set up your airports on the web UI's Config > Airports page (one per LED, in the order they're wired, and which to 'display' on
   the OLED screen)
 * Change the user and password in the web_server section of the **[config](config.json)** file from the defaults.
 
@@ -102,7 +102,7 @@ Automatically dims (2 levels) based on the current location of the map (via conf
 	* `sudo cp metarmap.service /lib/systemd/system`
 	* `sudo systemctl daemon-reload`
 	* `sudo systemctl enable metarmap.service`
-* The service runs `python3 -m metarmap` from the `metarmap2` folder, which holds `config.json` and `airports.json`.
+* The service runs `python3 -m metarmap` from the `metarmap2` folder, which holds `config.json`.
   An older service file that runs `controller.py` is switched to the new one when the map starts, unless you
   changed it (the old one is kept as `metarmap.service.controller-py.bak`).
 * To start the service manually
@@ -126,7 +126,7 @@ stand-ins, and the web UI (including the live Map page and its OLED window) work
 ### Code layout
 The code is the `metarmap` package in `src/metarmap/`:
 * `app.py` builds the map from `config.json` (settings, METARs, LED renderer, OLED loop, scheduled jobs) and runs it
-* `config.py` and `settings.py`: `config.json` and `airports.json`
+* `config.py` and `settings.py`: `config.json`, including the airport on each LED
 * `metar.py`: fetching METARs; `renderer.py` and `leds/`: the LEDs; `display.py` and `oled/`: the OLED screen
 * `visualizers/`: how each visualizer colors the LEDs
 * `web/`: the web UI and API. `create_app()` builds it; the routes are in `pages.py`, `api.py` and `control.py`,

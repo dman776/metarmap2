@@ -20,6 +20,11 @@ USER_AGENT = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHT
               "Chrome/86.0.4240.198 Safari/537.36 Edg/86.0.622.69")
 
 
+def airport_codes(airports):
+    """The airports to fetch: each code once, in LED order, skipping LEDs with no airport."""
+    return list(dict.fromkeys(a.code for a in airports if a.code))
+
+
 class METAR(object):
     """
     Object to control and handle METARs.
@@ -44,7 +49,7 @@ class METAR(object):
         try:
             self.__is_fetching__ = True
             safe_logging.safe_log("[m]Fetching...")
-            url = API_URL + ",".join([item for item in list(self.__config__.airports.keys()) if "NULL" not in item])
+            url = API_URL + ",".join(airport_codes(self.__config__.airports))
             response = requests.get(url, headers={'User-Agent': USER_AGENT}, timeout=30, verify=True)
             response.raise_for_status()
             content = response.content
@@ -90,7 +95,7 @@ class METAR(object):
         station_list = []
         missing_stations = []
         oldest_allowed = self.__clock__.now() - MAX_REPORT_AGE
-        for airport in list(self.__config__.airports):
+        for airport in airport_codes(self.__config__.airports):
             metar = by_station.get(airport)
             if metar is None:
                 data[airport] = {}

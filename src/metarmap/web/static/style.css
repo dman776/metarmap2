@@ -189,8 +189,16 @@ select:focus, input[type=text]:focus, input[type=search]:focus { outline: 2px so
 .banner { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 14px 20px; border-radius: 12px; background: var(--accent-soft); border: 1px solid var(--accent-line); font-size: 14px; }
 .banner > span { display: flex; align-items: center; gap: 12px; }
 .subnav { display: flex; gap: 4px; }
-.ap-row { display: grid; grid-template-columns: 44px minmax(0, 160px) minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 8px 24px; border-top: 1px solid var(--line-soft); }
-.ap-row input[type=text] { font-family: var(--mono); min-height: 40px; width: 100%; text-transform: uppercase; }
+.ap-row { display: grid; grid-template-columns: 44px minmax(0, 120px) minmax(0, 1fr) auto auto; gap: 16px; align-items: center; padding: 8px 24px; border-top: 1px solid var(--line-soft); }
+.ap-row input[type=text] { min-height: 40px; width: 100%; }
+.ap-row input.code { font-family: var(--mono); text-transform: uppercase; }
+.ap-row .ap-move { display: flex; gap: 6px; }
+.ap-row .btn.icon.sm { width: 40px; min-height: 40px; }
+.ap-row .btn:disabled { opacity: .35; cursor: default; }
+.ap-row.off-strip { opacity: .55; }
+.ap-row .tag { display: block; font-size: 11px; white-space: nowrap; }
+input.led-count { width: 110px; min-height: 44px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--control); background: var(--sunken); color: var(--text); font: 500 14px var(--mono); }
+input.led-count:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 /* map */
 .live-map { height: 72vh; min-height: 480px; border-radius: var(--radius); border: 1px solid var(--line); background: #c9d8c0; z-index: 0; }
@@ -291,7 +299,7 @@ pre.dump { margin: 0; padding: 16px 20px; overflow: auto; font: 13px/1.6 var(--m
     .card.pad { padding: 18px; }
     .set { padding: 14px 18px; }
     .set .range input { width: 160px; }
-    .ap-row { grid-template-columns: 32px minmax(0, 1fr) auto; padding: 8px 18px; }
+    .ap-row { grid-template-columns: 32px minmax(0, 1fr) auto auto; gap: 10px; padding: 8px 18px; }
     .ap-row .ap-name { display: none; }
     .trow.metar, .trow.brief { min-width: 0; grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "st cat btn" "raw raw raw"; gap: 8px 12px; padding: 12px 16px; }
     .trow.metar.head { display: none; }

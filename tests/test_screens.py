@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 import pytest
 import pytz
 
+from conftest import airports
 from metarmap.oled import screens
 from metarmap.oled.screen import GLYPHS
 
@@ -89,9 +90,9 @@ def test_message_screen():
 
 
 def test_airports_to_show_keeps_led_order():
-    airports = {"KHOU": {"display": True}, "KIAH": {"display": False}, "NULL1": {}, "KGLS": {"display": True}}
-    assert screens.airports_to_show(airports) == [(0, "KHOU"), (3, "KGLS")]
-    assert screens.airports_to_show({}) == []
+    leds = airports("KHOU", "KIAH", "", "KGLS", display=("KHOU", "KGLS", ""))
+    assert screens.airports_to_show(leds) == [(0, "KHOU"), (3, "KGLS")]  # an LED with no airport isn't shown
+    assert screens.airports_to_show([]) == []
 
 
 def test_pages_for():

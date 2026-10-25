@@ -50,9 +50,12 @@ class Visualizer(object):
         """A look for the whole strip instead of one per airport (rainbow, chase); None for per-airport looks."""
         return None
 
-    def looks(self, data) -> List[Look]:
-        """One look per LED, in airport order. NULL airports are placeholders and stay dark."""
-        return [Look.off() if "NULL" in code else self.look(metar or {}) for code, metar in data.items()]
+    def looks(self, codes, data) -> List[Look]:
+        """
+        One look per LED. codes: each LED's airport, in LED order ("" for none, which stays dark);
+        data: airport code -> METAR.
+        """
+        return [self.look(data.get(code) or {}) if code else Look.off() for code in codes]
 
     @property
     def legend(self):

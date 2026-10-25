@@ -82,9 +82,9 @@ def message_screen(title, icon="", line1="", line2="", line3=""):
 def airports_to_show(airports):
     """
     The airports set to show on the OLED, in LED order, as (pixel, code).
-    `airports` is the airports.json dict (code -> {"display": bool, ...}).
+    `airports` is the airport on each LED (settings.Airport: code, display).
     """
-    return [(pixel, code) for pixel, (code, props) in enumerate(airports.items()) if props.get("display")]
+    return [(pixel, a.code) for pixel, a in enumerate(airports) if a.display and a.code]
 
 
 def pages_for(metar):

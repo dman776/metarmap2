@@ -33,20 +33,19 @@ def is_login(web_server, user, password):
 
 def stations(airports, data):
     """
-    One entry per airport (in LED order, skipping NULL placeholders) for the templates.
+    One entry per airport (in LED order, skipping LEDs with no airport) for the templates.
     airports: config.airports; data: metars.data
     """
     result = []
-    for pixel, (code, props) in enumerate(airports.items()):
-        if "NULL" in code:
+    for pixel, airport in enumerate(airports):
+        if not airport.code:
             continue
-        m = data.get(code) or {}
-        text = props.get("text")
+        m = data.get(airport.code) or {}
         result.append({
-            "code": code,
+            "code": airport.code,
             "pixel": pixel,
-            "name": text if isinstance(text, str) else "",
-            "display": props.get("display", False),
+            "name": airport.name,
+            "display": airport.display,
             "has_data": bool(m),
             "cat": m.get("flightCategory") or None,
             "raw": m.get("raw"),
@@ -55,6 +54,15 @@ def stations(airports, data):
             "lon": m.get("longitude"),
         })
     return result
+
+
+def leds(airports, count):
+    """
+    Every LED for the Airports page, with its airport (code "" for none).
+    Airports past led.count (possible in older files) are listed as not on the strip.
+    """
+    return [{"pixel": pixel, "code": a.code, "name": a.name, "display": a.display, "on_strip": pixel < count}
+            for pixel, a in enumerate(airports)]
 
 
 def summary(stations):

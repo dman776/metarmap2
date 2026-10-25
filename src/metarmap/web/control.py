@@ -95,19 +95,40 @@ def add_routes(app, services, site, auth, updates=None):
         renderer.refresh()
         return pages.config(services, site)
 
-    def airports_changed():
-        # restart the OLED loop so it picks up the new airports
+    def airports_changed(fetch=False):
+        # show the change on the LEDs and the OLED; a new airport code needs its METAR
+        renderer.refresh()
         if services.display:
             services.display.restart(timeout=15)
+        if fetch:
+            threading.Thread(target=fetch_metars, name="fetch", daemon=True).start()
         return bottle.redirect("/config/airports")
 
+    def fetch_metars():
+        services.metars.fetch()
+        renderer.update_data(services.metars)
+
+    def edit_airports(change, fetch=False):
+        """Runs one airport change; unknown LEDs and airports are 404s, bad values 400s."""
+        try:
+            change()
+        except (IndexError, KeyError) as e:
+            bottle.abort(404, f"No such LED or airport: {e}")
+        except ValueError as e:
+            bottle.abort(400, str(e))
+        return airports_changed(fetch)
+
+    def set_airport(pixel, key, value):
+        return edit_airports(lambda: config.set_airport(pixel, key, value), fetch=key == "code")
+
+    def move_airport(src, dst):
+        return edit_airports(lambda: config.move_airport(src, dst))
+
     def edit_airport(oldkey, newkey):
-        config.edit_airport(oldkey, newkey)
-        return airports_changed()
+        return edit_airports(lambda: config.edit_airport(oldkey, newkey), fetch=True)
 
     def edit_airport_property(airport, key, value):
-        config.edit_airport_property(airport, key, value)
-        return airports_changed()
+        return edit_airports(lambda: config.edit_airport_property(airport, key, value))
 
     def restart():
         if services.display:
@@ -122,6 +143,9 @@ def add_routes(app, services, site, auth, updates=None):
     app.route("/locate/<pixnum>", "GET", locate)
     app.route("/fetch", "GET", fetch)
     app.route("/config/edit/<key>/<value>", "GET", edit_config, apply=auth)
+    app.route("/config/airports/<pixel:int>/<key>/<value>", "GET", set_airport, apply=auth)
+    app.route("/config/airports/move/<src:int>/<dst:int>", "GET", move_airport, apply=auth)
+    # the older by-code edits, still used by anything written for airports.json
     app.route("/config/airports/edit/<oldkey>/<newkey>", "GET", edit_airport, apply=auth)
     app.route("/config/airports/edit/prop/<airport>/<key>/<value>", "GET", edit_airport_property, apply=auth)
     app.route("/update", "GET", lambda: utils.update(), apply=auth)

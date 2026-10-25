@@ -58,10 +58,12 @@ def test_metadata(cls, settings):
 
 
 @pytest.mark.parametrize("cls", ALL)
-def test_null_airports_stay_dark(cls, settings):
+def test_leds_without_an_airport_stay_dark(cls, settings):
     v = make(cls, settings)
     if v.strip_look() is None:
-        assert v.looks({"NULL1": metar(), "KTST": {}})[0] == OFF
+        looks = v.looks(["", "KTST", "KTST"], {"KTST": metar()})
+        assert looks[0] == OFF
+        assert looks[1] == looks[2] == v.look(metar())  # one airport on two LEDs
 
 
 def test_exclusive_visualizers(settings):

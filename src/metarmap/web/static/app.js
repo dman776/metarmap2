@@ -45,7 +45,7 @@
 
     // ---- restart: close any popup, wait, then reload once the map answers again ------------------------------
 
-    const RESTART_WAIT_S = 30;
+    const RESTART_WAIT_S = 15;
     const RESTART_POLL_MS = 3000;
     const RESTART_GIVE_UP_S = 90;  // after the wait; then reload anyway
 
@@ -225,17 +225,44 @@
         });
     });
 
-    // airports: code edits and OLED display toggles
-    document.querySelectorAll('[data-airport]').forEach(function (el) {
-        el.addEventListener('change', function () {
-            const code = el.dataset.airport;
-            if (el.type === 'checkbox') {
-                call('/config/airports/edit/prop/' + code + '/display/' + el.checked);
-            } else if (el.value && el.value.toUpperCase() !== code) {
-                window.location.href = '/config/airports/edit/' + code + '/' + el.value.toUpperCase();
+    // airports: each LED's code, name and OLED switch ("-" clears a code or name)
+    document.querySelectorAll('[data-led]').forEach(function (el) {
+        el.addEventListener('change', async function () {
+            const field = el.dataset.field;
+            let value = el.type === 'checkbox' ? el.checked : el.value.trim();
+            if (field === 'code') value = value.toUpperCase();
+            try {
+                await call('/config/airports/' + el.dataset.led + '/' + field + '/' + encodeURIComponent(value || '-'));
+                // a new code changes the row (OLED switch, map data)
+                if (field === 'code') window.location.reload();
+            } catch (err) {
+                showOutput('Could not save', String(err));
             }
         });
     });
+
+    // airports: number of LEDs; lowering it removes the airports on the last LEDs
+    const ledCount = document.querySelector('[data-led-count]');
+    if (ledCount) {
+        ledCount.addEventListener('change', async function () {
+            const n = parseInt(ledCount.value, 10);
+            const was = parseInt(ledCount.dataset.ledCount, 10);
+            if (!(n >= 1) || n === was) return;
+            const removed = Array.from(document.querySelectorAll('[data-row]'))
+                .filter(function (row) { return parseInt(row.dataset.row, 10) >= n && row.dataset.code; })
+                .map(function (row) { return row.dataset.code; });
+            if (removed.length && !window.confirm('Remove ' + removed.join(', ') + ' from the map?')) {
+                ledCount.value = was;
+                return;
+            }
+            try {
+                await call('/config/edit/led.count/' + n);
+                window.location.reload();
+            } catch (err) {
+                showOutput('Could not save', String(err));
+            }
+        });
+    }
 
     // METAR list: category filter + search
     const rows = document.querySelectorAll('[data-station]');

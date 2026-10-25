@@ -97,7 +97,7 @@ Returns a read-only snapshot of the map's state as `application/json`. No authen
 | `suntimes` | Today's dimming schedule (ISO 8601 with time zone) |
 | `lastFetchTime` | When METARs were last fetched, in the map's local time (ISO 8601, no time zone); `null` before the first fetch |
 | `missingStations` | Airports that had no METAR in the last fetch |
-| `airports` | Airports in `airports.json` order. `pixel` is the LED index. `text` and `display` are the OLED settings. The METAR fields are `null` when the map has no data for the airport. `windDir` is a string because it can be `VRB`. |
+| `airports` | Airports in LED order, skipping LEDs with no airport. `pixel` is the LED index (counting from 0). `text` is the airport's name (`""` if none) and `display` whether it's shown on the OLED. An airport on two LEDs is listed twice. The METAR fields are `null` when the map has no data for the airport. `windDir` is a string because it can be `VRB`. |
 
 ### `GET /api/live`
 
@@ -203,18 +203,34 @@ curl -u metar:map http://metarmap.local/config/edit/display_screen.delay/10
 
 ### Airports
 
+The airports are the `airports` list in `config.json`, one entry per LED in the order the LEDs are wired:
+`{"code": "KHOU", "name": "Hobby", "display": true}`. An LED with no airport has `"code": ""`. The list has
+`led.count` entries; `/config/edit/led.count/<n>` also adds LEDs with no airport at the end, or removes the last
+ones. A new LED count takes effect after a restart.
+
+`<led>` counts from 0. In a URL, `-` stands for an empty code or name.
+
 | Endpoint | Description |
 |---|---|
-| `GET /config/airports/edit/<oldcode>/<newcode>` | Rename an airport. Its position on the map (pixel) stays the same. |
-| `GET /config/airports/edit/prop/<airport>/<key>/<value>` | Set one property of an airport in `airports.json`: `text` (the label on the OLED display) or `display` (`true`/`false`, whether it appears on the display) |
+| `GET /config/airports/<led>/code/<code>` | Set the airport on an LED: a 3-4 character ICAO code, or `-` for none. Fetches METARs in the background. |
+| `GET /config/airports/<led>/name/<name>` | Set the airport's name, shown in the web UI (`-` for none) |
+| `GET /config/airports/<led>/display/<true\|false>` | Whether the airport is shown on the OLED screen |
+| `GET /config/airports/move/<from>/<to>` | Move the airport on LED `from` to LED `to`; the airports in between shift by one |
+| `GET /config/airports/edit/<oldcode>/<newcode>` | Older, by code: change the first airport with `oldcode` to `newcode` |
+| `GET /config/airports/edit/prop/<airport>/<key>/<value>` | Older, by code: set `text` (the name) or `display` of the first airport with that code |
 
-Both save `airports.json`, restart the OLED display loop, and redirect to `/config/airports`.
+All of them save `config.json`, update the LEDs, restart the OLED display loop, and redirect to `/config/airports`.
+An LED number or code that doesn't exist is a 404; a bad code or value is a 400.
+
+Older maps kept the airports in a separate `airports.json`. The first start of a version with the `airports` list
+moves them into `config.json` (`NULL...` placeholders become LEDs with no airport) and leaves `airports.json` as a
+backup.
 
 ## Maintenance (auth)
 
 | Endpoint | Description |
 |---|---|
-| `GET /update` | Runs `git reset --hard` and `git pull` in the install directory, keeping `config.json` and `airports.json`. Waits until it's done and returns the output as HTML. Restart afterwards to use the new code. |
+| `GET /update` | Runs `git reset --hard` and `git pull` in the install directory, keeping `config.json` (and an older `airports.json`). Waits until it's done and returns the output as HTML. Restart afterwards to use the new code. |
 | `POST /update/start` | Starts the same update in the background (or reports the one already running) and returns its progress, as below. Used by the web UI's progress bar. |
 | `GET /update/progress` | Progress of the update started with `/update/start`: `{"fraction": 0.4, "label": "Downloading the update", "done": false, "ok": null, "changed": null, "errors": []}`. When `done`, `ok` says whether it worked, `changed` whether new code was downloaded, and `errors` holds git's error messages. |
 | `GET /restart` | Clears the LEDs and restarts the map's process. The connection usually drops before a response is sent. |

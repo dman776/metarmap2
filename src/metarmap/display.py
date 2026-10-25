@@ -74,7 +74,10 @@ class Display(object):
         """
         Stops the loop thread and starts a new one. With a timeout, a thread that doesn't stop in time
         (e.g. stuck in an I2C write) is abandoned: it has its own stop event, so it can't fight the new one.
+        A loop that was never started is left for start() (the web server starts first).
         """
+        if self.__thread__.ident is None:
+            return
         self.stop(False)
         self.__thread__.join(timeout)
         if self.__thread__.is_alive():

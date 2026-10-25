@@ -4,7 +4,6 @@
         "password": "map",
         "port": 8080
     },
-    "airports_file": "airports.json",
     "led": {
         "count": 50,
         "pin": 18,
@@ -90,9 +89,9 @@
                 255
             ],
             "mist": [
-                    0,
-                    0,
-                    15
+                0,
+                0,
+                15
             ],
             "drizzle": [
                 255,
@@ -110,5 +109,257 @@
     },
     "lightning": {
         "animation": true
-    }
+    },
+    "airports": [
+        {
+            "code": "KVCT",
+            "name": "",
+            "display": false
+        },
+        {
+            "code": "KPKV",
+            "name": "",
+            "display": false
+        },
+        {
+            "code": "KPSX",
+            "name": "",
+            "display": false
+        },
+        {
+            "code": "KBYY",
+            "name": "",
+            "display": false
+        },
+        {
+            "code": "KLBX",
+            "name": "",
+            "display": false
+        },
+        {
+            "code": "KGLS",
+            "name": "Galveston",
+            "display": true
+        },
+        {
+            "code": "KLVJ",
+            "name": "",
+            "display": false
+        },
+        {
+            "code": "KEFD",
+            "name": "Ellington",
+            "display": false
+        },
+        {
+            "code": "KHOU",
+            "name": "Hobby",
+            "display": true
+        },
+        {
+            "code": "KSGR",
+            "name": "",
+            "display": false
+        },
+        {
+            "code": "KARM",
+            "name": "",
+            "display": false
+        },
+        {
+            "code": "KELA",
+            "name": "",
+            "display": false
+        },
+        {
+            "code": "KTME",
+            "name": "",
+            "display": false
+        },
+        {
+            "code": "K11R",
+            "name": "",
+            "display": false
+        },
+        {
+            "code": "KCLL",
+            "name": "",
+            "display": false
+        },
+        {
+            "code": "KLXY",
+            "name": "",
+            "display": false
+        },
+        {
+            "code": "KPSN",
+            "name": "",
+            "display": false
+        },
+        {
+            "code": "KDKR",
+            "name": "Crockett",
+            "display": false
+        },
+        {
+            "code": "KUTS",
+            "name": "Huntsville",
+            "display": false
+        },
+        {
+            "code": "KCXO",
+            "name": "Conroe",
+            "display": true
+        },
+        {
+            "code": "KDWH",
+            "name": "Hooks",
+            "display": true
+        },
+        {
+            "code": "KIAH",
+            "name": "Intercontinental",
+            "display": true
+        },
+        {
+            "code": "KT78",
+            "name": "",
+            "display": false
+        },
+        {
+            "code": "KBMT",
+            "name": "",
+            "display": false
+        },
+        {
+            "code": "KBPT",
+            "name": "",
+            "display": false
+        },
+        {
+            "code": "KORG",
+            "name": "",
+            "display": false
+        },
+        {
+            "code": "KUXL",
+            "name": "",
+            "display": false
+        },
+        {
+            "code": "KLCH",
+            "name": "Lake Charles",
+            "display": false
+        },
+        {
+            "code": "KCWF",
+            "name": "",
+            "display": false
+        },
+        {
+            "code": "K3R7",
+            "name": "",
+            "display": false
+        },
+        {
+            "code": "KLFT",
+            "name": "",
+            "display": false
+        },
+        {
+            "code": "KHUM",
+            "name": "",
+            "display": false
+        },
+        {
+            "code": "KAPS",
+            "name": "Port of South Louisiana",
+            "display": false
+        },
+        {
+            "code": "KREG",
+            "name": "",
+            "display": false
+        },
+        {
+            "code": "KBTR",
+            "name": "",
+            "display": false
+        },
+        {
+            "code": "KHZR",
+            "name": "",
+            "display": false
+        },
+        {
+            "code": "KOPL",
+            "name": "",
+            "display": false
+        },
+        {
+            "code": "KACP",
+            "name": "",
+            "display": false
+        },
+        {
+            "code": "KPOE",
+            "name": "",
+            "display": false
+        },
+        {
+            "code": "KDRI",
+            "name": "DeRidder",
+            "display": false
+        },
+        {
+            "code": "KJAS",
+            "name": "",
+            "display": false
+        },
+        {
+            "code": "KLFK",
+            "name": "Lufkin",
+            "display": false
+        },
+        {
+            "code": "KOCH",
+            "name": "Nacogdoches",
+            "display": false
+        },
+        {
+            "code": "KJSO",
+            "name": "",
+            "display": false
+        },
+        {
+            "code": "KRFI",
+            "name": "",
+            "display": false
+        },
+        {
+            "code": "K4F2",
+            "name": "",
+            "display": false
+        },
+        {
+            "code": "K3F3",
+            "name": "",
+            "display": false
+        },
+        {
+            "code": "KIER",
+            "name": "",
+            "display": false
+        },
+        {
+            "code": "KAEX",
+            "name": "",
+            "display": false
+        },
+        {
+            "code": "KHEZ",
+            "name": "",
+            "display": false
+        }
+    ]
 }

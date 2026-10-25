@@ -19,3 +19,6 @@ htmlcov/
 .idea/
 .vscode/
 .DS_Store
+
+# airports used to live here; older maps keep theirs as a backup after it moves into config.json
+airports.json

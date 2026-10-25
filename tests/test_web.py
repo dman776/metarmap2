@@ -15,7 +15,7 @@ from metarmap import __version__
 from metarmap.leds.strip import FakeStrip
 from metarmap.models import Look
 from metarmap.renderer import Renderer
-from metarmap.settings import Settings
+from metarmap.settings import Airport, Settings
 from metarmap.sun import SunTimes
 from metarmap.visualizers.flightcategory import FlightCategory
 from metarmap.visualizers.rainbow import Rainbow
@@ -116,16 +116,66 @@ def test_airport_edit_restarts_the_display(client):
     app = client.services
     app.display.start()
     old_thread = app.display.__thread__
-    code = next(iter(app.config.airports))
+    code = app.config.airports[1].code
     status, _ = client(f"/config/airports/edit/prop/{code}/display/true")
     assert status == 303 and client.headers["Location"].endswith("/config/airports")
-    assert app.config.airports[code]["display"] is True
+    assert app.config.airports[1].display is True
     assert app.display.__thread__ is not old_thread and app.display.is_alive()  # restarted, for the new airports
+
+
+def test_airports_page(client):
+    app = client.services
+    body = client("/config/airports")[1]
+    assert body.count('data-field="code"') == app.config.data.led.count
+    assert 'id="restart-banner" role="status" hidden' in body
+
+
+def test_set_move_and_count_airports(client, monkeypatch):
+    app = client.services
+    fetched = threading.Event()
+    monkeypatch.setattr(app.metars, "fetch", fetched.set)
+    first, second = app.config.airports[0].code, app.config.airports[1].code
+
+    assert client("/config/airports/0/code/kdwh")[0] == 303
+    assert app.config.airports[0].code == "KDWH"
+    assert fetched.wait(5)  # a new code gets its METAR right away, in the background
+    assert client("/config/airports/0/name/Hooks Memorial")  # as the server decodes it[0] == 303
+    assert app.config.airports[0].name == "Hooks Memorial"
+    assert client("/config/airports/1/display/true")[0] == 303 and app.config.airports[1].display is True
+
+    assert client("/config/airports/move/1/0")[0] == 303
+    assert [a.code for a in app.config.airports[:2]] == [second, "KDWH"]
+
+    assert client("/config/edit/led.count/3")[0] == 200
+    assert len(app.config.airports) == 3
+    assert "the new number takes effect after the map restarts" in client("/config/airports")[1]
+    assert first != second
+
+
+@pytest.mark.parametrize("path, status", [
+    ("/config/airports/0/code/NOT-AN-AIRPORT", 400),
+    ("/config/airports/0/colour/red", 400),
+    ("/config/airports/999/code/KDWH", 404),
+    ("/config/airports/move/0/999", 404),
+    ("/config/airports/edit/KXXX/KDWH", 404),
+    ("/config/edit/led.count/0", 400),
+])
+def test_bad_airport_edits(client, path, status):
+    before = list(client.services.config.airports)
+    assert client(path)[0] == status
+    assert client.services.config.airports == before
+
+
+def test_led_changes_show_right_away(client):
+    app = client.services
+    app.metars.data = {"KDWH": metar("LIFR")}
+    client("/config/airports/2/code/KDWH")
+    assert app.renderer.looks[2] == Look.solid(app.config.data.color.cat.lifr)
 
 
 def test_fetch(client, monkeypatch):
     app = client.services
-    code = next(iter(app.config.airports))
+    code = app.config.airports[0].code
     monkeypatch.setattr(app.metars, "fetch", lambda: setattr(app.metars, "data", {code: metar("IFR")}))
     assert client("/fetch")[0] == 200
     assert app.renderer.looks[0] == Look.solid(app.config.data.color.cat.ifr)
@@ -136,10 +186,10 @@ def test_fetch(client, monkeypatch):
 @pytest.fixture
 def services():
     settings = Settings()
-    config = SimpleNamespace(data=settings, airports={
-        "KHOU": {"text": "Hobby", "display": True}, "NULL1": {"text": "", "display": False},
-        "KIAH": {"text": 0, "display": False}, "KDKR": {"text": "Crockett", "display": False}})
-    data = {"KHOU": metar("VFR", lightning=True), "NULL1": {}, "KIAH": metar("IFR"), "KDKR": {}}
+    settings.airports = [Airport(code="KHOU", name="Hobby", display=True), Airport(), Airport(code="KIAH"),
+                         Airport(code="KDKR", name="Crockett")]
+    config = SimpleNamespace(data=settings, airports=settings.airports)
+    data = {"KHOU": metar("VFR", lightning=True), "KIAH": metar("IFR"), "KDKR": {}}
     metars = SimpleNamespace(data=data, lastFetchTime=datetime(2026, 10, 24, 12, 55), missing_stations=lambda: ["KDKR"])
     sun = SunTimes("Houston", SUN)
     renderer = Renderer(FakeStrip(4), metars, config, [FlightCategory(config), Rainbow(config)], sun)
@@ -157,7 +207,7 @@ def test_status(services):
     assert status["suntimes"]["dawn"] == SUN["dawn"].isoformat()
     assert status["lastFetchTime"] == "2026-10-24T12:55:00"
     assert status["missingStations"] == ["KDKR"]
-    # NULL placeholders are skipped, but keep their LED number
+    # LEDs with no airport are skipped, but the others keep their LED number
     assert [(a["code"], a["pixel"]) for a in status["airports"]] == [("KHOU", 0), ("KIAH", 2), ("KDKR", 3)]
     khou = status["airports"][0]
     assert khou["text"] == "Hobby" and khou["flightCategory"] == "VFR" and khou["lightning"] is True
@@ -233,7 +283,6 @@ def test_update_failure_is_reported():
 def test_stations_and_summary(services):
     s = views.stations(services.config.airports, services.metars.data)
     assert [x["code"] for x in s] == ["KHOU", "KIAH", "KDKR"]
-    assert s[1]["name"] == ""  # "text": 0 in older airports.json files
     assert views.summary(s) == {"counts": {"VFR": 1, "MVFR": 0, "IFR": 1, "LIFR": 0}, "no_data": ["KDKR"],
                                 "below_vfr": [s[1]]}
 

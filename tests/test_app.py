@@ -49,7 +49,7 @@ def test_auto_rotate(make_app):
 
 def test_update_data_fetches_and_redraws(make_app, monkeypatch):
     app = make_app()
-    code = next(iter(app.config.airports))
+    code = app.config.airports[0].code
     monkeypatch.setattr(app.metars, "fetch", lambda: setattr(app.metars, "data", {code: {"flightCategory": "VFR"}}))
     app_module.update_data(app)
     assert app.renderer.looks[0].colors[0] == tuple(app.config.data.color.cat.vfr)

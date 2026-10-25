@@ -16,16 +16,22 @@ def fixture_bytes():
 
 @pytest.fixture
 def make_config():
-    """A minimal stand-in for config.Config: just the airports, in LED order."""
+    """A minimal stand-in for config.Config: just the airports, in LED order ("" for an LED with no airport)."""
     def make(*codes):
-        return SimpleNamespace(airports={code: {"text": "", "display": False} for code in codes})
+        return SimpleNamespace(airports=airports(*codes))
     return make
+
+
+def airports(*codes, display=()):
+    """An airport list (settings.Airport), one per code in LED order; "" is an LED with no airport."""
+    from metarmap.settings import Airport
+    return [Airport(code=code, display=code in display) for code in codes]
 
 
 @pytest.fixture
 def make_app(tmp_path):
     """
-    Builds a whole map (metarmap.app.build) from a copy of the repo's config.json and airports.json, on an
+    Builds a whole map (metarmap.app.build) from a copy of the repo's config.json, on an
     in-memory strip and screen, without fetching METARs. Keyword arguments change settings first,
     e.g. make_app(**{"display_screen.enabled": False}).
     """
@@ -37,11 +43,9 @@ def make_app(tmp_path):
     def make(**settings):
         repo = Path(__file__).parent.parent
         config = Settings.load(repo / "config.json")
-        config.airports_file = str(tmp_path / "airports.json")
         for key, value in settings.items():
             config.set(key, value)
         config.save(tmp_path / "config.json")
-        (tmp_path / "airports.json").write_text((repo / "airports.json").read_text())
         return app_module.build(str(tmp_path / "config.json"), strip=FakeStrip(config.led.count),
                                 screen=FakeScreen(), fetch=False)
     return make
