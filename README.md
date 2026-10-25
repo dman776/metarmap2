@@ -1,20 +1,119 @@
-## Updates
-Forked from prueker/METARMap
-Some portions by @lostlocalhost and @johnmarzulli
+# METARMap2
 
-Items updated from orig:
+A Raspberry Pi turns a wall map into a live weather display: an LED at each airport shows its current conditions from
+[aviationweather.gov](https://aviationweather.gov) (VFR green, MVFR blue, IFR red, LIFR purple, and more). An
+optional small OLED screen cycles through the details for the airports you pick, and a web UI lets you control and
+set up the map from your phone.
 
-* Completely re-wrote the core into a multi-threaded application
+Forked from [prueker/METARMap](https://github.com/prueker/METARMap), with portions by @lostlocalhost and
+@johnmarzulli. Rewritten as a multi-threaded application with a web UI, an API and a Home Assistant integration.
 
-# METARMap
-Raspberry Pi project to visualize flight conditions on a map using NeoPixel RGB pixels
+## Features
 
-## Built-in webserver for config and control
-This allows you to browse to your map at http://raspberrypi.local (or appropriate hostname) to control and configure the
-map.
+- **Visualizers**: show the flight category, wind, wind gusts, temperature, pressure, precipitation, visibility or
+  density altitude on the LEDs, plus Rainbow and Chase patterns. Switch between them on the web UI, or let the map
+  rotate through them.
+- **Lightning**: airports reporting lightning flash yellow.
+- **Dimming by time of day**: the LEDs dim at sunset, go nearly dark at dusk, dim again at dawn and are back to full
+  brightness at sunrise, using the sun times for your city.
+- **OLED screen** (optional): wind, visibility, pressure, temperature, dewpoint and report time for each airport you
+  choose, with that airport's LED pulsing while it's shown.
+- **Web UI**: current conditions, a METAR list, a live map that mirrors the LEDs and the OLED screen, and settings.
+  Update and restart the map from the Home page.
+- **API and Home Assistant**: everything in the web UI also works over HTTP (see [API.md](API.md)); the
+  [metarmap2_ha](https://github.com/dman776/metarmap2_ha) integration adds the map to Home Assistant.
 
-### Web API
-Everything in the web UI can also be done over HTTP, for scripts and home automation. `GET /api/status` returns the map's current state as JSON. See **[API.md](API.md)** for the full endpoint reference.
+## What you need
+
+- A Raspberry Pi with Wi-Fi (a Zero W, 3, 4 or 5) and a microSD card
+- A strip or string of WS2811/WS2812 ("NeoPixel") LEDs, one per airport, and a 5V power supply big enough for them
+- A map, and a frame or board to mount it and the LEDs
+- Optional: a 128x64 SSD1306 I2C OLED screen
+
+Wiring:
+
+- **LEDs**: data to GPIO 18 (pin 12), ground to a Pi ground, power from the 5V supply. See Adafruit's
+  [NeoPixels on Raspberry Pi](https://learn.adafruit.com/neopixels-on-raspberry-pi/raspberry-pi-wiring) guide.
+- **OLED screen**: SDA to GPIO 2 (pin 3), SCL to GPIO 3 (pin 5), VCC to 3.3V, GND to ground.
+
+The original project's write-ups cover the build in detail:
+[making the map](https://slingtsi.rueker.com/making-a-led-powered-metar-map-for-your-wall/) and
+[adding the display](https://slingtsi.rueker.com/adding-a-mini-display-to-show-metar-information-to-the-metar-map/).
+
+## Install
+
+1. With [Raspberry Pi Imager](https://www.raspberrypi.com/software/), write **Raspberry Pi OS Lite** to the microSD
+   card. In Imager's settings, set:
+   - a hostname, such as `metarmap`
+   - a user name and password
+   - your Wi-Fi network
+   - your time zone (the map dims at your local sunset and sunrise)
+   - SSH turned on
+2. Put the card in the Pi, power it up, and wait a minute or two for it to join your Wi-Fi.
+3. Connect to it from your computer with `ssh pi@metarmap.local`, using your hostname and user name.
+4. Install git, download the map and run the installer:
+
+   ```sh
+   sudo apt update && sudo apt install -y git
+   git clone https://github.com/dman776/metarmap2
+   cd metarmap2
+   ./install.sh
+   ```
+
+   The installer sets up everything the map needs and asks for:
+   - a user name and password for the web UI's settings pages
+   - your city, for the sunrise and sunset times (a larger city nearby works too)
+
+   It then starts the map and prints its web address. Installing takes a few minutes, longer on a Pi Zero. Running
+   `./install.sh` again is safe; it keeps your settings.
+5. Open the web address, go to **Config > Airports**, and set up your airports (next section).
+
+## Setting up your airports
+
+On **Config > Airports**:
+
+1. Set **Number of LEDs** to the number of LEDs on your strip, then restart the map when it asks.
+2. Enter the ICAO code (such as `KDFW`) of the airport at each LED, in the order the LEDs are wired, starting
+   from the one nearest the Pi. Leave a code empty for an LED that isn't at an airport.
+3. Turn on **OLED** for the airports you want on the screen, and add names if you like.
+4. Use the up and down arrows to move an airport to another LED; the others shift along.
+
+Changes save right away. To check the wiring order:
+- Choose the **Chase** visualizer on the Home page, which lights each LED in turn.
+- Or use the locate button next to an airport on the **METARs** page, which pulses that airport's LED.
+
+## Settings
+
+**Config** has the rest of the settings:
+- the default visualizer and auto-rotate
+- lightning
+- the OLED screen
+- the map page's chart
+- the LED brightness for day, dawn and dusk, and night
+
+Settings marked **Restart** take effect after the map restarts.
+
+Everything is saved in `config.json` in the `metarmap2` folder. To edit that file by hand, stop the map first
+(`./stop.sh`), then start it again (`./start.sh`).
+
+## Updating
+
+Use **Update** on the Home page. It downloads the latest version and keeps your `config.json`. Then use **Restart**.
+
+Or, over SSH:
+
+```sh
+cd metarmap2
+git pull
+./install.sh
+```
+
+Running `./install.sh` after an update also installs any new packages the map needs.
+
+## Web API and Home Assistant
+
+`GET /api/status` returns the map's state as JSON. The web UI's controls are plain HTTP requests too, so scripts and
+home automation can use them. See **[API.md](API.md)** for every endpoint.
 
 ```sh
 curl http://metarmap.local/api/status                            # current state (JSON)
@@ -23,114 +122,51 @@ curl http://metarmap.local/visualizer/next                       # next visualiz
 curl -u metar:map http://metarmap.local/config/edit/lightning.animation/false
 ```
 
-### Home Assistant
-The [metarmap2_ha](https://github.com/dman776/metarmap2_ha) custom integration controls the map from Home Assistant through this API. It provides:
+The [metarmap2_ha](https://github.com/dman776/metarmap2_ha) custom integration controls the map from Home Assistant
+through this API. It provides:
 - a brightness light and a visualizer selector
 - fetch and restart buttons
 - config switches and numbers
 - flight-category sensors
 - a `metarmap.locate` action
 
-## Mini OLED display
-This functionality allows you to connect a small mini LED display to show the METAR information of the airports.
-For this functionality to work, you will need to a compatible LED display.
-I've written up some details on the display I used and the wiring
-here: https://slingtsi.rueker.com/adding-a-mini-display-to-show-metar-information-to-the-metar-map/
+## Troubleshooting
 
-## Multiple Visualizers
-* Flight Category
-* Wind
-* Wind Gusts
-* Temperature
-* Pressure
-* Precipitation
-* Visibility
-* Density Altitude
-* Rainbow
-* Chase
-
-Switch between them from the web UI or the [API](API.md#control). If you turn on `visualizer.auto_rotate` in [config.json](config.json), the map rotates through them automatically.
-
-## Detailed instructions
-I've created detailed instructions about the setup and parts used
-here: https://slingtsi.rueker.com/making-a-led-powered-metar-map-for-your-wall/
-
-## Time of day automatic dimming
-Automatically dims (2 levels) based on the current location of the map (via configuration) and sunrise/sunset times.
-
-## Software Setup
-* Install [Raspbian Bullseye Lite](https://www.raspberrypi.org/downloads/raspbian/) on SD card
-* [Enable Wi-Fi and SSH](https://medium.com/@danidudas/install-raspbian-jessie-lite-and-setup-wi-fi-without-access-to-command-line-or-using-the-network-97f065af722e)
-* Install SD card and power up Raspberry Pi
-* SSH (using [Putty](https://www.putty.org) or some other SSH tool) into the Raspberry and configure
-    * Set a new password for the 'pi' user: `passwd`
-    * `sudo raspi-config`
-        * Configure hostname (1, S4) (ie. metarmap)
-        * Configure locale (5, L1) (ie. en_US.UTF-8)
-      * Configure timezone (5, L2) (ie. America/Chicago)
-      * `sudo reboot`
-* SSH again and Update/install packages 
-	* `sudo apt-get update`
-	* `sudo apt-get upgrade`
-    * `sudo apt-get -y install git`
-	* `sudo apt-get -y install python3-pip`
-    * `sudo apt-get -y install i2c-tools`
-* Install required python libraries for the project
-  	* `sudo pip3 install rpi_ws281x`
-  	* `sudo pip3 install adafruit-circuitpython-neopixel`
-  	* `sudo pip3 install adafruit-circuitpython-led-animation`
-  	* `sudo pip3 install bottle astral xmltodict pytz oled-text schedule         Pillow????`
-* Configure I2C
-  * `sudo raspi-config`
-      * Interface Options / I2C (3, I5)
-      * Reboot the Raspberry Pi `sudo reboot`
-      * Verify your wiring is working and I2C is enabled
-          * `sudo i2cdetect -y 1` - this should show something connected at **3C**
-* Clone the METARMap2 github repository (ssh)
-  * `git clone https://github.com/dman776/metarmap2`
-  * `cd metarmap2`
-* Attach NeoPixel LEDs to Raspberry Pi. You can find [more details about wiring here](https://learn.adafruit.com/neopixels-on-raspberry-pi/raspberry-pi-wiring).
-* Test the Neopixels (it needs to run with root permissions to access the GPIO pins):
-  * `sudo python3 tools/test1.py`
-  * Press 'CTRL-C' to stop the test
-* Set up your airports on the web UI's Config > Airports page (one per LED, in the order they're wired, and which to 'display' on
-  the OLED screen)
-* Change the user and password in the web_server section of the **[config](config.json)** file from the defaults.
-
-## Install the service
-* To run the map automatically when you power the Raspberry Pi, install the systemd service
-	* `sudo cp metarmap.service /lib/systemd/system`
-	* `sudo systemctl daemon-reload`
-	* `sudo systemctl enable metarmap.service`
-* The service runs `python3 -m metarmap` from the `metarmap2` folder, which holds `config.json`.
-  An older service file that runs `controller.py` is switched to the new one when the map starts, unless you
-  changed it (the old one is kept as `metarmap.service.controller-py.bak`).
-* To start the service manually
-  * `sudo systemctl start metarmap.service`
-  * or use `./start.sh`
-* To stop the service manually
-    * `sudo systemctl stop metarmap.service`
-    * or use `./stop.sh`
+- **Is it running?** `systemctl status metarmap`. Start and stop it with `./start.sh` and `./stop.sh`.
+- **What happened?** The map's log is `metarmap.log` in the `metarmap2` folder; crashes also go to
+  `journalctl -u metarmap`.
+- **LEDs stay dark or show the wrong colors**:
+  1. Check the data wire goes to GPIO 18 and that the strip shares a ground with the Pi.
+  2. Stop the map (`./stop.sh`) and run the LED test: `sudo .venv/bin/python tools/test1.py`. Ctrl-C stops it.
+  3. If the colors are swapped, change `led.order` in `config.json` (such as `RGB` or `GRB`).
+- **OLED screen stays blank**: `sudo i2cdetect -y 1` should show the screen at address `3c`. If it shows nothing,
+  check the wiring, and that I2C is on (`sudo raspi-config`, Interface Options).
+- **An airport's LED is off**: it hasn't reported in the last 5 hours, or its code is wrong. The METARs page shows
+  which airports have no data.
 
 ## Development
-You can work on the map without a Raspberry Pi. When there's no LED strip or OLED screen, the map uses in-memory
-stand-ins, and the web UI (including the live Map page and its OLED window) works as usual with real METARs.
 
-* Set up: `python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"`
-* Run the tests: `.venv/bin/pytest`
-* Check the code: `.venv/bin/ruff check .`
-* Run the map: `.venv/bin/python -m metarmap` (or `.venv/bin/metarmap`), from the folder with `config.json`
-  * The web server uses `web_server.port` from **[config](config.json)** (80 by default, which needs `sudo`).
-    For a laptop, set it to something like 8080 and open http://localhost:8080.
+You can work on the map without a Raspberry Pi. With no LED strip or OLED screen, the map uses in-memory stand-ins,
+and the web UI (including the live Map page and its OLED window) works as usual with real METARs.
 
-### Code layout
+- Set up: `python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"`
+- Run the tests: `.venv/bin/pytest`
+- Check the code: `.venv/bin/ruff check .`
+- Run the map: `.venv/bin/python -m metarmap` (or `.venv/bin/metarmap`), from the folder with `config.json`.
+  The web server uses `web_server.port` from `config.json`. Port 80 needs `sudo`, so on a laptop use something like
+  8080 and open http://localhost:8080.
+
 The code is the `metarmap` package in `src/metarmap/`:
-* `app.py` builds the map from `config.json` (settings, METARs, LED renderer, OLED loop, scheduled jobs) and runs it
-* `config.py` and `settings.py`: `config.json`, including the airport on each LED
-* `metar.py`: fetching METARs; `renderer.py` and `leds/`: the LEDs; `display.py` and `oled/`: the OLED screen
-* `visualizers/`: how each visualizer colors the LEDs
-* `web/`: the web UI and API. `create_app()` builds it; the routes are in `pages.py`, `api.py` and `control.py`,
+- `app.py` builds the map from `config.json` (settings, METARs, LED renderer, OLED loop, scheduled jobs) and runs it
+- `config.py` and `settings.py`: `config.json`, including the airport on each LED
+- `metar.py`: fetching METARs; `renderer.py` and `leds/`: the LEDs; `display.py` and `oled/`: the OLED screen
+- `visualizers/`: how each visualizer colors the LEDs
+- `web/`: the web UI and API. `create_app()` builds it; the routes are in `pages.py`, `api.py` and `control.py`,
   and `views.py` prepares what each page shows (templates in `web/templates/`, files in `web/static/`)
+- `service.py`: switches an older installed `metarmap.service` (one that runs `controller.py`) to the current one
 
-## Changelist
-To see a list of changes to the metar script over time, refer to [CHANGELIST.md](CHANGELIST.md)
+`install.sh` sets up a Pi; `metarmap.service` is the systemd service it installs.
+
+## Changes
+
+See [CHANGELIST.md](CHANGELIST.md).

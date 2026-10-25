@@ -1,3 +1,12 @@
+### dman776 2.4.1 (2026-10-25)
+
+- New `install.sh` sets up a Pi in one step: system packages, I2C, a Python environment (`.venv`) with the map's
+  packages, the web UI login and city, and the service. It works on Raspberry Pi OS Bullseye and Bookworm (which no
+  longer allows `sudo pip3 install`), and is safe to run again
+- Rewrote the README: features, parts and wiring, installing with `install.sh`, setting up airports, settings,
+  updating and troubleshooting
+- New installs serve the web UI on port 80 (http://metarmap.local/) instead of 8080; existing maps keep their setting
+
 ### dman776 2.4.0 (2026-10-25)
 
 - Airports now live in `config.json` as a list, one entry per LED (`code`, `name`, `display`). On its first start the
