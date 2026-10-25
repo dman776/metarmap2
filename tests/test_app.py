@@ -145,7 +145,11 @@ def test_the_leds_run_when_the_web_port_is_taken(make_app, monkeypatch):
 def test_a_failed_fetch_is_retried_every_minute_until_it_works(make_app, monkeypatch):
     app = make_app()
     results = [False, False, True]
-    monkeypatch.setattr(app.metars, "fetch", lambda: results.pop(0))
+
+    def fetch():
+        app.metars.last_fetch_ok = results.pop(0)
+        return app.metars.last_fetch_ok
+    monkeypatch.setattr(app.metars, "fetch", fetch)
 
     app_module.update_data(app)  # e.g. aviationweather.gov answers 502
     (retry,) = app.scheduler.get_jobs("retry")
@@ -172,3 +176,29 @@ def test_a_failed_fetch_at_startup_is_retried(tmp_path, monkeypatch):
     app = app_module.build(str(tmp_path / "config.json"), strip=FakeStrip(50), screen=FakeScreen())
     assert app.metars.last_fetch_ok is False
     assert len(app.scheduler.get_jobs("retry")) == 1
+
+
+def test_a_failed_position_lookup_is_retried_on_its_own(make_app, monkeypatch):
+    """The METARs arrived but the lookup of where non-reporting airports are got a 502: only the lookup is redone."""
+    app = make_app()
+    calls = []
+
+    def fetch():
+        calls.append("fetch")
+        app.metars.last_fetch_ok, app.metars.locate_failed = True, True
+        return True
+
+    def locate():
+        calls.append("locate")
+        app.metars.locate_failed = len(calls) < 3  # fails once more, then works
+        return not app.metars.locate_failed
+    monkeypatch.setattr(app.metars, "fetch", fetch)
+    monkeypatch.setattr(app.metars, "locate", locate)
+
+    app_module.update_data(app)
+    (retry,) = app.scheduler.get_jobs("retry")
+    for _ in range(2):
+        retry.next_run = datetime.now() - timedelta(seconds=1)
+        app.scheduler.run_pending()
+    assert calls == ["fetch", "locate", "locate"]
+    assert app.scheduler.get_jobs("retry") == []

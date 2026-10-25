@@ -7,8 +7,9 @@
 - Visibility reported as a fraction (`1/2`, `1 1/2`) no longer stops an airport's METAR from being read
 - Map page popups open below the zoom and background buttons instead of under them
 - Airports page: the heading says how many LEDs have an airport and how many don't (it said "one airport each")
-- Map page: airports that aren't reporting are shown as open rings with their code, instead of being left off
-  the map. Their positions come from aviationweather.gov's station information, looked up once per airport
+- Map page: airports that aren't reporting are shown as empty, uncolored rings with their code, instead of being left off
+  the map. Their positions come from aviationweather.gov's station information, looked up once per airport; a
+  failed lookup is retried every minute, like a failed METAR fetch
 - A failed METAR fetch (e.g. aviationweather.gov answering 502 Bad Gateway) is retried every minute until it
   works, instead of leaving the map without data until the next fetch 10 minutes later
 - `install.sh` no longer says the web UI password can be changed on the Config page (it can't yet)

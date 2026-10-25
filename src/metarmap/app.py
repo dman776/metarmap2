@@ -44,7 +44,7 @@ from metarmap.visualizers.rainbow import Rainbow as RainbowVisualizer
 
 CONFIG_FILE = "config.json"
 METAR_MINUTES = 10  # how often METARs are fetched
-RETRY_SECONDS = 60  # after a failed fetch (e.g. aviationweather.gov answering 502), how soon to try again
+RETRY_SECONDS = 60  # after a failed fetch or lookup (e.g. aviationweather.gov answering 502), how soon to try again
 WATCHDOG_SECONDS = 15  # how often the OLED loop is checked
 
 # in the order of visualizer.active (and the web UI)
@@ -106,7 +106,7 @@ def build(config_file=CONFIG_FILE, strip=None, screen=None, clock: Clock = None,
 def schedule_jobs(app: App):
     s = app.scheduler
     s.every(METAR_MINUTES).minutes.do(update_data, app)
-    if app.metars.last_fetch_ok is False:  # the fetch at startup failed
+    if needs_retry(app):  # the fetch or lookup at startup failed
         retry_soon(app)
     s.every().day.at("00:00").do(load_suntimes, app)  # new sun times every day, to dim the map at the right times
     schedule_brightness(app)
@@ -120,22 +120,33 @@ def schedule_jobs(app: App):
 # ---- scheduled jobs ------------------------------------------------------------------------------------------
 
 def update_data(app: App):
-    ok = app.metars.fetch()
+    app.metars.fetch()
     app.renderer.update_data(app.metars)
-    if not ok:
+    if needs_retry(app):
         retry_soon(app)
 
 
+def needs_retry(app: App):
+    """Whether the METAR fetch, or the lookup of where airports without a report are, failed."""
+    return app.metars.last_fetch_ok is False or app.metars.locate_failed
+
+
 def retry_soon(app: App):
-    """Tries the fetch again every RETRY_SECONDS until it works, instead of waiting for the next regular one."""
+    """Tries again every RETRY_SECONDS until it works, instead of waiting for the next regular fetch."""
     if not app.scheduler.get_jobs("retry"):
-        safe_logging.safe_log(f"[c]METAR fetch failed; trying again every {RETRY_SECONDS} s until it works")
+        what = "METAR fetch" if app.metars.last_fetch_ok is False else "airport position lookup"
+        safe_logging.safe_log(f"[c]{what} failed; trying again every {RETRY_SECONDS} s until it works")
         app.scheduler.every(RETRY_SECONDS).seconds.do(retry_fetch, app).tag("retry")
 
 
 def retry_fetch(app: App):
-    if app.metars.fetch():
-        app.renderer.update_data(app.metars)
+    """Redoes what failed: the fetch (which also does the lookup), or only the lookup."""
+    if app.metars.last_fetch_ok is False:
+        if app.metars.fetch():
+            app.renderer.update_data(app.metars)
+    elif app.metars.locate_failed:
+        app.metars.locate()
+    if not needs_retry(app):
         return schedule.CancelJob
 
 

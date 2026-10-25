@@ -249,10 +249,11 @@ def test_a_failed_lookup_is_tried_again(monkeypatch, make_config, fixture_bytes)
     stations_api(monkeypatch, fixture_bytes, fail=True)
     m = metar.METAR(make_config("KDKR"), clock=CLOCK)
     assert m.fetch() is True  # the METARs still count as fetched
-    assert m.position("KDKR") is None
+    assert m.position("KDKR") is None and m.locate_failed is True
     asked = stations_api(monkeypatch, fixture_bytes)
-    m.fetch()
+    assert m.locate() is True  # the app's retry calls this on its own, without fetching the METARs again
     assert asked == [["KDKR"]] and m.position("KDKR") == (31.307, -95.404)
+    assert m.locate_failed is False
 
 
 def test_a_failed_metar_fetch_skips_the_lookup(monkeypatch, make_config):
