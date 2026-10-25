@@ -1,4 +1,4 @@
-### dman776 Unreleased
+### dman776 2.3.0 (2026-10-24)
 
 - The code is now a Python package, `metarmap`, in `src/metarmap/`; run the map with `python3 -m metarmap`
   (`controller.py` still works, so maps with the old service file keep starting after an update)
