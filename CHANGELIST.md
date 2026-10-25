@@ -10,6 +10,11 @@
 - `/api/status`: an airport's `text` is its name, or `""` (older `airports.json` files had numbers there)
 - Fixed an error when the OLED loop was restarted before it had started (e.g. an airport edit right after startup)
 - Restart waits 15 seconds (was 30) before checking whether the map is back
+- The web server answers requests in parallel, so a slow METAR fetch (`/fetch`) no longer holds up the Map page,
+  Home Assistant or loading pages
+- `config.json` is saved safely: changes from parallel requests take turns, and the file is written in full before
+  it replaces the old one, so a power cut while saving can't leave it half-written
+- If the web server can't start (e.g. its port is in use), the LEDs and OLED keep running and the error is logged
 
 ### dman776 2.3.1 (2026-10-25)
 

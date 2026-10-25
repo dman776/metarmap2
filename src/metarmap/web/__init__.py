@@ -5,7 +5,9 @@ create_app(services) builds the bottle app from the map's parts (metarmap.app.Ap
 and display); serve() runs it in a background thread. The routes are in pages, api and control; what they show
 is built in views.
 """
+import socketserver
 import threading
+from wsgiref.simple_server import WSGIRequestHandler, WSGIServer, make_server
 
 import bottle
 from bottle import auth_basic
@@ -30,9 +32,22 @@ def create_app(services, ip=None, updates=None) -> bottle.Bottle:
     return app
 
 
-def serve(app, host, port) -> threading.Thread:
-    """Runs the web app in a background thread."""
-    safe_log(f"localhost = {host}:{port}")
-    thread = threading.Thread(target=app.run, kwargs=dict(host=host, port=port), name="web", daemon=True)
-    thread.start()
-    return thread
+class ThreadingServer(socketserver.ThreadingMixIn, WSGIServer):
+    """
+    Answers each request in its own thread, so a slow one (GET /fetch waits on aviationweather.gov) doesn't hold up
+    the Map page's polling, Home Assistant or page loads.
+    """
+    daemon_threads = True  # don't wait for open requests when the map stops
+
+
+class RequestHandler(WSGIRequestHandler):
+    def address_string(self):
+        return self.client_address[0]  # no reverse DNS lookup for each request's log line
+
+
+def serve(app, host, port) -> ThreadingServer:
+    """Runs the web app in a background thread. Stop it with shutdown(); server_port is the port it listens on."""
+    server = make_server(host, port, app, ThreadingServer, RequestHandler)
+    safe_log(f"localhost = {host}:{server.server_port}")
+    threading.Thread(target=server.serve_forever, name="web", daemon=True).start()
+    return server

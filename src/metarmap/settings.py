@@ -6,6 +6,7 @@ so older or hand-edited files keep working and round-trip on save.
 """
 import dataclasses
 import json
+import os
 import typing
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
@@ -141,8 +142,23 @@ class Settings(_Section):
         return _to_dict(self)
 
     def save(self, path) -> None:
-        with open(path, "w") as f:
+        """
+        Writes config.json: to a temporary file first, then swapped in, so a power cut or a second save at the same
+        time can't leave half a file. The file keeps its owner and permissions (the map runs as root).
+        """
+        tmp = f"{path}.tmp"
+        with open(tmp, "w") as f:
             json.dump(self.to_dict(), f, indent=4)
+        try:
+            st = os.stat(path)
+            os.chmod(tmp, st.st_mode & 0o7777)
+            if hasattr(os, "chown") and (st.st_uid, st.st_gid) != (os.stat(tmp).st_uid, os.stat(tmp).st_gid):
+                os.chown(tmp, st.st_uid, st.st_gid)
+        except FileNotFoundError:
+            pass  # a new file
+        except PermissionError:
+            pass  # not root: the file is ours anyway
+        os.replace(tmp, path)
 
     # ---- editing -------------------------------------------------------------------------------------------------
 

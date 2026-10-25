@@ -317,3 +317,33 @@ def test_is_login():
     web_server = Settings().web_server
     assert views.is_login(web_server, "METAR", "map")
     assert not views.is_login(web_server, "metar", "MAP")
+
+
+# ---- the server answers requests in parallel ------------------------------------------------------------------
+
+def test_a_slow_fetch_does_not_hold_up_other_requests(services):
+    import urllib.request
+    from metarmap.web import serve
+
+    release, started = threading.Event(), threading.Event()
+
+    def slow_fetch():
+        started.set()
+        release.wait(10)  # like aviationweather.gov taking its time
+    services.metars.fetch = slow_fetch
+    server = serve(create_app(services, ip="10.0.0.2"), "127.0.0.1", 0)
+    base = f"http://127.0.0.1:{server.server_port}"
+    try:
+        fetch = threading.Thread(target=lambda: urllib.request.urlopen(base + "/fetch", timeout=15).read())
+        fetch.start()
+        assert started.wait(5)
+        with urllib.request.urlopen(base + "/api/live", timeout=3) as response:  # answers while /fetch waits
+            assert json.loads(response.read())["leds"][0]["code"] == "KHOU"
+        assert fetch.is_alive()
+        release.set()
+        fetch.join(10)
+        assert not fetch.is_alive()
+    finally:
+        release.set()
+        server.shutdown()
+        server.server_close()

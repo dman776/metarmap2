@@ -174,7 +174,12 @@ def run(app: App):
         app.renderer.animate_once(RainbowComet(app.renderer.pixels(), speed=0.05, tail_length=5, bounce=False))
 
     web_app = create_app(app)
-    serve(web_app, "0.0.0.0", app.config.data.web_server.port)
+    try:
+        web_server = serve(web_app, "0.0.0.0", app.config.data.web_server.port)
+    except OSError as e:
+        # e.g. the port is in use; the LEDs and OLED still run
+        safe_logging.safe_log(f"[c]web server can't start on port {app.config.data.web_server.port}: {e}")
+        web_server = None
 
     safe_logging.safe_log("[c]" + "Main loop...")
     if app.display is not None:
@@ -188,16 +193,19 @@ def run(app: App):
     except Exception as e:
         safe_logging.safe_log(f"[c]main loop stopped: {e}\n{traceback.format_exc()}")
     finally:
-        shutdown(app, web_app)
+        shutdown(app, web_app, web_server)
 
 
-def shutdown(app: App, web_app):
+def shutdown(app: App, web_app, web_server):
     safe_logging.safe_log("[c]" + "Cleaning up...")
     app.scheduler.clear()
     if app.display is not None:
         app.display.stop()
     app.renderer.stop()
     app.renderer.clear()
+    if web_server is not None:
+        web_server.shutdown()
+        web_server.server_close()
     web_app.close()
 
 

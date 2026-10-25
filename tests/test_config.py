@@ -211,3 +211,28 @@ def test_parse_code():
     assert parse_code("kgls") == "KGLS"
     assert parse_code("") == parse_code("-") == ""
     assert parse_code("6r3") == "6R3"
+
+
+# ---- changes from parallel web requests -----------------------------------------------------------------------
+
+def test_parallel_changes_all_land(config, tmp_path):
+    import threading
+    config.set_led_count(40)
+    threads = [threading.Thread(target=config.set_airport, args=(i, "code", f"K{i:03d}")) for i in range(40)]
+    threads += [threading.Thread(target=config.set_airport, args=(i, "name", f"Airport {i}")) for i in range(40)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    saved = json.loads((tmp_path / "config.json").read_text())
+    assert [a["code"] for a in saved["airports"]] == [f"K{i:03d}" for i in range(40)]
+    assert [a["name"] for a in saved["airports"]] == [f"Airport {i}" for i in range(40)]
+    assert codes(config) == [f"K{i:03d}" for i in range(40)]
+
+
+def test_save_keeps_the_file_mode_and_leaves_no_temp_file(config, tmp_path):
+    path = tmp_path / "config.json"
+    path.chmod(0o600)
+    config.set_airport(0, "code", "KDWH")
+    assert path.stat().st_mode & 0o777 == 0o600
+    assert not (tmp_path / "config.json.tmp").exists()

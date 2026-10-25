@@ -142,7 +142,7 @@ These endpoints change the map immediately. Nothing they change is saved to `con
 | `GET /visualizer/next` | Next visualizer; after the last one it goes back to the first |
 | `GET /visualizer/previous` | Previous visualizer; before the first one it goes to the last |
 | `GET /locate/<pixel>` | Pulse one LED white. Ignored while an exclusive visualizer is running. |
-| `GET /fetch` | Fetch METARs from aviationweather.gov now. **The request does not return until the fetch finishes**, which can take up to about 30 seconds. |
+| `GET /fetch` | Fetch METARs from aviationweather.gov now. **The request does not return until the fetch finishes**, which can take up to about 30 seconds; other requests are answered in the meantime. |
 
 Visualizer indexes:
 

@@ -221,3 +221,20 @@ def test_restart_before_start_waits_for_start():
         assert d.is_alive()
     finally:
         d.stop()
+
+
+def test_parallel_restarts_leave_one_loop():
+    """An airport edit and the watchdog can restart the loop at the same time."""
+    d, _, _, _ = make()
+    d.start()
+    try:
+        threads = [threading.Thread(target=d.restart, kwargs={"timeout": 5}) for _ in range(8)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        time.sleep(0.2)
+        loops = [t for t in threading.enumerate() if t.name == "display" and t.is_alive()]
+        assert loops == [d.__thread__]
+    finally:
+        d.stop()

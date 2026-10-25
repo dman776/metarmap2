@@ -41,6 +41,7 @@ class Display(object):
         self.__clock__ = clock or Clock()
         self.__tz__ = tz or self.__local_timezone__()
         self.lock = threading.Lock()  # drawing; message() and the loop both draw
+        self.__restarting__ = threading.Lock()  # web requests and the watchdog can restart at the same time
         self.event = threading.Event()
         self.__thread__ = self.__new_thread__()
         self.__screen__ = None  # what is on the OLED right now (mirrored by the web UI)
@@ -76,15 +77,16 @@ class Display(object):
         (e.g. stuck in an I2C write) is abandoned: it has its own stop event, so it can't fight the new one.
         A loop that was never started is left for start() (the web server starts first).
         """
-        if self.__thread__.ident is None:
-            return
-        self.stop(False)
-        self.__thread__.join(timeout)
-        if self.__thread__.is_alive():
-            safe_log("[d]display thread did not stop; starting a new one anyway")
-        self.event = threading.Event()
-        self.__thread__ = self.__new_thread__()
-        self.start()
+        with self.__restarting__:
+            if self.__thread__.ident is None:
+                return
+            self.stop(False)
+            self.__thread__.join(timeout)
+            if self.__thread__.is_alive():
+                safe_log("[d]display thread did not stop; starting a new one anyway")
+            self.event = threading.Event()
+            self.__thread__ = self.__new_thread__()
+            self.start()
 
     def stalled(self) -> Optional[str]:
         """Why the loop needs a restart (it died, or hasn't moved on for too long), or None if it's fine."""

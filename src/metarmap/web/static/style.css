@@ -189,7 +189,8 @@ select:focus, input[type=text]:focus, input[type=search]:focus { outline: 2px so
 .banner { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 14px 20px; border-radius: 12px; background: var(--accent-soft); border: 1px solid var(--accent-line); font-size: 14px; }
 .banner > span { display: flex; align-items: center; gap: 12px; }
 .subnav { display: flex; gap: 4px; }
-.ap-row { display: grid; grid-template-columns: 44px minmax(0, 120px) minmax(0, 1fr) auto auto; gap: 16px; align-items: center; padding: 8px 24px; border-top: 1px solid var(--line-soft); }
+/* fixed widths for the switch (46px) and the two move buttons, so the header row lines up with the others */
+.ap-row { display: grid; grid-template-columns: 44px minmax(0, 120px) minmax(0, 1fr) 46px 86px; gap: 16px; align-items: center; padding: 8px 24px; border-top: 1px solid var(--line-soft); }
 .ap-row input[type=text] { min-height: 40px; width: 100%; }
 .ap-row input.code { font-family: var(--mono); text-transform: uppercase; }
 .ap-row .ap-move { display: flex; gap: 6px; }
@@ -299,7 +300,7 @@ pre.dump { margin: 0; padding: 16px 20px; overflow: auto; font: 13px/1.6 var(--m
     .card.pad { padding: 18px; }
     .set { padding: 14px 18px; }
     .set .range input { width: 160px; }
-    .ap-row { grid-template-columns: 32px minmax(0, 1fr) auto auto; gap: 10px; padding: 8px 18px; }
+    .ap-row { grid-template-columns: 32px minmax(0, 1fr) 46px 86px; gap: 10px; padding: 8px 18px; }
     .ap-row .ap-name { display: none; }
     .trow.metar, .trow.brief { min-width: 0; grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "st cat btn" "raw raw raw"; gap: 8px 12px; padding: 12px 16px; }
     .trow.metar.head { display: none; }

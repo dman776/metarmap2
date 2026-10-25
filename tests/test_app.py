@@ -117,3 +117,20 @@ def test_run_cleans_up_when_stopped(make_app, monkeypatch, error):
     assert app.display.screen is None  # stopped and cleared
     clear = tuple(app.config.data.color.clear)
     assert all(c == clear for c in app.renderer.pixels())
+
+
+def test_the_leds_run_when_the_web_port_is_taken(make_app, monkeypatch):
+    app = make_app(**{"led.inittest": False})
+
+    def taken(web, host, port):
+        raise OSError(48, "Address already in use")
+    monkeypatch.setattr(app_module, "serve", taken)
+    frames = []
+
+    def render():
+        frames.append(1)
+        if len(frames) == 3:
+            raise KeyboardInterrupt
+    monkeypatch.setattr(app.renderer, "render", render)
+    app_module.run(app)  # no error
+    assert len(frames) == 3  # the main loop ran
