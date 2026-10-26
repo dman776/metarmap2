@@ -121,6 +121,19 @@ def sky_sentence(layers, vert_vis_ft=None):
     return "Clear skies" if lowest["cover"] in ("CLR", "SKC", "CAVOK", "NSC") else None
 
 
+def ceiling_ft(layers, vert_vis_ft=None):
+    """
+    The ceiling in feet: the lowest broken or overcast layer, or the vertical visibility when the sky is obscured.
+    None when there's no ceiling (clear, or only few or scattered clouds).
+    """
+    for layer in layers or []:
+        if layer.get("cover") == "OVX":
+            return vert_vis_ft or 0
+        if layer.get("cover") in ("BKN", "OVC"):
+            return layer.get("cloudBaseFt") or 0
+    return None
+
+
 def density_altitude_sentence(metar):
     """ "Density altitude 1,200 ft (field elevation 46 ft)", to the nearest 100 ft."""
     # imported here: the visualizers import this module

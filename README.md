@@ -10,9 +10,9 @@ Forked from [prueker/METARMap](https://github.com/prueker/METARMap), with portio
 
 ## Features
 
-- **Visualizers**: show the flight category, wind, wind gusts, temperature, pressure, precipitation, visibility or
-  density altitude on the LEDs, plus Rainbow and Chase patterns. Switch between them on the web UI, or let the map
-  rotate through them.
+- **Visualizers**: show the flight category, wind, wind gusts, temperature, pressure, precipitation, visibility,
+  density altitude, ceiling or dewpoint spread (fog risk) on the LEDs, plus Rainbow and Chase patterns. Switch
+  between them on the web UI, or let the map rotate through them.
 - **Lightning**: airports reporting lightning flash yellow.
 - **Dimming by time of day**: the LEDs dim at sunset, go nearly dark at dusk, dim again at dawn and are back to full
   brightness at sunrise, using the sun times for your city.

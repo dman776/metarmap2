@@ -194,12 +194,14 @@ Visualizer indexes:
 | 1 | Wind | |
 | 2 | Wind Gusts | |
 | 3 | Pressure | |
-| 4 | Precipitation | no |
+| 4 | Precipitation | |
 | 5 | Temperature | |
 | 6 | Visibility | |
 | 7 | Density Altitude | |
 | 8 | Rainbow | yes |
 | 9 | Chase | yes |
+| 10 | Ceiling | |
+| 11 | Dewpoint Spread | |
 
 ```sh
 curl http://metarmap.local/brightness/0.25

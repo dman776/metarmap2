@@ -8,8 +8,8 @@ import metarmap.lib.colors as colors_lib
 from metarmap.models import Look
 from metarmap.settings import Settings
 from metarmap import visualizers
-from metarmap.visualizers import (chase, density_altitude, flightcategory, precipitation, pressure, rainbow,
-                                  style, temperature, visibility, visualizer, wind, windgusts)
+from metarmap.visualizers import (ceiling, chase, density_altitude, flightcategory, precipitation, pressure, rainbow,
+                                  spread, style, temperature, visibility, visualizer, wind, windgusts)
 from metarmap.visualizers.density_altitude import calculate_density_altitude
 
 C = colors_lib.get_colors()
@@ -285,3 +285,62 @@ def test_chase_walks_every_led(settings):
     settings.led.count = 30
     look = chase.strip_look(settings)
     assert look == Look.chase([0, 0, 255], step=0.1, size=1, spacing=29)
+
+
+# ---- ceiling ------------------------------------------------------------------------------------------------
+
+def sky(*layers):
+    return [{"cover": cover, "cloudBaseFt": base} for cover, base in layers]
+
+
+@pytest.mark.parametrize("layers, name", [
+    (sky(("BKN", 400)), colors_lib.RED),
+    (sky(("OVC", 500)), colors_lib.ORANGE),
+    (sky(("BKN", 999)), colors_lib.ORANGE),
+    (sky(("BKN", 1000)), colors_lib.YELLOW),
+    (sky(("OVC", 3000)), colors_lib.YELLOW),  # 3,000 ft is still MVFR
+    (sky(("BKN", 3100)), colors_lib.WHITE),
+    (sky(("FEW", 800), ("SCT", 1500), ("BKN", 2500), ("OVC", 400)), colors_lib.YELLOW),  # the lowest BKN/OVC
+])
+def test_ceiling_bands(settings, layers, name):
+    assert ceiling.look(metar(skyConditions=layers), settings) == Look.solid(C[name])
+
+
+@pytest.mark.parametrize("layers", [sky(("CLR", 0)), sky(("SKC", 0)), sky(("FEW", 800), ("SCT", 2000))])
+def test_no_ceiling_is_dim_white(settings, layers):
+    assert ceiling.look(metar(skyConditions=layers), settings) == Look.solid(style.dim(C[colors_lib.WHITE]))
+
+
+def test_an_obscured_sky_is_a_ceiling_at_the_vertical_visibility(settings):
+    assert ceiling.look(metar(skyConditions=sky(("OVX", 0)), vertVisFt=200), settings) == Look.solid(
+        C[colors_lib.RED])
+    assert ceiling.look(metar(skyConditions=sky(("OVX", 0)), vertVisFt=None), settings) == Look.solid(
+        C[colors_lib.RED])  # obscured, height unknown: as low as it gets
+
+
+def test_ceiling_missing_and_no_report(settings):
+    assert ceiling.look(metar(), settings) == style.missing()  # no sky condition in the report
+    assert ceiling.look(metar(skyConditions=[]), settings) == style.missing()
+    assert ceiling.look({}, settings) == OFF
+
+
+# ---- dewpoint spread ----------------------------------------------------------------------------------------
+
+@pytest.mark.parametrize("temp, dewpoint, name", [
+    (10, 10, colors_lib.RED), (10, 9, colors_lib.RED), (10, 8, colors_lib.ORANGE), (10, 7, colors_lib.YELLOW),
+    (10, 6, colors_lib.YELLOW), (10, 5, colors_lib.WHITE), (-3, -4, colors_lib.RED), (30, 5, colors_lib.WHITE),
+])
+def test_spread_bands(settings, temp, dewpoint, name):
+    assert spread.look(metar(tempC=temp, dewpointC=dewpoint), settings) == Look.solid(C[name])
+
+
+def test_spread_missing_and_no_report(settings):
+    assert spread.look(metar(dewpointC=None), settings) == style.missing()
+    assert spread.look(metar(tempC=None), settings) == style.missing()
+    assert spread.look({}, settings) == OFF
+
+
+def test_new_visualizers_keep_the_old_numbers():
+    """visualizer.active and the web UI number visualizers by position: new ones go at the end."""
+    assert [v.NAME for v in ALL][:10] == ["Flight Category", "Wind", "Wind Gusts", "Pressure", "Precipitation",
+                                          "Temperature", "Visibility", "Density Altitude", "Rainbow", "Chase"]

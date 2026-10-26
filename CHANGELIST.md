@@ -1,3 +1,14 @@
+### dman776 2.8.0 (2026-10-25)
+
+- New visualizer, Ceiling: the lowest broken or overcast layer (or the vertical visibility when the sky is
+  obscured), at the flight category limits: white above 3,000 ft, yellow 1,000-3,000, orange 500-999, red below
+  500, and dim white with no ceiling. Flight Category shows the worse of ceiling and visibility; this shows the
+  ceiling on its own
+- New visualizer, Dewpoint Spread (fog risk): red at 1°C or less, orange at 2°C, yellow at 3-4°C, white when it's
+  drier
+- Both are added at the end of the list (numbers 10 and 11), so the numbers of the others, and a saved default
+  visualizer, don't change
+
 ### dman776 2.7.0 (2026-10-25)
 
 - Precipitation is in auto-rotate now, and the OLED's locate pulse works while it's shown (it was marked as using

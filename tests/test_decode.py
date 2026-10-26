@@ -193,3 +193,14 @@ def test_parsed_reports_have_what_the_summary_needs():
                            "clouds": [{"cover": "BKN", "base": 2500}], "obsTime": 1792000000})
     assert "Density altitude -1,500 ft (field elevation 46 ft)" in decode.summary(report)
     assert "Ceiling 2,500 ft (broken)" in decode.summary(report)
+
+
+@pytest.mark.parametrize("layers, vv, feet", [
+    ([{"cover": "SCT", "cloudBaseFt": 800}, {"cover": "BKN", "cloudBaseFt": 2500}], None, 2500),
+    ([{"cover": "OVX", "cloudBaseFt": 0}], 300, 300),
+    ([{"cover": "FEW", "cloudBaseFt": 800}], None, None),
+    ([{"cover": "CLR", "cloudBaseFt": 0}], None, None),
+    ([], None, None),
+])
+def test_ceiling_ft(layers, vv, feet):
+    assert decode.ceiling_ft(layers, vv) == feet
