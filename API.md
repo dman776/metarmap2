@@ -146,7 +146,7 @@ What the physical map is doing right now. The Map page polls it every second. No
 | `strip` | Set when one effect drives the whole strip instead: `rainbow` (`period`) or `chase` (`step`, `size`, `spacing`). |
 | `locate` | The last white locate pulse: LED `pixel` and Unix time `at`. `null` until the first one. |
 | `display.on` | Whether the screen is showing; `false` after `/display/off` (then `screen` is `null`) |
-| `display.screen` | What the OLED shows. `page` is 1 or 2 for an airport, 0 for "Data Unavailable" or a message (then `airport` is `null`). Icons: `wind`, `visibility`, `pressure`, `temp`, `dewpoint`, `date`. |
+| `display.screen` | What the OLED shows. `badge` is the flight category, with a `*` after one that's estimated from the visibility and ceiling (`VFR*`). `page` is 1 or 2 for an airport, 0 for "Data Unavailable" or a message (then `airport` is `null`). Icons: `wind`, `visibility`, `pressure`, `temp`, `dewpoint`, `date`. |
 
 ### `GET /api/metar/<code>`
 

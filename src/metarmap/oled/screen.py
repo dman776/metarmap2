@@ -67,7 +67,8 @@ class SSD1306Screen:
         def airport(last_icon_x):
             return {
                 1: BigLine(0, o, size=20),  # AIRPORT
-                2: BigLine(80, o, size=16),  # CAT
+                # x=76 leaves room for "MVFR*" (51 px) and still clears the widest K??? code (KWWW, 70 px)
+                2: BigLine(76, o, size=16),  # CAT
                 3: BigLine(20, 19 + o),  # line 1
                 4: BigLine(0, 19 + o, **icon),
                 5: BigLine(20, 36 + o),  # line 2

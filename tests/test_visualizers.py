@@ -7,7 +7,7 @@ import pytest
 import metarmap.lib.colors as colors_lib
 from metarmap.models import Look
 from metarmap.settings import Settings
-from metarmap import visualizers
+from metarmap import decode, visualizers
 from metarmap.visualizers import (ceiling, chase, density_altitude, flightcategory, precipitation, pressure, rainbow,
                                   spread, style, temperature, visibility, visualizer, wind, windgusts)
 from metarmap.visualizers.density_altitude import calculate_density_altitude
@@ -142,9 +142,9 @@ def test_estimating_from_real_reports():
     sky_only = parse_report({"rawOb": "METAR K18H 261730Z AUTO 09011G18KT FEW039 31/17 A3013 RMK A01",
                              "clouds": [{"cover": "FEW", "base": 3900}], "fltCat": None})
     neither = parse_report({"rawOb": "METAR CWEH 261700Z AUTO 12020KT M01/M01 RMK AO1", "fltCat": None})
-    assert flightcategory.estimate(vis_only) == "VFR"
-    assert flightcategory.estimate(sky_only) == "VFR"
-    assert flightcategory.estimate(neither) is None
+    assert decode.estimate_category(vis_only) == "VFR"
+    assert decode.estimate_category(sky_only) == "VFR"
+    assert decode.estimate_category(neither) is None
 
 
 def test_lightning_flashes_over_category(settings):

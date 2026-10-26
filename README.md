@@ -15,7 +15,8 @@ web UI, an API and a Home Assistant integration (see [Credits](#credits)).
   between them on the web UI, or let the map rotate through them.
 - **Lightning**: airports reporting lightning flash yellow.
 - **Estimated flight categories**: a station that doesn't report its flight category, but does report its visibility
-  or clouds, gets an estimate from them. Its LED breathes slowly so you can tell.
+  or clouds, gets an estimate from them. Its LED breathes slowly so you can tell, and the OLED shows it with a `*`
+  (`VFR*`).
 - **Dimming by time of day**: the LEDs dim at sunset, go nearly dark at dusk, dim again at dawn and are back to full
   brightness at sunrise, using the sun times for your city.
 - **OLED screen** (optional): wind, visibility, pressure, temperature, dewpoint and report time for each airport you

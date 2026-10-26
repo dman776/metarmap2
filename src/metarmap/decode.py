@@ -134,6 +134,26 @@ def ceiling_ft(layers, vert_vis_ft=None):
     return None
 
 
+CATEGORIES = ("VFR", "MVFR", "IFR", "LIFR")  # best to worst
+
+
+def estimate_category(metar):
+    """
+    The flight category from the visibility and ceiling the report has (FAA limits), for a station that doesn't
+    report one; None if it has neither. The worse of the two decides; a sky with no broken or overcast layer (or a
+    clear one) has no ceiling. With only one of the two, the real category could be worse, never better.
+    """
+    found = []
+    miles = metar.get("visibilitySM")
+    if miles is not None:
+        found.append("LIFR" if miles < 1 else "IFR" if miles < 3 else "MVFR" if miles <= 5 else "VFR")
+    if metar.get("skyConditions"):
+        feet = ceiling_ft(metar["skyConditions"], metar.get("vertVisFt"))
+        found.append("VFR" if feet is None or feet > 3000 else "MVFR" if feet >= 1000 else
+                     "IFR" if feet >= 500 else "LIFR")
+    return max(found, key=CATEGORIES.index) if found else None
+
+
 def density_altitude_sentence(metar):
     """ "Density altitude 1,200 ft (field elevation 46 ft)", to the nearest 100 ft."""
     # imported here: the visualizers import this module

@@ -5,12 +5,14 @@ A screen is a dict:
   kind     "airport" (an airport's page) or "message" (startup and other messages)
   airport  the station shown, or None for a message
   title    big text at the top left
-  badge    flight category at the top right ("" if none)
+  badge    flight category at the top right ("" if none), with a "*" when it's estimated (the station didn't
+           report one; see decode.estimate_category)
   page     1 (wind, visibility, pressure), 2 (temperature, dewpoint, time) or 0 (no data / a message)
   icon     message icon name (messages only)
   lines    three {"icon": name, "text": str} lines
 """
 import metarmap.lib.utils as utils
+from metarmap.decode import estimate_category
 
 MISSING = "--"
 
@@ -51,6 +53,14 @@ def time_text(obs, tz):
     return "{0} {1}".format(obs.astimezone(tz).strftime("%H:%MC"), obs.strftime("%H:%MZ"))
 
 
+def badge_text(data):
+    """ "IFR"; "VFR*" for a category estimated from the visibility and ceiling; "" if neither."""
+    if data.get("flightCategory"):
+        return str(data["flightCategory"])
+    estimate = estimate_category(data)
+    return estimate + "*" if estimate else ""
+
+
 def screen_for(station, data, page, tz=None):
     """
     What the screen shows for one airport: page 1 (wind, visibility, pressure),
@@ -67,7 +77,7 @@ def screen_for(station, data, page, tz=None):
         lines = [{"icon": "temp", "text": safe_text(lambda d: temp_text(d['tempC']), data)},
                  {"icon": "dewpoint", "text": safe_text(lambda d: temp_text(d['dewpointC']), data)},
                  {"icon": "date", "text": safe_text(lambda d: time_text(d['obsTime'], tz), data)}]
-    return {"kind": "airport", "airport": station, "title": station, "badge": data.get("flightCategory") or "",
+    return {"kind": "airport", "airport": station, "title": station, "badge": badge_text(data),
             "page": page, "lines": lines}
 
 

@@ -273,7 +273,7 @@ body.map-full-open { overflow: hidden; }
     background-image: repeating-linear-gradient(0deg, rgba(0, 0, 0, .35) 0 1px, transparent 1px 2px), repeating-linear-gradient(90deg, rgba(0, 0, 0, .35) 0 1px, transparent 1px 2px); }
 .oled-screen span { position: absolute; white-space: nowrap; }
 .o-title { left: 0; top: -4px; font-size: 38px; }
-.o-badge { left: 160px; top: 0; font-size: 30px; }
+.o-badge { left: 152px; top: 0; font-size: 30px; }  /* x=76 on the 128x64 OLED */
 .o-line { left: 40px; font-size: 27px; }
 .o-l0 { top: 38px; } .o-l1 { top: 72px; } .o-l2 { top: 104px; }
 .o-ico { left: 4px; width: 24px; height: 24px; }

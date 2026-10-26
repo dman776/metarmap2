@@ -58,6 +58,18 @@ def test_page1_missing_values_show_dashes():
     assert texts(screen) == [screens.MISSING] * 3
 
 
+@pytest.mark.parametrize("data, badge", [
+    ({"flightCategory": "IFR", "visibilitySM": 10.0}, "IFR"),  # reported: shown as it is
+    ({"flightCategory": None, "visibilitySM": 10.0}, "VFR*"),  # estimated from the visibility
+    ({"flightCategory": None, "visibilitySM": 4.0}, "MVFR*"),
+    ({"flightCategory": None, "skyConditions": [{"cover": "OVC", "cloudBaseFt": 400}]}, "LIFR*"),
+    ({"flightCategory": None, "visibilitySM": None, "skyConditions": []}, ""),  # nothing to estimate from
+])
+def test_badge_marks_an_estimated_category(data, badge):
+    for page in (1, 2):
+        assert screens.screen_for("KTST", data, page, CENTRAL)["badge"] == badge
+
+
 def test_unavailable_page():
     screen = screens.screen_for("KDKR", None, 0)
     assert screen["page"] == 0

@@ -6,7 +6,7 @@ from what it reports, with the FAA limits (the worse of the ceiling and the visi
 slowly instead of shining steadily, so an estimate can't be mistaken for a reported category. With only one of the
 two reported, the real category could be worse than the estimate, never better.
 """
-from metarmap.decode import ceiling_ft
+from metarmap.decode import estimate_category
 from metarmap.models import FlightCategory as Category, Look, Metar
 from metarmap.visualizers import style
 from metarmap.visualizers.visualizer import legend_item
@@ -18,8 +18,6 @@ EXCLUSIVE = False
 
 LIGHTNING_STEP = 0.1  # seconds per frame of the lightning pattern
 ESTIMATE_PERIOD = 4.0  # seconds per breath of an estimated category
-
-ORDER = (Category.VFR, Category.MVFR, Category.IFR, Category.LIFR)  # best to worst
 
 
 def lightning_pattern(cat, color):
@@ -52,7 +50,7 @@ def look(metar: Metar, settings) -> Look:
     category = metar.get('flightCategory')
     estimated = category is None
     if estimated:
-        category = estimate(metar)
+        category = estimate_category(metar)
     color = color_for(category, settings)
     if settings.lightning.animation and metar.get('lightning', False):
         return Look.cycle(lightning_pattern(color, settings.color.weather.lightning), step=LIGHTNING_STEP)
@@ -61,23 +59,6 @@ def look(metar: Metar, settings) -> Look:
     if estimated:
         return Look.pulse(color, period=ESTIMATE_PERIOD, low=style.LIGHT_LOW)
     return Look.solid(color)
-
-
-def estimate(metar: Metar):
-    """
-    The flight category from the visibility and ceiling the report has, or None if it has neither. The worse of the
-    two decides; a sky with no broken or overcast layer (or a clear one) has no ceiling.
-    """
-    found = []
-    miles = metar.get('visibilitySM')
-    if miles is not None:
-        found.append(Category.LIFR if miles < 1 else Category.IFR if miles < 3 else
-                     Category.MVFR if miles <= 5 else Category.VFR)
-    if metar.get('skyConditions'):
-        feet = ceiling_ft(metar['skyConditions'], metar.get('vertVisFt'))
-        found.append(Category.VFR if feet is None or feet > 3000 else Category.MVFR if feet >= 1000 else
-                     Category.IFR if feet >= 500 else Category.LIFR)
-    return max(found, key=ORDER.index) if found else None
 
 
 def color_for(category, settings):

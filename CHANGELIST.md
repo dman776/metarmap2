@@ -1,4 +1,4 @@
-### dman776 Unreleased
+### dman776 2.9.2 (2026-10-26)
 
 - Flight Category: a station that doesn't report a flight category, but reports its visibility or sky condition, gets
   an estimate from them (FAA limits; the worse of ceiling and visibility decides). Its LED breathes slowly in that
@@ -6,6 +6,8 @@
   reported, the real category could be worse than shown, never better. Checked against live reports: the estimate
   matched the reported category for all 249 stations that report both. A station that reports neither still
   blinks red
+- OLED: an estimated flight category has a `*` after it (`VFR*`), on the screen and its copy on the Map page. The
+  category moved 4 px left to make room for `MVFR*`; the widest airport code (`KWWW`) still clears it
 
 ### dman776 2.9.1 (2026-10-26)
 
