@@ -340,7 +340,10 @@ def test_spread_missing_and_no_report(settings):
     assert spread.look({}, settings) == OFF
 
 
-def test_new_visualizers_keep_the_old_numbers():
-    """visualizer.active and the web UI number visualizers by position: new ones go at the end."""
-    assert [v.NAME for v in ALL][:10] == ["Flight Category", "Wind", "Wind Gusts", "Pressure", "Precipitation",
-                                          "Temperature", "Visibility", "Density Altitude", "Rainbow", "Chase"]
+def test_the_patterns_are_last():
+    """Rainbow and Chase (one look for the whole strip) always come after the weather visualizers."""
+    assert [v.NAME for v in ALL] == ["Flight Category", "Wind", "Wind Gusts", "Pressure", "Precipitation",
+                                     "Temperature", "Visibility", "Density Altitude", "Ceiling", "Dewpoint Spread",
+                                     "Rainbow", "Chase"]
+    patterns = [visualizer.strip_look(v, Settings()) is not None for v in ALL]
+    assert patterns == sorted(patterns), "a whole-strip visualizer comes before a weather one"

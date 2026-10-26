@@ -198,10 +198,10 @@ Visualizer indexes:
 | 5 | Temperature | |
 | 6 | Visibility | |
 | 7 | Density Altitude | |
-| 8 | Rainbow | yes |
-| 9 | Chase | yes |
-| 10 | Ceiling | |
-| 11 | Dewpoint Spread | |
+| 8 | Ceiling | |
+| 9 | Dewpoint Spread | |
+| 10 | Rainbow | yes |
+| 11 | Chase | yes |
 
 ```sh
 curl http://metarmap.local/brightness/0.25

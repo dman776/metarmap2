@@ -1,3 +1,10 @@
+### dman776 Unreleased
+
+- Rainbow and Chase are always at the end of the visualizer list. Ceiling and Dewpoint Spread are now 8 and 9,
+  Rainbow 10 and Chase 11. A saved default visualizer (`visualizer.active`) of 8 or 9 now means Ceiling or
+  Dewpoint Spread instead of Rainbow or Chase; set it again on the Config page if it was one of those. Home
+  Assistant picks visualizers by name, so it isn't affected
+
 ### dman776 2.8.0 (2026-10-25)
 
 - New visualizer, Ceiling: the lowest broken or overcast layer (or the vertical visibility when the sky is
