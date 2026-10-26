@@ -132,6 +132,9 @@
     "lightning": {
         "animation": true
     },
+    "update": {
+        "channel": "releases"
+    },
     "airports": [
         {
             "code": "KVCT",

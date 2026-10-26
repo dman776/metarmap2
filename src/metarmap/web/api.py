@@ -73,10 +73,21 @@ def status(services, ip):
         },
         "display": {"enabled": cfg.display_screen.enabled, "on": cfg.display_screen.enabled and services.display.on},
         "suntimes": {k: iso(suntimes.get(k)) for k in ("dawn", "sunrise", "sunset", "dusk")},
+        "update": update_state(services),
         "lastFetchTime": iso(metars.lastFetchTime),
         "missingStations": metars.missing_stations(),
         "airports": airports,
     }
+
+
+def update_state(services):
+    """What's newest on GitHub (see metarmap.releases); null for a map without the check."""
+    releases = getattr(services, "releases", None)
+    if releases is None:
+        return None
+    state = releases.state()
+    return {**{k: v for k, v in state.items() if k not in ("badge", "releases")},
+            "releases": [r["tag"] for r in state["releases"]]}
 
 
 def live(services, now=None):

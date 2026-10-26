@@ -24,3 +24,4 @@ htmlcov/
 airports.json
 METARMAP2 ARCHITECTURE
 metarmap2.code-workspace
+uv.lock

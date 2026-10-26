@@ -5,6 +5,7 @@ and the view data behind the pages.
 import base64
 import io
 import json
+import subprocess
 import threading
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
@@ -346,10 +347,10 @@ def test_api_routes(services):
 def test_update_runs_in_the_background(services):
     release = threading.Event()
 
-    def run_update(progress):
+    def run_update(progress, **kwargs):
         progress(0.5, "Downloading the update")
         release.wait(5)
-        return SimpleNamespace(ok=True, changed=True, errors=[])
+        return SimpleNamespace(ok=True, changed=True, target="v9.0.0", message="Installed v9.0.0", errors=[])
     c = Client(create_app(services, ip="", updates=control.Updates(run_update)))
     assert c.json("/update/progress") == control.NO_UPDATE
 
@@ -362,11 +363,12 @@ def test_update_runs_in_the_background(services):
             break
         threading.Event().wait(0.01)
     assert c.json("/update/progress") == {"fraction": 0.5, "label": "Downloading the update", "done": True,
-                                          "ok": True, "changed": True, "errors": []}
+                                          "ok": True, "changed": True, "target": "v9.0.0",
+                                          "message": "Installed v9.0.0", "errors": []}
 
 
 def test_update_failure_is_reported():
-    def run_update(progress):
+    def run_update(progress, **kwargs):
         raise RuntimeError("no network")
     updates = control.Updates(run_update)
     job = updates.start()
@@ -375,6 +377,132 @@ def test_update_failure_is_reported():
             break
         threading.Event().wait(0.01)
     assert job["ok"] is False and job["errors"] == ["no network"]
+
+
+# ---- releases: "Update available", the update channel and picking a release ---------------------------------
+
+def fake_git(tags=("v2.8.4", "v2.8.5", "v2.7.0", "v2.9.0-rc1"), newest="abcdef1234"):
+    """git for a ReleaseCheck: GitHub has these tags; this copy is on commit 1234567."""
+    def run(*args):
+        if args[:2] == ("ls-remote", "--tags"):
+            out = "".join(f"{n:040d}\trefs/tags/{tag}\n" for n, tag in enumerate(tags))
+        elif args[:2] == ("ls-remote", "origin"):
+            out = f"{newest}\tHEAD\n"
+        elif args[0] == "rev-parse":
+            out = "1234567\n"
+        else:  # merge-base --is-ancestor: GitHub's newest commit isn't in this copy
+            return subprocess.CompletedProcess(args, 1, "", "")
+        return subprocess.CompletedProcess(args, 0, out, "")
+    return run
+
+
+@pytest.fixture
+def release_client(make_app):
+    from metarmap.releases import ReleaseCheck
+    app = make_app()
+    app.releases = ReleaseCheck(channel=lambda: app.config.data.update.channel, current="2.8.4", git=fake_git())
+    started = []
+
+    def run_update(progress, **kwargs):
+        started.append(kwargs)
+        return SimpleNamespace(ok=True, changed=True, target=kwargs["version"] or "v2.8.5", message="Installed",
+                               errors=[])
+    c = Client(create_app(app, ip="10.0.0.2", updates=control.Updates(run_update)))
+    c.services, c.started = app, started
+    yield c
+    app.display.stop()
+
+
+def wait_for_update(c):
+    for _ in range(200):
+        if c.json("/update/progress")["done"]:
+            return c.json("/update/progress")
+        threading.Event().wait(0.01)
+
+
+def test_no_badge_before_a_check(release_client):
+    assert "update-badge" not in release_client("/")[1]
+
+
+def test_badge_and_home_button_when_a_release_is_newer(release_client):
+    release_client.services.releases.check()
+    home = release_client("/")[1]
+    assert '<a class="update-badge" href="/#update">Update available: v2.8.5</a>' in home
+    assert "Update to v2.8.5" in home
+    assert "Update available: v2.8.5" in release_client("/map")[1]  # every page's header
+
+
+def test_config_lists_releases_to_pick(release_client):
+    release_client.services.releases.check()
+    body = release_client("/config")[1]
+    assert '<option value="v2.8.5">v2.8.5</option>' in body
+    assert '<option value="v2.8.4" selected>v2.8.4 (running)</option>' in body
+    assert '<option value="v2.7.0" data-older="true">v2.7.0</option>' in body
+    assert "v2.9.0-rc1" not in body  # pre-releases aren't offered
+    assert "v2.8.5 is available." in body and "Commit <span class=\"mono\">1234567</span>" in body
+    assert '<option value="releases" selected>Releases</option>' in body
+
+
+def test_install_a_picked_release(release_client):
+    c = release_client
+    assert c.json("/update/start", method="POST", body={"version": "v2.7.0"})["target"] == "v2.7.0"
+    job = wait_for_update(c)
+    assert job["ok"] and c.started == [{"channel": "releases", "version": "v2.7.0"}]
+    assert c.services.releases.installed == "v2.7.0"
+    assert "Restart to use v2.7.0" in c("/")[1]
+
+
+def test_update_follows_the_channel(release_client):
+    c = release_client
+    assert c("/config/edit/update.channel/latest")[0] == 200
+    state = c.services.releases.check()
+    assert state["available"] == "abcdef1" and state["badge"] == "New commit available"
+    assert "New commit available" in c("/")[1] and ">\n            Update\n" in c("/")[1]  # no version to name
+    c.json("/update/start", method="POST")
+    wait_for_update(c)
+    assert c.started == [{"channel": "latest", "version": None}]
+    assert c.services.releases.badge() == "Restart to use v2.8.5"  # installed: it runs after a restart
+
+
+@pytest.mark.parametrize("path, body", [("/update/start", {"version": "latest"}),
+                                        ("/update/start", {"version": "v2.9.0-rc1"}),
+                                        ("/update/start", ["v2.7.0"])])
+def test_bad_release_picks_are_400s(release_client, path, body):
+    assert release_client(path, method="POST", body=body)[0] == 400
+
+
+def test_update_start_without_a_content_length(release_client):
+    """curl -X POST sends no Content-Length header; that's the channel's update, not a bad body."""
+    c = release_client
+
+    def post_without_length(path):
+        status = []
+        environ = {"REQUEST_METHOD": "POST", "PATH_INFO": path, "QUERY_STRING": "", "SERVER_NAME": "test",
+                   "SERVER_PORT": "80", "SERVER_PROTOCOL": "HTTP/1.1", "wsgi.url_scheme": "http",
+                   "wsgi.input": io.BytesIO(b""), "wsgi.errors": io.StringIO(), "HTTP_AUTHORIZATION": AUTH}
+        b"".join(c.app(environ, lambda s, h, exc_info=None: status.append(s)))
+        return int(status[0].split()[0])
+    assert post_without_length("/update/start") == 202
+    wait_for_update(c)
+    assert c.started == [{"channel": "releases", "version": None}]
+
+
+def test_unknown_update_channel_is_a_400(release_client):
+    assert release_client("/config/edit/update.channel/nightly")[0] == 400
+    assert release_client.services.config.data.update.channel == "releases"
+
+
+def test_check_now_and_status(release_client):
+    c = release_client
+    assert c("/update/check", auth=False)[0] == 401
+    assert c.json("/update/check")["available"] == "v2.8.5"
+    update = c.json("/api/status", auth=False)["update"]
+    assert update["current"] == "2.8.4" and update["available"] == "v2.8.5" and update["channel"] == "releases"
+    assert update["releases"] == ["v2.8.5", "v2.8.4", "v2.7.0"] and update["error"] is None
+
+
+def test_status_without_the_check(services):
+    assert api.status(services, "")["update"] is None
 
 
 # ---- view data ------------------------------------------------------------------------------------------------

@@ -59,6 +59,13 @@ def quick_dim(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def no_release_checks(monkeypatch):
+    """The map asks GitHub for new releases in the background when it starts; not in tests (they call check())."""
+    from metarmap.releases import ReleaseCheck
+    monkeypatch.setattr(ReleaseCheck, "check_soon", lambda self: None)
+
+
+@pytest.fixture(autouse=True)
 def no_network(monkeypatch):
     """Tests never reach aviationweather.gov; a test that needs it fakes requests.get itself."""
     import requests

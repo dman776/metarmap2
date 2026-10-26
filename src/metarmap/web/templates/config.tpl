@@ -176,6 +176,64 @@
             % slider('led.brightness.off', d.led.brightness.off, 'Night brightness', 'Dusk to dawn.', restart=True)
             <p class="muted" style="margin: 0; padding: 0 24px 18px; font-size: 13px">Brightness levels load at midnight or when the map restarts.</p>
         </section>
+
+        % release = get('release')
+        % if release:
+        <section class="card settings" id="updates">
+            <h2>Software</h2>
+            <div class="set">
+                <div>
+                    <span class="t">Running v{{version}}</span>
+                    <div class="d">
+                        % if release['error']:
+                        Couldn't check GitHub: {{release['error']}}
+                        % elif release['checked'] is None:
+                        Not checked for updates yet.
+                        % elif release['available'] and release['channel'] == 'latest':
+                        A newer commit is on GitHub ({{release['available']}}).
+                        % elif release['available']:
+                        {{release['available']}} is available.
+                        % elif not release['releases'] and release['channel'] == 'releases':
+                        There are no releases on GitHub yet.
+                        % else:
+                        Up to date.
+                        % end
+                        % if release['commit']:
+                        Commit <span class="mono">{{release['commit']}}</span>.
+                        % end
+                    </div>
+                </div>
+                <button class="btn" type="button" data-call="/update/check">Check now</button>
+            </div>
+            <div class="set">
+                <div>
+                    <label class="t" for="update-channel">Update to</label>
+                    <div class="d">Releases: the newest release. Latest commit: the newest code on GitHub, released or not, for testing.</div>
+                </div>
+                <select id="update-channel" data-key="update.channel">
+                    % for value, label in (('releases', 'Releases'), ('latest', 'Latest commit')):
+                    <option value="{{value}}"{{!' selected' if release['channel'] == value else ''}}>{{label}}</option>
+                    % end
+                </select>
+            </div>
+            % if release['releases']:
+            <div class="set">
+                <div>
+                    <label class="t" for="release-pick">Install a release</label>
+                    <div class="d">Any release, older ones too. Your settings are kept.</div>
+                </div>
+                <div class="release-pick">
+                    <select id="release-pick">
+                        % for r in release['releases']:
+                        <option value="{{r['tag']}}"{{!' data-older="true"' if r['older'] else ''}}{{!' selected' if r['running'] else ''}}>{{r['tag']}}{{' (running)' if r['running'] else ''}}</option>
+                        % end
+                    </select>
+                    <button class="btn" type="button" data-install-release>Install</button>
+                </div>
+            </div>
+            % end
+        </section>
+        % end
     </div>
 </div>
 

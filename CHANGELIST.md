@@ -1,3 +1,18 @@
+### dman776 2.9.0 (2026-10-26)
+
+- Updates install releases (git tags like `v2.9.0`) instead of the newest commit, and never go back to an older
+  version. The map asks GitHub for a new release when it starts and every 6 hours; when there is one, every page
+  shows **Update available** at the top, and the Home page's button reads **Update to v2.9.0**. After installing,
+  the note says to restart
+- Config > Software: **Check now**, the update channel (**Releases**, or **Latest commit** for a map you test
+  unreleased changes on), and **Install a release** to install any release, older ones too (it asks before going
+  back). `update.channel` setting; `POST /update/start` takes `{"version": "v2.7.0"}`; new `GET /update/check`;
+  `update` in `/api/status`
+- A map that installed a release isn't on a branch any more, so `git pull` over SSH needs `git checkout master`
+  first. Maps on 2.8.4 and earlier still have the old Update button: their next update pulls the newest commit
+  (including this change), and the one after that uses releases
+- Release routine: bump the version, commit, `git tag -a vX.Y.Z`, push the commit and the tag
+
 ### dman776 2.8.4 (2026-10-25)
 
 - Map page fullscreen: previous/next visualizer buttons, with the visualizer's name, under the background switcher

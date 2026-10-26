@@ -18,9 +18,15 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
             Fetch METARs
         </button>
-        <button class="btn" type="button" data-update>
+        % release = get('release')
+        % newer = release and release['available'] and not release['installed']
+        <button class="btn{{' primary' if newer else ''}}" id="update" type="button" data-update>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+            % if newer and release['channel'] == 'releases':
+            Update to {{release['available']}}
+            % else:
             Update
+            % end
         </button>
         <button class="btn danger" type="button" data-call="/restart" data-then="restart" data-confirm="Restart the map now?">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v9"/><path d="M6.3 6.3a8 8 0 1 0 11.4 0"/></svg>

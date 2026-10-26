@@ -108,7 +108,8 @@
 
     // ---- update: a progress bar instead of git's output ----------------------------------------------------------
 
-    async function runUpdate(btn) {
+    // version: a release picked on Config (older ones too); none: what the update channel says
+    async function runUpdate(btn, version) {
         const dlg = document.getElementById('update-dialog');
         if (!dlg) return;
         const label = dlg.querySelector('.update-label');
@@ -122,7 +123,10 @@
         dlg.showModal();
         busy(btn, true);
         try {
-            let res = await fetch('/update/start', {method: 'POST', credentials: 'same-origin'});
+            let res = await fetch('/update/start', version ? {
+                method: 'POST', credentials: 'same-origin',
+                headers: {'Content-Type': 'application/json'}, body: JSON.stringify({version: version})
+            } : {method: 'POST', credentials: 'same-origin'});
             if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
             let job = await res.json();
             while (!job.done) {
@@ -135,8 +139,9 @@
             }
             bar.value = 1;
             if (job.ok) {
-                label.textContent = job.changed ? 'Update installed. Restart the map to start using it.'
-                    : 'Already up to date.';
+                label.textContent = job.changed
+                    ? (job.message || 'Update installed') + '. Restart the map to start using it.'
+                    : (job.message || 'Already up to date') + '.';
                 restart.hidden = !job.changed;
             } else {
                 label.textContent = 'Update failed.';
@@ -157,6 +162,19 @@
         if (!btn) return;
         e.preventDefault();
         runUpdate(btn);
+    });
+
+    // Config > Software: install the release picked in the list, older ones too
+    document.addEventListener('click', function (e) {
+        const btn = e.target.closest('[data-install-release]');
+        if (!btn) return;
+        e.preventDefault();
+        const pick = document.getElementById('release-pick');
+        const option = pick && pick.selectedOptions[0];
+        if (!option) return;
+        if (option.dataset.older === 'true' && !window.confirm('Go back to ' + option.value + '? Your settings are '
+                + 'kept; settings that only newer versions have are ignored by it.')) return;
+        runUpdate(btn, option.value);
     });
 
     // output dialog (update log, errors)

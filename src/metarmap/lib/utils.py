@@ -143,25 +143,52 @@ def _fix_ownership(repo, uid, gid):
     return changed
 
 
+GIT_TIMEOUT = 300  # seconds; a download that takes longer has stalled
+
+
+def run_git(repo, *args, timeout=GIT_TIMEOUT):
+    """
+    Runs git in `repo` as the folder's owner (see _as_owner), never stopping to ask for a password.
+    Returns the CompletedProcess; raises subprocess.TimeoutExpired if git takes longer than `timeout`.
+    """
+    owner = _as_owner(*_repo_owner(repo))
+    env = {**owner.get("env", os.environ), "GIT_TERMINAL_PROMPT": "0"}
+    return subprocess.run([shutil.which("git") or "/usr/bin/git", "-C", repo, *args],
+                          capture_output=True, text=True, timeout=timeout, **{**owner, "env": env})
+
+
 class UpdateResult:
-    """What run_update() did: ok, whether the code changed, a log, and any git errors."""
+    """
+    What run_update() did: ok, whether the code changed, what it installed (target: a release tag, or the commit on
+    the latest channel), a one-line message for the web UI, a log, and any git errors.
+    """
 
     def __init__(self):
         self.ok = False
         self.changed = False
+        self.target = None
+        self.message = ""
         self.log = []
         self.errors = []
 
 
-def run_update(repo=None, progress=None):
+def run_update(repo=None, progress=None, channel="releases", version=None, current=None):
     """
-    Updates the map's code from GitHub (git reset --hard, then git pull), keeping config.json and airports.json.
-    Git runs as the owner of the folder, not root, so file ownership stays consistent.
+    Updates the map's code from GitHub, keeping config.json and airports.json. Git runs as the owner of the folder,
+    not root, so file ownership stays consistent.
 
+    channel "releases": installs the newest release tag (v2.8.4), but only if it's newer than the running version
+    (current; default this code's version), so an update never goes backwards. "latest": installs the newest commit
+    on GitHub's default branch, released or not (for testing).
+    version: a release tag to install whatever the channel, older or newer (picking a release by hand).
     progress: optional callback(fraction 0..1, label) for the web UI's progress bar.
     Returns an UpdateResult.
     """
+    from metarmap import __version__
+    from metarmap.lib import versions
+
     repo = repo or os.getcwd()
+    current = current or __version__
     result = UpdateResult()
 
     def step(fraction, label):
@@ -172,21 +199,27 @@ def run_update(repo=None, progress=None):
         safe_logging.safe_log("[u]" + msg)
         result.log.append("[u]" + msg)
 
+    def fail(message):
+        say(message)
+        result.errors.append(message)
+
     def git(*args, quiet=False):
-        done = subprocess.run([shutil.which("git") or "/usr/bin/git", "-C", repo, *args],
-                              capture_output=True, text=True, **as_owner)
+        try:
+            done = run_git(repo, *args)
+        except subprocess.TimeoutExpired:
+            done = subprocess.CompletedProcess(args, 1, "", f"git {args[0]} took longer than {GIT_TIMEOUT} s")
         if not quiet:
             for text in (done.stdout.strip(), done.stderr.strip()):
                 if text:
                     say(text)
-        if done.returncode != 0:
+        if done.returncode != 0 and not quiet:
             message = f"git {' '.join(args)} failed (exit code {done.returncode})"
             say(message)
             result.errors.append(done.stderr.strip() or message)
         return done
 
     step(0.0, "Starting")
-    say("starting update... ")
+    say(f"starting update ({'release ' + version if version else channel})... ")
     uid, gid = _repo_owner(repo)
     as_owner = _as_owner(uid, gid)
     if as_owner:
@@ -197,44 +230,97 @@ def run_update(repo=None, progress=None):
             say(f"gave {fixed} files back to {as_owner['env']['USER']}")
     before = git("rev-parse", "HEAD", quiet=True).stdout.strip()
 
-    step(0.15, "Saving your settings")
-    say("saving config files... ")
-    saved = tempfile.mkdtemp(prefix="metarmap-update-")
-    for name in CONFIG_FILES:
-        if os.path.exists(os.path.join(repo, name)):
-            shutil.copy2(os.path.join(repo, name), saved)
+    # what to install: a release tag, or the default branch's newest commit
+    step(0.1, "Downloading the update")
+    checkout = None
+    if version or channel == "releases":
+        ok = git("fetch", "--tags", "--force", "origin").returncode == 0
+        if ok and version:
+            if git("rev-parse", "--verify", "--quiet", f"refs/tags/{version}^{{commit}}", quiet=True).returncode:
+                ok = False
+                fail(f"{version} isn't a release on GitHub")
+            else:
+                checkout = ["-c", "advice.detachedHead=false", "checkout", version]
+                result.target = version
+        elif ok:
+            newest = next(iter(versions.releases(git("tag", "--list", quiet=True).stdout.split())), None)
+            if newest is None:
+                ok = False
+                fail("There are no releases on GitHub yet")
+            elif versions.is_newer(newest, current):
+                checkout = ["-c", "advice.detachedHead=false", "checkout", newest]
+                result.target = newest
+            else:
+                result.message = f"Already on the newest release ({newest})"
+                say(result.message)
+    elif channel == "latest":
+        ok = git("fetch", "origin").returncode == 0
+        if ok:
+            branch = git("symbolic-ref", "--short", "refs/remotes/origin/HEAD", quiet=True)
+            if branch.returncode:  # a clone that doesn't know GitHub's default branch yet
+                git("remote", "set-head", "origin", "--auto", quiet=True)
+                branch = git("symbolic-ref", "--short", "refs/remotes/origin/HEAD", quiet=True)
+            remote_branch = branch.stdout.strip()
+            if branch.returncode or "/" not in remote_branch:
+                ok = False
+                fail("Couldn't find GitHub's default branch")
+            else:
+                checkout = ["checkout", "-B", remote_branch.split("/", 1)[1], remote_branch]
+    else:
+        ok = False
+        fail(f"Unknown update channel {channel!r}")
 
-    step(0.25, "Resetting local changes")
-    say("git reset... ")
-    ok = git("reset", "--hard").returncode == 0
-    if ok:
-        step(0.4, "Downloading the update")
-        say("updating from github...")
-        ok = git("pull").returncode == 0
+    if ok and checkout:
+        step(0.3, "Saving your settings")
+        say("saving config files... ")
+        saved = tempfile.mkdtemp(prefix="metarmap-update-")
+        for name in CONFIG_FILES:
+            if os.path.exists(os.path.join(repo, name)):
+                shutil.copy2(os.path.join(repo, name), saved)
 
-    step(0.9, "Restoring your settings")
-    say("restoring config files... ")
-    for name in CONFIG_FILES:
-        backup = os.path.join(saved, name)
-        if os.path.exists(backup):
-            target = os.path.join(repo, name)
-            shutil.copy2(backup, target)
-            if as_owner:
-                os.chown(target, uid, gid)
-    shutil.rmtree(saved, ignore_errors=True)
+        step(0.45, "Resetting local changes")
+        say("git reset... ")
+        ok = git("reset", "--hard").returncode == 0
+        if ok:
+            step(0.6, f"Installing {result.target or 'the newest commit'}")
+            say(f"installing {result.target or 'the newest commit'}...")
+            ok = git(*checkout).returncode == 0
+
+        step(0.9, "Restoring your settings")
+        say("restoring config files... ")
+        for name in CONFIG_FILES:
+            backup = os.path.join(saved, name)
+            if os.path.exists(backup):
+                target = os.path.join(repo, name)
+                shutil.copy2(backup, target)
+                if as_owner:
+                    os.chown(target, uid, gid)
+        shutil.rmtree(saved, ignore_errors=True)
 
     result.ok = ok
-    result.changed = ok and git("rev-parse", "HEAD", quiet=True).stdout.strip() != before
+    after = git("rev-parse", "HEAD", quiet=True).stdout.strip() if ok else before
+    result.changed = ok and after != before
+    if ok and channel == "latest" and not version:
+        result.target = after[:7] or None
+    if ok and not result.message:
+        latest = channel == "latest" and not version
+        if result.changed:
+            result.message = f"Installed the newest commit ({result.target})" if latest else \
+                f"Installed {result.target}"
+        else:
+            result.message = f"Already on the newest commit ({result.target})" if latest else \
+                f"Already on {result.target}"
     say("update complete" if ok else "update FAILED; see the messages above")
     step(1.0, "Done" if ok else "Failed")
     return result
 
 
-def update(repo=None):
+def update(repo=None, **kwargs):
     """
     Runs the update and returns its log as HTML (used by GET /update and the Home Assistant integration).
+    kwargs: run_update()'s channel, version and current.
     """
-    return "".join(line + "<br />" for line in run_update(repo).log)
+    return "".join(line + "<br />" for line in run_update(repo, **kwargs).log)
 
 
 def restart():

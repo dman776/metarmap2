@@ -22,7 +22,8 @@ def create_app(services, ip=None, updates=None) -> bottle.Bottle:
     The web app for a map. ip: shown in the header and /api/status (default: this machine's address);
     updates: a control.Updates (tests pass one with a fake update).
     """
-    site = Site(ip=ip if ip is not None else my_ip(), sectionals=views.load_sectionals())
+    site = Site(ip=ip if ip is not None else my_ip(), sectionals=views.load_sectionals(),
+                releases=getattr(services, "releases", None))
     auth = auth_basic(lambda user, password: views.is_login(services.config.data.web_server, user, password))
     app = bottle.Bottle()
     pages.add_routes(app, services, site, auth)

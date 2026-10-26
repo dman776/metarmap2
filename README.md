@@ -109,17 +109,28 @@ Everything is saved in `config.json` in the `metarmap2` folder. To edit that fil
 
 ## Updating
 
-Use **Update** on the Home page. It downloads the latest version and keeps your `config.json`. Then use **Restart**.
+The map checks GitHub for a new release when it starts and every 6 hours. When there is one, every page shows
+**Update available** at the top, and the Home page's button reads **Update to v2.9.0** (for example). Click it, then
+use **Restart**. Your `config.json` is kept.
 
-Or, over SSH:
+**Config > Software** has more:
+- **Check now** asks GitHub straight away.
+- **Update to**: **Releases** (the default) installs only released versions, and never goes back to an older one.
+  **Latest commit** installs the newest code on GitHub, released or not. Use it on a map you test changes on.
+- **Install a release** installs any release, older ones too, to go back if a new one has a problem. It asks first
+  before going back.
+
+Or, over SSH, the newest release:
 
 ```sh
 cd metarmap2
-git pull
+git fetch --tags
+git checkout v2.9.0      # the release you want
 ./install.sh
 ```
 
-Running `./install.sh` after an update also installs any new packages the map needs.
+Running `./install.sh` after an update also installs any new packages the map needs. On a map that has installed a
+release, `git pull` says it isn't on a branch: `git checkout master` first (or pick **Latest commit** above).
 
 ## Web API and Home Assistant
 
@@ -161,12 +172,22 @@ through this API. It provides:
 You can work on the map without a Raspberry Pi. With no LED strip or OLED screen, the map uses in-memory stand-ins,
 and the web UI (including the live Map page and its OLED window) works as usual with real METARs.
 
-- Set up: `python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"`
+- Set up: `uv sync --extra dev` (or `python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"`)
 - Run the tests: `.venv/bin/pytest`
 - Check the code: `.venv/bin/ruff check .`
 - Run the map: `.venv/bin/python -m metarmap` (or `.venv/bin/metarmap`), from the folder with `config.json`.
   The web server uses `web_server.port` from `config.json`. Port 80 needs `sudo`, so on a laptop use something like
   8080 and open http://localhost:8080.
+
+To release a version, so maps see it as an update: bump the version (`bump2version patch` or `minor`), commit, tag
+the commit with the version, and push both:
+
+```sh
+git tag -a v2.9.0 -m "Release 2.9.0"
+git push origin master v2.9.0
+```
+
+Maps only install tags that look like `v2.9.0` (or `2.9.0`); a pre-release such as `v2.9.0-rc1` is skipped.
 
 The code is the `metarmap` package in `src/metarmap/`:
 - `app.py` builds the map from `config.json` (settings, METARs, LED renderer, OLED loop, scheduled jobs) and runs it
@@ -177,6 +198,7 @@ The code is the `metarmap` package in `src/metarmap/`:
   `look()` or `strip_look()`); `visualizers.ALL` lists them in order
 - `web/`: the web UI and API. `create_app()` builds it; the routes are in `pages.py`, `api.py` and `control.py`,
   and `views.py` prepares what each page shows (templates in `web/templates/`, files in `web/static/`)
+- `releases.py`: what's newest on GitHub (the "Update available" check); `lib/utils.py`'s `run_update()` installs it
 - `service.py`: switches an older installed `metarmap.service` (one that runs `controller.py`) to the current one
 
 `install.sh` sets up a Pi; `metarmap.service` is the systemd service it installs.

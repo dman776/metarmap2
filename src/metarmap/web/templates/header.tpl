@@ -28,6 +28,10 @@
                     <a href="{{href}}"{{!' aria-current="page"' if page == key else ''}}>{{label}}</a>
                     % end
                 </nav>
+                % release = get('release')
+                % if release and release['badge']:
+                <a class="update-badge" href="/#update">{{release['badge']}}</a>
+                % end
                 % if defined('myIP'):
                 <span class="host">{{myIP}} · v{{version}}</span>
                 % else:

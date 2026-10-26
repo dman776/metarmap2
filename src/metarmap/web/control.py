@@ -11,13 +11,14 @@ import bottle
 
 from metarmap import system
 from metarmap.config import parse_code, parse_user
-from metarmap.lib import utils
+from metarmap.lib import utils, versions
 from metarmap.lib.safe_logging import safe_log
 from metarmap.web import pages
 
 WIFI_DELAY = 3  # seconds between answering a Wi-Fi change and making it
 
-NO_UPDATE = {"fraction": 0.0, "label": "", "done": True, "ok": None, "changed": None, "errors": []}
+NO_UPDATE = {"fraction": 0.0, "label": "", "done": True, "ok": None, "changed": None, "target": None, "message": "",
+             "errors": []}
 
 
 class Updates:
@@ -27,13 +28,18 @@ class Updates:
         self._run_update = run_update or utils.run_update
         self._lock = threading.Lock()
         self.job = None
+        self.channel = lambda: "releases"  # the update channel now (the web app sets it from the config)
+        self.on_done = None  # called with the UpdateResult of an update that worked
 
-    def start(self):
-        """Starts an update, unless one is already running. Returns the running job."""
+    def start(self, version=None):
+        """
+        Starts an update, unless one is already running. version: a release to install (picked by hand) instead
+        of what the update channel would. Returns the running job.
+        """
         with self._lock:
             if self.job is None or self.job["done"]:
                 job = {"fraction": 0.0, "label": "Starting", "done": False, "ok": None, "changed": None,
-                       "errors": []}
+                       "target": version, "message": "", "errors": []}
                 self.job = job
 
                 def progress(fraction, label):
@@ -41,8 +47,11 @@ class Updates:
 
                 def run():
                     try:
-                        result = self._run_update(progress=progress)
-                        job.update(ok=result.ok, changed=result.changed, errors=result.errors)
+                        result = self._run_update(progress=progress, channel=self.channel(), version=version)
+                        job.update(ok=result.ok, changed=result.changed, target=result.target,
+                                   message=result.message, errors=result.errors)
+                        if result.ok and self.on_done:
+                            self.on_done(result)
                     except Exception as e:
                         safe_log(f"[w]update failed: {e}")
                         job.update(ok=False, changed=False, errors=[str(e)])
@@ -64,7 +73,17 @@ def as_json(data, status=200):
 
 def add_routes(app, services, site, auth, updates=None):
     renderer, config = services.renderer, services.config
+    releases = getattr(services, "releases", None)
     updates = updates or Updates()
+    updates.channel = lambda: config.data.update.channel
+
+    def installed(result):
+        """After an update: the header says to restart, and the check sees what's newest now."""
+        if releases is not None:
+            if result.changed:
+                releases.installed = result.target
+            releases.check_soon()
+    updates.on_done = installed
 
     def visualizer(visnum):
         renderer.visualizer = int(visnum)
@@ -114,6 +133,8 @@ def add_routes(app, services, site, auth, updates=None):
         renderer.refresh()
         if key.startswith("visualizer.auto_rotate."):  # the new timer starts now, no restart needed
             services.schedule_rotation()
+        if key == "update.channel" and releases is not None:  # "Update available" follows the new channel
+            releases.check_soon()
         if key == "display_screen.enabled":  # the OLED turns on or off now, no restart needed
             services.display.turn_on() if config.data.display_screen.enabled else services.display.turn_off()
         return pages.config(services, site)
@@ -219,6 +240,26 @@ def add_routes(app, services, site, auth, updates=None):
         threading.Thread(target=switch, name="wifi", daemon=True).start()
         return as_json({"ssid": ssid, "current": system.current_wifi(), "delay": WIFI_DELAY}, status=202)
 
+    def update_start():
+        """Starts an update: what the channel says, or the release in the JSON body ({"version": "v2.7.1"})."""
+        # no body (curl -X POST sends no Content-Length at all: -1) means the channel's update
+        version = body().get("version") if bottle.request.content_length > 0 else None
+        if version is not None and not versions.parse(version):
+            bottle.abort(400, f"{version!r} isn't a release version (like v2.8.4)")
+        return as_json(updates.start(version), status=202)
+
+    def update_now():
+        """The older GET /update (Home Assistant's button): updates and answers with the log."""
+        result = utils.run_update(channel=config.data.update.channel)
+        if result.ok:
+            installed(result)
+        return "".join(line + "<br />" for line in result.log)
+
+    def update_check():
+        if releases is None:
+            bottle.abort(404, "This map doesn't check for updates")
+        return as_json(releases.check())
+
     def restart():
         if services.display:
             services.display.stop()
@@ -238,9 +279,10 @@ def add_routes(app, services, site, auth, updates=None):
     # the older by-code edits, still used by anything written for airports.json
     app.route("/config/airports/edit/<oldkey>/<newkey>", "GET", edit_airport, apply=auth)
     app.route("/config/airports/edit/prop/<airport>/<key>/<value>", "GET", edit_airport_property, apply=auth)
-    app.route("/update", "GET", lambda: utils.update(), apply=auth)
+    app.route("/update", "GET", update_now, apply=auth)
     # 202: started; the web UI polls /update/progress for its progress bar
-    app.route("/update/start", "POST", lambda: as_json(updates.start(), status=202), apply=auth)
+    app.route("/update/start", "POST", update_start, apply=auth)
+    app.route("/update/check", "GET", update_check, apply=auth)
     app.route("/update/progress", "GET", lambda: as_json(updates.progress()), apply=auth)
     app.route("/restart", "GET", restart, apply=auth)
     app.route("/config/login", "POST", set_login, apply=auth)

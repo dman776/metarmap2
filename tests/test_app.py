@@ -29,7 +29,8 @@ def test_build_wires_the_parts_together(make_app):
 
 def test_jobs(make_app):
     app = make_app()
-    assert jobs(app) == {"update_data": 1, "load_suntimes": 1, "set_brightness": 4, "watch_display": 1}
+    assert jobs(app) == {"update_data": 1, "load_suntimes": 1, "set_brightness": 4, "watch_display": 1,
+                         "check_releases": 1}
     assert {job.at_time.strftime("%H:%M") for job in app.scheduler.get_jobs("suntimes")} == \
         {app.sun.times[name].strftime("%H:%M") for name in ("dawn", "sunrise", "sunset", "dusk")}
 

@@ -114,6 +114,15 @@ class Lightning(_Section):
     animation: bool = True
 
 
+UPDATE_CHANNELS = ("releases", "latest")
+
+
+@dataclass
+class UpdateSettings(_Section):
+    # releases: Update installs the newest release tag; latest: the newest commit, released or not (for testing)
+    channel: str = "releases"
+
+
 @dataclass
 class Airport(_Section):
     """One LED of the strip and the airport it shows."""
@@ -131,6 +140,7 @@ class Settings(_Section):
     color: Colors = field(default_factory=Colors)
     visualizer: VisualizerSettings = field(default_factory=VisualizerSettings)
     lightning: Lightning = field(default_factory=Lightning)
+    update: UpdateSettings = field(default_factory=UpdateSettings)
     airports: List[Airport] = field(default_factory=list)  # in LED order: airports[0] is the first LED
 
     # ---- loading and saving ------------------------------------------------------------------------------------

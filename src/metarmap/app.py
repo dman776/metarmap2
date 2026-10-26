@@ -14,6 +14,7 @@ import time
 import traceback
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Optional
 
 import schedule
 from adafruit_led_animation.animation.rainbowcomet import RainbowComet
@@ -26,6 +27,7 @@ from metarmap.leds.strip import open_strip
 from metarmap.lib import safe_logging, utils
 from metarmap.metar import METAR
 from metarmap.oled.screen import open_screen
+from metarmap.releases import CHECK_HOURS, ReleaseCheck
 from metarmap.renderer import Renderer
 from metarmap.sun import LEVEL_AT, SunTimes
 from metarmap.web import create_app, serve
@@ -45,6 +47,7 @@ class App:
     renderer: Renderer
     display: Display  # always built; its loop runs while display_screen.enabled is on
     scheduler: schedule.Scheduler
+    releases: Optional[ReleaseCheck] = None  # what's newest on GitHub, for "Update available"
 
     def schedule_rotation(self):
         schedule_rotation(self)
@@ -74,7 +77,8 @@ def build(config_file=CONFIG_FILE, strip=None, screen=None, clock: Clock = None,
         screen = open_screen()  # the OLED on the Pi; an in-memory screen anywhere else (the web UI mirrors it)
     display = Display(config, metars, screen, renderer=renderer, clock=clock)
 
-    app = App(config, sun, metars, renderer, display, schedule.Scheduler())
+    releases = ReleaseCheck(channel=lambda: config.data.update.channel)
+    app = App(config, sun, metars, renderer, display, schedule.Scheduler(), releases)
     fill_names(app)
     schedule_jobs(app)
     return app
@@ -88,6 +92,7 @@ def schedule_jobs(app: App):
     s.every().day.at("00:00").do(load_suntimes, app)  # new sun times every day, to dim the map at the right times
     schedule_brightness(app)
     s.every(WATCHDOG_SECONDS).seconds.do(watch_display, app)
+    s.every(CHECK_HOURS).hours.do(check_releases, app)
     schedule_rotation(app)
 
 
@@ -164,6 +169,12 @@ def set_brightness(app: App, level):
     app.renderer.brightness(level)
 
 
+def check_releases(app: App):
+    """Asks GitHub whether there's a newer release (in the background), for the web UI's "Update available"."""
+    if app.releases is not None:
+        app.releases.check_soon()
+
+
 def rotate_visualizer(app: App):
     app.renderer.visualizer_next(skip_exclusive=True, skip=app.config.data.visualizer.auto_rotate.skip)
 
@@ -197,6 +208,7 @@ def run(app: App):
         app.renderer.animate_once(RainbowComet(app.renderer.pixels(), speed=0.05, tail_length=5, bounce=False))
 
     web_app = create_app(app)
+    check_releases(app)  # then every CHECK_HOURS
     try:
         web_server = serve(web_app, "0.0.0.0", app.config.data.web_server.port)
     except OSError as e:

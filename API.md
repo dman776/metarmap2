@@ -63,6 +63,16 @@ Returns a read-only snapshot of the map's state as `application/json`. No authen
     "sunset": "2026-10-23T18:45:03-05:00",
     "dusk": "2026-10-23T19:10:31-05:00"
   },
+  "update": {
+    "current": "2.8.4",
+    "channel": "releases",
+    "commit": "41cd311",
+    "available": "v2.9.0",
+    "installed": null,
+    "releases": ["v2.9.0", "v2.8.4", "v2.8.2"],
+    "checked": "2026-10-26T14:00:00+00:00",
+    "error": null
+  },
   "lastFetchTime": "2026-10-23T12:00:00.123456",
   "missingStations": ["KXYZ"],
   "airports": [
@@ -93,6 +103,7 @@ Returns a read-only snapshot of the map's state as `application/json`. No authen
 | `version` | metarmap2 software version |
 | `ip` | IP address of the map |
 | `brightness` | Current LED brightness, `0.0`–`1.0` |
+| `update` | What's newest on GitHub: `current` is the running version, `commit` the running commit, `available` the release (or, on the `latest` channel, the commit) an update would install, or `null` when up to date; `installed` is what an update installed that needs a restart; `releases` lists the releases that can be installed, newest first; `checked` is when GitHub was last asked, and `error` why that failed. `null` if the map doesn't check. |
 | `visualizer` | The visualizer that is running now. `exclusive` visualizers ignore `/locate`. |
 | `visualizer.legend` | What the LEDs mean for that visualizer. `colors` are CSS hex colors; two or more mean a gradient across the range. `effect` is `solid`, `blink`, `pulse`, `flash` (the first color with flashes of the second), `chase` or `off`. `period` is the seconds per blink or pulse, or `null`. |
 | `visualizers` | Every visualizer, in index order (the indexes used by `/visualizer/<n>`) |
@@ -225,6 +236,7 @@ Settings that apply right away:
 - `lightning.animation`
 - `display_screen.locate_active`
 - `display_screen.delay`
+- `update.channel`: what **Update** installs: `releases` (the newest release tag, never an older one; the default) or `latest` (the newest commit on GitHub, released or not, for testing)
 - `led.dim_on_refresh`: the LEDs dim to half their brightness while METARs are fetched (at least a second)
 - `visualizer.active`, the default visualizer used at startup. Saving it doesn't change the visualizer that's running now; use `/visualizer/<n>` for that.
 - `visualizer.auto_rotate.enabled`
@@ -292,9 +304,10 @@ curl -u metar:map -H 'Content-Type: application/json' -d '{"user": "pilot", "pas
 
 | Endpoint | Description |
 |---|---|
-| `GET /update` | Runs `git reset --hard` and `git pull` in the install directory, keeping `config.json` (and an older `airports.json`). Waits until it's done and returns the output as HTML. Restart afterwards to use the new code. |
-| `POST /update/start` | Starts the same update in the background (or reports the one already running) and returns its progress, as below. Used by the web UI's progress bar. |
-| `GET /update/progress` | Progress of the update started with `/update/start`: `{"fraction": 0.4, "label": "Downloading the update", "done": false, "ok": null, "changed": null, "errors": []}`. When `done`, `ok` says whether it worked, `changed` whether new code was downloaded, and `errors` holds git's error messages. |
+| `GET /update` | Updates the map from GitHub as `update.channel` says, keeping `config.json` (and an older `airports.json`): on `releases`, the newest release tag (`v2.9.0`), only if it's newer than the running version; on `latest`, the newest commit. Waits until it's done and returns the output as HTML. Restart afterwards to use the new code. |
+| `POST /update/start` | Starts the same update in the background (or reports the one already running) and returns its progress, as below. Used by the web UI's progress bar. With a JSON body `{"version": "v2.7.0"}` it installs that release instead, older or newer, whatever the channel. A `version` that isn't a release version is a 400. |
+| `GET /update/progress` | Progress of the update started with `/update/start`: `{"fraction": 0.4, "label": "Downloading the update", "done": false, "ok": null, "changed": null, "target": "v2.9.0", "message": "", "errors": []}`. When `done`, `ok` says whether it worked, `changed` whether new code was installed, `target` what was installed (a release tag, or a commit on the `latest` channel), `message` a one-line summary such as `Installed v2.9.0` or `Already on the newest release (v2.8.4)`, and `errors` holds git's error messages. |
+| `GET /update/check` | Asks GitHub now what's newest (the map also does this when it starts and every 6 hours) and returns the same object as `update` in `/api/status`. |
 | `GET /restart` | Clears the LEDs and restarts the map's process. The connection usually drops before a response is sent. |
 
 ## Web UI pages
