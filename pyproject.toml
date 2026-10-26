@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "metarmap2"
-version = "2.6.2"
+version = "2.6.3"
 description = "Raspberry Pi METAR map: NeoPixel LEDs, an OLED screen and a web UI"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -17,6 +17,7 @@ dependencies = [
     "pytz",
     "requests>=2.25",
     "schedule>=1.1",
+    "tzdata",
     "xmltodict>=0.13",
 ]
 
