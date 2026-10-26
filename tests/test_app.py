@@ -34,11 +34,12 @@ def test_jobs(make_app):
         {app.sun.times[name].strftime("%H:%M") for name in ("dawn", "sunrise", "sunset", "dusk")}
 
 
-def test_no_display(make_app):
+def test_display_turned_off_at_startup(make_app):
+    """The OLED loop is built anyway, so it can be turned on later without a restart; the watchdog leaves it off."""
     app = make_app(**{"display_screen.enabled": False})
-    assert app.display is None
-    assert "watch_display" not in jobs(app)
-    app_module.watch_display(app)  # nothing to watch; no error
+    assert app.display is not None and not app.display.is_alive()
+    app_module.watch_display(app)
+    assert not app.display.is_alive()
 
 
 def test_auto_rotate(make_app):

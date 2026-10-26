@@ -238,3 +238,32 @@ def test_parallel_restarts_leave_one_loop():
         assert loops == [d._thread]
     finally:
         d.stop()
+
+
+# ---- turning the screen on and off (display_screen.enabled, no restart) -----------------------------------------
+
+def test_turn_on_and_off():
+    d, screen, _, config = make()
+    d.turn_on()  # never started: starts
+    try:
+        assert d.is_alive()
+        d.turn_on()  # already on: nothing changes
+        first = d._thread
+        d.turn_off()
+        d._thread.join(5)
+        assert not d.is_alive() and d.screen is None and screen.current is None  # blanked
+        d.turn_on()  # a new loop
+        assert d.is_alive() and d._thread is not first
+    finally:
+        d.stop()
+
+
+def test_a_turned_off_screen_stays_off():
+    """The watchdog and airport edits restart the loop; not when it's turned off."""
+    d, _, _, config = make()
+    d.start()
+    d.turn_off()
+    d._thread.join(5)
+    config.data.display_screen.enabled = False
+    d.restart(timeout=1)
+    assert not d.is_alive()

@@ -12,6 +12,7 @@ from types import SimpleNamespace
 import pytest
 
 from metarmap import __version__
+from metarmap import app as app_module
 from metarmap.leds.strip import FakeStrip
 from metarmap.models import Look
 from metarmap.renderer import Renderer
@@ -200,7 +201,7 @@ def services():
     metars = SimpleNamespace(data=data, lastFetchTime=datetime(2026, 10, 24, 12, 55), missing_stations=lambda: ["KDKR"])
     sun = SunTimes("Houston", SUN)
     renderer = Renderer(FakeStrip(4), metars, config, [flightcategory, rainbow], sun)
-    display = SimpleNamespace(screen={"kind": "message", "title": "MAP"})
+    display = SimpleNamespace(screen={"kind": "message", "title": "MAP"}, on=True)
     return SimpleNamespace(config=config, metars=metars, sun=sun, renderer=renderer, display=display)
 
 
@@ -231,9 +232,9 @@ def test_live(services):
     assert live["leds"][1]["lat"] == 29.6
     assert live["leds"][2]["look"]["effect"] == "off"  # no report
     assert live["strip"] is None
-    assert live["display"] == {"enabled": True, "screen": {"kind": "message", "title": "MAP"}}
+    assert live["display"] == {"enabled": True, "on": True, "screen": {"kind": "message", "title": "MAP"}}
     services.config.data.display_screen.enabled = False
-    assert api.live(services)["display"] == {"enabled": False, "screen": None}
+    assert api.live(services)["display"] == {"enabled": False, "on": False, "screen": None}
 
 
 def test_live_places_airports_without_a_report(services):
@@ -468,3 +469,56 @@ def test_config_page_shows_access(client, monkeypatch):
     monkeypatch.setattr(control.system, "current_wifi", lambda: None)
     body = client("/config")[1]
     assert "login gets the same password" not in body and "Now on" not in body
+
+
+# ---- the OLED on and off, live ----------------------------------------------------------------------------------
+
+def test_turn_the_oled_off_and_on(client):
+    app = client.services
+    app.display.start()
+    assert client("/config/edit/display_screen.enabled/false")[0] == 200
+    app.display._thread.join(5)
+    assert not app.display.is_alive() and app.display.screen is None
+    assert client.json("/api/live")["display"] == {"enabled": False, "on": False, "screen": None}
+    assert client("/config/edit/display_screen.enabled/true")[0] == 200  # e.g. from Home Assistant
+    assert app.display.is_alive()
+    assert client.json("/api/live")["display"]["enabled"] is True
+
+
+def test_turning_off_an_airports_oled_switch(client):
+    """The Airports page's switch sends false, which the server must take (it used to get "-": a 400)."""
+    app = client.services
+    assert client("/config/airports/0/display/true")[0] == 303
+    assert client("/config/airports/0/display/false")[0] == 303
+    assert app.config.airports[0].display is False
+    assert client("/config/airports/0/display/-")[0] == 400  # what the page used to send
+
+
+# ---- the Home page's OLED switch (not saved, like the brightness) -----------------------------------------------
+
+def test_home_page_oled_switch(client):
+    app = client.services
+    app.display.start()
+    assert 'id="oled-on"' in client("/")[1] and "checked" in client("/")[1].split('id="oled-on"')[1][:40]
+
+    assert client("/display/off")[0] == 200
+    app.display._thread.join(5)
+    assert not app.display.is_alive() and app.display.screen is None
+    live = client.json("/api/live")["display"]
+    assert live == {"enabled": True, "on": False, "screen": None}  # the Map page shows the screen as off
+    assert client.json("/api/status")["display"] == {"enabled": True, "on": False}
+    assert app.config.data.display_screen.enabled is True  # not saved: Config still says enabled
+
+    app_module.watch_display(app)  # the watchdog leaves it off
+    assert not app.display.is_alive()
+
+    assert client("/display/on")[0] == 200
+    assert app.display.is_alive() and client.json("/api/live")["display"]["on"] is True
+    assert client("/display/maybe")[0] == 400
+
+
+def test_no_oled_switch_when_turned_off_in_config(client):
+    client("/config/edit/display_screen.enabled/false")
+    assert 'id="oled-on"' not in client("/")[1]
+    assert client("/display/on")[0] == 409
+    assert not client.services.display.is_alive()

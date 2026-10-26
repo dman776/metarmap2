@@ -154,13 +154,14 @@
         }
         oled.hidden = false;
         const screen = display.screen;
-        const key = JSON.stringify(screen);
+        const key = JSON.stringify(screen) + display.on;
         if (key === lastScreenKey) return;
         lastScreenKey = key;
         const el = oled.querySelector('.oled-screen');
         el.textContent = '';
         if (!screen) {
-            oled.querySelector('.oled-status').textContent = 'blank';
+            // turned off on the Home page, or between pages
+            oled.querySelector('.oled-status').textContent = display.on === false ? 'off' : 'blank';
             return;
         }
         const add = function (cls, text) {

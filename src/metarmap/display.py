@@ -46,6 +46,7 @@ class Display(object):
         self._thread = self._new_thread()
         self._screen = None  # what is on the OLED right now (mirrored by the web UI)
         self.last_change = self._clock.time()  # when the loop last moved on; used by the watchdog
+        self.on = False  # whether the screen should be showing: start()/turn_on() set it, turn_off() clears it
 
     def _local_timezone(self):
         location = utils.get_location(self._config.data.geo.city)
@@ -62,23 +63,46 @@ class Display(object):
         return self._thread.is_alive()
 
     def start(self):
+        self.on = True
         self.last_change = self._clock.time()
         self._thread.start()
 
     def stop(self, clear=True):
         self.event.set()
         if clear:
-            self._device.clear()
-            self._screen = None
+            with self.lock:  # not in the middle of the loop drawing a page
+                self._device.clear()
+                self._screen = None
+
+    def turn_on(self):
+        """Starts the loop if it isn't running (display_screen.enabled turned on, no restart needed)."""
+        with self._restarting:
+            if self.is_alive() and not self.event.is_set():
+                return
+            if self._thread.ident is not None:  # an earlier loop that was turned off
+                self._thread.join(5)
+                self.event = threading.Event()
+                self._thread = self._new_thread()
+            self.start()
+
+    def turn_off(self):
+        """
+        Stops the loop and blanks the screen: display_screen.enabled turned off, or the Home page's switch (which
+        isn't saved, like the brightness).
+        """
+        with self._restarting:
+            self.on = False
+            self.stop(clear=True)
 
     def restart(self, timeout=None):
         """
         Stops the loop thread and starts a new one. With a timeout, a thread that doesn't stop in time
         (e.g. stuck in an I2C write) is abandoned: it has its own stop event, so it can't fight the new one.
-        A loop that was never started is left for start() (the web server starts first).
+        A loop that was never started is left for start() (the web server starts first), and a screen that's turned
+        off stays off.
         """
         with self._restarting:
-            if self._thread.ident is None:
+            if self._thread.ident is None or not self.on or not self._config.data.display_screen.enabled:
                 return
             self.stop(False)
             self._thread.join(timeout)

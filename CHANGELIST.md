@@ -1,3 +1,13 @@
+### dman776 Unreleased
+
+- The OLED screen turns on and off right away from Config (or Home Assistant's switch, or
+  `/config/edit/display_screen.enabled/...`), without a restart
+- Home page: an OLED display switch under LED brightness turns the screen, and its copy on the Map page, on or
+  off. Like the brightness it isn't saved; the screen is back on when the map restarts. Also `/display/on` and
+  `/display/off`, and `display` in `/api/status`
+- Fixed: turning off an airport's OLED switch on the Airports page gave "400 Bad Request"
+- API.md no longer says config edits run the value as Python code (they haven't since 2.2.4)
+
 ### dman776 2.6.1 (2026-10-25)
 
 - Fewer greens: only Flight Category's VFR is green now. Wind (and Wind Gusts) 1-9 kt is blue, Density Altitude under

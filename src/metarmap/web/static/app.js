@@ -199,6 +199,19 @@
         brt.addEventListener('change', function () { call('/brightness/' + brt.value); });
     }
 
+    // OLED display switch on the Home page
+    const oledOn = document.getElementById('oled-on');
+    if (oledOn) {
+        oledOn.addEventListener('change', async function () {
+            try {
+                await call('/display/' + (oledOn.checked ? 'on' : 'off'));
+            } catch (err) {
+                oledOn.checked = !oledOn.checked;
+                showOutput('Could not change the display', String(err));
+            }
+        });
+    }
+
     // config settings: <input data-key="a.b" data-restart> / <select data-key>
     document.querySelectorAll('[data-key]').forEach(function (el) {
         el.addEventListener('change', async function () {
@@ -283,7 +296,8 @@
             let value = el.type === 'checkbox' ? el.checked : el.value.trim();
             if (field === 'code') value = value.toUpperCase();
             try {
-                await call('/config/airports/' + el.dataset.led + '/' + field + '/' + encodeURIComponent(value || '-'));
+                // "-" stands for an empty code or name; a switch's false is sent as it is
+                await call('/config/airports/' + el.dataset.led + '/' + field + '/' + encodeURIComponent(value === '' ? '-' : value));
                 // a new code changes the row (OLED switch, map data)
                 if (field === 'code') window.location.reload();
             } catch (err) {

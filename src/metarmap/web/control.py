@@ -82,6 +82,15 @@ def add_routes(app, services, site, auth, updates=None):
         renderer.brightness(float(level))
         return pages.index(services, site)
 
+    def display_power(state):
+        """The Home page's OLED switch: on or off until changed again or the map restarts (not saved)."""
+        if state not in ("on", "off"):
+            bottle.abort(400, "Use /display/on or /display/off")
+        if not config.data.display_screen.enabled:
+            bottle.abort(409, "The OLED screen is turned off in Config (display_screen.enabled)")
+        services.display.turn_on() if state == "on" else services.display.turn_off()
+        return pages.index(services, site)
+
     def locate(pixnum):
         renderer.locate(pixnum)
         return pages.metars(services, site)
@@ -99,6 +108,8 @@ def add_routes(app, services, site, auth, updates=None):
         except ValueError as e:
             bottle.abort(400, str(e))
         renderer.refresh()
+        if key == "display_screen.enabled":  # the OLED turns on or off now, no restart needed
+            services.display.turn_on() if config.data.display_screen.enabled else services.display.turn_off()
         return pages.config(services, site)
 
     def airports_changed(fetch=False):
@@ -196,6 +207,7 @@ def add_routes(app, services, site, auth, updates=None):
     app.route("/visualizer/next", "GET", visualizer_next)
     app.route("/visualizer/previous", "GET", visualizer_previous)
     app.route("/brightness/<level>", "GET", brightness)
+    app.route("/display/<state>", "GET", display_power)
     app.route("/locate/<pixnum>", "GET", locate)
     app.route("/fetch", "GET", fetch)
     app.route("/config/edit/<key>/<value>", "GET", edit_config, apply=auth)

@@ -14,7 +14,6 @@ import time
 import traceback
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 
 import schedule
 from adafruit_led_animation.animation.rainbowcomet import RainbowComet
@@ -44,7 +43,7 @@ class App:
     sun: SunTimes
     metars: METAR
     renderer: Renderer
-    display: Optional[Display]  # None when display_screen.enabled is off
+    display: Display  # always built; its loop runs while display_screen.enabled is on
     scheduler: schedule.Scheduler
 
 
@@ -67,11 +66,10 @@ def build(config_file=CONFIG_FILE, strip=None, screen=None, clock: Clock = None,
     renderer = Renderer(strip, metars, config, list(visualizers.ALL), sun, clock=clock)
     renderer.visualizer = config.data.visualizer.active
 
-    display = None
-    if config.data.display_screen.enabled:
-        if screen is None:
-            screen = open_screen()  # the OLED on the Pi; an in-memory screen anywhere else (the web UI mirrors it)
-        display = Display(config, metars, screen, renderer=renderer, clock=clock)
+    # built even when display_screen.enabled is off, so it can be turned on without a restart
+    if screen is None:
+        screen = open_screen()  # the OLED on the Pi; an in-memory screen anywhere else (the web UI mirrors it)
+    display = Display(config, metars, screen, renderer=renderer, clock=clock)
 
     app = App(config, sun, metars, renderer, display, schedule.Scheduler())
     schedule_jobs(app)
@@ -85,8 +83,7 @@ def schedule_jobs(app: App):
         retry_soon(app)
     s.every().day.at("00:00").do(load_suntimes, app)  # new sun times every day, to dim the map at the right times
     schedule_brightness(app)
-    if app.display is not None:
-        s.every(WATCHDOG_SECONDS).seconds.do(watch_display, app)
+    s.every(WATCHDOG_SECONDS).seconds.do(watch_display, app)
     rotate = app.config.data.visualizer.auto_rotate
     if rotate.enabled:
         s.every(rotate.delay_seconds).seconds.do(rotate_visualizer, app).tag("rotate_visualizer")
@@ -154,8 +151,8 @@ def watch_display(app: App):
     Restarts the OLED loop if its thread died or it hasn't moved on for a while.
     """
     disp = app.display
-    if disp is None:
-        return
+    if not app.config.data.display_screen.enabled or not disp.on:
+        return  # turned off
     reason = disp.stalled()
     if reason:
         safe_logging.safe_log(f"[c]display watchdog: {reason}; restarting")
@@ -170,7 +167,7 @@ def watch_display(app: App):
 
 def run(app: App):
     """Starts the web server and the OLED loop, then drives the LEDs until Ctrl-C, SIGTERM or an error."""
-    if app.display is not None:
+    if app.config.data.display_screen.enabled:
         app.display.message("MAP", "info", "Starting..")
 
     # test pattern on pixels?
@@ -186,7 +183,7 @@ def run(app: App):
         web_server = None
 
     safe_logging.safe_log("[c]" + "Main loop...")
-    if app.display is not None:
+    if app.config.data.display_screen.enabled:
         app.display.start()
     try:
         while True:
@@ -203,8 +200,7 @@ def run(app: App):
 def shutdown(app: App, web_app, web_server):
     safe_logging.safe_log("[c]" + "Cleaning up...")
     app.scheduler.clear()
-    if app.display is not None:
-        app.display.stop()
+    app.display.stop()
     app.renderer.stop()
     app.renderer.clear()
     if web_server is not None:

@@ -54,6 +54,7 @@ Returns a read-only snapshot of the map's state as `application/json`. No authen
     "led.brightness.dimmed": 0.1,
     "led.brightness.off": 0.01
   },
+  "display": { "enabled": true, "on": true },
   "suntimes": {
     "dawn": "2026-10-23T07:00:12-05:00",
     "sunrise": "2026-10-23T07:25:40-05:00",
@@ -94,6 +95,7 @@ Returns a read-only snapshot of the map's state as `application/json`. No authen
 | `visualizer.legend` | What the LEDs mean for that visualizer. `colors` are CSS hex colors; two or more mean a gradient across the range. `effect` is `solid`, `blink`, `pulse`, `flash` (the first color with flashes of the second), `chase` or `off`. `period` is the seconds per blink or pulse, or `null`. |
 | `visualizers` | Every visualizer, in index order (the indexes used by `/visualizer/<n>`) |
 | `config` | The saved `config.json` values, keyed by the dotted path accepted by `/config/edit` |
+| `display` | The OLED screen: `enabled` is the Config setting (`display_screen.enabled`); `on` is whether it's showing now (false after `/display/off`, or when not enabled) |
 | `suntimes` | Today's dimming schedule (ISO 8601 with time zone) |
 | `lastFetchTime` | When METARs were last fetched, in the map's local time (ISO 8601, no time zone); `null` before the first fetch |
 | `missingStations` | Airports that had no METAR in the last fetch |
@@ -130,6 +132,7 @@ What the physical map is doing right now. The Map page polls it every second. No
 | `leds[].look` | The LED's current effect: `solid`, `off`, `blink` (`period` seconds per on/off cycle; with two `colors` it alternates between them instead of turning off), `pulse` (`period`; `low`, if present, is its dimmest point, e.g. `0.3`, otherwise it fades to off), or `cycle` (steps through `colors`, `step` seconds each). Colors are CSS hex colors. |
 | `strip` | Set when one effect drives the whole strip instead: `rainbow` (`period`) or `chase` (`step`, `size`, `spacing`). |
 | `locate` | The last white locate pulse: LED `pixel` and Unix time `at`. `null` until the first one. |
+| `display.on` | Whether the screen is showing; `false` after `/display/off` (then `screen` is `null`) |
 | `display.screen` | What the OLED shows. `page` is 1 or 2 for an airport, 0 for "Data Unavailable" or a message (then `airport` is `null`). Icons: `wind`, `visibility`, `pressure`, `temp`, `dewpoint`, `date`. |
 
 ### `GET /api/metar/<code>`
@@ -167,6 +170,7 @@ These endpoints change the map immediately. Nothing they change is saved to `con
 | Endpoint | Description |
 |---|---|
 | `GET /brightness/<level>` | Set LED brightness, `0.0`–`1.0`; the map ignores values outside that range. The dimming schedule overrides it at the next dawn, sunrise, sunset or dusk. |
+| `GET /display/on`, `GET /display/off` | Turn the OLED screen on or off (blank). Not saved: it's back on when the map restarts. A 409 if the screen is turned off in Config (`display_screen.enabled`), which is the saved setting. |
 | `GET /visualizer/<n>` | Switch to visualizer number `n` (see the table below) |
 | `GET /visualizer/next` | Next visualizer; after the last one it goes back to the first |
 | `GET /visualizer/previous` | Previous visualizer; before the first one it goes to the last |
@@ -203,16 +207,16 @@ Saves one value to `config.json`, then refreshes the active visualizer. `key` is
 - **Numbers:** send them as-is, for example `5` or `0.25`.
 - **Strings:** URL-encode them, for example `geo.map.chart` → `Dallas-Ft%20Worth`. Quoting them (`%22Dallas%22`) also still works.
 
-The server runs the value as Python code. Only give this endpoint's credentials to people you trust.
+Each value is checked against the setting's type: an unknown setting or a value that doesn't fit is a 400 with the reason.
 
 Settings that apply right away:
+- `display_screen.enabled`: turns the OLED screen on or off (blank)
 - `lightning.animation`
 - `display_screen.locate_active`
 - `display_screen.delay`
 - `visualizer.active`, the default visualizer used at startup. Saving it doesn't change the visualizer that's running now; use `/visualizer/<n>` for that.
 
 Settings that need a restart:
-- `display_screen.enabled`
 - `led.inittest`
 - `visualizer.auto_rotate.enabled`
 - `visualizer.auto_rotate.delay_seconds`

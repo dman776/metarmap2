@@ -69,6 +69,7 @@ def status(services, ip):
             "led.brightness.dimmed": cfg.led.brightness.dimmed,
             "led.brightness.off": cfg.led.brightness.off,
         },
+        "display": {"enabled": cfg.display_screen.enabled, "on": cfg.display_screen.enabled and services.display.on},
         "suntimes": {k: iso(suntimes.get(k)) for k in ("dawn", "sunrise", "sunset", "dusk")},
         "lastFetchTime": iso(metars.lastFetchTime),
         "missingStations": metars.missing_stations(),
@@ -111,7 +112,8 @@ def live(services, now=None):
         "strip": strip,
         "leds": leds,
         "locate": renderer.last_locate,
-        "display": {"enabled": display is not None, "screen": display.screen if display else None},
+        "display": {"enabled": display is not None, "on": bool(display and display.on),
+                    "screen": display.screen if display else None},
     }
 
 
