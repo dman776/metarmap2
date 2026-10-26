@@ -79,6 +79,74 @@ def test_flight_category_no_report_is_off(settings):
     assert flightcategory.look({}, settings) == OFF
 
 
+def estimated(metar_fields, settings):
+    """The look of an airport that doesn't report a category."""
+    return flightcategory.look(metar(flightCategory=None, **metar_fields), settings)
+
+
+def breathing(color):
+    return Look.pulse(color, period=flightcategory.ESTIMATE_PERIOD, low=style.LIGHT_LOW)
+
+
+@pytest.mark.parametrize("fields, attr", [
+    # visibility only (an automated station without a ceilometer reading)
+    ({"visibilitySM": 10.0}, "vfr"), ({"visibilitySM": 6.0}, "vfr"), ({"visibilitySM": 5.0}, "mvfr"),
+    ({"visibilitySM": 3.0}, "mvfr"), ({"visibilitySM": 2.5}, "ifr"), ({"visibilitySM": 1.0}, "ifr"),
+    ({"visibilitySM": 0.75}, "lifr"),
+    # sky condition only
+    ({"skyConditions": [{"cover": "FEW", "cloudBaseFt": 3900}]}, "vfr"),
+    ({"skyConditions": [{"cover": "CLR", "cloudBaseFt": 0}]}, "vfr"),
+    ({"skyConditions": [{"cover": "BKN", "cloudBaseFt": 3100}]}, "vfr"),
+    ({"skyConditions": [{"cover": "BKN", "cloudBaseFt": 3000}]}, "mvfr"),
+    ({"skyConditions": [{"cover": "OVC", "cloudBaseFt": 1000}]}, "mvfr"),
+    ({"skyConditions": [{"cover": "BKN", "cloudBaseFt": 800}]}, "ifr"),
+    ({"skyConditions": [{"cover": "OVC", "cloudBaseFt": 500}]}, "ifr"),
+    ({"skyConditions": [{"cover": "OVC", "cloudBaseFt": 400}]}, "lifr"),
+    ({"skyConditions": [{"cover": "OVX", "cloudBaseFt": 0}], "vertVisFt": 200}, "lifr"),
+    # both: the worse decides
+    ({"visibilitySM": 10.0, "skyConditions": [{"cover": "OVC", "cloudBaseFt": 400}]}, "lifr"),
+    ({"visibilitySM": 2.0, "skyConditions": [{"cover": "CLR", "cloudBaseFt": 0}]}, "ifr"),
+    ({"visibilitySM": 4.0, "skyConditions": [{"cover": "BKN", "cloudBaseFt": 800}]}, "ifr"),
+])
+def test_a_missing_category_is_estimated_and_breathes(settings, fields, attr):
+    assert estimated(fields, settings) == breathing(getattr(settings.color.cat, attr))
+
+
+def test_nothing_to_estimate_from_blinks_red(settings):
+    assert estimated({}, settings) == RED_BLINK
+    assert estimated({"visibilitySM": None, "skyConditions": []}, settings) == RED_BLINK
+
+
+def test_a_reported_category_is_never_estimated(settings):
+    """aviationweather.gov's category wins, even if the visibility and ceiling would say otherwise."""
+    look = flightcategory.look(metar(flightCategory="VFR", visibilitySM=0.5), settings)
+    assert look == Look.solid(settings.color.cat.vfr)
+
+
+def test_lightning_over_an_estimated_category(settings):
+    look = estimated({"visibilitySM": 2.0, "lightning": True}, settings)
+    assert look == Look.cycle(flightcategory.lightning_pattern(settings.color.cat.ifr,
+                                                                settings.color.weather.lightning), step=0.1)
+
+
+def test_the_legend_explains_estimates(settings):
+    item = next(i for i in flightcategory.legend(settings) if i["label"] == "Estimated")
+    assert item["effect"] == "pulse" and item["period"] == flightcategory.ESTIMATE_PERIOD
+
+
+def test_estimating_from_real_reports():
+    """Reports like these come in without a category from aviationweather.gov (sampled 2026-10-26)."""
+    from metarmap.metar import parse_report
+    vis_only = parse_report({"rawOb": "METAR KSOW 261735Z AUTO VRB04KT 10SM 14/04 A3028 RMK AO2", "visib": "10+",
+                             "fltCat": None})
+    sky_only = parse_report({"rawOb": "METAR K18H 261730Z AUTO 09011G18KT FEW039 31/17 A3013 RMK A01",
+                             "clouds": [{"cover": "FEW", "base": 3900}], "fltCat": None})
+    neither = parse_report({"rawOb": "METAR CWEH 261700Z AUTO 12020KT M01/M01 RMK AO1", "fltCat": None})
+    assert flightcategory.estimate(vis_only) == "VFR"
+    assert flightcategory.estimate(sky_only) == "VFR"
+    assert flightcategory.estimate(neither) is None
+
+
 def test_lightning_flashes_over_category(settings):
     look = flightcategory.look(metar(flightCategory="IFR", lightning=True), settings)
     assert look.effect == "cycle"

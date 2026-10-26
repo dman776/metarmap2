@@ -14,6 +14,8 @@ web UI, an API and a Home Assistant integration (see [Credits](#credits)).
   density altitude, ceiling or dewpoint spread (fog risk) on the LEDs, plus Rainbow and Chase patterns. Switch
   between them on the web UI, or let the map rotate through them.
 - **Lightning**: airports reporting lightning flash yellow.
+- **Estimated flight categories**: a station that doesn't report its flight category, but does report its visibility
+  or clouds, gets an estimate from them. Its LED breathes slowly so you can tell.
 - **Dimming by time of day**: the LEDs dim at sunset, go nearly dark at dusk, dim again at dawn and are back to full
   brightness at sunrise, using the sun times for your city.
 - **OLED screen** (optional): wind, visibility, pressure, temperature, dewpoint and report time for each airport you

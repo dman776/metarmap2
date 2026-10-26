@@ -1,3 +1,12 @@
+### dman776 Unreleased
+
+- Flight Category: a station that doesn't report a flight category, but reports its visibility or sky condition, gets
+  an estimate from them (FAA limits; the worse of ceiling and visibility decides). Its LED breathes slowly in that
+  category's color instead of shining steadily, with an "Estimated" entry in the legend. With only one of the two
+  reported, the real category could be worse than shown, never better. Checked against live reports: the estimate
+  matched the reported category for all 249 stations that report both. A station that reports neither still
+  blinks red
+
 ### dman776 2.9.1 (2026-10-26)
 
 - README credits: the project started from prueker/METARMap, with portions by @lostlocalhost and John Marzulli, and
