@@ -1,29 +1,36 @@
 """
-Wind Gusts: each airport's wind color (as in Wind); when it's gusting, the LED alternates with the gusts' color.
+Wind Gusts: colors each airport by how much stronger its gusts are than its wind (the gust spread), the cue pilots use
+for how bumpy and changeable the wind is. Wind shows how strong the wind is; this shows how much it swings.
 """
+import metarmap.lib.colors as colors_lib
 from metarmap.models import Look, Metar
-from metarmap.visualizers import style, wind
-from metarmap.visualizers.visualizer import legend_item
+from metarmap.visualizers import style
+from metarmap.visualizers.style import Band
 
 NAME = "Wind Gusts"
-DESCRIPTION = "Display the wind gusts: the wind's color, alternating with the color of the gusts when it's gusting."
+DESCRIPTION = "Display how much stronger the gusts are than the wind: dim white with no gusts, then blue, yellow, " \
+              "orange and red as the gusts get stronger."
 EXCLUSIVE = False
 
-GUST_PERIOD = 2.0  # seconds per alternation between the wind's and the gusts' colors
+# knots the gusts are above the wind
+BANDS = [
+    Band(1, colors_lib.GRAY, "No gusts", "Dim white"),
+    Band(10, colors_lib.BLUE, "Gusts 1-9 kt above the wind", "Blue"),
+    Band(15, colors_lib.YELLOW, "10-14 kt above", "Yellow"),
+    Band(20, colors_lib.ORANGE, "15-19 kt above", "Orange"),
+    Band(None, colors_lib.RED, "20 kt or more above", "Red"),
+]
+
+
+def gust_spread(metar: Metar) -> int:
+    """Knots the gusts are above the wind; 0 when it isn't gusting."""
+    if not metar.get('windGust'):
+        return 0
+    return max(0, (metar.get('windGustSpeed') or 0) - metar['windSpeed'])
 
 
 def legend(settings):
-    bands = wind.BANDS
-    return [
-        *style.band_legend(bands, settings),
-        legend_item("Gusting", "The wind's color, alternating with the gusts' color (e.g. 12 kt gusting 27)",
-                    bands[2].color_for(settings), bands[4].color_for(settings), effect="alternate",
-                    period=GUST_PERIOD),
-        legend_item("Gusting, gusts in the same band", "Breathing", bands[1].color_for(settings), effect="pulse",
-                    period=GUST_PERIOD, low=style.LIGHT_LOW),
-        style.missing_legend("wind speed"),
-        style.no_report_legend(),
-    ]
+    return [*style.band_legend(BANDS, settings), style.missing_legend("wind speed"), style.no_report_legend()]
 
 
 def look(metar: Metar, settings) -> Look:
@@ -31,10 +38,4 @@ def look(metar: Metar, settings) -> Look:
         return style.no_report()
     if metar.get('windSpeed') is None:
         return style.missing()
-    color = wind.color_for(metar['windSpeed'], settings)
-    if not metar.get('windGust'):
-        return Look.solid(color)
-    gust = wind.color_for(metar.get('windGustSpeed') or 0, settings)
-    if gust == color:
-        return Look.pulse(color, period=GUST_PERIOD, low=style.LIGHT_LOW)
-    return Look.blink(color, period=GUST_PERIOD, background=gust)
+    return Look.solid(style.band_for(gust_spread(metar), BANDS, settings))

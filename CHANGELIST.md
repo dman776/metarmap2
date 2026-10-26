@@ -1,5 +1,9 @@
-### dman776 Unreleased
+### dman776 2.8.3 (2026-10-25)
 
+- Wind Gusts now shows how much stronger the gusts are than the wind (the gust spread) instead of repeating Wind's
+  colors with a flash: dim white with no gusts, then blue (1-9 kt above the wind), yellow (10-14), orange (15-19)
+  and red (20 or more). Wind shows how strong the wind is; this shows how much it swings, in steady colors. Its
+  name and number are unchanged
 - Fixed: the map used a whole CPU core (100%) all the time. The LED loop asked the animations "is it time yet?"
   thousands of times a second; it now rests 10 ms between checks (the fastest effect changes every 100 ms), so
   an idle map uses under 1%. The LEDs look the same, and the tests run faster too

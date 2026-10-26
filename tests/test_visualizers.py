@@ -121,7 +121,7 @@ def test_intensity():
     assert style.by_intensity(blue, "VC") == Look.solid((0, 0, 76))
 
 
-@pytest.mark.parametrize("v", [wind, temperature, pressure, visibility, density_altitude])
+@pytest.mark.parametrize("v", [wind, windgusts, temperature, pressure, visibility, density_altitude])
 def test_legends_come_from_the_band_tables(v, settings):
     rows = v.legend(settings)
     for band, row in zip(v.BANDS, rows):
@@ -142,18 +142,32 @@ def test_calm_is_not_off(settings):
     assert wind.look(metar(windSpeed=0), settings) != OFF
 
 
-def test_gusts_alternate_wind_and_gust_colors(settings):
-    look = windgusts.look(metar(windSpeed=12, windGust=True, windGustSpeed=27), settings)
-    assert look == Look.blink(C[colors_lib.YELLOW], period=2, background=C[colors_lib.RED])
+@pytest.mark.parametrize("speed, gust, name", [
+    (12, 0, colors_lib.GRAY),  # not gusting
+    (12, 13, colors_lib.BLUE), (12, 21, colors_lib.BLUE),  # 1 and 9 kt above
+    (12, 22, colors_lib.YELLOW), (12, 26, colors_lib.YELLOW),  # 10 and 14
+    (12, 27, colors_lib.ORANGE), (12, 31, colors_lib.ORANGE),  # 15 and 19
+    (12, 32, colors_lib.RED), (5, 45, colors_lib.RED),  # 20 and 40
+])
+def test_gust_spread_bands(settings, speed, gust, name):
+    data = metar(windSpeed=speed, windGust=gust > 0, windGustSpeed=gust)
+    assert windgusts.look(data, settings) == Look.solid(C[name])
 
 
-def test_gusts_in_the_same_band_breathe(settings):
-    look = windgusts.look(metar(windSpeed=10, windGust=True, windGustSpeed=14), settings)
-    assert look == Look.pulse(C[colors_lib.YELLOW], period=2, low=0.3)
+def test_gusts_are_about_the_spread_not_the_speed(settings):
+    """A strong steady wind isn't gusty, and a light one can be."""
+    steady = metar(windSpeed=30, windGust=False, windGustSpeed=0)
+    gusty = metar(windSpeed=6, windGust=True, windGustSpeed=24)
+    assert windgusts.look(steady, settings) == Look.solid(C[colors_lib.GRAY])
+    assert windgusts.look(gusty, settings) == Look.solid(C[colors_lib.ORANGE])
+    assert wind.look(steady, settings) != wind.look(gusty, settings)
 
 
-def test_no_gusts_is_the_wind_color(settings):
-    assert windgusts.look(metar(windSpeed=12), settings) == wind.look(metar(windSpeed=12), settings)
+def test_a_gust_that_is_not_above_the_wind_is_no_gust(settings):
+    assert windgusts.look(metar(windSpeed=12, windGust=True, windGustSpeed=12), settings) == Look.solid(
+        C[colors_lib.GRAY])
+    assert windgusts.look(metar(windSpeed=12, windGust=True, windGustSpeed=0), settings) == Look.solid(
+        C[colors_lib.GRAY])
 
 
 # ---- temperature, pressure, visibility, density altitude ----------------------------------------------------
