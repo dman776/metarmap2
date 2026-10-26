@@ -14,6 +14,15 @@ def test_fake_strip():
     assert strip.shows == 1
 
 
+def test_fake_strip_resizes():
+    strip = FakeStrip(3)
+    strip.fill([9, 9, 9])
+    strip.resize(5)
+    assert strip.colors == [(9, 9, 9)] * 3 + [(0, 0, 0)] * 2 and strip.n == 5
+    strip.resize(2)
+    assert strip.colors == [(9, 9, 9)] * 2 and strip.n == 2
+
+
 def test_open_strip_without_hardware():
     led = Settings().led
     led.count = 12

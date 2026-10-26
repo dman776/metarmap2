@@ -26,6 +26,11 @@ class FakeStrip(list):
     def show(self) -> None:
         self.shows += 1
 
+    def resize(self, count: int) -> None:
+        """Changes the number of LEDs. New ones start dark. (A real strip's length is fixed until a restart.)"""
+        self[:] = self[:count] + [(0, 0, 0)] * (count - len(self))
+        self.n = count
+
     @property
     def colors(self) -> List:
         return list(self)

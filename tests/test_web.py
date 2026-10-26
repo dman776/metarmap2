@@ -156,8 +156,22 @@ def test_set_move_and_count_airports(client, monkeypatch):
 
     assert client("/config/edit/led.count/3")[0] == 200
     assert len(app.config.airports) == 3
-    assert "the new number takes effect after the map restarts" in client("/config/airports")[1]
+    # the in-memory strip changes length now: no restart
+    assert len(app.renderer.pixels()) == 3 and len(app.renderer.looks) == 3
+    assert 'id="restart-banner" role="status" hidden' in client("/config/airports")[1]
     assert first != second
+
+
+def test_led_count_on_a_strip_that_cant_resize(client):
+    """A NeoPixel strip's length is fixed when it opens: the new count waits for a restart."""
+    app = client.services
+    class FixedStrip(FakeStrip):
+        resize = None
+
+    app.renderer._pixels = FixedStrip(len(app.renderer.pixels()))
+    assert client("/config/edit/led.count/3")[0] == 200
+    assert len(app.renderer.pixels()) == 50
+    assert "the new number takes effect after the map restarts" in client("/config/airports")[1]
 
 
 @pytest.mark.parametrize("path, status", [
@@ -261,6 +275,23 @@ def test_metar(services):
     assert {"label": "Wind", "text": "100° at 5 kt"} in m["decoded"]
     assert api.metar(services, "KDKR")["decoded"] == []  # on the map, not reporting
     assert api.metar(services, "KXXX") is None  # not on the map
+
+
+def test_metar_summary(services):
+    services.metars.data["KHOU"].update(skyConditions=[{"cover": "BKN", "cloudBaseFt": 2500}], obs="-RA")
+    summary = api.metar(services, "KHOU")["summary"]
+    assert summary[:2] == ["VFR: ceiling above 3,000 ft and visibility over 5 miles", "Light rain"]
+    assert "Ceiling 2,500 ft (broken)" in summary
+    assert api.metar(services, "KDKR")["summary"] == []
+
+
+def test_map_legend_follows_the_visualizer(services):
+    """The Map page swaps in the new legend when the visualizer changes, without reloading (or losing its zoom)."""
+    c = Client(create_app(services, ip=""))
+    status, body = c("/map/legend", auth=False)
+    assert status == 200 and 'class="legend"' in body and "<html" not in body
+    assert 'data-then="none"' in c("/map", auth=False)[1]
+    assert 'data-active="0"' in c("/map", auth=False)[1]
 
 
 def test_metar_route(services):

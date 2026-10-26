@@ -100,27 +100,120 @@
 
     // ---- legend: what the LEDs mean for the active visualizer (rendered by the server, shown on the map) -----------
 
+    // starts closed; whether it's open is remembered in this browser
+    const LEGEND_KEY = 'metarmap.legend';
+    let legendBox;
     const LegendControl = L.Control.extend({
         options: {position: 'bottomleft'},
         onAdd: function () {
-            const source = document.querySelector('#legend-source .legend');
-            const box = L.DomUtil.create('details', 'map-key');
-            if (!source) {
-                box.hidden = true;
-                return box;
-            }
-            const title = document.querySelector('.vis-name b');
-            const summary = L.DomUtil.create('summary', '', box);
-            summary.textContent = 'What the LEDs mean' + (title ? ' · ' + title.textContent : '');
-            box.append(source.cloneNode(true));
-            // open on a wide screen; on a phone it would cover the map
-            box.open = window.matchMedia('(min-width: 900px)').matches;
+            const box = legendBox = L.DomUtil.create('details', 'map-key');
+            L.DomUtil.create('summary', '', box);
+            try { box.open = window.localStorage.getItem(LEGEND_KEY) === 'open'; } catch (e) { /* private window */ }
+            box.addEventListener('toggle', function () {
+                try { window.localStorage.setItem(LEGEND_KEY, box.open ? 'open' : 'closed'); } catch (e) { /* not remembered */ }
+            });
+            showLegend(document.querySelector('#legend-source .legend'));
             L.DomEvent.disableClickPropagation(box);
             L.DomEvent.disableScrollPropagation(box);
             return box;
         }
     });
+
+    // `list` is the legend's <ul> (none for a visualizer without one)
+    function showLegend(list) {
+        const old = legendBox.querySelector('.legend');
+        if (old) old.remove();
+        legendBox.hidden = !list;
+        if (!list) return;
+        const title = document.querySelector('.vis-name b');
+        legendBox.querySelector('summary').textContent = 'What the LEDs mean' + (title ? ' · ' + title.textContent : '');
+        legendBox.append(list.cloneNode(true));
+    }
     new LegendControl().addTo(map);
+
+    // ---- the visualizer: the map follows it when it changes (the buttons, auto-rotate, Home Assistant) ---------
+    const visName = document.querySelector('.vis-name');
+    let shownVisualizer = visName ? +visName.dataset.active : null;
+    let legendWanted = null;
+
+    async function followVisualizer(vis) {
+        if (vis.active === shownVisualizer || vis.active === legendWanted) return;
+        legendWanted = vis.active;
+        try {
+            const res = await fetch('/map/legend', {cache: 'no-store'});
+            if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+            const html = document.createElement('div');
+            html.innerHTML = await res.text();
+            if (legendWanted !== vis.active) return;  // changed again while this one loaded
+            if (visName) visName.querySelector('b').textContent = vis.name;
+            showLegend(html.querySelector('.legend'));
+            shownVisualizer = vis.active;
+        } catch (err) {
+            console.error('[map] legend failed', err);
+        } finally {
+            if (legendWanted === vis.active) legendWanted = null;  // try again on the next poll if it failed
+        }
+    }
+
+    // ---- fullscreen: the browser's fullscreen, or the whole window where there's none (iPhone) ---------------
+    const mapEl = document.getElementById('map');
+    const canFullscreen = !!(mapEl.requestFullscreen || mapEl.webkitRequestFullscreen);
+    function fullscreenElement() {
+        return document.fullscreenElement || document.webkitFullscreenElement || null;
+    }
+    function isFull() {
+        return fullscreenElement() === mapEl || mapEl.classList.contains('map-full');
+    }
+    let fullButton;
+    function fullscreenChanged() {
+        const full = isFull();
+        fullButton.setAttribute('aria-pressed', full ? 'true' : 'false');
+        fullButton.setAttribute('aria-label', full ? 'Exit fullscreen' : 'Fullscreen');
+        fullButton.title = full ? 'Exit fullscreen (Esc)' : 'Fullscreen';
+        document.body.classList.toggle('map-full-open', mapEl.classList.contains('map-full'));
+        map.invalidateSize();
+    }
+    function toggleFullscreen() {
+        if (fullscreenElement()) {
+            (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+        } else if (mapEl.classList.contains('map-full')) {
+            mapEl.classList.remove('map-full');
+            fullscreenChanged();
+        } else if (canFullscreen) {
+            const request = mapEl.requestFullscreen || mapEl.webkitRequestFullscreen;
+            Promise.resolve(request.call(mapEl)).catch(function () {
+                mapEl.classList.add('map-full');  // refused (e.g. in a frame): fill the window instead
+                fullscreenChanged();
+            });
+        } else {
+            mapEl.classList.add('map-full');
+            fullscreenChanged();
+        }
+    }
+    document.addEventListener('fullscreenchange', fullscreenChanged);
+    document.addEventListener('webkitfullscreenchange', fullscreenChanged);
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && mapEl.classList.contains('map-full')) toggleFullscreen();
+    });
+    const FullscreenControl = L.Control.extend({
+        options: {position: 'topleft'},
+        onAdd: function () {
+            const bar = L.DomUtil.create('div', 'leaflet-bar');
+            const b = fullButton = L.DomUtil.create('a', 'map-fullscreen', bar);
+            b.href = '#';
+            b.setAttribute('role', 'button');
+            b.innerHTML = '<svg class="enter" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>' +
+                '<svg class="exit" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>';
+            L.DomEvent.on(b, 'click', function (e) {
+                L.DomEvent.preventDefault(e);
+                toggleFullscreen();
+            });
+            L.DomEvent.disableClickPropagation(bar);
+            return bar;
+        }
+    });
+    new FullscreenControl().addTo(map);
+    fullscreenChanged();
 
     // ---- OLED window -------------------------------------------------------------------------
     const ICONS = {
@@ -194,10 +287,13 @@
     let lastLocateAt = null;
     let viewSet = false;
 
-    // the popup's last tab (raw or decoded), remembered in this browser
+    // the popup's last tab (summary, raw or decoded), remembered in this browser
     const TAB_KEY = 'metarmap.popupTab';
+    const TABS = [['summary', 'Summary'], ['raw', 'Raw'], ['decoded', 'Decoded']];
     function savedTab() {
-        try { return window.localStorage.getItem(TAB_KEY) === 'decoded' ? 'decoded' : 'raw'; } catch (e) { return 'raw'; }
+        let tab = null;
+        try { tab = window.localStorage.getItem(TAB_KEY); } catch (e) { /* private window */ }
+        return TABS.some(function (t) { return t[0] === tab; }) ? tab : 'summary';
     }
     function saveTab(tab) {
         try { window.localStorage.setItem(TAB_KEY, tab); } catch (e) { /* private window: just don't remember */ }
@@ -208,17 +304,29 @@
         return minutes < 60 ? minutes + ' min ago' : Math.floor(minutes / 60) + ' h ' + (minutes % 60) + ' min ago';
     }
 
-    // fills the Decoded tab from /api/metar/<code>; resized() lets the popup grow to fit
-    async function loadDecoded(panel, code, resized) {
-        panel.textContent = 'Loading…';
+    // fills the Summary and Decoded tabs from /api/metar/<code>; resized() lets the popup grow to fit
+    async function loadMetar(panels, code, resized) {
+        panels.summary.textContent = panels.decoded.textContent = 'Loading…';
         try {
             const res = await fetch('/api/metar/' + encodeURIComponent(code), {credentials: 'same-origin'});
             if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
             const metar = await res.json();
-            panel.textContent = '';
+            panels.summary.textContent = panels.decoded.textContent = '';
             if (!metar.decoded.length) {
-                panel.textContent = 'Not reporting METAR data';
+                panels.summary.textContent = panels.decoded.textContent = 'Not reporting METAR data';
             } else {
+                const ul = document.createElement('ul');
+                ul.className = 'pop-summary';
+                const item = function (text, cls) {
+                    const li = document.createElement('li');
+                    li.textContent = text;
+                    if (cls) li.className = cls;
+                    ul.appendChild(li);
+                };
+                metar.summary.forEach(function (line) { item(line); });
+                if (metar.obsTime) item('Reported ' + age(metar.obsTime), 'age');
+                panels.summary.appendChild(ul);
+
                 const dl = document.createElement('dl');
                 dl.className = 'pop-decoded';
                 metar.decoded.forEach(function (line) {
@@ -229,10 +337,10 @@
                     dl.appendChild(dt);
                     dl.appendChild(dd);
                 });
-                panel.appendChild(dl);
+                panels.decoded.appendChild(dl);
             }
         } catch (err) {
-            panel.textContent = 'Could not load the decoded METAR (' + err.message + ')';
+            panels.summary.textContent = panels.decoded.textContent = 'Could not load the METAR (' + err.message + ')';
         }
         resized();
     }
@@ -251,12 +359,13 @@
         head.appendChild(pill);
         box.appendChild(head);
 
-        const raw = document.createElement('div');
-        raw.className = 'pop-raw';
-        raw.textContent = led.raw || 'Not reporting METAR data';
-        const decoded = document.createElement('div');
-        decoded.className = 'pop-raw';
-        const panels = {raw: raw, decoded: decoded};
+        const panels = {};
+        TABS.forEach(function (t) {
+            panels[t[0]] = document.createElement('div');
+            panels[t[0]].className = 'pop-raw';
+        });
+        panels.summary.className = 'pop-text';
+        panels.raw.textContent = led.raw || 'Not reporting METAR data';
         let loaded = false;
 
         const tabs = document.createElement('div');
@@ -268,13 +377,13 @@
                 panels[name].hidden = name !== tab;
                 buttons[name].setAttribute('aria-selected', name === tab ? 'true' : 'false');
             });
-            if (tab === 'decoded' && !loaded) {
+            if (tab !== 'raw' && !loaded) {
                 loaded = true;
-                loadDecoded(decoded, led.code, resized);
+                loadMetar(panels, led.code, resized);
             }
             resized();
         };
-        [['raw', 'Raw'], ['decoded', 'Decoded']].forEach(function (t) {
+        TABS.forEach(function (t) {
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'pop-tab';
@@ -285,8 +394,7 @@
             tabs.appendChild(btn);
         });
         box.appendChild(tabs);
-        box.appendChild(raw);
-        box.appendChild(decoded);
+        TABS.forEach(function (t) { box.appendChild(panels[t[0]]); });
         show(savedTab());
         return box;
     }
@@ -399,6 +507,7 @@
             const live = await res.json();
             syncLeds(live.leds);
             strip = live.strip;
+            followVisualizer(live.visualizer);
             setView();
             const screen = live.display.screen;
             activeAirport = screen && screen.airport;

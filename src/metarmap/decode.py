@@ -54,6 +54,84 @@ def decode(metar):
     return lines
 
 
+CATEGORY_TEXT = {
+    "VFR": "VFR: ceiling above 3,000 ft and visibility over 5 miles",
+    "MVFR": "Marginal VFR: ceiling 1,000-3,000 ft or visibility 3-5 miles",
+    "IFR": "IFR: ceiling 500-999 ft or visibility 1 to 3 miles",
+    "LIFR": "Low IFR: ceiling below 500 ft or visibility below 1 mile",
+}
+COMPASS = ("north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest")
+FOG_SPREAD_C = 2  # temperature-dewpoint spread at or below which fog or low clouds can form
+ICING_C = (-20, 2)  # temperatures at which visible moisture can ice an airplane
+
+
+def summary(metar):
+    """
+    A few sentences about the airport's weather for the Map page's popup, e.g. "Light rain" or "Density altitude
+    1,200 ft". Only what the report has; none when it isn't reporting.
+    """
+    if not metar:
+        return []
+    temp = metar.get("tempC")
+    lines = [
+        CATEGORY_TEXT.get(metar.get("flightCategory")),
+        weather(metar.get("obs")),
+        "Lightning reported" if metar.get("lightning") else None,
+        wind_sentence(metar),
+        sky_sentence(metar.get("skyConditions"), metar.get("vertVisFt")),
+        density_altitude_sentence(metar),
+    ]
+    spread = temp - metar["dewpointC"] if temp is not None and metar.get("dewpointC") is not None else None
+    if spread is not None and spread <= FOG_SPREAD_C:
+        lines.append(f"Temperature and dewpoint are {spread}°C apart: fog or low clouds can form")
+    moisture = metar.get("obs") or any(layer.get("cover") in CEILING for layer in metar.get("skyConditions") or [])
+    if temp is not None and ICING_C[0] <= temp <= ICING_C[1] and moisture:
+        lines.append(f"Temperature {temp}°C with clouds or precipitation: icing is possible")
+    return [line for line in lines if line]
+
+
+def wind_sentence(metar):
+    """ "Wind from the south at 12 knots, gusting to 20"."""
+    speed = metar.get("windSpeed")
+    if speed is None:
+        return None
+    if speed == 0:
+        return "Calm wind"
+    direction = str(metar.get("windDir") or "").upper()
+    gust = f", gusting to {metar['windGustSpeed']}" if metar.get("windGust") else ""
+    if not direction.isdigit():  # VRB
+        return f"Variable wind at {speed} knots{gust}"
+    degrees = int(direction)
+    return f"Wind from the {COMPASS[round(degrees / 45) % 8]} ({degrees:03d}°) at {speed} knots{gust}"
+
+
+def sky_sentence(layers, vert_vis_ft=None):
+    """The ceiling (lowest broken or overcast layer), else the lowest clouds, else a clear sky."""
+    layers = [layer for layer in layers or [] if layer.get("cover")]
+    if not layers:
+        return None
+    for layer in layers:
+        if layer["cover"] == "OVX":
+            return "Sky obscured" + (f": vertical visibility {vert_vis_ft:,} ft" if vert_vis_ft else "")
+        if layer["cover"] in ("BKN", "OVC") and layer.get("cloudBaseFt"):
+            return f"Ceiling {layer['cloudBaseFt']:,} ft ({COVER[layer['cover']].lower()})"
+    lowest = layers[0]
+    if lowest["cover"] in COVER and lowest.get("cloudBaseFt"):
+        return f"No ceiling; {COVER[lowest['cover']].lower()} clouds at {lowest['cloudBaseFt']:,} ft"
+    return "Clear skies" if lowest["cover"] in ("CLR", "SKC", "CAVOK", "NSC") else None
+
+
+def density_altitude_sentence(metar):
+    """ "Density altitude 1,200 ft (field elevation 46 ft)", to the nearest 100 ft."""
+    # imported here: the visualizers import this module
+    from metarmap.visualizers.density_altitude import calculate_density_altitude, meters_to_feet
+    if not metar.get("altimHg") or metar.get("elevation_m") is None or metar.get("tempC") is None:
+        return None
+    feet = calculate_density_altitude(metar["altimHg"], metar["elevation_m"], metar["tempC"])
+    field = meters_to_feet(metar["elevation_m"])
+    return f"Density altitude {round(feet, -2):,.0f} ft (field elevation {field:,.0f} ft)"
+
+
 def wind(metar):
     speed = metar.get("windSpeed")
     if speed is None:

@@ -8,7 +8,7 @@ import time
 import bottle
 
 from metarmap import __version__
-from metarmap.decode import decode
+from metarmap.decode import decode, summary
 from metarmap.web import views
 
 
@@ -131,6 +131,7 @@ def metar(services, code):
         "flightCategory": m.get("flightCategory"),
         "obsTime": obs.isoformat() if obs else None,
         "decoded": decode(m),
+        "summary": summary(m),
     }
 
 

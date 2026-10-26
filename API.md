@@ -137,7 +137,7 @@ What the physical map is doing right now. The Map page polls it every second. No
 
 ### `GET /api/metar/<code>`
 
-One airport's METAR, raw and in plain English. The Map page's Decoded tab uses it. No authentication. The code is
+One airport's METAR, raw and in plain English. The Map page's Summary and Decoded tabs use it. No authentication. The code is
 case-insensitive; an airport that isn't on the map is a 404.
 
 ```json
@@ -154,6 +154,12 @@ case-insensitive; an airport that isn't on the map is a 404.
     { "label": "Temperature", "text": "28°C / 82°F" },
     { "label": "Dewpoint", "text": "16°C / 61°F (spread 12°C)" },
     { "label": "Altimeter", "text": "30.20 inHg" }
+  ],
+  "summary": [
+    "VFR: ceiling above 3,000 ft and visibility over 5 miles",
+    "Wind from the east (100°) at 13 knots, gusting to 19",
+    "No ceiling; scattered clouds at 4,400 ft",
+    "Density altitude 1,300 ft (field elevation 46 ft)"
   ]
 }
 ```
@@ -161,6 +167,7 @@ case-insensitive; an airport that isn't on the map is a 404.
 | Field | Description |
 |---|---|
 | `decoded` | One line per item the report has, in this order: `Observed`, `Wind`, `Visibility`, `Weather` (e.g. `Light rain, mist`), `Clouds` (one line per layer; later layers have an empty `label`, and the ceiling is marked), `Temperature`, `Dewpoint`, `Altimeter`, `Lightning`. Empty when the airport isn't reporting. Weather codes the map doesn't know are shown as they are. |
+| `summary` | A few sentences about the weather, in this order, for what the report has: the flight category and what it means, the weather (e.g. `Light rain, mist`), `Lightning reported`, the wind, the ceiling (or the lowest clouds, or `Clear skies`), the density altitude (to the nearest 100 ft), a fog warning when the temperature and dewpoint are 2°C or less apart, and an icing warning between -20°C and 2°C with clouds or precipitation. Empty when the airport isn't reporting. |
 | `raw`, `flightCategory`, `obsTime` | `null` when the airport isn't reporting |
 
 ## Control
@@ -239,7 +246,8 @@ curl -u metar:map http://metarmap.local/config/edit/display_screen.delay/10
 The airports are the `airports` list in `config.json`, one entry per LED in the order the LEDs are wired:
 `{"code": "KHOU", "name": "Hobby", "display": true}`. An LED with no airport has `"code": ""`. The list has
 `led.count` entries; `/config/edit/led.count/<n>` also adds LEDs with no airport at the end, or removes the last
-ones. A new LED count takes effect after a restart.
+ones. A new LED count takes effect after a restart, except without an LED strip (the in-memory one), where it
+takes effect right away.
 
 `<led>` counts from 0. In a URL, `-` stands for an empty code or name.
 
@@ -290,6 +298,7 @@ curl -u metar:map -H 'Content-Type: application/json' -d '{"user": "pilot", "pas
 | `GET /` | | Home: flight category counts, visualizer controls and legend, brightness and sun times |
 | `GET /metars` | | Table of METARs for every airport |
 | `GET /map` | | Live mirror of the LEDs and the OLED screen on an FAA chart, satellite or radar background |
+| `GET /map/legend` | | The active visualizer's legend (HTML), which the Map page swaps in when the visualizer changes |
 | `GET /raw` | | Raw METAR text for every airport, followed by the full parsed data |
 | `GET /raw/<code>` | | Raw METAR text for one airport |
 | `GET /debug` | | Debug information |

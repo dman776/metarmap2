@@ -19,7 +19,9 @@ Forked from [prueker/METARMap](https://github.com/prueker/METARMap), with portio
 - **OLED screen** (optional): wind, visibility, pressure, temperature, dewpoint and report time for each airport you
   choose, with that airport's LED pulsing while it's shown.
 - **Web UI**: current conditions, a METAR list, a live map that mirrors the LEDs and the OLED screen, and settings.
-  Update and restart the map from the Home page.
+  Click an airport on the map for its weather in plain English, its raw METAR, or the METAR decoded line by line.
+  The map can go fullscreen, and follows the visualizer as it changes. Update and restart the map from the Home
+  page.
 - **API and Home Assistant**: everything in the web UI also works over HTTP (see [API.md](API.md)); the
   [metarmap2_ha](https://github.com/dman776/metarmap2_ha) integration adds the map to Home Assistant.
 
@@ -72,7 +74,8 @@ The original project's write-ups cover the build in detail:
 
 On **Config > Airports**:
 
-1. Set **Number of LEDs** to the number of LEDs on your strip, then restart the map when it asks.
+1. Set **Number of LEDs** to the number of LEDs on your strip, then restart the map when it asks. (Without a
+   strip, the web map changes right away.)
 2. Enter the ICAO code (such as `KDFW`) of the airport at each LED, in the order the LEDs are wired, starting
    from the one nearest the Pi. Leave a code empty for an LED that isn't at an airport.
 3. Turn on **OLED** for the airports you want on the screen. Each airport's name fills itself in; change it if

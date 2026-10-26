@@ -1,5 +1,16 @@
 ### dman776 Unreleased
 
+- Map page: a fullscreen button (on a phone without fullscreen, the map fills the window; Esc or the button
+  closes it)
+- Map page: the visualizer name and legend follow the visualizer when it changes, including auto-rotate and Home
+  Assistant, and the previous/next buttons no longer reload the page, so the zoom and position stay
+- Map page: the legend starts closed, and the browser remembers whether you opened it
+- Map popup: a new Summary tab (the first one) with the weather in plain English: what the flight category
+  means, the weather, wind, ceiling, density altitude, and fog and icing warnings. Also `summary` in
+  `/api/metar/<code>`
+- Without an LED strip, a new number of LEDs takes effect right away, without a restart
+- New data, a new visualizer or new airports show on the LEDs right away, instead of after the current animation
+  finishes
 - Airports page: airports with an empty name get their name filled in from aviationweather.gov (e.g. "Houston/
   Hobby Arpt"), and changing an airport's code changes its name to the new airport's. Names you type are kept
 - METARs come from aviationweather.gov's JSON API instead of XML: about half the download, and one fewer

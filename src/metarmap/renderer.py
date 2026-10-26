@@ -87,12 +87,14 @@ class Renderer(object):
 
     def render(self):
         try:
-            animations = AnimateOnce(AnimationGroup(*self._animations), auto_clear=False)
+            built = self._animations
+            animations = AnimateOnce(AnimationGroup(*built), auto_clear=False)
             self._animationloop = animations
             while True:
                 # one frame at a time, so locate() can get in between frames
                 with self._lock:
-                    if not animations.animate():
+                    # rebuilt (new data, visualizer or strip length): the main loop starts the new animations
+                    if self._animations is not built or not animations.animate():
                         break
         except Exception as e:
             safe_logging.safe_log("[r]render error: " + str(e))
@@ -109,6 +111,20 @@ class Renderer(object):
     def resume(self):
         if self._animationloop is not None:
             self._animationloop.resume()
+
+    def resize(self, count):
+        """
+        Gives the strip `count` LEDs now, if it can change its length (the in-memory strip). A NeoPixel strip can't:
+        the new number takes effect after a restart. Returns whether the strip was resized.
+        """
+        if not callable(getattr(self._pixels, "resize", None)):
+            return False
+        with self._lock:
+            self._pixels.resize(count)
+            self._pix = [PixelSubset(self._pixels, i, i + 1) for i in range(len(self._pixels))]
+            self._rebuild()
+            self.clear()
+        return True
 
     def clear(self):
         self._pixels.fill(self._config.data.color.clear)

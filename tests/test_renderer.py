@@ -112,6 +112,39 @@ def test_more_airports_than_leds(config, clock):
     assert len(strip) == 3
 
 
+def test_resize(config, clock):
+    """The in-memory strip can change length without a restart; each LED keeps its own animation."""
+    r, strip = make(config, clock, leds=3)
+    assert r.resize(5) is True
+    assert len(strip) == 5 and len(r.animations) == 5
+    draw_frame(r)
+    assert strip[4] == tuple(config.data.color.cat.lifr)
+    assert r.resize(2) is True and len(r.animations) == 2
+    draw_frame(r)  # no IndexError
+
+
+def test_resize_a_strip_that_cant(config, clock):
+    r, strip = make(config, clock, leds=3)
+    r._pixels = [(0, 0, 0)] * 3  # like a NeoPixel strip: no resize()
+    assert r.resize(5) is False
+
+
+def test_render_stops_when_the_animations_are_rebuilt(config, clock):
+    """New data, a new visualizer or a new strip length shows at once, not after the old animations' cycle."""
+    r, _ = make(config, clock, data={"KHOU": metar("VFR", obs="-RA")}, leds=1, visualizers=[precipitation])
+    frames = []
+    animation = r.animations[0]
+    animate = animation.animate
+
+    def animate_then_rebuild(*args, **kwargs):
+        frames.append(1)
+        r.refresh()
+        return animate(*args, **kwargs)
+    animation.animate = animate_then_rebuild
+    r.render()
+    assert len(frames) == 1
+
+
 def test_clear(config, clock):
     r, strip = make(config, clock)
     draw_frame(r)

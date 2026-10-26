@@ -129,3 +129,67 @@ def test_parsed_reports_have_what_decode_needs():
     assert parsed["vertVisFt"] == 300
     assert lines(parsed)[2:5] == [("Visibility", "1/2 mile"), ("Weather", "Fog"),
                                   ("Clouds", "Sky obscured, vertical visibility 300 ft (ceiling)")]
+
+
+# ---- the popup's Summary tab ----------------------------------------------------------------------------------
+
+def test_summary_of_a_whole_report():
+    metar = {"flightCategory": "MVFR", "obs": "-RA BR", "lightning": True, "windDir": "170", "windSpeed": 12,
+             "windGust": True, "windGustSpeed": 20, "tempC": 1, "dewpointC": 0, "altimHg": 29.85, "elevation_m": 14,
+             "skyConditions": [{"cover": "FEW", "cloudBaseFt": 800}, {"cover": "BKN", "cloudBaseFt": 2500}]}
+    assert decode.summary(metar) == [
+        "Marginal VFR: ceiling 1,000-3,000 ft or visibility 3-5 miles",
+        "Light rain, mist",
+        "Lightning reported",
+        "Wind from the south (170°) at 12 knots, gusting to 20",
+        "Ceiling 2,500 ft (broken)",
+        "Density altitude -1,500 ft (field elevation 46 ft)",
+        "Temperature and dewpoint are 1°C apart: fog or low clouds can form",
+        "Temperature 1°C with clouds or precipitation: icing is possible",
+    ]
+
+
+def test_summary_not_reporting():
+    assert decode.summary({}) == [] and decode.summary(None) == []
+
+
+def test_summary_only_what_the_report_has():
+    # a hot, dry, clear day: no fog or icing, and a high density altitude
+    assert decode.summary({"flightCategory": "VFR", "windSpeed": 0, "tempC": 30, "dewpointC": 10, "altimHg": 30.01,
+                           "elevation_m": 300, "skyConditions": [{"cover": "CLR", "cloudBaseFt": 0}]}) == [
+        "VFR: ceiling above 3,000 ft and visibility over 5 miles", "Calm wind", "Clear skies",
+        "Density altitude 2,900 ft (field elevation 984 ft)"]
+    assert decode.summary({"tempC": -5, "dewpointC": -12}) == []  # cold but dry: no icing
+
+
+@pytest.mark.parametrize("metar, text", [
+    ({"windSpeed": 4, "windDir": "VRB"}, "Variable wind at 4 knots"),
+    ({"windSpeed": 9, "windDir": "360"}, "Wind from the north (360°) at 9 knots"),
+    ({"windSpeed": 9, "windDir": "337"}, "Wind from the northwest (337°) at 9 knots"),
+    ({"windSpeed": 9, "windDir": "338"}, "Wind from the north (338°) at 9 knots"),
+    ({"windSpeed": 9, "windDir": "290"}, "Wind from the west (290°) at 9 knots"),
+    ({"windSpeed": 9, "windDir": "45"}, "Wind from the northeast (045°) at 9 knots"),
+])
+def test_wind_sentence(metar, text):
+    assert decode.wind_sentence(metar) == text
+
+
+@pytest.mark.parametrize("layers, vv, text", [
+    ([{"cover": "SCT", "cloudBaseFt": 4300}, {"cover": "OVC", "cloudBaseFt": 9000}], None,
+     "Ceiling 9,000 ft (overcast)"),
+    ([{"cover": "FEW", "cloudBaseFt": 1200}], None, "No ceiling; few clouds at 1,200 ft"),
+    ([{"cover": "OVX", "cloudBaseFt": 0}], 300, "Sky obscured: vertical visibility 300 ft"),
+    ([{"cover": "SKC", "cloudBaseFt": 0}], None, "Clear skies"),
+    ([], None, None),
+])
+def test_sky_sentence(layers, vv, text):
+    assert decode.sky_sentence(layers, vv) == text
+
+
+def test_parsed_reports_have_what_the_summary_needs():
+    """Every field the summary reads comes out of metar.parse_report."""
+    report = parse_report({"rawOb": "KHOU 241753Z 17012G20KT 10SM BKN025 01/00 A2985", "fltCat": "MVFR",
+                           "wdir": 170, "wspd": 12, "wgst": 20, "temp": 1, "dewp": 0, "elev": 14,
+                           "clouds": [{"cover": "BKN", "base": 2500}], "obsTime": 1792000000})
+    assert "Density altitude -1,500 ft (field elevation 46 ft)" in decode.summary(report)
+    assert "Ceiling 2,500 ft (broken)" in decode.summary(report)

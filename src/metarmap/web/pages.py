@@ -37,6 +37,11 @@ def map_page(services, site):
                   brightness=services.renderer.pixels().brightness)
 
 
+def legend(services, site):
+    """The active visualizer's legend on its own: the Map page swaps it in when the visualizer changes."""
+    return render(site, "legend.tpl", legend=views.visualizer(services.renderer)["legend"])
+
+
 def debug(services, site):
     renderer = services.renderer
     return render(site, "debug.tpl", active=views.visualizer(renderer), fetched=services.metars.lastFetchTime,
@@ -77,6 +82,7 @@ def add_routes(app, services, site, auth):
     app.route("/", "GET", lambda: index(services, site))
     app.route("/metars", "GET", lambda: metars(services, site))
     app.route("/map", "GET", lambda: map_page(services, site))
+    app.route("/map/legend", "GET", lambda: legend(services, site))
     app.route("/debug", "GET", lambda: debug(services, site))
     app.route("/raw", "GET", lambda: raw(services))
     app.route("/raw/<code>", "GET", lambda code: raw_code(services, code))

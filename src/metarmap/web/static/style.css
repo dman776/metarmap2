@@ -211,6 +211,15 @@ input.led-count:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 /* map */
 .live-map { height: 72vh; min-height: 480px; border-radius: var(--radius); border: 1px solid var(--line); background: #c9d8c0; z-index: 0; }
+/* fullscreen: the browser's own, or the whole window where there's none (iPhone) */
+.live-map:fullscreen { width: 100%; height: 100%; min-height: 0; border: 0; border-radius: 0; }
+.live-map:-webkit-full-screen { width: 100%; height: 100%; min-height: 0; border: 0; border-radius: 0; }
+/* !important: Leaflet sets position: relative on the map itself */
+.live-map.map-full { position: fixed !important; inset: 0; z-index: 1000; height: auto; min-height: 0; border: 0; border-radius: 0; }
+body.map-full-open { overflow: hidden; }
+.map-fullscreen { display: flex !important; align-items: center; justify-content: center; }
+.map-fullscreen .exit, .map-fullscreen[aria-pressed="true"] .enter { display: none; }
+.map-fullscreen[aria-pressed="true"] .exit { display: block; }
 .tiles-dark { filter: invert(1) hue-rotate(180deg) brightness(.85) contrast(.9) saturate(.6); }
 .vis-switch { display: flex; align-items: center; gap: 8px; }
 .vis-name { min-width: 170px; text-align: center; display: flex; flex-direction: column; }
@@ -273,6 +282,9 @@ input.led-count:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 .pop-tab { min-height: 30px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--control); background: transparent; color: var(--text-2); font: 500 12px var(--sans); cursor: pointer; }
 .pop-tab[aria-selected="true"] { border-color: var(--accent); color: var(--accent); }
 .pop-tab:focus-visible { outline: 2px solid #ffd27d; outline-offset: 2px; }
+.pop-text { font: 13px/1.45 var(--sans); color: var(--text); }
+.pop-summary { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 3px; }
+.pop-summary li.age { color: var(--muted); list-style: none; margin-left: -16px; }
 .pop-decoded { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 12px; margin: 0; font: 12px/1.45 var(--sans); }
 .pop-decoded dt { color: var(--muted); }
 .pop-decoded dd { margin: 0; color: var(--text); }

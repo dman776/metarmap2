@@ -3,14 +3,14 @@
 <section class="page-head">
     <div>
         <h1>Map</h1>
-        <p>Live mirror of the LEDs and the OLED screen. Click an LED for its METAR.</p>
+        <p>Live mirror of the LEDs and the OLED screen. Click an LED for its weather.</p>
     </div>
     <div class="vis-switch">
-        <button class="btn icon" type="button" aria-label="Previous visualizer" data-call="/visualizer/previous">
+        <button class="btn icon" type="button" aria-label="Previous visualizer" data-call="/visualizer/previous" data-then="none">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg>
         </button>
-        <div class="vis-name"><span class="lbl">Visualizer</span><b>{{active['name']}}</b></div>
-        <button class="btn icon" type="button" aria-label="Next visualizer" data-call="/visualizer/next">
+        <div class="vis-name" data-active="{{active['index']}}"><span class="lbl">Visualizer</span><b>{{active['name']}}</b></div>
+        <button class="btn icon" type="button" aria-label="Next visualizer" data-call="/visualizer/next" data-then="none">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
         </button>
     </div>
