@@ -1,5 +1,7 @@
 ### dman776 Unreleased
 
+- The LEDs dim to half their brightness while new METARs download (at least a second), as a sign of an update.
+  Turn it off with **Config > LED pixels > Dim while updating** (`led.dim_on_refresh`)
 - Auto-rotate (on/off and the delay) takes effect right away, without a restart
 - Restart waits 5 seconds (was 15) before checking whether the map is back
 - Map page: a fullscreen button (on a phone without fullscreen, the map fills the window; Esc or the button

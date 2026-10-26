@@ -96,7 +96,8 @@ def add_routes(app, services, site, auth, updates=None):
         return pages.metars(services, site)
 
     def fetch():
-        services.metars.fetch()
+        with renderer.dimmed():
+            services.metars.fetch()
         renderer.update_data(services.metars)
         config.fill_names(services.metars.station_names())
         return pages.index(services, site)
@@ -127,7 +128,8 @@ def add_routes(app, services, site, auth, updates=None):
         return bottle.redirect("/config/airports")
 
     def fetch_metars():
-        services.metars.fetch()
+        with renderer.dimmed():
+            services.metars.fetch()
         renderer.update_data(services.metars)
         config.fill_names(services.metars.station_names())
 

@@ -94,6 +94,7 @@ Changes save right away. To check the wiring order:
 - the OLED screen
 - the map page's chart
 - the LED brightness for day, dawn and dusk, and night
+- whether the LEDs dim for a moment while new METARs download (**Dim while updating**, on by default)
 
 Settings marked **Restart** take effect after the map restarts.
 

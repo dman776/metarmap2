@@ -155,6 +155,7 @@
         <section class="card settings">
             <h2>LED pixels</h2>
             % switch('led.inittest', d.led.inittest, 'Test pattern on startup', restart=True)
+            % switch('led.dim_on_refresh', d.led.dim_on_refresh, 'Dim while updating', 'The LEDs dim for a moment while new METARs download.')
             % slider('led.brightness.normal', d.led.brightness.normal, 'Daytime brightness', 'Sunrise to sunset.', restart=True)
             % slider('led.brightness.dimmed', d.led.brightness.dimmed, 'Dawn / dusk brightness', 'Dawn to sunrise, sunset to dusk.', restart=True)
             % slider('led.brightness.off', d.led.brightness.off, 'Night brightness', 'Dusk to dawn.', restart=True)

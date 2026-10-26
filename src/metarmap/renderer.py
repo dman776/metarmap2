@@ -3,6 +3,7 @@ Drives the LED strip: turns the active visualizer's looks into animations and ru
 """
 import threading
 import traceback
+from contextlib import contextmanager
 
 import metarmap.lib.safe_logging as safe_logging
 from metarmap.clock import Clock
@@ -15,6 +16,9 @@ from adafruit_led_animation.group import AnimationGroup
 from adafruit_led_animation.helper import PixelSubset
 from adafruit_led_animation.animation.pulse import Pulse
 from adafruit_led_animation.color import WHITE
+
+DIM_FACTOR = 0.5  # how bright the LEDs are while METARs are fetched, as a part of their brightness
+DIM_SECONDS = 1  # the shortest dim, so a quick fetch still shows
 
 
 class Renderer(object):
@@ -190,6 +194,29 @@ class Renderer(object):
     def brightness(self, level: float):
         if 0 <= level <= 1:
             self._pixels.brightness = level
+
+    @contextmanager
+    def dimmed(self):
+        """
+        Dims the LEDs while the block runs (a METAR fetch), when led.dim_on_refresh is on. The brightness comes back
+        afterwards, unless something else changed it meanwhile (the web UI, the brightness schedule).
+        """
+        if not self._config.data.led.dim_on_refresh:
+            yield
+            return
+        with self._lock:
+            normal = self._pixels.brightness
+            self._pixels.brightness = dim = normal * DIM_FACTOR
+            self._pixels.show()
+        started = self._clock.time()
+        try:
+            yield
+        finally:
+            self._clock.wait(threading.Event(), DIM_SECONDS - (self._clock.time() - started))
+            with self._lock:
+                if self._pixels.brightness == dim:
+                    self._pixels.brightness = normal
+                    self._pixels.show()
 
     def pixels(self):
         return self._pixels

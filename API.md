@@ -50,6 +50,7 @@ Returns a read-only snapshot of the map's state as `application/json`. No authen
     "display_screen.locate_active": true,
     "display_screen.delay": 5.0,
     "led.inittest": true,
+    "led.dim_on_refresh": true,
     "led.brightness.normal": 0.5,
     "led.brightness.dimmed": 0.1,
     "led.brightness.off": 0.01
@@ -221,6 +222,7 @@ Settings that apply right away:
 - `lightning.animation`
 - `display_screen.locate_active`
 - `display_screen.delay`
+- `led.dim_on_refresh`: the LEDs dim to half their brightness while METARs are fetched (at least a second)
 - `visualizer.active`, the default visualizer used at startup. Saving it doesn't change the visualizer that's running now; use `/visualizer/<n>` for that.
 - `visualizer.auto_rotate.enabled`
 - `visualizer.auto_rotate.delay_seconds` (the new delay starts counting when it's saved)

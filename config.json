@@ -13,7 +13,8 @@
             "dimmed": 0.1,
             "off": 0.01
         },
-        "inittest": true
+        "inittest": true,
+        "dim_on_refresh": true
     },
     "geo": {
         "city": "Houston",

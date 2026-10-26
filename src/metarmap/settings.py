@@ -39,6 +39,7 @@ class Led(_Section):
     order: str = "GRB"
     brightness: Brightness = field(default_factory=Brightness)
     inittest: bool = True
+    dim_on_refresh: bool = True  # the LEDs dim while METARs are fetched, a sign of an update
 
 
 @dataclass

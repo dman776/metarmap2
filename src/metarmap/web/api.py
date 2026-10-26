@@ -65,6 +65,7 @@ def status(services, ip):
             "display_screen.locate_active": cfg.display_screen.locate_active,
             "display_screen.delay": cfg.display_screen.delay,
             "led.inittest": cfg.led.inittest,
+            "led.dim_on_refresh": cfg.led.dim_on_refresh,
             "led.brightness.normal": cfg.led.brightness.normal,
             "led.brightness.dimmed": cfg.led.brightness.dimmed,
             "led.brightness.off": cfg.led.brightness.off,

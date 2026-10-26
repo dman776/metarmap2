@@ -55,9 +55,16 @@ def test_auto_rotate(make_app):
 def test_update_data_fetches_and_redraws(make_app, monkeypatch):
     app = make_app()
     code = app.config.airports[0].code
-    monkeypatch.setattr(app.metars, "fetch", lambda: setattr(app.metars, "data", {code: {"flightCategory": "VFR"}}))
+    brightness = []
+
+    def fetch():
+        brightness.append(app.renderer.pixels().brightness)
+        app.metars.data = {code: {"flightCategory": "VFR"}}
+    monkeypatch.setattr(app.metars, "fetch", fetch)
+    normal = app.renderer.pixels().brightness
     app_module.update_data(app)
     assert app.renderer.looks[0].colors[0] == tuple(app.config.data.color.cat.vfr)
+    assert brightness == [normal / 2] and app.renderer.pixels().brightness == normal  # dimmed while fetching
 
 
 def test_load_suntimes_replaces_the_brightness_jobs(make_app):

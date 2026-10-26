@@ -102,7 +102,8 @@ def schedule_rotation(app: App):
 # ---- scheduled jobs ------------------------------------------------------------------------------------------
 
 def update_data(app: App):
-    app.metars.fetch()
+    with app.renderer.dimmed():
+        app.metars.fetch()
     app.renderer.update_data(app.metars)
     fill_names(app)
     if needs_retry(app):
@@ -132,7 +133,9 @@ def retry_soon(app: App):
 def retry_fetch(app: App):
     """Redoes what failed: the fetch (which also does the lookup), or only the lookup."""
     if app.metars.last_fetch_ok is False:
-        if app.metars.fetch():
+        with app.renderer.dimmed():
+            fetched = app.metars.fetch()
+        if fetched:
             app.renderer.update_data(app.metars)
     elif app.metars.locate_failed:
         app.metars.locate()

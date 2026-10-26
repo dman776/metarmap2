@@ -145,6 +145,44 @@ def test_render_stops_when_the_animations_are_rebuilt(config, clock):
     assert len(frames) == 1
 
 
+def test_dimmed_while_fetching(config, clock, monkeypatch):
+    from metarmap import renderer
+    monkeypatch.setattr(renderer, "DIM_SECONDS", 1)
+    r, strip = make(config, clock)
+    strip.brightness = 0.4
+    shows = strip.shows
+    start = clock.time()
+    with r.dimmed():
+        assert strip.brightness == 0.2 and strip.shows == shows + 1  # shown dim right away
+    assert strip.brightness == 0.4 and strip.shows == shows + 2
+    assert clock.time() - start == 1  # a quick fetch still dims for a second
+
+
+def test_dimmed_keeps_a_brightness_changed_meanwhile(config, clock):
+    r, strip = make(config, clock)
+    strip.brightness = 0.4
+    with r.dimmed():
+        r.brightness(0.1)  # the web UI's slider, or the brightness schedule
+    assert strip.brightness == 0.1
+
+
+def test_dimmed_turned_off(config, clock):
+    config.data.led.dim_on_refresh = False
+    r, strip = make(config, clock)
+    strip.brightness = 0.4
+    with r.dimmed():
+        assert strip.brightness == 0.4
+
+
+def test_dimmed_comes_back_after_an_error(config, clock):
+    r, strip = make(config, clock)
+    strip.brightness = 0.4
+    with pytest.raises(RuntimeError):
+        with r.dimmed():
+            raise RuntimeError("fetch failed")
+    assert strip.brightness == 0.4
+
+
 def test_clear(config, clock):
     r, strip = make(config, clock)
     draw_frame(r)
