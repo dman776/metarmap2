@@ -49,7 +49,7 @@ def test_leds_without_an_airport_stay_dark(v, settings):
 
 
 def test_exclusive_visualizers():
-    assert {v.NAME for v in ALL if v.EXCLUSIVE} == {"Precipitation", "Rainbow", "Chase"}
+    assert {v.NAME for v in ALL if v.EXCLUSIVE} == {"Rainbow", "Chase"}
 
 
 def test_info(settings):

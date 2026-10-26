@@ -1,5 +1,7 @@
 ### dman776 2.7.0 (2026-10-25)
 
+- Precipitation is in auto-rotate now, and the OLED's locate pulse works while it's shown (it was marked as using
+  the whole strip, like Rainbow and Chase, though it lights each airport on its own)
 - Config > Visualizer: untick visualizers to leave them out of auto-rotate (`visualizer.auto_rotate.skip`, a list
   of names). Applies right away; the previous/next buttons still go to every visualizer. If nothing is left to
   rotate to, the visualizer stays where it is

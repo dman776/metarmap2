@@ -158,7 +158,8 @@ def test_choose_visualizers_for_auto_rotate(client):
     body = client("/config")[1]
     assert 'data-rotate="Wind" checked' in body and 'data-rotate="Flight Category" checked' in body
     assert 'data-rotate="Rainbow"' not in body  # exclusive ones are never in the rotation
-    assert "Precipitation, Rainbow and Chase are always left out" in body
+    assert 'data-rotate="Precipitation" checked' in body
+    assert "Rainbow and Chase are always left out" in body
 
     # (the paths are as the server decodes them)
     assert client('/config/edit/visualizer.auto_rotate.skip/["Wind","Wind Gusts"]')[0] == 200

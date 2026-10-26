@@ -194,7 +194,7 @@ Visualizer indexes:
 | 1 | Wind | |
 | 2 | Wind Gusts | |
 | 3 | Pressure | |
-| 4 | Precipitation | yes |
+| 4 | Precipitation | no |
 | 5 | Temperature | |
 | 6 | Visibility | |
 | 7 | Density Altitude | |

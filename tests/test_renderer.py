@@ -11,7 +11,7 @@ from metarmap.models import Look
 from metarmap.settings import Settings
 from metarmap.sun import SunTimes
 from metarmap.renderer import Renderer
-from metarmap.visualizers import flightcategory, precipitation, rainbow, visualizer, wind
+from metarmap.visualizers import chase, flightcategory, precipitation, rainbow, visualizer, wind
 
 NOON = datetime(2026, 10, 24, 17, 0, tzinfo=timezone.utc)
 SUN = {"dawn": NOON.replace(hour=11, minute=58), "sunrise": NOON.replace(hour=12, minute=23),
@@ -210,21 +210,21 @@ def test_next_and_previous_wrap(config, clock):
 
 def test_auto_rotate_skips_exclusive_visualizers(config, clock):
     r, _ = make(config, clock)
-    r.visualizer = 1
-    r.visualizer_next(skip_exclusive=True)  # Precipitation and Rainbow are exclusive
+    r.visualizer = 2
+    r.visualizer_next(skip_exclusive=True)  # Rainbow is exclusive
     assert r.active_visualizer == 0
 
 
 def test_auto_rotate_skips_named_visualizers(config, clock):
-    r, _ = make(config, clock, visualizers=[flightcategory, wind, precipitation, rainbow])
+    r, _ = make(config, clock, visualizers=[flightcategory, wind, rainbow])
     r.visualizer_next(skip_exclusive=True, skip=["Wind"])
-    assert r.active_visualizer == 0  # Wind skipped, Precipitation and Rainbow exclusive: back to the first
+    assert r.active_visualizer == 0  # Wind skipped, Rainbow exclusive: back to the first
     r.visualizer_next()
     assert r.active_visualizer == 1  # the buttons still reach it
 
 
 def test_nothing_to_rotate_to_stays_put(config, clock):
-    r, _ = make(config, clock, visualizers=[precipitation, rainbow])
+    r, _ = make(config, clock, visualizers=[chase, rainbow])
     r.visualizer_next(skip_exclusive=True)  # used to loop forever
     assert r.active_visualizer == 0
     r, _ = make(config, clock, visualizers=[flightcategory, wind])
@@ -247,7 +247,7 @@ def test_locate_pulses_and_records(config, clock):
 
 def test_locate_ignored_by_exclusive_visualizers(config, clock):
     r, strip = make(config, clock)
-    r.visualizer = 2  # precipitation
+    r.visualizer = 3  # rainbow
     shows = strip.shows
     r.locate(0)
     assert r.last_locate is None

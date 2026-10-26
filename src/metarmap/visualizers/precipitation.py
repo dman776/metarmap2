@@ -15,7 +15,7 @@ from metarmap.visualizers.visualizer import legend_item
 
 NAME = "Precipitation"
 DESCRIPTION = "Display the current observed weather: the color is what it is, the effect is how heavy it is."
-EXCLUSIVE = True
+EXCLUSIVE = False
 
 MIXED_PERIOD = 2.0  # seconds per alternation of two kinds of precipitation
 
