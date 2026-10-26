@@ -5,8 +5,8 @@ A Raspberry Pi turns a wall map into a live weather display: an LED at each airp
 optional small OLED screen cycles through the details for the airports you pick, and a web UI lets you control and
 set up the map from your phone.
 
-Forked from [prueker/METARMap](https://github.com/prueker/METARMap), with portions by @lostlocalhost and
-@johnmarzulli. Rewritten as a multi-threaded application with a web UI, an API and a Home Assistant integration.
+Started from [prueker/METARMap](https://github.com/prueker/METARMap), and since rewritten from the ground up with a
+web UI, an API and a Home Assistant integration (see [Credits](#credits)).
 
 ## Features
 
@@ -206,3 +206,11 @@ The code is the `metarmap` package in `src/metarmap/`:
 ## Changes
 
 See [CHANGELIST.md](CHANGELIST.md).
+
+## Credits
+
+METARMap2 started from [prueker/METARMap](https://github.com/prueker/METARMap), Philip Rueker's Raspberry Pi METAR
+map, with portions by [@lostlocalhost](https://github.com/lostlocalhost) and John Marzulli. It has since been
+rewritten from scratch, with a web UI, an API, a Home Assistant integration and more, and shares little, if any, of
+their code. Their work is where the idea and the first version came from, and John Marzulli's visualizer ideas were
+a particular inspiration. Thank you.

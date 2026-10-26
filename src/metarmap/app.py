@@ -4,8 +4,6 @@ The METAR map: builds every part from config.json, schedules the periodic jobs a
 build() wires the parts together without starting anything, so a map can be built on fake hardware in tests;
 run() starts the web server and the OLED loop and drives the LEDs until stopped. main() is `python -m metarmap`.
 """
-# Darryl Quinn 2023
-# Free for personal use. Prohibited for commercial without consent
 
 import signal
 import sys

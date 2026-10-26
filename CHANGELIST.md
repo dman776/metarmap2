@@ -1,5 +1,8 @@
-### dman776 Unreleased
+### dman776 2.9.1 (2026-10-26)
 
+- README credits: the project started from prueker/METARMap, with portions by @lostlocalhost and John Marzulli, and
+  has since been rewritten from scratch (it's no longer a GitHub fork). Removed the "free for personal use" header
+  from `app.py`, which contradicted the MIT `LICENSE`
 - **Dim while updating** fades instead of cutting: about 0.6 s down to half brightness, and 0.6 s back up after the
   download. At night levels (around 1%) it takes fewer, larger steps, because the Pi's LED library ignores
   brightness changes under 0.001; that way the brightness always comes back exactly where it was
