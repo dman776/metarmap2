@@ -129,6 +129,50 @@ def test_resize_a_strip_that_cant(config, clock):
     assert r.resize(5) is False
 
 
+def test_render_rests_between_frames(config, clock, monkeypatch):
+    """Without a rest the loop asks the animations "is it time yet?" non-stop, using a whole CPU core."""
+    from metarmap import renderer
+
+    class Frames:
+        """An animation loop that has three frames to draw."""
+        def __init__(self, *args, **kwargs):
+            self.left = 3
+
+        def animate(self):
+            self.left -= 1
+            return self.left > 0
+
+        def freeze(self):
+            pass
+
+        def resume(self):
+            pass
+
+    rests = []
+    monkeypatch.setattr(renderer, "AnimateOnce", Frames)
+    monkeypatch.setattr(renderer.time, "sleep", rests.append)
+    r, _ = make(config, clock)
+    r.render()
+    assert rests == [renderer.FRAME_SECONDS] * 2  # after each frame that kept going, not after the last
+    rests.clear()
+    r.animate_once(object())
+    assert rests == [renderer.FRAME_SECONDS] * 2
+
+
+def test_render_rests_after_an_error(config, clock, monkeypatch):
+    from metarmap import renderer
+
+    def broken(*args, **kwargs):
+        raise RuntimeError("no such animation")
+
+    rests = []
+    monkeypatch.setattr(renderer, "AnimationGroup", broken)
+    monkeypatch.setattr(renderer.time, "sleep", rests.append)
+    r, _ = make(config, clock)
+    r.render()  # the main loop calls it again at once; it mustn't spin
+    assert rests == [renderer.FRAME_SECONDS]
+
+
 def test_render_stops_when_the_animations_are_rebuilt(config, clock):
     """New data, a new visualizer or a new strip length shows at once, not after the old animations' cycle."""
     r, _ = make(config, clock, data={"KHOU": metar("VFR", obs="-RA")}, leds=1, visualizers=[precipitation])

@@ -1,5 +1,8 @@
 ### dman776 Unreleased
 
+- Fixed: the map used a whole CPU core (100%) all the time. The LED loop asked the animations "is it time yet?"
+  thousands of times a second; it now rests 10 ms between checks (the fastest effect changes every 100 ms), so
+  an idle map uses under 1%. The LEDs look the same, and the tests run faster too
 - Rainbow and Chase are always at the end of the visualizer list. Ceiling and Dewpoint Spread are now 8 and 9,
   Rainbow 10 and Chase 11. A saved default visualizer (`visualizer.active`) of 8 or 9 now means Ceiling or
   Dewpoint Spread instead of Rainbow or Chase; set it again on the Config page if it was one of those. Home

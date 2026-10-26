@@ -2,6 +2,7 @@
 Drives the LED strip: turns the active visualizer's looks into animations and runs them.
 """
 import threading
+import time
 import traceback
 from contextlib import contextmanager
 
@@ -16,6 +17,10 @@ from adafruit_led_animation.group import AnimationGroup
 from adafruit_led_animation.helper import PixelSubset
 from adafruit_led_animation.animation.pulse import Pulse
 from adafruit_led_animation.color import WHITE
+
+# The animations decide when each effect moves on (the fastest changes every 0.1 s); between frames the loop rests,
+# instead of asking them "is it time yet?" thousands of times a second, which used a whole CPU core.
+FRAME_SECONDS = 0.01
 
 DIM_FACTOR = 0.5  # how bright the LEDs are while METARs are fetched, as a part of their brightness
 DIM_SECONDS = 1  # the shortest dim, so a quick fetch still shows
@@ -100,8 +105,10 @@ class Renderer(object):
                     # rebuilt (new data, visualizer or strip length): the main loop starts the new animations
                     if self._animations is not built or not animations.animate():
                         break
+                time.sleep(FRAME_SECONDS)  # outside the lock, so locate() and the web UI can get in
         except Exception as e:
             safe_logging.safe_log("[r]render error: " + str(e))
+            time.sleep(FRAME_SECONDS)  # the main loop calls render() again at once: no hot loop of errors
 
     def update_data(self, metars):
         safe_logging.safe_log("[r]" + "updating data in the renderer")
@@ -140,7 +147,7 @@ class Renderer(object):
             try:
                 animations = AnimateOnce(effect)
                 while animations.animate():
-                    pass
+                    time.sleep(FRAME_SECONDS)
                 if clear:
                     self.clear()
             finally:
