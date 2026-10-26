@@ -46,6 +46,9 @@ class App:
     display: Display  # always built; its loop runs while display_screen.enabled is on
     scheduler: schedule.Scheduler
 
+    def schedule_rotation(self):
+        schedule_rotation(self)
+
 
 # ---- building ------------------------------------------------------------------------------------------------
 
@@ -85,9 +88,15 @@ def schedule_jobs(app: App):
     s.every().day.at("00:00").do(load_suntimes, app)  # new sun times every day, to dim the map at the right times
     schedule_brightness(app)
     s.every(WATCHDOG_SECONDS).seconds.do(watch_display, app)
+    schedule_rotation(app)
+
+
+def schedule_rotation(app: App):
+    """Schedules auto-rotate from the settings; called again when they change, so they need no restart."""
+    app.scheduler.clear("rotate_visualizer")
     rotate = app.config.data.visualizer.auto_rotate
     if rotate.enabled:
-        s.every(rotate.delay_seconds).seconds.do(rotate_visualizer, app).tag("rotate_visualizer")
+        app.scheduler.every(rotate.delay_seconds).seconds.do(rotate_visualizer, app).tag("rotate_visualizer")
 
 
 # ---- scheduled jobs ------------------------------------------------------------------------------------------

@@ -111,6 +111,8 @@ def add_routes(app, services, site, auth, updates=None):
         if key == "led.count":  # the in-memory strip changes now; a NeoPixel strip after a restart
             renderer.resize(config.data.led.count)
         renderer.refresh()
+        if key.startswith("visualizer.auto_rotate."):  # the new timer starts now, no restart needed
+            services.schedule_rotation()
         if key == "display_screen.enabled":  # the OLED turns on or off now, no restart needed
             services.display.turn_on() if config.data.display_screen.enabled else services.display.turn_off()
         return pages.config(services, site)

@@ -222,11 +222,11 @@ Settings that apply right away:
 - `display_screen.locate_active`
 - `display_screen.delay`
 - `visualizer.active`, the default visualizer used at startup. Saving it doesn't change the visualizer that's running now; use `/visualizer/<n>` for that.
+- `visualizer.auto_rotate.enabled`
+- `visualizer.auto_rotate.delay_seconds` (the new delay starts counting when it's saved)
 
 Settings that need a restart:
 - `led.inittest`
-- `visualizer.auto_rotate.enabled`
-- `visualizer.auto_rotate.delay_seconds`
 
 Map page settings (apply the next time the Map page is opened):
 - `geo.map.background`: `sectional`, `satellite` or `radar`

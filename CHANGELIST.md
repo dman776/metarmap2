@@ -1,5 +1,7 @@
 ### dman776 Unreleased
 
+- Auto-rotate (on/off and the delay) takes effect right away, without a restart
+- Restart waits 5 seconds (was 15) before checking whether the map is back
 - Map page: a fullscreen button (on a phone without fullscreen, the map fills the window; Esc or the button
   closes it)
 - Map page: the visualizer name and legend follow the visualizer when it changes, including auto-rotate and Home

@@ -138,6 +138,21 @@ def test_airports_page(client):
     assert 'id="restart-banner" role="status" hidden' in body
 
 
+def test_auto_rotate_changes_without_a_restart(client):
+    scheduler = client.services.scheduler
+    assert not scheduler.get_jobs("rotate_visualizer")
+    assert client("/config/edit/visualizer.auto_rotate.enabled/true")[0] == 200
+    (job,) = scheduler.get_jobs("rotate_visualizer")
+    assert job.interval == client.services.config.data.visualizer.auto_rotate.delay_seconds
+    assert client("/config/edit/visualizer.auto_rotate.delay_seconds/20")[0] == 200
+    assert [j.interval for j in scheduler.get_jobs("rotate_visualizer")] == [20]
+    assert client("/config/edit/visualizer.auto_rotate.enabled/false")[0] == 200
+    assert not scheduler.get_jobs("rotate_visualizer")
+    body = client("/config")[1]
+    assert 'data-key="visualizer.auto_rotate.enabled"' in body
+    assert 'data-key="visualizer.auto_rotate.enabled" data-restart' not in body.replace(' checked', '')
+
+
 def test_set_move_and_count_airports(client, monkeypatch):
     app = client.services
     fetched = threading.Event()
