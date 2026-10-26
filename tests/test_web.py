@@ -153,6 +153,25 @@ def test_auto_rotate_changes_without_a_restart(client):
     assert 'data-key="visualizer.auto_rotate.enabled" data-restart' not in body.replace(' checked', '')
 
 
+def test_choose_visualizers_for_auto_rotate(client):
+    app = client.services
+    body = client("/config")[1]
+    assert 'data-rotate="Wind" checked' in body and 'data-rotate="Flight Category" checked' in body
+    assert 'data-rotate="Rainbow"' not in body  # exclusive ones are never in the rotation
+    assert "Precipitation, Rainbow and Chase are always left out" in body
+
+    # (the paths are as the server decodes them)
+    assert client('/config/edit/visualizer.auto_rotate.skip/["Wind","Wind Gusts"]')[0] == 200
+    assert app.config.data.visualizer.auto_rotate.skip == ["Wind", "Wind Gusts"]
+    body = client("/config")[1]
+    assert 'data-rotate="Wind" checked' not in body and 'data-rotate="Wind"' in body
+    assert client.json("/api/status", auth=False)["config"]["visualizer.auto_rotate.skip"] == ["Wind", "Wind Gusts"]
+
+    assert client("/config/edit/visualizer.auto_rotate.skip/[]")[0] == 200  # [] = leave none out
+    assert app.config.data.visualizer.auto_rotate.skip == []
+    assert client("/config/edit/visualizer.auto_rotate.skip/Wind")[0] == 400  # a list, not a name
+
+
 def test_set_move_and_count_airports(client, monkeypatch):
     app = client.services
     fetched = threading.Event()

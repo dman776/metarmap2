@@ -52,6 +52,7 @@ def debug(services, site):
 def config(services, site):
     settings = views.map_settings(services.config.data.geo.map, site.sectionals, stations(services))
     return render(site, "config.tpl", d=services.config.data, visualizers=views.visualizer_names(services.renderer),
+                  rotation=views.rotation(services.renderer, services.config.data.visualizer.auto_rotate.skip),
                   map_settings=settings, sectionals=site.sectionals, chart_types=views.CHART_TYPES,
                   # the login user's password only changes on a Raspberry Pi with the map running as root
                   linux_user=system.login_user() if system.can_set_login_password() else None,

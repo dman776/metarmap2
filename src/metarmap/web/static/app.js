@@ -228,6 +228,21 @@
         });
     });
 
+    // Config > Visualizer: the unticked visualizers are saved as a list of names (visualizer.auto_rotate.skip)
+    const rotateBoxes = document.querySelectorAll('[data-rotate]');
+    rotateBoxes.forEach(function (box) {
+        box.addEventListener('change', async function () {
+            const left = Array.from(rotateBoxes).filter(function (b) { return !b.checked; })
+                .map(function (b) { return b.dataset.rotate; });
+            try {
+                await call('/config/edit/visualizer.auto_rotate.skip/' + encodeURIComponent(JSON.stringify(left)));
+            } catch (err) {
+                box.checked = !box.checked;
+                showOutput('Could not save', String(err));
+            }
+        });
+    });
+
     // POSTs JSON (passwords never go in a URL); an error's message is bottle's <pre> text
     async function postJSON(url, data) {
         const res = await fetch(url, {

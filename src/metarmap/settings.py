@@ -100,6 +100,7 @@ class Colors(_Section):
 class AutoRotate(_Section):
     enabled: bool = False
     delay_seconds: int = 60
+    skip: List[str] = field(default_factory=list)  # names of visualizers auto-rotate leaves out
 
 
 @dataclass

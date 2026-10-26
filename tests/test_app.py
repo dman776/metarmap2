@@ -50,6 +50,12 @@ def test_auto_rotate(make_app):
     assert app.renderer.visualizer[0] == 1
 
 
+def test_auto_rotate_leaves_out_the_skipped(make_app):
+    app = make_app(**{"visualizer.auto_rotate.skip": '["Wind", "Wind Gusts"]'})
+    app_module.rotate_visualizer(app)
+    assert app.renderer.visualizer[1].NAME == "Pressure"  # after Flight Category, past Wind and Wind Gusts
+
+
 # ---- scheduled jobs -------------------------------------------------------------------------------------------
 
 def test_update_data_fetches_and_redraws(make_app, monkeypatch):

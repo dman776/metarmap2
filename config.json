@@ -125,7 +125,8 @@
         "active": 0,
         "auto_rotate": {
             "enabled": false,
-            "delay_seconds": 60
+            "delay_seconds": 60,
+            "skip": []
         }
     },
     "lightning": {

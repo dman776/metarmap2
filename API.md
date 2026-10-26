@@ -45,6 +45,7 @@ Returns a read-only snapshot of the map's state as `application/json`. No authen
     "visualizer.active": 0,
     "visualizer.auto_rotate.enabled": false,
     "visualizer.auto_rotate.delay_seconds": 60,
+    "visualizer.auto_rotate.skip": [],
     "lightning.animation": true,
     "display_screen.enabled": true,
     "display_screen.locate_active": true,
@@ -226,6 +227,7 @@ Settings that apply right away:
 - `visualizer.active`, the default visualizer used at startup. Saving it doesn't change the visualizer that's running now; use `/visualizer/<n>` for that.
 - `visualizer.auto_rotate.enabled`
 - `visualizer.auto_rotate.delay_seconds` (the new delay starts counting when it's saved)
+- `visualizer.auto_rotate.skip`: the visualizers auto-rotate leaves out, as a JSON list of names, e.g. `/config/edit/visualizer.auto_rotate.skip/%5B%22Wind%22%2C%22Wind%20Gusts%22%5D` for `["Wind","Wind Gusts"]` (`[]` leaves none out). Exclusive visualizers (`"exclusive": true` in `/api/status`) are always left out. The previous/next buttons still go to every visualizer.
 
 Settings that need a restart:
 - `led.inittest`

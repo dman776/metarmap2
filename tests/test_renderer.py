@@ -215,10 +215,24 @@ def test_auto_rotate_skips_exclusive_visualizers(config, clock):
     assert r.active_visualizer == 0
 
 
-def test_skip_exclusive_when_every_visualizer_is_exclusive(config, clock):
+def test_auto_rotate_skips_named_visualizers(config, clock):
+    r, _ = make(config, clock, visualizers=[flightcategory, wind, precipitation, rainbow])
+    r.visualizer_next(skip_exclusive=True, skip=["Wind"])
+    assert r.active_visualizer == 0  # Wind skipped, Precipitation and Rainbow exclusive: back to the first
+    r.visualizer_next()
+    assert r.active_visualizer == 1  # the buttons still reach it
+
+
+def test_nothing_to_rotate_to_stays_put(config, clock):
     r, _ = make(config, clock, visualizers=[precipitation, rainbow])
     r.visualizer_next(skip_exclusive=True)  # used to loop forever
-    assert r.active_visualizer in (0, 1)
+    assert r.active_visualizer == 0
+    r, _ = make(config, clock, visualizers=[flightcategory, wind])
+    r.visualizer = 1
+    r.visualizer_next(skip=["Flight Category", "Wind"])
+    assert r.active_visualizer == 1
+    r.visualizer_next(skip=["Wind"])  # only itself left: it's what it is
+    assert r.active_visualizer == 0
 
 
 # ---- locate -------------------------------------------------------------------------------------------------

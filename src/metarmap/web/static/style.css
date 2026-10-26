@@ -178,6 +178,9 @@ select:focus, input[type=text]:focus, input[type=search]:focus, input[type=passw
 .set > div:first-child { flex: 1 1 180px; min-width: 0; }
 .set .t { font-size: 15px; font-weight: 500; }
 .set .d { font-size: 13px; color: var(--muted); margin-top: 3px; }
+.rotate-list { display: flex; flex-wrap: wrap; gap: 4px 18px; max-width: 420px; }
+.rotate-list label { display: flex; align-items: center; gap: 8px; min-height: 36px; font-size: 14px; cursor: pointer; }
+.rotate-list input { accent-color: var(--accent); width: 18px; height: 18px; }
 .set .range { display: flex; align-items: center; gap: 12px; }
 .set .range input { width: 220px; }
 .set.access { display: grid; grid-template-columns: 1fr; gap: 10px; }

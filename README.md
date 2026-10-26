@@ -89,7 +89,7 @@ Changes save right away. To check the wiring order:
 ## Settings
 
 **Config** has the rest of the settings:
-- the default visualizer and auto-rotate
+- the default visualizer and auto-rotate, including which visualizers it shows
 - lightning
 - the OLED screen
 - the map page's chart

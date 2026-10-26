@@ -1,5 +1,8 @@
-### dman776 Unreleased
+### dman776 2.7.0 (2026-10-25)
 
+- Config > Visualizer: untick visualizers to leave them out of auto-rotate (`visualizer.auto_rotate.skip`, a list
+  of names). Applies right away; the previous/next buttons still go to every visualizer. If nothing is left to
+  rotate to, the visualizer stays where it is
 - The LEDs dim to half their brightness while new METARs download (at least a second), as a sign of an update.
   Turn it off with **Config > LED pixels > Dim while updating** (`led.dim_on_refresh`)
 - Auto-rotate (on/off and the delay) takes effect right away, without a restart

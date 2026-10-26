@@ -165,7 +165,7 @@ def set_brightness(app: App, level):
 
 
 def rotate_visualizer(app: App):
-    app.renderer.visualizer_next(skip_exclusive=True)
+    app.renderer.visualizer_next(skip_exclusive=True, skip=app.config.data.visualizer.auto_rotate.skip)
 
 
 def watch_display(app: App):

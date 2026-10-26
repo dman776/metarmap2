@@ -72,6 +72,21 @@
             % switch('lightning.animation', d.lightning.animation, 'Lightning animation', 'Flash airports that report lightning.')
             % switch('visualizer.auto_rotate.enabled', d.visualizer.auto_rotate.enabled, 'Auto-rotate visualizers', 'Cycle through the visualizers on a timer.')
             % slider('visualizer.auto_rotate.delay_seconds', d.visualizer.auto_rotate.delay_seconds, 'Auto-rotate delay', 'Time on each visualizer.', lo=10, hi=600, step=10, fmt='sec')
+            <div class="set">
+                <div>
+                    <span class="t" id="rotate-label">Visualizers in auto-rotate</span>
+                    <div class="d">Untick the ones to leave out.
+                        % left_out = [v['name'] for v in rotation if v['exclusive']]
+                        {{' and '.join(filter(None, [', '.join(left_out[:-1]), left_out[-1]])) if left_out else ''}} {{'is' if len(left_out) == 1 else 'are'}} always left out: {{'it uses' if len(left_out) == 1 else 'they use'}} the whole strip. The buttons still show every visualizer.</div>
+                </div>
+                <div class="rotate-list" role="group" aria-labelledby="rotate-label">
+                    % for v in rotation:
+                    %   if not v['exclusive']:
+                    <label><input type="checkbox" data-rotate="{{v['name']}}"{{!' checked' if v['shown'] else ''}}> {{v['name']}}</label>
+                    %   end
+                    % end
+                </div>
+            </div>
         </section>
 
         <section class="card settings">

@@ -176,15 +176,18 @@ class Renderer(object):
     def refresh(self):
         self.visualizer = self.active_visualizer
 
-    def visualizer_next(self, skip_exclusive=False):
+    def visualizer_next(self, skip_exclusive=False, skip=()):
+        """
+        Switches to the next visualizer, leaving out the exclusive ones if skip_exclusive and any named in `skip`
+        (auto-rotate). If there's nothing to switch to, the visualizer stays.
+        """
         total = len(self._visualizers)
-        vnum = (self.active_visualizer + 1) % total
-        # stop after one lap, in case every visualizer is exclusive
-        for _ in range(total):
-            if not (skip_exclusive and self._visualizers[vnum].EXCLUSIVE):
-                break
-            vnum = (vnum + 1) % total
-        self.visualizer = vnum
+        for step in range(1, total + 1):  # one lap, ending back at the current visualizer
+            vnum = (self.active_visualizer + step) % total
+            vis = self._visualizers[vnum]
+            if not (skip_exclusive and vis.EXCLUSIVE) and vis.NAME not in skip:
+                self.visualizer = vnum
+                return
 
     def visualizer_previous(self):
         self.visualizer = (self.active_visualizer - 1) % len(self._visualizers)
