@@ -10,7 +10,7 @@ from types import SimpleNamespace
 import pytest
 
 from metarmap.lib import utils, versions
-from metarmap.releases import ReleaseCheck
+from metarmap.releases import ReleaseCheck, github_url, read_build
 
 
 def git(cwd, *args):
@@ -259,7 +259,9 @@ def check(repos, channel="releases", current="1.0.0"):
 def test_check_finds_a_newer_release(repos):
     release(repos, "v1.1.0", code="1.1")
     release(repos, "v1.2.0-rc1", code="1.2 rc")
-    state = check(repos)
+    releases = ReleaseCheck(str(repos.pi), channel=lambda: "releases", current="1.0.0", clock=lambda: 0)
+    releases.load_build()
+    state = releases.check()
     assert state["available"] == "v1.1.0" and state["error"] is None
     assert [r["tag"] for r in state["releases"]] == ["v1.1.0", "v1.0.0"]
     assert state["releases"][1] == {"tag": "v1.0.0", "running": True, "older": False}
@@ -363,3 +365,96 @@ def test_no_user_switch_when_not_root(monkeypatch, tmp_path):
                         lambda cmd, **kw: runs.append(kw) or subprocess.CompletedProcess(cmd, 0, "", ""))
     utils.update(str(tmp_path))
     assert runs and all("user" not in kw for kw in runs)
+
+
+# ---- what's running (the header's version and "Unreleased" pill) -------------------------------------------------
+
+def build(repos, version="1.0.0"):
+    git(repos.pi, "fetch", "--tags")  # the map's clone was made before the fixture tagged v1.0.0
+    return read_build(lambda *args: utils.run_git(str(repos.pi), *args), version)
+
+
+def test_on_a_release(repos):
+    b = build(repos)
+    assert b["release"] and b["pill"] is None and b["tag"] == "v1.0.0" and b["ahead"] == 0
+    assert b["chip"] == "v1.0.0" and b["describe"] == "v1.0.0" and b["commit"] == head(repos.pi)[:7]
+    assert b["sha"] == head(repos.pi) and b["url"] is None  # the test "GitHub" is a folder
+
+
+def test_commits_after_a_release(repos):
+    commit(repos, "unreleased 1")
+    commit(repos, "unreleased 2")
+    git(repos.pi, "pull")
+    b = build(repos)
+    assert not b["release"] and b["ahead"] == 2
+    assert b["pill"] == "Unreleased: 2 commits after v1.0.0"
+    assert b["chip"] == f"v1.0.0 +2 · {head(repos.pi)[:7]}" and b["describe"] == "v1.0.0+2"
+
+
+def test_settings_changes_dont_count_as_modified(repos):
+    (repos.pi / "config.json").write_text(json.dumps({"from": "user"}))
+    (repos.pi / "airports.json").write_text("{}")
+    assert build(repos)["release"] and not build(repos)["modified"]
+
+
+def test_local_code_changes(repos):
+    (repos.pi / "code.py").write_text("copied over by hand")
+    b = build(repos)
+    assert b["modified"] and not b["release"]
+    assert b["pill"] == "Modified: local changes to v1.0.0" and b["chip"].endswith("*")
+    git(repos.pi, "checkout", "code.py")
+    commit(repos, "next")
+    git(repos.pi, "pull")
+    (repos.pi / "code.py").write_text("copied over by hand, again")
+    assert build(repos)["pill"] == "Unreleased: 1 commit after v1.0.0, with local changes"
+
+
+def test_a_version_bump_that_isnt_tagged(repos):
+    commit(repos, "Release 1.1.0")  # bumped and pushed, but not tagged
+    git(repos.pi, "pull")
+    assert build(repos, version="1.1.0")["pill"] == "Not tagged: v1.1.0 (1 commit after v1.0.0)"
+
+
+def test_a_pre_release(repos):
+    release(repos, "v1.1.0-rc1", code="rc")
+    git(repos.pi, "pull")
+    git(repos.pi, "fetch", "--tags")
+    b = build(repos, version="1.1.0")
+    assert not b["release"] and b["pill"] == "Pre-release: v1.1.0-rc1"
+
+
+def test_no_release_tags(tmp_path):
+    git(tmp_path, "init", "-b", "main", str(tmp_path / "map"))
+    (tmp_path / "map" / "code.py").write_text("x")
+    git(tmp_path / "map", "add", "-A")
+    git(tmp_path / "map", "commit", "-m", "first")
+    b = read_build(lambda *args: utils.run_git(str(tmp_path / "map"), *args), "1.0.0")
+    assert b["tag"] is None and b["pill"] == "Unreleased: no release tag"
+    assert b["describe"] == b["commit"] and b["chip"] == f"v1.0.0 · {b['commit']}"
+
+
+def test_not_a_git_checkout(tmp_path):
+    assert read_build(lambda *args: utils.run_git(str(tmp_path), *args), "1.0.0") is None
+    assert read_build(lambda *args: None, "1.0.0") is None  # a git that can't run
+
+
+def test_the_build_is_whats_running_not_whats_on_disk(repos):
+    """An update changes the files before the restart; the header keeps saying what's running."""
+    git(repos.pi, "fetch", "--tags")
+    releases = ReleaseCheck(str(repos.pi), current="1.0.0")
+    running = releases.load_build()["commit"]
+    commit(repos, "newer")
+    git(repos.pi, "pull")
+    assert releases.state()["build"]["commit"] == running and releases.state()["commit"] == running
+    assert head(repos.pi)[:7] != running
+
+
+@pytest.mark.parametrize("remote, url", [
+    ("https://github.com/dman776/metarmap2", "https://github.com/dman776/metarmap2"),
+    ("https://github.com/dman776/metarmap2.git", "https://github.com/dman776/metarmap2"),
+    ("git@github.com:dman776/metarmap2.git", "https://github.com/dman776/metarmap2"),
+    ("ssh://git@github.com/dman776/metarmap2.git", "https://github.com/dman776/metarmap2"),
+    ("/srv/git/metarmap2.git", None), ("https://gitlab.com/x/y.git", None), (None, None),
+])
+def test_github_url(remote, url):
+    assert github_url(remote) == url

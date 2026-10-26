@@ -73,6 +73,7 @@ def status(services, ip):
         },
         "display": {"enabled": cfg.display_screen.enabled, "on": cfg.display_screen.enabled and services.display.on},
         "suntimes": {k: iso(suntimes.get(k)) for k in ("dawn", "sunrise", "sunset", "dusk")},
+        "build": getattr(getattr(services, "releases", None), "build", None),
         "update": update_state(services),
         "lastFetchTime": iso(metars.lastFetchTime),
         "missingStations": metars.missing_stations(),
@@ -86,7 +87,7 @@ def update_state(services):
     if releases is None:
         return None
     state = releases.state()
-    return {**{k: v for k, v in state.items() if k not in ("badge", "releases")},
+    return {**{k: v for k, v in state.items() if k not in ("badge", "releases", "build")},
             "releases": [r["tag"] for r in state["releases"]]}
 
 

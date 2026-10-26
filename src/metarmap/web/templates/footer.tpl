@@ -1,7 +1,7 @@
 % import datetime
         </main>
         <footer class="foot">
-            &copy; {{datetime.date.today().year}} Darryl Quinn · <a href="http://metarmap.local">metarmap.local</a> · Version {{version}}
+            &copy; {{datetime.date.today().year}} Darryl Quinn · <a href="http://metarmap.local">metarmap.local</a> · Version {{version}}{{' (' + release['build']['describe'] + ', commit ' + release['build']['commit'] + (', modified' if release['build']['modified'] else '') + ')' if get('release') and release['build'] and not release['build']['release'] else ''}}
         </footer>
         <dialog id="output" aria-labelledby="output-title">
             <div class="card-head"><h2 id="output-title">Output</h2></div>

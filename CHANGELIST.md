@@ -1,3 +1,12 @@
+### dman776 Unreleased
+
+- The header shows when the map isn't running a release: the dot by the version turns amber, the version reads
+  `v2.9.2 +3 · 5c3e5a5` (commits after the last release, and the commit; `*` for code changed on the map), and an
+  amber pill ("Unreleased: 3 commits after v2.9.2") links to the commit on GitHub. It also catches a version bump
+  that hasn't been tagged ("Not tagged: v2.9.3") and pre-releases. The footer, Config > Software (with a link to the
+  commit) and `build` in `/api/status` say the same. It's read when the map starts, so it's what's running, not what
+  an update has put on disk before the restart
+
 ### dman776 2.9.2 (2026-10-26)
 
 - Flight Category: a station that doesn't report a flight category, but reports its visibility or sky condition, gets

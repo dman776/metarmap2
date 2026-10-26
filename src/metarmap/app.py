@@ -209,6 +209,8 @@ def run(app: App):
     if app.config.data.led.inittest:
         app.renderer.test_pattern()
 
+    if app.releases is not None:
+        app.releases.load_build()  # what's running, for the header (an update changes the files before a restart)
     web_app = create_app(app)
     check_releases(app)  # then every CHECK_HOURS
     try:

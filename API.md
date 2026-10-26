@@ -63,6 +63,19 @@ Returns a read-only snapshot of the map's state as `application/json`. No authen
     "sunset": "2026-10-23T18:45:03-05:00",
     "dusk": "2026-10-23T19:10:31-05:00"
   },
+  "build": {
+    "tag": "v2.9.2",
+    "ahead": 3,
+    "commit": "5c3e5a5",
+    "sha": "5c3e5a5…",
+    "modified": false,
+    "release": false,
+    "untagged": false,
+    "describe": "v2.9.2+3",
+    "chip": "v2.9.2 +3 · 5c3e5a5",
+    "pill": "Unreleased: 3 commits after v2.9.2",
+    "url": "https://github.com/dman776/metarmap2/commit/5c3e5a5…"
+  },
   "update": {
     "current": "2.8.4",
     "channel": "releases",
@@ -103,6 +116,7 @@ Returns a read-only snapshot of the map's state as `application/json`. No authen
 | `version` | metarmap2 software version |
 | `ip` | IP address of the map |
 | `brightness` | Current LED brightness, `0.0`–`1.0` |
+| `build` | What's running, read when the map started: `tag` is the release it's at or after (`null` if none), `ahead` how many commits after it, `commit` and `sha` the commit, `modified` whether the code was changed on the map itself (`config.json` and `airports.json` don't count). `release` is true on a release exactly; otherwise `pill` says why not ("Unreleased: 3 commits after v2.9.2", "Not tagged: v2.9.3" when `untagged`, "Pre-release: v2.9.0-rc1", "Modified: local changes to v2.9.2", "Unreleased: no release tag"). `chip` is the header's version text and `url` the commit on GitHub (`null` if the map isn't from GitHub). `null` outside a git checkout. |
 | `update` | What's newest on GitHub: `current` is the running version, `commit` the running commit, `available` the release (or, on the `latest` channel, the commit) an update would install, or `null` when up to date; `installed` is what an update installed that needs a restart; `releases` lists the releases that can be installed, newest first; `checked` is when GitHub was last asked, and `error` why that failed. `null` if the map doesn't check. |
 | `visualizer` | The visualizer that is running now. `exclusive` visualizers ignore `/locate`. |
 | `visualizer.legend` | What the LEDs mean for that visualizer. `colors` are CSS hex colors; two or more mean a gradient across the range. `effect` is `solid`, `blink`, `pulse`, `flash` (the first color with flashes of the second), `chase` or `off`. `period` is the seconds per blink or pulse, or `null`. |

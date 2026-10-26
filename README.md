@@ -192,6 +192,11 @@ git push origin master v2.9.0
 
 Maps only install tags that look like `v2.9.0` (or `2.9.0`); a pre-release such as `v2.9.0-rc1` is skipped.
 
+A map running anything but a release says so at the top of every page: the dot by the version turns amber, the
+version reads like `v2.9.2 +3 · 5c3e5a5` (3 commits after v2.9.2, at commit 5c3e5a5; a `*` means code was changed
+on the map itself), and an amber pill such as **Unreleased: 3 commits after v2.9.2** links to that commit on
+GitHub. If you bumped the version but haven't tagged it, the pill says **Not tagged: v2.9.3** instead.
+
 The code is the `metarmap` package in `src/metarmap/`:
 - `app.py` builds the map from `config.json` (settings, METARs, LED renderer, OLED loop, scheduled jobs) and runs it
 - `config.py` and `settings.py`: `config.json`, including the airport on each LED

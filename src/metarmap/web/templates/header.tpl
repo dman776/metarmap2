@@ -32,10 +32,18 @@
                 % if release and release['badge']:
                 <a class="update-badge" href="/#update">{{release['badge']}}</a>
                 % end
+                % build = release['build'] if release else None
+                % if build and build['pill'] and build['url']:
+                <a class="build-pill" href="{{build['url']}}" target="_blank" rel="noopener" title="This commit on GitHub">{{build['pill']}}</a>
+                % elif build and build['pill']:
+                <span class="build-pill">{{build['pill']}}</span>
+                % end
+                % running = build['chip'] if build else 'v' + version
+                % unreleased = ' unreleased' if build and not build['release'] else ''
                 % if defined('myIP'):
-                <span class="host">{{myIP}} · v{{version}}</span>
+                <span class="host{{unreleased}}">{{myIP}} · {{running}}</span>
                 % else:
-                <span class="host">v{{version}}</span>
+                <span class="host{{unreleased}}">{{running}}</span>
                 % end
             </div>
         </header>

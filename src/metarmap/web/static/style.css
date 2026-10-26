@@ -65,6 +65,10 @@ main.wrap { padding-top: 32px; padding-bottom: 48px; display: flex; flex-directi
 .update-badge { display: inline-flex; align-items: center; min-height: 32px; padding: 0 12px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font: 600 12px var(--sans); text-decoration: none; }
 .update-badge:hover { background: var(--accent-hover); color: var(--accent-ink); }
 .update-badge:focus-visible { outline: 2px solid #ffd27d; outline-offset: 2px; }
+.build-pill { display: inline-flex; align-items: center; min-height: 28px; padding: 0 10px; border-radius: 999px; border: 1px solid #f5b544; color: #f5b544; font: 600 12px var(--sans); text-decoration: none; }
+a.build-pill:hover { background: rgba(245, 181, 68, .12); color: #ffd27d; }
+.build-pill:focus-visible { outline: 2px solid #ffd27d; outline-offset: 2px; }
+.host.unreleased::before { background: #f5b544; }
 .release-pick { display: flex; gap: 8px; align-items: center; }
 .host::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--vfr); }
 

@@ -198,8 +198,17 @@
                         % else:
                         Up to date.
                         % end
-                        % if release['commit']:
-                        Commit <span class="mono">{{release['commit']}}</span>.
+                        % build = release['build']
+                        % if build:
+                        % if build['pill']:
+                        {{build['pill']}}.
+                        % end
+                        Commit
+                        % if build['url']:
+                        <a class="mono" href="{{build['url']}}" target="_blank" rel="noopener">{{build['commit']}}</a>.
+                        % else:
+                        <span class="mono">{{build['commit']}}</span>.
+                        % end
                         % end
                     </div>
                 </div>

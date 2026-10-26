@@ -404,9 +404,24 @@ def test_update_failure_is_reported():
 
 # ---- releases: "Update available", the update channel and picking a release ---------------------------------
 
-def fake_git(tags=("v2.8.4", "v2.8.5", "v2.7.0", "v2.9.0-rc1"), newest="abcdef1234"):
-    """git for a ReleaseCheck: GitHub has these tags; this copy is on commit 1234567."""
+SHA = "1234567" + "0" * 33
+
+
+def fake_git(tags=("v2.8.4", "v2.8.5", "v2.7.0", "v2.9.0-rc1"), newest="abcdef1234", described="v2.8.4-0-g1234567",
+             modified=False):
+    """
+    git for a ReleaseCheck: GitHub has these tags; this copy is on commit 1234567, `described` by git describe
+    (on the v2.8.4 release by default), from github.com/dman776/metarmap2.
+    """
     def run(*args):
+        if args[0] == "describe":
+            return subprocess.CompletedProcess(args, 0, described + "\n", "")
+        if args[:2] == ("remote", "get-url"):
+            return subprocess.CompletedProcess(args, 0, "https://github.com/dman776/metarmap2.git\n", "")
+        if args[0] == "diff":
+            return subprocess.CompletedProcess(args, 1 if modified else 0, "", "")
+        if args == ("rev-parse", "HEAD"):
+            return subprocess.CompletedProcess(args, 0, SHA + "\n", "")
         if args[:2] == ("ls-remote", "--tags"):
             out = "".join(f"{n:040d}\trefs/tags/{tag}\n" for n, tag in enumerate(tags))
         elif args[:2] == ("ls-remote", "origin"):
@@ -424,6 +439,7 @@ def release_client(make_app):
     from metarmap.releases import ReleaseCheck
     app = make_app()
     app.releases = ReleaseCheck(channel=lambda: app.config.data.update.channel, current="2.8.4", git=fake_git())
+    app.releases.load_build()
     started = []
 
     def run_update(progress, **kwargs):
@@ -462,7 +478,8 @@ def test_config_lists_releases_to_pick(release_client):
     assert '<option value="v2.8.4" selected>v2.8.4 (running)</option>' in body
     assert '<option value="v2.7.0" data-older="true">v2.7.0</option>' in body
     assert "v2.9.0-rc1" not in body  # pre-releases aren't offered
-    assert "v2.8.5 is available." in body and "Commit <span class=\"mono\">1234567</span>" in body
+    assert "v2.8.5 is available." in body
+    assert f'<a class="mono" href="https://github.com/dman776/metarmap2/commit/{SHA}"' in body
     assert '<option value="releases" selected>Releases</option>' in body
 
 
@@ -522,6 +539,42 @@ def test_check_now_and_status(release_client):
     update = c.json("/api/status", auth=False)["update"]
     assert update["current"] == "2.8.4" and update["available"] == "v2.8.5" and update["channel"] == "releases"
     assert update["releases"] == ["v2.8.5", "v2.8.4", "v2.7.0"] and update["error"] is None
+
+
+def unreleased_client(make_app, **git):
+    from metarmap.releases import ReleaseCheck
+    app = make_app()
+    app.releases = ReleaseCheck(channel=lambda: "releases", current="2.8.4", git=fake_git(**git))
+    app.releases.load_build()
+    c = Client(create_app(app, ip="10.0.0.2"))
+    c.services = app
+    return c
+
+
+def test_header_on_a_release(release_client):
+    home = release_client("/")[1]
+    assert "build-pill" not in home and "unreleased" not in home
+    assert '<span class="host">10.0.0.2 · v2.8.4</span>' in home
+
+
+def test_header_on_unreleased_commits(make_app):
+    c = unreleased_client(make_app, described="v2.8.4-3-g1234567")
+    for path in ("/", "/map", "/config"):
+        body = c(path)[1]
+        assert (f'<a class="build-pill" href="https://github.com/dman776/metarmap2/commit/{SHA}" target="_blank" '
+                'rel="noopener" title="This commit on GitHub">Unreleased: 3 commits after v2.8.4</a>') in body
+        assert '<span class="host unreleased">10.0.0.2 · v2.8.4 +3 · 1234567</span>' in body
+    assert "Version 2.9" in c("/")[1] and "(v2.8.4+3, commit 1234567)" in c("/")[1]  # the footer
+    assert c.json("/api/status", auth=False)["build"]["pill"] == "Unreleased: 3 commits after v2.8.4"
+    c.services.display.stop()
+
+
+def test_header_with_local_changes(make_app):
+    c = unreleased_client(make_app, modified=True)
+    body = c("/")[1]
+    assert "Modified: local changes to v2.8.4</a>" in body and "v2.8.4 · 1234567*" in body
+    assert "commit 1234567, modified)" in body
+    c.services.display.stop()
 
 
 def test_status_without_the_check(services):
