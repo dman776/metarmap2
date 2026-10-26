@@ -154,6 +154,29 @@ def test_auto_rotate_changes_without_a_restart(client):
     assert 'data-key="visualizer.auto_rotate.enabled" data-restart' not in body.replace(' checked', '')
 
 
+def test_brightness_levels_apply_without_a_restart(client, monkeypatch):
+    app = client.services
+    monkeypatch.setattr(app.renderer, "scheduled_level", lambda: "normal")  # daytime
+    assert client("/config/edit/led.brightness.normal/0.3")[0] == 200
+    assert app.renderer.pixels().brightness == 0.3  # the level in use: right away
+    assert client("/config/edit/led.brightness.off/0.02")[0] == 200
+    assert app.renderer.pixels().brightness == 0.3  # night's level: at dusk
+    assert app.config.data.led.brightness.off == 0.02
+    body = client("/config")[1]
+    assert 'data-key="led.brightness.normal" data-label="led-brightness-normal-val" data-format="pct">' in body
+    assert "data-restart" not in body and "Brightness levels load at midnight" not in body
+
+
+def test_turning_on_the_test_pattern_runs_it(client, monkeypatch):
+    app = client.services
+    ran = threading.Event()
+    monkeypatch.setattr(app.renderer, "test_pattern", ran.set)
+    assert client("/config/edit/led.inittest/false")[0] == 200
+    assert not ran.wait(0.2)  # turning it off doesn't
+    assert client("/config/edit/led.inittest/true")[0] == 200
+    assert ran.wait(5)
+
+
 def test_choose_visualizers_for_auto_rotate(client):
     app = client.services
     body = client("/config")[1]

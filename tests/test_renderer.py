@@ -189,17 +189,76 @@ def test_render_stops_when_the_animations_are_rebuilt(config, clock):
     assert len(frames) == 1
 
 
-def test_dimmed_while_fetching(config, clock, monkeypatch):
+def watch_brightness(strip):
+    """Records the strip's brightness each time it's shown."""
+    seen = []
+    show = strip.show
+
+    def recording_show():
+        seen.append(round(strip.brightness, 6))
+        show()
+    strip.show = recording_show
+    return seen
+
+
+def test_dimmed_while_fetching_fades(config, clock, monkeypatch):
     from metarmap import renderer
     monkeypatch.setattr(renderer, "DIM_SECONDS", 1)
+    monkeypatch.setattr(renderer, "FADE_SECONDS", 0.6)
     r, strip = make(config, clock)
     strip.brightness = 0.4
-    shows = strip.shows
+    seen = watch_brightness(strip)
     start = clock.time()
     with r.dimmed():
-        assert strip.brightness == 0.2 and strip.shows == shows + 1  # shown dim right away
-    assert strip.brightness == 0.4 and strip.shows == shows + 2
-    assert clock.time() - start == 1  # a quick fetch still dims for a second
+        down = list(seen)
+        assert strip.brightness == 0.2  # faded all the way before the fetch
+        faded_at = clock.time()
+    up = seen[len(down):]
+    assert len(down) == renderer.FADE_STEPS and down == sorted(down, reverse=True) and down[-1] == 0.2
+    assert len(up) == renderer.FADE_STEPS and up == sorted(up) and up[-1] == 0.4
+    assert strip.brightness == 0.4
+    assert faded_at - start == pytest.approx(0.55)  # 11 waits between 12 steps
+    assert clock.time() - faded_at == pytest.approx(1 + 0.55)  # a quick fetch still dims for a second, then fades up
+
+
+class DeadbandStrip(FakeStrip):
+    """Like the Pi's NeoPixel strip: a brightness change under 0.001 is ignored."""
+
+    @property
+    def brightness(self):
+        return self._brightness
+
+    @brightness.setter
+    def brightness(self, value):
+        if not -0.001 < value - getattr(self, "_brightness", -1) < 0.001:
+            self._brightness = value
+
+
+@pytest.mark.parametrize("night", [0.01, 0.0058, 0.0024, 0.002])
+def test_fade_at_night_brightness_ends_exactly(config, clock, night):
+    """At 1% the fade takes fewer, bigger steps the Pi's strip won't ignore, so the level never drifts."""
+    strip = DeadbandStrip(5, brightness=night)
+    r = Renderer(strip, SimpleNamespace(data=DATA), config, [flightcategory], SunTimes("Houston", SUN), clock=clock)
+    strip.brightness = night
+    for _ in range(20):  # 20 fetches
+        with r.dimmed():
+            assert strip.brightness < night
+    assert strip.brightness == night
+
+
+def test_a_change_during_the_fade_down_wins(config, clock, monkeypatch):
+    r, strip = make(config, clock)
+    strip.brightness = 0.4
+    waits = []
+
+    def slider_moves(event, seconds):
+        waits.append(seconds)
+        if len(waits) == 3:
+            r.brightness(0.9)  # the Home page slider, mid-fade
+    monkeypatch.setattr(clock, "wait", slider_moves)
+    with r.dimmed():
+        pass
+    assert strip.brightness == 0.9 and len(waits) == 3  # stopped fading; no hold, no fade back
 
 
 def test_dimmed_keeps_a_brightness_changed_meanwhile(config, clock):
@@ -317,6 +376,22 @@ def test_locate_errors_are_logged_not_raised(config, clock):
 def test_brightness_for(config, clock, when, level):
     r, _ = make(config, clock)
     assert r.brightness_for(when) == getattr(config.data.led.brightness, level)
+
+
+def test_scheduled_level(config, clock):
+    r, _ = make(config, clock)  # noon
+    assert r.scheduled_level() == "normal"
+    clock.advance(12 * 3600)
+    assert r.scheduled_level() == "off"
+
+
+def test_test_pattern_runs_once(config, clock, monkeypatch):
+    from metarmap import renderer
+    monkeypatch.setattr(renderer, "FRAME_SECONDS", 0)
+    r, strip = make(config, clock)
+    shows = strip.shows
+    r.test_pattern()
+    assert strip.shows > shows
 
 
 def test_brightness_follows_the_clock(config):

@@ -17,7 +17,6 @@ from datetime import datetime
 from typing import Optional
 
 import schedule
-from adafruit_led_animation.animation.rainbowcomet import RainbowComet
 
 from metarmap import __version__, service, visualizers
 from metarmap.clock import Clock
@@ -158,13 +157,18 @@ def load_suntimes(app: App):
 def schedule_brightness(app: App):
     """Sets the LEDs' brightness at each of today's sun times (dimmed at dawn, normal at sunrise, ...)."""
     app.scheduler.clear("suntimes")
-    levels = app.config.data.led.brightness
     for name, level in LEVEL_AT.items():
         at = app.sun.times[name].strftime("%H:%M")
-        app.scheduler.every().day.at(at).do(set_brightness, app, level=getattr(levels, level)).tag("suntimes")
+        app.scheduler.every().day.at(at).do(set_brightness, app, level=level).tag("suntimes")
 
 
 def set_brightness(app: App, level):
+    """
+    level: a led.brightness setting's name ("dimmed"), read when the job runs so a changed level needs no restart;
+    or a brightness (0.25).
+    """
+    if isinstance(level, str):
+        level = getattr(app.config.data.led.brightness, level)
     safe_logging.safe_log("[sched]set brightness: " + str(level))
     app.renderer.brightness(level)
 
@@ -205,7 +209,7 @@ def run(app: App):
 
     # test pattern on pixels?
     if app.config.data.led.inittest:
-        app.renderer.animate_once(RainbowComet(app.renderer.pixels(), speed=0.05, tail_length=5, bounce=False))
+        app.renderer.test_pattern()
 
     web_app = create_app(app)
     check_releases(app)  # then every CHECK_HOURS

@@ -169,12 +169,12 @@
 
         <section class="card settings">
             <h2>LED pixels</h2>
-            % switch('led.inittest', d.led.inittest, 'Test pattern on startup', restart=True)
-            % switch('led.dim_on_refresh', d.led.dim_on_refresh, 'Dim while updating', 'The LEDs dim for a moment while new METARs download.')
-            % slider('led.brightness.normal', d.led.brightness.normal, 'Daytime brightness', 'Sunrise to sunset.', restart=True)
-            % slider('led.brightness.dimmed', d.led.brightness.dimmed, 'Dawn / dusk brightness', 'Dawn to sunrise, sunset to dusk.', restart=True)
-            % slider('led.brightness.off', d.led.brightness.off, 'Night brightness', 'Dusk to dawn.', restart=True)
-            <p class="muted" style="margin: 0; padding: 0 24px 18px; font-size: 13px">Brightness levels load at midnight or when the map restarts.</p>
+            % switch('led.inittest', d.led.inittest, 'Test pattern on startup', 'A rainbow along the strip when the map starts. Turning it on runs it once now.')
+            % switch('led.dim_on_refresh', d.led.dim_on_refresh, 'Dim while updating', 'The LEDs fade down for a moment while new METARs download.')
+            % slider('led.brightness.normal', d.led.brightness.normal, 'Daytime brightness', 'Sunrise to sunset.')
+            % slider('led.brightness.dimmed', d.led.brightness.dimmed, 'Dawn / dusk brightness', 'Dawn to sunrise, sunset to dusk.')
+            % slider('led.brightness.off', d.led.brightness.off, 'Night brightness', 'Dusk to dawn.')
+            <p class="muted" style="margin: 0; padding: 0 24px 18px; font-size: 13px">The level in use now changes right away; the others take over at their time of day.</p>
         </section>
 
         % release = get('release')

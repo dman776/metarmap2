@@ -133,6 +133,10 @@ def add_routes(app, services, site, auth, updates=None):
         renderer.refresh()
         if key.startswith("visualizer.auto_rotate."):  # the new timer starts now, no restart needed
             services.schedule_rotation()
+        if key.startswith("led.brightness.") and key.rsplit(".", 1)[1] == renderer.scheduled_level():
+            renderer.adjust_brightness_for_time()  # the level in use now changes now; the others at their time
+        if key == "led.inittest" and config.data.led.inittest:  # shows what it looks like, without a restart
+            threading.Thread(target=renderer.test_pattern, name="test-pattern", daemon=True).start()
         if key == "update.channel" and releases is not None:  # "Update available" follows the new channel
             releases.check_soon()
         if key == "display_screen.enabled":  # the OLED turns on or off now, no restart needed

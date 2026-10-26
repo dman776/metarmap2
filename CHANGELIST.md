@@ -1,3 +1,12 @@
+### dman776 Unreleased
+
+- **Dim while updating** fades instead of cutting: about 0.6 s down to half brightness, and 0.6 s back up after the
+  download. At night levels (around 1%) it takes fewer, larger steps, because the Pi's LED library ignores
+  brightness changes under 0.001; that way the brightness always comes back exactly where it was
+- Config > LED pixels: the brightness levels and the test pattern no longer need a restart. A changed level applies
+  right away if it's the one in use now (daytime, dawn/dusk or night), and the others at their time of day; turning
+  on **Test pattern on startup** runs it once now. No setting needs a restart any more
+
 ### dman776 2.9.0 (2026-10-26)
 
 - Updates install releases (git tags like `v2.9.0`) instead of the newest commit, and never go back to an older

@@ -56,6 +56,7 @@ def quick_dim(monkeypatch):
     """A METAR fetch dims the LEDs for at least a second; not in tests (renderer tests check the wait)."""
     from metarmap import renderer
     monkeypatch.setattr(renderer, "DIM_SECONDS", 0)
+    monkeypatch.setattr(renderer, "FADE_SECONDS", 0)
 
 
 @pytest.fixture(autouse=True)

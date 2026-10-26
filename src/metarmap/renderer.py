@@ -9,13 +9,14 @@ from contextlib import contextmanager
 import metarmap.lib.safe_logging as safe_logging
 from metarmap.clock import Clock
 from metarmap.leds.animations import animation_for
-from metarmap.sun import SunTimes, brightness_for
+from metarmap.sun import SunTimes, brightness_for, level_at
 from metarmap.visualizers import visualizer
 
 from adafruit_led_animation.sequence import AnimateOnce
 from adafruit_led_animation.group import AnimationGroup
 from adafruit_led_animation.helper import PixelSubset
 from adafruit_led_animation.animation.pulse import Pulse
+from adafruit_led_animation.animation.rainbowcomet import RainbowComet
 from adafruit_led_animation.color import WHITE
 
 # The animations decide when each effect moves on (the fastest changes every 0.1 s); between frames the loop rests,
@@ -24,6 +25,11 @@ FRAME_SECONDS = 0.01
 
 DIM_FACTOR = 0.5  # how bright the LEDs are while METARs are fetched, as a part of their brightness
 DIM_SECONDS = 1  # the shortest dim, so a quick fetch still shows
+FADE_SECONDS = 0.6  # the dim fades down and back up over this long, rather than cutting
+FADE_STEPS = 12  # at most; about 20 a second
+# the Pi's NeoPixel library ignores a brightness change smaller than 0.001, so each fade step is at least this big
+# (at night, 1% brightness, that means fewer, larger steps; otherwise steps would be dropped and the level drift)
+FADE_MIN_STEP = 0.0011
 
 
 class Renderer(object):
@@ -208,25 +214,40 @@ class Renderer(object):
     @contextmanager
     def dimmed(self):
         """
-        Dims the LEDs while the block runs (a METAR fetch), when led.dim_on_refresh is on. The brightness comes back
-        afterwards, unless something else changed it meanwhile (the web UI, the brightness schedule).
+        Dims the LEDs while the block runs (a METAR fetch), when led.dim_on_refresh is on: a short fade down, and
+        back up afterwards, unless something else changed the brightness meanwhile (the web UI, the brightness
+        schedule).
         """
         if not self._config.data.led.dim_on_refresh:
             yield
             return
-        with self._lock:
-            normal = self._pixels.brightness
-            self._pixels.brightness = dim = normal * DIM_FACTOR
-            self._pixels.show()
+        normal = self._pixels.brightness
+        dim = self._fade(normal, normal * DIM_FACTOR)
         started = self._clock.time()
         try:
             yield
         finally:
-            self._clock.wait(threading.Event(), DIM_SECONDS - (self._clock.time() - started))
+            if dim is not None:
+                self._clock.wait(threading.Event(), DIM_SECONDS - (self._clock.time() - started))
+                self._fade(dim, normal)
+
+    def _fade(self, start, end):
+        """
+        Steps the brightness from `start` to `end` over FADE_SECONDS. Stops if something else changes it meanwhile.
+        Returns the brightness it ended at (what the strip reports), or None if it stopped.
+        """
+        steps = max(1, min(FADE_STEPS, int(abs(end - start) / FADE_MIN_STEP)))
+        level = start
+        for n in range(1, steps + 1):
             with self._lock:
-                if self._pixels.brightness == dim:
-                    self._pixels.brightness = normal
-                    self._pixels.show()
+                if self._pixels.brightness != level:
+                    return None  # changed by someone else: theirs wins
+                self._pixels.brightness = start + (end - start) * n / steps if n < steps else end
+                self._pixels.show()
+                level = self._pixels.brightness
+            if n < steps:
+                self._clock.wait(threading.Event(), FADE_SECONDS / steps)
+        return level
 
     def pixels(self):
         return self._pixels
@@ -239,9 +260,17 @@ class Renderer(object):
         """The scheduled LED brightness at `now` (timezone-aware), from today's sun times."""
         return brightness_for(now, self._sun.times, self._config.data.led.brightness)
 
+    def scheduled_level(self):
+        """Which led.brightness setting is in use now: "normal", "dimmed" or "off"."""
+        return level_at(self._clock.now(), self._sun.times)
+
     def adjust_brightness_for_time(self):
         safe_logging.safe_log("[r]adjust brightness for time")
         self.brightness(self.brightness_for(self._clock.now()))
+
+    def test_pattern(self):
+        """A rainbow comet along the whole strip, once (led.inittest at startup, and when it's turned on)."""
+        self.animate_once(RainbowComet(self._pixels, speed=0.05, tail_length=5, bounce=False))
 
 
 if __name__ == '__main__':

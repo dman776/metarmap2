@@ -87,6 +87,15 @@ def test_set_brightness(make_app):
     assert app.renderer.pixels().brightness == 0.25
 
 
+def test_brightness_jobs_read_the_level_when_they_run(make_app):
+    """A level changed in Config is used at its next sun time, without a restart."""
+    app = make_app()
+    dusk = next(job for job in app.scheduler.get_jobs("suntimes") if job.job_func.keywords["level"] == "off")
+    app.config.data.led.brightness.off = 0.07
+    dusk.job_func()
+    assert app.renderer.pixels().brightness == 0.07
+
+
 def test_watchdog_restarts_a_dead_display(make_app):
     app = make_app()
     app.display.start()

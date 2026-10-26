@@ -237,22 +237,19 @@ Settings that apply right away:
 - `display_screen.locate_active`
 - `display_screen.delay`
 - `update.channel`: what **Update** installs: `releases` (the newest release tag, never an older one; the default) or `latest` (the newest commit on GitHub, released or not, for testing)
-- `led.dim_on_refresh`: the LEDs dim to half their brightness while METARs are fetched (at least a second)
+- `led.brightness.normal`, `led.brightness.dimmed`, `led.brightness.off`: the level in use now changes right away; the others take over at their sun time
+- `led.inittest`: turning it on also runs the test pattern once now
+- `led.dim_on_refresh`: the LEDs fade to half their brightness while METARs are fetched (at least a second), then fade back
 - `visualizer.active`, the default visualizer used at startup. Saving it doesn't change the visualizer that's running now; use `/visualizer/<n>` for that.
 - `visualizer.auto_rotate.enabled`
 - `visualizer.auto_rotate.delay_seconds` (the new delay starts counting when it's saved)
 - `visualizer.auto_rotate.skip`: the visualizers auto-rotate leaves out, as a JSON list of names, e.g. `/config/edit/visualizer.auto_rotate.skip/%5B%22Wind%22%2C%22Wind%20Gusts%22%5D` for `["Wind","Wind Gusts"]` (`[]` leaves none out). Exclusive visualizers (`"exclusive": true` in `/api/status`) are always left out. The previous/next buttons still go to every visualizer.
-
-Settings that need a restart:
-- `led.inittest`
 
 Map page settings (apply the next time the Map page is opened):
 - `geo.map.background`: `sectional`, `satellite` or `radar`
 - `geo.map.chart_type`: `sectional`, `terminal` (VFR Terminal Area) or `ifr_low` (IFR Enroute Low)
 - `geo.map.chart`: the sectional name, as listed in [sectionals.json](src/metarmap/web/static/sectionals.json), such as `Houston`. If it's missing or unknown, the map uses the sectional that covers the most airports.
 - `geo.map.view`: `airports` (fit to the airports), `chart` (the whole sectional) or `custom` (`geo.map.center` and `geo.map.zoom`)
-
-The map loads `led.brightness.normal`, `led.brightness.dimmed` and `led.brightness.off` at midnight or when it restarts.
 
 ```sh
 curl -u metar:map http://metarmap.local/config/edit/lightning.animation/false

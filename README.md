@@ -94,9 +94,9 @@ Changes save right away. To check the wiring order:
 - the OLED screen
 - the map page's chart
 - the LED brightness for day, dawn and dusk, and night
-- whether the LEDs dim for a moment while new METARs download (**Dim while updating**, on by default)
+- whether the LEDs fade down for a moment while new METARs download (**Dim while updating**, on by default)
 
-Settings marked **Restart** take effect after the map restarts.
+Every setting takes effect right away; none needs a restart.
 
 **Config > Access** changes:
 - the web UI login. On a Raspberry Pi, the new password also becomes the password of the Pi's login user
@@ -160,7 +160,7 @@ through this API. It provides:
 - **LEDs stay dark or show the wrong colors**:
   1. Check the data wire goes to GPIO 18 and that the strip shares a ground with the Pi.
   2. Run a test pattern: choose the **Chase** visualizer on the Home page (it lights each LED in turn), or turn on
-     **Test pattern on startup** in Config and restart the map (it runs a rainbow comet along the strip first).
+     **Test pattern on startup** in Config (it runs a rainbow comet along the strip once, right away).
   3. If the colors are swapped, change `led.order` in `config.json` (such as `RGB` or `GRB`).
 - **OLED screen stays blank**: `sudo i2cdetect -y 1` should show the screen at address `3c`. If it shows nothing,
   check the wiring, and that I2C is on (`sudo raspi-config`, Interface Options).

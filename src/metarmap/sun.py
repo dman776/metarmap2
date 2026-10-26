@@ -18,17 +18,22 @@ class SunTimes:
         self.times = utils.get_sun_times(self.city)
 
 
-def brightness_for(now, times, levels):
+def level_at(now, times):
     """
-    The scheduled LED brightness at `now` (timezone-aware).
-    times: today's sun times; levels: the led.brightness settings.
+    Which led.brightness setting is scheduled at `now` (timezone-aware): "dimmed", "normal" or "off".
+    times: today's sun times.
     """
     periods = [
-        (times['dawn'], times['sunrise'], levels.dimmed),
-        (times['sunrise'], times['sunset'], levels.normal),
-        (times['sunset'], times['dusk'], levels.dimmed),
+        (times['dawn'], times['sunrise'], "dimmed"),
+        (times['sunrise'], times['sunset'], "normal"),
+        (times['sunset'], times['dusk'], "dimmed"),
     ]
     for start, end, level in periods:
         if start < now < end:
             return level
-    return levels.off  # night, from dusk until dawn
+    return "off"  # night, from dusk until dawn
+
+
+def brightness_for(now, times, levels):
+    """The scheduled LED brightness at `now`. levels: the led.brightness settings."""
+    return getattr(levels, level_at(now, times))
