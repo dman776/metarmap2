@@ -158,5 +158,5 @@ say "Done. The map is starting."
 note "Web UI:  http://${host%.local}.local$suffix/${ip:+   (or http://$ip$suffix/)}"
 note "Next:    set up your airports on Config > Airports, one per LED, in the order they're wired."
 note "Status:  systemctl status metarmap      Log: $REPO/metarmap.log"
-$on_pi && note "LED test (stop the map first: ./stop.sh):  sudo $PYTHON tools/test1.py"
+$on_pi && note "LED test: choose the Chase visualizer on the Home page; it lights each LED in turn."
 exit 0

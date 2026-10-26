@@ -54,7 +54,6 @@ addopts = "-ra"
 [tool.ruff]
 target-version = "py39"
 line-length = 120
-extend-exclude = ["tools"]
 
 [tool.ruff.lint]
 select = ["E", "F"]

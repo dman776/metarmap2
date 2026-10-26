@@ -1,3 +1,9 @@
+### dman776 Unreleased
+
+- Removed the `tools/` folder (the old LED test, a Wi-Fi access point experiment and some scratch scripts). The
+  README's LED troubleshooting step and the installer's closing message now point to the Chase visualizer and the
+  "Test pattern on startup" setting instead of `tools/test1.py`
+
 ### dman776 2.8.3 (2026-10-25)
 
 - Wind Gusts now shows how much stronger the gusts are than the wind (the gust spread) instead of repeating Wind's

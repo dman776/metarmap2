@@ -148,7 +148,8 @@ through this API. It provides:
   `journalctl -u metarmap`.
 - **LEDs stay dark or show the wrong colors**:
   1. Check the data wire goes to GPIO 18 and that the strip shares a ground with the Pi.
-  2. Stop the map (`./stop.sh`) and run the LED test: `sudo .venv/bin/python tools/test1.py`. Ctrl-C stops it.
+  2. Run a test pattern: choose the **Chase** visualizer on the Home page (it lights each LED in turn), or turn on
+     **Test pattern on startup** in Config and restart the map (it runs a rainbow comet along the strip first).
   3. If the colors are swapped, change `led.order` in `config.json` (such as `RGB` or `GRB`).
 - **OLED screen stays blank**: `sudo i2cdetect -y 1` should show the screen at address `3c`. If it shows nothing,
   check the wiring, and that I2C is on (`sudo raspi-config`, Interface Options).
