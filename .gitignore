@@ -22,3 +22,5 @@ htmlcov/
 
 # airports used to live here; older maps keep theirs as a backup after it moves into config.json
 airports.json
+METARMAP2 ARCHITECTURE
+metarmap2.code-workspace

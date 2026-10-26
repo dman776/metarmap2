@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Installs the METAR map on a Raspberry Pi. Run it from the cloned repo, as your normal user (it uses sudo itself):
+# Installs the METAR map on a Raspberry Pi or Linux host. Run it from the cloned repo, as your normal user or root:
 #
 #     git clone https://github.com/dman776/metarmap2
 #     cd metarmap2
@@ -63,7 +63,11 @@ known_city() {
 
 # ---- checks ---------------------------------------------------------------------------------------------------
 
-[ "$(id -u)" -ne 0 ] || fail "run ./install.sh as your normal user (e.g. pi), not with sudo; it asks for sudo itself"
+SUDO=()
+if [ "$(id -u)" -ne 0 ]; then
+    command -v sudo >/dev/null || fail "sudo wasn't found; run as root or install sudo"
+    SUDO=(sudo)
+fi
 command -v apt-get >/dev/null || fail "this script is for Raspberry Pi OS; apt-get wasn't found"
 [ -f "$REPO/config.json" ] && [ -f "$REPO/pyproject.toml" ] || fail "run this from the metarmap2 folder you cloned"
 
@@ -81,12 +85,12 @@ note "Folder: $REPO"
 say "Installing system packages"
 # python3-pil: Pillow for the OLED screen, ready-built for the Pi; build-essential: for LED drivers that have no
 # ready-built package on some Pi OS versions
-sudo apt-get update
-sudo apt-get install -y git python3-venv python3-dev python3-pil build-essential i2c-tools
+"${SUDO[@]}" apt-get update
+"${SUDO[@]}" apt-get install -y git python3-venv python3-dev python3-pil build-essential i2c-tools
 
 if $on_pi && command -v raspi-config >/dev/null; then
     say "Turning on I2C (for the OLED screen)"
-    sudo raspi-config nonint do_i2c 0
+    "${SUDO[@]}" raspi-config nonint do_i2c 0
 fi
 
 # ---- Python environment ---------------------------------------------------------------------------------------
@@ -135,14 +139,14 @@ fi
 say "Installing the metarmap service"
 if [ -f "$OLD_SERVICE" ] && [ "$OLD_SERVICE" != "$SERVICE" ]; then
     # one service file only: the one this script writes
-    sudo mv "$OLD_SERVICE" "$OLD_SERVICE.old"
+    "${SUDO[@]}" mv "$OLD_SERVICE" "$OLD_SERVICE.old"
     note "Moved the older $OLD_SERVICE to $OLD_SERVICE.old"
 fi
 sed -e "s#/home/pi/metarmap2#$REPO#g" -e "s#^ExecStart=/usr/bin/python3 #ExecStart=$PYTHON #" \
-    "$REPO/metarmap.service" | sudo tee "$SERVICE" >/dev/null
-sudo systemctl daemon-reload
-sudo systemctl enable metarmap.service
-sudo systemctl restart metarmap.service
+    "$REPO/metarmap.service" | "${SUDO[@]}" tee "$SERVICE" >/dev/null
+"${SUDO[@]}" systemctl daemon-reload
+"${SUDO[@]}" systemctl enable metarmap.service
+"${SUDO[@]}" systemctl restart metarmap.service
 
 # ---- done -----------------------------------------------------------------------------------------------------
 
