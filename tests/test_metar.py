@@ -14,25 +14,28 @@ CLOCK = FakeClock(datetime(2026, 10, 24, 18, 0, tzinfo=timezone.utc))
 HOUSTON = ("KHOU", "KIAH", "KGLS", "KCLL", "KLBX", "KBPT", "KDKR", "")  # "": an LED with no airport
 
 
+def at(iso):
+    """A report time as the JSON API gives it: Unix seconds."""
+    return int(datetime.fromisoformat(iso.replace("Z", "+00:00")).timestamp())
+
+
 def report(station, **fields):
-    """One <METAR> element; fields are added as child elements."""
-    body = "".join(f"<{k}>{v}</{k}>" for k, v in fields.items())
-    return f"<METAR><station_id>{station}</station_id>{body}</METAR>"
+    """One report, as in the JSON API's list."""
+    return {"icaoId": station, **fields}
 
 
 def response(*reports):
-    return f"<response><data>{''.join(reports)}</data></response>".encode()
+    return json.dumps(list(reports)).encode()
 
 
-GOOD = dict(raw_text="KTST 241453Z 14009KT 10SM CLR 28/22 A2995", observation_time="2026-10-24T14:53:00Z",
-            temp_c="28", dewpoint_c="22", wind_dir_degrees="140", wind_speed_kt="9",
-            visibility_statute_mi="10+", altim_in_hg="29.95", flight_category="VFR")
+GOOD = dict(rawOb="KTST 241453Z 14009KT 10SM CLR 28/22 A2995", obsTime=at("2026-10-24T14:53:00Z"),
+            temp=28, dewp=22, wdir=140, wspd=9, visib="10+", altim=1014.2, fltCat="VFR", cover="CLR", clouds=[])
 
 
 @pytest.fixture
 def houston(make_config, fixture_bytes):
     m = metar.METAR(make_config(*HOUSTON), clock=CLOCK)
-    m._process(fixture_bytes("metars_houston.xml"))
+    m._process(fixture_bytes("metars_houston.json"))
     return m
 
 
@@ -43,7 +46,7 @@ def test_real_response_fields(houston):
     assert khou["flightCategory"] == "VFR"
     assert khou["windDir"] == "100"
     assert (khou["windSpeed"], khou["windGustSpeed"], khou["windGust"]) == (13, 19, True)
-    assert khou["vis"] == 10  # "10+" in the XML
+    assert khou["vis"] == 10  # "10+" in the report
     assert (khou["tempC"], khou["dewpointC"]) == (28, 16)
     assert khou["altimHg"] == pytest.approx(30.20, abs=0.01)
     assert khou["obsTime"] == datetime(2026, 10, 24, 17, 53, tzinfo=timezone.utc)
@@ -52,18 +55,16 @@ def test_real_response_fields(houston):
 
 
 def test_uses_latest_report_per_station(houston, fixture_bytes):
-    import xmltodict
-    reports = xmltodict.parse(fixture_bytes("metars_houston.xml"))["response"]["data"]["METAR"]
-    khou_times = [r["observation_time"] for r in reports if r["station_id"] == "KHOU"]
+    reports = json.loads(fixture_bytes("metars_houston.json"))
+    khou_times = [r["obsTime"] for r in reports if r["icaoId"] == "KHOU"]
     assert len(khou_times) > 1  # the API returns several hours of reports
-    latest = max(datetime.fromisoformat(t.replace("Z", "+00:00")) for t in khou_times)
-    assert houston.data["KHOU"]["obsTime"] == latest
+    assert houston.data["KHOU"]["obsTime"] == datetime.fromtimestamp(max(khou_times), timezone.utc)
 
 
 def test_newest_report_wins_whatever_the_order(make_config):
-    older = report("KTST", **{**GOOD, "observation_time": "2026-10-24T13:53:00Z", "raw_text": "older"})
-    newer = report("KTST", **{**GOOD, "observation_time": "2026-10-24T15:53:00Z", "raw_text": "newer"})
-    middle = report("KTST", **{**GOOD, "observation_time": "2026-10-24T14:53:00Z", "raw_text": "middle"})
+    older = report("KTST", **{**GOOD, "obsTime": at("2026-10-24T13:53:00Z"), "rawOb": "older"})
+    newer = report("KTST", **{**GOOD, "obsTime": at("2026-10-24T15:53:00Z"), "rawOb": "newer"})
+    middle = report("KTST", **{**GOOD, "obsTime": at("2026-10-24T14:53:00Z"), "rawOb": "middle"})
     for order in [(older, newer, middle), (newer, middle, older), (middle, older, newer)]:
         m = metar.METAR(make_config("KTST"), clock=CLOCK)
         m._process(response(*order))
@@ -97,28 +98,23 @@ def test_an_airport_on_two_leds_is_fetched_once(make_config):
 # ---- unusual responses -----------------------------------------------------------------------------------------
 
 def test_single_report_response(make_config):
-    # xmltodict returns a lone <METAR> as a dict instead of a list
     m = metar.METAR(make_config("KTST", "KOTH"), clock=CLOCK)
     m._process(response(report("KTST", **GOOD)))
     assert m.data["KTST"]["windSpeed"] == 9
     assert m.data["KOTH"] == {}
 
 
-@pytest.mark.parametrize("xml", [
-    b"<response><data></data></response>",
-    b'<response><data num_results="0"/></response>',
-    b"<response></response>",
-])
-def test_empty_responses(make_config, xml):
+@pytest.mark.parametrize("content", [b"[]", b"", b"  \n"])  # no reports; the API can answer with no body
+def test_empty_responses(make_config, content):
     m = metar.METAR(make_config("KTST"), clock=CLOCK)
-    m._process(xml)
+    m._process(content)
     assert m.data == {"KTST": {}}
     assert m.missing_stations() == ["KTST"]
 
 
 def test_malformed_report_only_affects_its_airport(make_config):
     m = metar.METAR(make_config("KONE", "KBAD", "KTWO"), clock=CLOCK)
-    bad = report("KBAD", raw_text="KBAD junk", observation_time="garbage", temp_c="M05")
+    bad = report("KBAD", rawOb="KBAD junk", obsTime="garbage", temp="M05")
     m._process(response(report("KONE", **GOOD), bad, report("KTWO", **GOOD)))
     assert m.data["KBAD"] == {}
     assert "KBAD" in m.missing_stations()
@@ -128,7 +124,7 @@ def test_malformed_report_only_affects_its_airport(make_config):
 
 def test_sparse_report_uses_defaults(make_config):
     m = metar.METAR(make_config("KTST"), clock=CLOCK)
-    m._process(response(report("KTST", raw_text="KTST 241453Z AUTO")))
+    m._process(response(report("KTST", rawOb="KTST 241453Z AUTO")))
     d = m.data["KTST"]
     assert d["flightCategory"] is None
     assert (d["windSpeed"], d["vis"], d["altimHg"]) == (0, 0, 0)
@@ -137,7 +133,7 @@ def test_sparse_report_uses_defaults(make_config):
 
 def test_lightning_flag(make_config):
     m = metar.METAR(make_config("KTST"), clock=CLOCK)
-    m._process(response(report("KTST", **{**GOOD, "raw_text": "KTST 241453Z 14009KT 10SM TS LTG DSNT"})))
+    m._process(response(report("KTST", **{**GOOD, "rawOb": "KTST 241453Z 14009KT 10SM TS LTG DSNT"})))
     assert m.data["KTST"]["lightning"] is True
 
 
@@ -171,7 +167,7 @@ def test_fetch_success(monkeypatch, make_config, fixture_bytes):
 
     def fake_get(url, **kwargs):
         urls.append(url)
-        return FakeResponse(fixture_bytes("metars_houston.xml"))
+        return FakeResponse(fixture_bytes("metars_houston.json"))
     monkeypatch.setattr(metar.requests, "get", fake_get)
 
     m = metar.METAR(make_config(*HOUSTON), clock=CLOCK)
@@ -186,7 +182,7 @@ def test_fetch_success(monkeypatch, make_config, fixture_bytes):
 @pytest.mark.parametrize("fake_get", [
     lambda url, **kw: (_ for _ in ()).throw(requests.exceptions.ConnectionError("no network")),
     lambda url, **kw: FakeResponse(status=503),
-    lambda url, **kw: FakeResponse(b"<html>not the xml you wanted"),
+    lambda url, **kw: FakeResponse(b"<html>not the JSON you wanted"),
 ])
 def test_fetch_errors_are_contained(monkeypatch, make_config, fake_get):
     monkeypatch.setattr(metar.requests, "get", fake_get)
@@ -209,7 +205,7 @@ def test_fetch_calls_callback_even_on_error(monkeypatch, make_config):
 def test_old_reports_count_as_not_reporting(make_config, hours_old, reporting):
     observed = datetime(2026, 10, 24, 18, 0, tzinfo=timezone.utc) - timedelta(hours=hours_old)
     m = metar.METAR(make_config("KTST"), clock=CLOCK)
-    m._process(response(report("KTST", **{**GOOD, "observation_time": observed.strftime("%Y-%m-%dT%H:%M:%SZ")})))
+    m._process(response(report("KTST", **{**GOOD, "obsTime": int(observed.timestamp())})))
     assert bool(m.data["KTST"]) is reporting
     assert ("KTST" in m.missing_stations()) is not reporting
 
@@ -227,7 +223,7 @@ def stations_api(monkeypatch, fixture_bytes, stations=STATIONS, fail=False):
         if url.startswith(metar.STATION_URL):
             asked.append(url[len(metar.STATION_URL):].split(","))
             return FakeResponse(b"", status=502) if fail else FakeResponse(json.dumps(stations).encode())
-        return FakeResponse(fixture_bytes("metars_houston.xml"))
+        return FakeResponse(fixture_bytes("metars_houston.json"))
     monkeypatch.setattr(metar.requests, "get", fake_get)
     return asked
 
@@ -266,7 +262,7 @@ def test_a_failed_metar_fetch_skips_the_lookup(monkeypatch, make_config):
 # ---- the parsing on its own (no METAR object, no network) ------------------------------------------------------
 
 def test_process_is_a_plain_function(fixture_bytes):
-    data, reporting, missing = metar.process(fixture_bytes("metars_houston.xml"), ["KHOU", "KDKR", "KIAH"],
+    data, reporting, missing = metar.process(fixture_bytes("metars_houston.json"), ["KHOU", "KDKR", "KIAH"],
                                              CLOCK.now())
     assert list(data) == ["KHOU", "KDKR", "KIAH"]
     assert reporting == ["KHOU", "KIAH"] and missing == ["KDKR"]
@@ -275,5 +271,43 @@ def test_process_is_a_plain_function(fixture_bytes):
 
 def test_reports_too_old_count_as_missing(fixture_bytes):
     later = CLOCK.now() + metar.MAX_REPORT_AGE + timedelta(minutes=1)
-    data, reporting, missing = metar.process(fixture_bytes("metars_houston.xml"), ["KHOU"], later)
+    data, reporting, missing = metar.process(fixture_bytes("metars_houston.json"), ["KHOU"], later)
     assert (data, reporting, missing) == ({"KHOU": {}}, [], ["KHOU"])
+
+
+# ---- reading the JSON API's fields ------------------------------------------------------------------------------
+
+def parse(**fields):
+    return metar.parse_report({**GOOD, **fields})
+
+
+def test_altimeter_comes_from_the_report_text():
+    """The JSON gives hPa rounded to 0.1; the report's A2995 is exact."""
+    assert parse()["altimHg"] == 29.95
+    assert parse(rawOb="KTST 241453Z 14009KT 10SM RMK A3001", altim=1014.2)["altimHg"] == 29.95  # not in remarks
+
+
+def test_altimeter_from_hectopascals_without_an_a_group():
+    assert parse(rawOb="EGLL 241450Z 24010KT 9999 FEW030 14/08 Q1013", altim=1013.0)["altimHg"] == 29.91
+    assert parse(rawOb="KTST 241453Z AUTO", altim=None)["altimHg"] == 0
+
+
+def test_vertical_visibility_is_in_hundreds_of_feet():
+    d = parse(vertVis=2, cover="OVX", clouds=[{"cover": "OVX", "base": 200}])
+    assert d["vertVisFt"] == 200
+    assert d["skyConditions"] == [{"cover": "OVX", "cloudBaseFt": 200}]
+
+
+def test_a_clear_sky_has_no_layers_only_a_cover():
+    assert parse(cover="CLR", clouds=[])["skyConditions"] == [{"cover": "CLR", "cloudBaseFt": 0}]
+
+
+def test_wind_direction_is_text_like_before():
+    assert parse(wdir=80)["windDir"] == "80"
+    assert parse(wdir="VRB")["windDir"] == "VRB"
+    assert parse(wdir=None)["windDir"] == ""
+
+
+def test_trailing_space_and_name():
+    d = parse(rawOb="METAR KTST 241453Z 14009KT 10SM A2995 $ ", name="Test Field, TX, US")
+    assert d["raw"].endswith("$") and d["name"] == "Test Field, TX, US"

@@ -1,5 +1,8 @@
 ### dman776 Unreleased
 
+- METARs come from aviationweather.gov's JSON API instead of XML: about half the download, and one fewer
+  package (`xmltodict` is no longer needed). The map shows exactly the same data; each airport's data also has
+  its `name` now (e.g. "Houston/Hobby Arpt, TX, US")
 - The OLED screen turns on and off right away from Config (or Home Assistant's switch, or
   `/config/edit/display_screen.enabled/...`), without a restart
 - Home page: an OLED display switch under LED brightness turns the screen, and its copy on the Map page, on or

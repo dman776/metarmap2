@@ -2,21 +2,24 @@
 Module to handle METAR fetching and processing
 """
 
-from datetime import datetime, timedelta
+import json
+import re
+from datetime import datetime, timedelta, timezone
 from fractions import Fraction
 import traceback
 import requests
-import xmltodict
 import metarmap.lib.safe_logging as safe_logging
 from metarmap.clock import Clock
 
 # without `hours`, the API returns each station's latest report. (With hours=5 it returned up to ~13 reports per
 # station and stopped at 400, so a long airport list could lose the newest ones.)
-API_URL = "https://aviationweather.gov/api/data/metar?format=xml&ids="
+API_URL = "https://aviationweather.gov/api/data/metar?format=json&ids="
 # where airports are, for airports the METARs don't place (e.g. not reporting); JSON, one entry per known code
 STATION_URL = "https://aviationweather.gov/api/data/stationinfo?format=json&ids="
 # a station whose latest report is older than this counts as not reporting (the API returns it however old it is)
 MAX_REPORT_AGE = timedelta(hours=5)
+ALTIMETER = re.compile(r"\bA(\d{4})\b")  # "A3023": 30.23 inHg, in a US report's body
+HPA_PER_INHG = 33.8639
 USER_AGENT = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
               "Chrome/86.0.4240.198 Safari/537.36 Edg/86.0.622.69")
 
@@ -38,25 +41,23 @@ def airport_codes(airports):
 
 def latest_reports(content):
     """
-    The newest report for each station in an XML response, as {station: report}. Newest by its time rather than
-    its position in the response.
+    The newest report for each station in a JSON response, as {station: report}. Newest by its time rather than
+    its position in the response. An empty response (no reports) is {}.
     """
-    response_data = (xmltodict.parse(content).get('response') or {}).get('data') or {}
-    metars = response_data.get('METAR') or []
-    if isinstance(metars, dict):  # xmltodict returns a single METAR as a dict, not a list
-        metars = [metars]
+    text = content.decode() if isinstance(content, bytes) else (content or "")
+    reports = json.loads(text) if text.strip() else []
     by_station = {}
-    for m in metars:
-        if isinstance(m, dict) and m.get('station_id'):
-            current = by_station.get(m['station_id'])
-            if current is None or (m.get('observation_time') or '') > (current.get('observation_time') or ''):
-                by_station[m['station_id']] = m
+    for m in reports if isinstance(reports, list) else []:
+        if isinstance(m, dict) and m.get('icaoId'):
+            current = by_station.get(m['icaoId'])
+            if current is None or (m.get('obsTime') or 0) > (current.get('obsTime') or 0):
+                by_station[m['icaoId']] = m
     return by_station
 
 
 def process(content, codes, now):
     """
-    The METARs for `codes` from an XML response, as (data, reporting, missing): data is {code: parse_report()},
+    The METARs for `codes` from a JSON response, as (data, reporting, missing): data is {code: parse_report()},
     or {} for an airport with no report, a report older than MAX_REPORT_AGE before `now`, or one that can't be read.
     """
     by_station = latest_reports(content)
@@ -89,7 +90,7 @@ def process(content, codes, now):
 
 def parse_report(metar):
     """
-    Converts one METAR from the XML response into the dict used everywhere else.
+    Converts one METAR from the JSON response into the dict used everywhere else.
     """
     def num(key, default=None):
         value = metar.get(key)
@@ -97,40 +98,52 @@ def parse_report(metar):
             return default
         return float(str(value).replace('+', ''))
 
-    raw_metar = metar.get('raw_text') or ''
-    temp_c = num('temp_c')
-    dewpoint_c = num('dewpoint_c')
-    obs_time = metar.get('observation_time')
+    raw_metar = (metar.get('rawOb') or '').strip()  # the JSON can end it with a space
+    temp_c = num('temp')
+    dewpoint_c = num('dewp')
+    obs_time = metar.get('obsTime')
 
-    sky_conditions = []
-    sky = metar.get('sky_condition') or []
-    for sc in sky if isinstance(sky, list) else [sky]:
-        sky_conditions.append({"cover": sc.get('@sky_cover', ''),
-                               "cloudBaseFt": int(sc.get('@cloud_base_ft_agl', 0) or 0)})
+    sky_conditions = [{"cover": sc.get('cover', ''), "cloudBaseFt": int(sc.get('base') or 0)}
+                      for sc in metar.get('clouds') or [] if isinstance(sc, dict)]
+    if not sky_conditions and metar.get('cover'):  # a clear sky has no layers, only "cover": "CLR"
+        sky_conditions = [{"cover": metar['cover'], "cloudBaseFt": 0}]
 
-    wind_gust_speed = int(num('wind_gust_kt', 0))
-    visibility = parse_visibility(metar.get('visibility_statute_mi'))
+    wind_dir = metar.get('wdir')
+    wind_gust_speed = int(num('wgst', 0))
+    visibility = parse_visibility(metar.get('visib'))
     return {
         "raw": raw_metar,
-        "elevation_m": int(round(num('elevation_m', 0))),
-        "flightCategory": metar.get('flight_category'),
-        "windDir": metar.get('wind_dir_degrees', ''),
-        "windSpeed": int(num('wind_speed_kt', 0)),
+        "name": metar.get('name') or '',  # e.g. "Houston/Hobby Arpt, TX, US"
+        "elevation_m": int(round(num('elev', 0))),
+        "flightCategory": metar.get('fltCat'),
+        "windDir": '' if wind_dir is None else str(wind_dir),  # degrees, or "VRB"
+        "windSpeed": int(num('wspd', 0)),
         "windGustSpeed": wind_gust_speed,
         "windGust": wind_gust_speed > 0,
         "vis": int(round(visibility or 0)),
         "visibilitySM": visibility,  # exact (e.g. 0.25), None if not reported
-        "visibilityMore": "+" in str(metar.get('visibility_statute_mi') or ''),  # "10+": more than 10 miles
-        "vertVisFt": int(num('vert_vis_ft')) if num('vert_vis_ft') is not None else None,
-        "obs": metar.get('wx_string', '') or '',
+        "visibilityMore": "+" in str(metar.get('visib') or ''),  # "10+": more than 10 miles
+        "vertVisFt": int(num('vertVis')) * 100 if num('vertVis') is not None else None,  # reported in hundreds of ft
+        "obs": metar.get('wxString') or '',
         "tempC": int(round(temp_c)) if temp_c is not None else None,
         "dewpointC": int(round(dewpoint_c)) if dewpoint_c is not None else None,
-        "altimHg": round(num('altim_in_hg', 0), 2),
+        "altimHg": altimeter_inhg(raw_metar, num('altim')),
         "lightning": 'LTG' in raw_metar,
         "skyConditions": sky_conditions,
-        "obsTime": datetime.fromisoformat(obs_time.replace("Z", "+00:00")) if obs_time else None,
-        "latitude": metar.get('latitude', ''),
-        "longitude": metar.get('longitude', '')}
+        "obsTime": datetime.fromtimestamp(obs_time, timezone.utc) if obs_time else None,
+        "latitude": num('lat'),
+        "longitude": num('lon')}
+
+
+def altimeter_inhg(raw, hectopascals):
+    """
+    The altimeter setting in inHg: as the report gives it (A3023 -> 30.23), which is exact; otherwise converted
+    from the JSON's hectopascals (rounded to 0.1 hPa, so it can be 0.01 inHg off); 0 if neither.
+    """
+    found = ALTIMETER.search(raw.split(" RMK ")[0])
+    if found:
+        return int(found.group(1)) / 100
+    return round(hectopascals / HPA_PER_INHG, 2) if hectopascals else 0.0
 
 
 class METAR(object):

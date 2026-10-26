@@ -122,9 +122,9 @@ def test_parse_visibility(value, miles):
 
 
 def test_parsed_reports_have_what_decode_needs():
-    parsed = parse_report({"raw_text": "METAR KTST 241753Z 00000KT 1/2SM FG VV003", "visibility_statute_mi": "1/2",
-                              "wx_string": "FG", "vert_vis_ft": "300", "sky_condition": {"@sky_cover": "OVX"},
-                              "observation_time": "2026-10-24T17:53:00Z"})
+    parsed = parse_report({"rawOb": "METAR KTST 241753Z 00000KT 1/2SM FG VV003", "visib": 0.5, "wxString": "FG",
+                           "vertVis": 3, "cover": "OVX", "clouds": [{"cover": "OVX", "base": 300}],
+                           "obsTime": 1792871580})
     assert (parsed["vis"], parsed["visibilitySM"], parsed["visibilityMore"]) == (0, 0.5, False)
     assert parsed["vertVisFt"] == 300
     assert lines(parsed)[2:5] == [("Visibility", "1/2 mile"), ("Weather", "Fog"),

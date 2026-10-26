@@ -14,6 +14,7 @@ htmlcov/
 
 # runtime
 *.log
+*.log.*
 
 # editors / OS
 .idea/
