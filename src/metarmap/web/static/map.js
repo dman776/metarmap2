@@ -146,6 +146,7 @@
             html.innerHTML = await res.text();
             if (legendWanted !== vis.active) return;  // changed again while this one loaded
             if (visName) visName.querySelector('b').textContent = vis.name;
+            if (fullVisName) fullVisName.textContent = vis.name;
             showLegend(html.querySelector('.legend'));
             shownVisualizer = vis.active;
         } catch (err) {
@@ -214,6 +215,50 @@
     });
     new FullscreenControl().addTo(map);
     fullscreenChanged();
+
+    // the page's visualizer buttons are outside the map, so fullscreen has its own (hidden otherwise, by CSS)
+    const ARROWS = {
+        previous: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg>',
+        next: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>'
+    };
+    let fullVisName = null;
+    async function stepVisualizer(direction, button) {
+        button.disabled = true;
+        try {
+            const res = await fetch('/visualizer/' + direction, {credentials: 'same-origin'});
+            if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+            // show the new one now, rather than at the next poll
+            followVisualizer((await (await fetch('/api/live', {cache: 'no-store'})).json()).visualizer);
+        } catch (err) {
+            console.error('[map] visualizer ' + direction + ' failed', err);
+        } finally {
+            button.disabled = false;
+        }
+    }
+    const VisualizerControl = L.Control.extend({
+        options: {position: 'topright'},
+        onAdd: function () {
+            const box = L.DomUtil.create('div', 'map-vis');
+            box.setAttribute('role', 'group');
+            box.setAttribute('aria-label', 'Visualizer');
+            const button = function (direction) {
+                const b = L.DomUtil.create('button', 'btn icon', box);
+                b.type = 'button';
+                b.setAttribute('aria-label', (direction === 'next' ? 'Next' : 'Previous') + ' visualizer');
+                b.innerHTML = ARROWS[direction];
+                L.DomEvent.on(b, 'click', function () { stepVisualizer(direction, b); });
+            };
+            button('previous');
+            const label = L.DomUtil.create('div', 'map-vis-name', box);
+            label.innerHTML = '<span class="lbl">Visualizer</span><b></b>';
+            fullVisName = label.querySelector('b');
+            fullVisName.textContent = visName ? visName.querySelector('b').textContent : '';
+            button('next');
+            L.DomEvent.disableClickPropagation(box);
+            return box;
+        }
+    });
+    new VisualizerControl().addTo(map);
 
     // ---- OLED window -------------------------------------------------------------------------
     const ICONS = {

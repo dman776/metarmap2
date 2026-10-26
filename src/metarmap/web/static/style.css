@@ -220,6 +220,16 @@ input.led-count:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 /* !important: Leaflet sets position: relative on the map itself */
 .live-map.map-full { position: fixed !important; inset: 0; z-index: 1000; height: auto; min-height: 0; border: 0; border-radius: 0; }
 body.map-full-open { overflow: hidden; }
+/* the visualizer buttons, only in fullscreen (the page's own are hidden then); one rule each: a selector a browser
+   doesn't know would drop the whole rule */
+.map-vis { display: none; align-items: center; gap: 6px; padding: 4px; border-radius: 12px; background: rgba(11, 17, 23, .9); border: 1px solid var(--control); box-shadow: 0 6px 18px rgba(0, 0, 0, .35); font-family: var(--sans); color: var(--text); }
+.live-map:fullscreen .map-vis { display: flex; }
+.live-map:-webkit-full-screen .map-vis { display: flex; }
+.live-map.map-full .map-vis { display: flex; }
+.map-vis .btn.icon { width: 44px; min-height: 44px; }
+.map-vis-name { min-width: 140px; text-align: center; display: flex; flex-direction: column; }
+.map-vis-name .lbl { font-size: 10px; }
+.map-vis-name b { font-size: 15px; }
 .map-fullscreen { display: flex !important; align-items: center; justify-content: center; }
 .map-fullscreen .exit, .map-fullscreen[aria-pressed="true"] .enter { display: none; }
 .map-fullscreen[aria-pressed="true"] .exit { display: block; }

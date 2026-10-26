@@ -1,5 +1,7 @@
-### dman776 Unreleased
+### dman776 2.8.4 (2026-10-25)
 
+- Map page fullscreen: previous/next visualizer buttons, with the visualizer's name, under the background switcher
+  (the page's own buttons are out of sight in fullscreen). They only show in fullscreen
 - Removed the `tools/` folder (the old LED test, a Wi-Fi access point experiment and some scratch scripts). The
   README's LED troubleshooting step and the installer's closing message now point to the Chase visualizer and the
   "Test pattern on startup" setting instead of `tools/test1.py`
