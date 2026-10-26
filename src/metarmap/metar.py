@@ -14,7 +14,7 @@ from metarmap.clock import Clock
 # without `hours`, the API returns each station's latest report. (With hours=5 it returned up to ~13 reports per
 # station and stopped at 400, so a long airport list could lose the newest ones.)
 API_URL = "https://aviationweather.gov/api/data/metar?format=json&ids="
-# where airports are, for airports the METARs don't place (e.g. not reporting); JSON, one entry per known code
+# where airports are and their names (the METARs don't place airports that aren't reporting); JSON
 STATION_URL = "https://aviationweather.gov/api/data/stationinfo?format=json&ids="
 # a station whose latest report is older than this counts as not reporting (the API returns it however old it is)
 MAX_REPORT_AGE = timedelta(hours=5)
@@ -164,7 +164,7 @@ class METAR(object):
         self.data = {}
         self.lastFetchTime = None
         self.last_fetch_ok = None  # None until the first fetch, then whether the last one worked
-        self.positions = {}  # code -> {"lat", "lon"} from STATION_URL, or None if it doesn't know the code
+        self.positions = {}  # code -> {"lat", "lon", "name"} from STATION_URL, or None if it doesn't know the code
         self.locate_failed = False  # whether the last position lookup failed (e.g. a 502); locate() tries again
         if fetch:
             self.fetch()
@@ -200,32 +200,46 @@ class METAR(object):
 
     def locate(self):
         """
-        Looks up where airports without a report are, so the Map page can still show them. Each code is looked up
-        once. Returns False if the lookup failed (locate_failed); calling it again tries the same codes again.
+        Looks up where each airport is and its name (the Map page shows airports without a report too; the
+        Airports page fills in empty names). Each code is looked up once. Returns False if the lookup failed
+        (locate_failed); calling it again tries the same codes again.
         """
-        missing = [code for code in airport_codes(self._config.airports)
-                   if not (self.data.get(code) or {}).get("latitude") and code not in self.positions]
-        self.locate_failed = False
-        if not missing:
+        missing = [code for code in airport_codes(self._config.airports) if code not in self.positions]
+        self.locate_failed = not self._look_up(missing)
+        return not self.locate_failed
+
+    def _look_up(self, codes, timeout=30):
+        """Looks up codes with aviationweather.gov's station information. Returns False if that failed."""
+        if not codes:
             return True
         try:
-            response = requests.get(STATION_URL + ",".join(missing), headers={'User-Agent': USER_AGENT}, timeout=30)
+            response = requests.get(STATION_URL + ",".join(codes), headers={'User-Agent': USER_AGENT}, timeout=timeout)
             response.raise_for_status()
             stations = response.json()
         except (requests.exceptions.RequestException, ValueError) as e:
-            safe_logging.safe_log(f"[m]Could not look up where {', '.join(missing)} are: {e}")
-            self.locate_failed = True
+            safe_logging.safe_log(f"[m]Could not look up {', '.join(codes)}: {e}")
             return False
         found = {}
         for station in stations if isinstance(stations, list) else []:
             try:
                 code = station.get("icaoId") or station["id"]
-                found[code] = {"lat": float(station["lat"]), "lon": float(station["lon"])}
+                found[code] = {"lat": float(station["lat"]), "lon": float(station["lon"]),
+                               "name": str(station.get("site") or "").strip()}
             except (KeyError, TypeError, ValueError, AttributeError):
                 continue
-        for code in missing:
+        for code in codes:
             self.positions[code] = found.get(code)  # None: not a station it knows
         return True
+
+    def name_for(self, code, timeout=10):
+        """An airport's name, e.g. "Houston/Hobby Arpt", looked up now if it hasn't been; "" if unknown."""
+        if code not in self.positions:
+            self._look_up([code], timeout=timeout)
+        return (self.positions.get(code) or {}).get("name", "")
+
+    def station_names(self):
+        """The names looked up so far, as {code: name}."""
+        return {code: known["name"] for code, known in self.positions.items() if known and known.get("name")}
 
     def position(self, code):
         """Where an airport is, as (lat, lon): from its METAR, else from the station lookup; None if unknown."""

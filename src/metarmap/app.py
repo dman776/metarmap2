@@ -72,6 +72,7 @@ def build(config_file=CONFIG_FILE, strip=None, screen=None, clock: Clock = None,
     display = Display(config, metars, screen, renderer=renderer, clock=clock)
 
     app = App(config, sun, metars, renderer, display, schedule.Scheduler())
+    fill_names(app)
     schedule_jobs(app)
     return app
 
@@ -94,8 +95,16 @@ def schedule_jobs(app: App):
 def update_data(app: App):
     app.metars.fetch()
     app.renderer.update_data(app.metars)
+    fill_names(app)
     if needs_retry(app):
         retry_soon(app)
+
+
+def fill_names(app: App):
+    """Airports with an empty name get the name the station lookup found (saved to config.json)."""
+    filled = app.config.fill_names(app.metars.station_names())
+    if filled:
+        safe_logging.safe_log(f"[c]filled in the names of {filled} airports")
 
 
 def needs_retry(app: App):
@@ -118,6 +127,7 @@ def retry_fetch(app: App):
             app.renderer.update_data(app.metars)
     elif app.metars.locate_failed:
         app.metars.locate()
+    fill_names(app)
     if not needs_retry(app):
         return schedule.CancelJob
 

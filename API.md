@@ -245,8 +245,8 @@ ones. A new LED count takes effect after a restart.
 
 | Endpoint | Description |
 |---|---|
-| `GET /config/airports/<led>/code/<code>` | Set the airport on an LED: a 3-4 character ICAO code, or `-` for none. Fetches METARs in the background. |
-| `GET /config/airports/<led>/name/<name>` | Set the airport's name, shown in the web UI (`-` for none) |
+| `GET /config/airports/<led>/code/<code>` | Set the airport on an LED: a 3-4 character ICAO code, or `-` for none. A new code replaces the name with the new airport's (from aviationweather.gov's station information), and METARs are fetched in the background. |
+| `GET /config/airports/<led>/name/<name>` | Set the airport's name, shown in the web UI. An empty name (`-`) is filled in with the airport's name after the next METAR fetch. |
 | `GET /config/airports/<led>/display/<true\|false>` | Whether the airport is shown on the OLED screen |
 | `GET /config/airports/move/<from>/<to>` | Move the airport on LED `from` to LED `to`; the airports in between shift by one |
 | `GET /config/airports/edit/<oldcode>/<newcode>` | Older, by code: change the first airport with `oldcode` to `newcode` |

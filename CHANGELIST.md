@@ -1,5 +1,7 @@
 ### dman776 Unreleased
 
+- Airports page: airports with an empty name get their name filled in from aviationweather.gov (e.g. "Houston/
+  Hobby Arpt"), and changing an airport's code changes its name to the new airport's. Names you type are kept
 - METARs come from aviationweather.gov's JSON API instead of XML: about half the download, and one fewer
   package (`xmltodict` is no longer needed). The map shows exactly the same data; each airport's data also has
   its `name` now (e.g. "Houston/Hobby Arpt, TX, US")

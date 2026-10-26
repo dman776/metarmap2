@@ -203,3 +203,13 @@ def test_a_failed_position_lookup_is_retried_on_its_own(make_app, monkeypatch):
         app.scheduler.run_pending()
     assert calls == ["fetch", "locate", "locate"]
     assert app.scheduler.get_jobs("retry") == []
+
+
+def test_names_are_filled_after_a_fetch(make_app, monkeypatch):
+    app = make_app()
+    first = app.config.airports[0]
+    first.name = ""
+    monkeypatch.setattr(app.metars, "fetch", lambda: True)
+    monkeypatch.setattr(app.metars, "station_names", lambda: {first.code: "Somewhere Muni"})
+    app_module.update_data(app)
+    assert app.config.airports[0].name == "Somewhere Muni"

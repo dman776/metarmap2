@@ -117,7 +117,10 @@ class Config(object):
         """
         airport = self.airports[self._pixel(pixel)]
         if key == "code":
-            airport.code = parse_code(value)
+            code = parse_code(value)
+            if code != airport.code:
+                airport.name = ""  # the old name was the old airport's; fill_names() gives the new one
+            airport.code = code
         elif key == "name":
             airport.name = "" if value == NO_AIRPORT else str(value)
         elif key == "display":
@@ -125,6 +128,21 @@ class Config(object):
         else:
             raise ValueError(f"unknown airport setting: {key}")
         self.write()
+
+    @locked
+    def fill_names(self, names):
+        """
+        Gives airports with an empty name their name from `names` ({code: name}), saved in one write.
+        Names people typed are never changed. Returns how many were filled.
+        """
+        filled = 0
+        for airport in self.airports:
+            if airport.code and not airport.name and names.get(airport.code):
+                airport.name = names[airport.code]
+                filled += 1
+        if filled:
+            self.write()
+        return filled
 
     @locked
     def move_airport(self, src, dst):

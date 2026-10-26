@@ -49,3 +49,13 @@ def make_app(tmp_path):
         return app_module.build(str(tmp_path / "config.json"), strip=FakeStrip(config.led.count),
                                 screen=FakeScreen(), fetch=False)
     return make
+
+
+@pytest.fixture(autouse=True)
+def no_network(monkeypatch):
+    """Tests never reach aviationweather.gov; a test that needs it fakes requests.get itself."""
+    import requests
+
+    def offline(url, *args, **kwargs):
+        raise requests.exceptions.ConnectionError(f"no network in tests: {url}")
+    monkeypatch.setattr(requests, "get", offline)

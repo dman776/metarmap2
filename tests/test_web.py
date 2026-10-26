@@ -522,3 +522,16 @@ def test_no_oled_switch_when_turned_off_in_config(client):
     assert 'id="oled-on"' not in client("/")[1]
     assert client("/display/on")[0] == 409
     assert not client.services.display.is_alive()
+
+
+# ---- airport names ----------------------------------------------------------------------------------------------
+
+def test_a_new_code_gets_its_name(client, monkeypatch):
+    app = client.services
+    monkeypatch.setattr(app.metars, "fetch", lambda: None)
+    monkeypatch.setattr(app.metars, "name_for", lambda code: {"KDWH": "Houston/D W Hooks Mem"}.get(code, ""))
+    client("/config/airports/0/name/My%20field")
+    assert client("/config/airports/0/code/kdwh")[0] == 303
+    assert (app.config.airports[0].code, app.config.airports[0].name) == ("KDWH", "Houston/D W Hooks Mem")
+    assert client("/config/airports/0/code/KXXX")[0] == 303  # unknown: no name
+    assert app.config.airports[0].name == ""

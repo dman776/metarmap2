@@ -212,7 +212,9 @@ def test_old_reports_count_as_not_reporting(make_config, hours_old, reporting):
 
 # ---- where airports without a report are ----------------------------------------------------------------------
 
-STATIONS = [{"icaoId": "KDKR", "lat": 31.307, "lon": -95.404}, {"icaoId": "KEFD", "lat": 29.606, "lon": -95.16}]
+STATIONS = [{"icaoId": "KDKR", "lat": 31.307, "lon": -95.404, "site": "Crockett/Houston Co"},
+            {"icaoId": "KEFD", "lat": 29.606, "lon": -95.16, "site": "Houston/Ellington Arpt"},
+            {"icaoId": "KHOU", "lat": 29.638, "lon": -95.282, "site": "Houston/Hobby Arpt"}]
 
 
 def stations_api(monkeypatch, fixture_bytes, stations=STATIONS, fail=False):
@@ -232,9 +234,11 @@ def test_airports_without_a_report_are_looked_up(monkeypatch, make_config, fixtu
     asked = stations_api(monkeypatch, fixture_bytes)
     m = metar.METAR(make_config("KHOU", "KDKR", "KEFD", "KXXX", ""), clock=CLOCK)
     m.fetch()
-    assert asked == [["KDKR", "KEFD", "KXXX"]]  # KHOU's METAR has its position
+    assert asked == [["KHOU", "KDKR", "KEFD", "KXXX"]]  # every airport once (for its name), in one request
     assert m.position("KDKR") == (31.307, -95.404)
-    assert m.position("KHOU") == (29.6458, -95.2821)  # from its METAR
+    assert m.position("KHOU") == (29.6458, -95.2821)  # its METAR's position comes first
+    assert m.station_names() == {"KDKR": "Crockett/Houston Co", "KEFD": "Houston/Ellington Arpt",
+                                 "KHOU": "Houston/Hobby Arpt"}
     assert m.position("KXXX") is None  # the lookup doesn't know it
 
     m.fetch()
@@ -311,3 +315,16 @@ def test_wind_direction_is_text_like_before():
 def test_trailing_space_and_name():
     d = parse(rawOb="METAR KTST 241453Z 14009KT 10SM A2995 $ ", name="Test Field, TX, US")
     assert d["raw"].endswith("$") and d["name"] == "Test Field, TX, US"
+
+
+def test_name_for_one_code(monkeypatch, make_config, fixture_bytes):
+    asked = stations_api(monkeypatch, fixture_bytes)
+    m = metar.METAR(make_config("KDKR"), clock=CLOCK)
+    assert m.name_for("KEFD") == "Houston/Ellington Arpt"
+    assert m.name_for("KEFD") == "Houston/Ellington Arpt"
+    assert asked == [["KEFD"]]  # looked up once
+    assert m.name_for("KXXX") == ""
+
+
+def test_name_for_without_network(make_config):
+    assert metar.METAR(make_config("KDKR"), clock=CLOCK).name_for("KEFD") == ""  # no error

@@ -75,7 +75,8 @@ On **Config > Airports**:
 1. Set **Number of LEDs** to the number of LEDs on your strip, then restart the map when it asks.
 2. Enter the ICAO code (such as `KDFW`) of the airport at each LED, in the order the LEDs are wired, starting
    from the one nearest the Pi. Leave a code empty for an LED that isn't at an airport.
-3. Turn on **OLED** for the airports you want on the screen, and add names if you like.
+3. Turn on **OLED** for the airports you want on the screen. Each airport's name fills itself in; change it if
+   you like (an emptied name fills in again).
 4. Use the up and down arrows to move an airport to another LED; the others shift along.
 
 Changes save right away. To check the wiring order:

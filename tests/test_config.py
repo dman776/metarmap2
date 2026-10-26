@@ -236,3 +236,20 @@ def test_save_keeps_the_file_mode_and_leaves_no_temp_file(config, tmp_path):
     config.set_airport(0, "code", "KDWH")
     assert path.stat().st_mode & 0o777 == 0o600
     assert not (tmp_path / "config.json.tmp").exists()
+
+
+# ---- names ------------------------------------------------------------------------------------------------------
+
+def test_fill_names_only_fills_empty_ones(config, tmp_path):
+    assert config.fill_names({"KHOU": "Houston/Hobby Arpt", "KIAH": "Houston/Bush Intcntl", "KGLS": "Galveston"}) == 2
+    assert [a.name for a in config.airports] == ["Hobby", "Houston/Bush Intcntl", "", "Galveston"]  # Hobby was typed
+    assert json.loads((tmp_path / "config.json").read_text())["airports"][1]["name"] == "Houston/Bush Intcntl"
+    assert config.fill_names({"KIAH": "Other"}) == 0
+
+
+def test_a_new_code_clears_the_old_name(config):
+    config.set_airport(0, "code", "KDWH")
+    assert config.airports[0].name == ""  # "Hobby" was KHOU's
+    config.set_airport(1, "name", "Bush")
+    config.set_airport(1, "code", "kiah")  # the same code: the name stays
+    assert config.airports[1].name == "Bush"

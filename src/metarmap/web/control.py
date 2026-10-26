@@ -10,7 +10,7 @@ import time
 import bottle
 
 from metarmap import system
-from metarmap.config import parse_user
+from metarmap.config import parse_code, parse_user
 from metarmap.lib import utils
 from metarmap.lib.safe_logging import safe_log
 from metarmap.web import pages
@@ -98,6 +98,7 @@ def add_routes(app, services, site, auth, updates=None):
     def fetch():
         services.metars.fetch()
         renderer.update_data(services.metars)
+        config.fill_names(services.metars.station_names())
         return pages.index(services, site)
 
     def edit_config(key, value):
@@ -124,6 +125,13 @@ def add_routes(app, services, site, auth, updates=None):
     def fetch_metars():
         services.metars.fetch()
         renderer.update_data(services.metars)
+        config.fill_names(services.metars.station_names())
+
+    def name_new_code(code):
+        """A changed airport gets its new airport's name now, so the page shows it when it reloads."""
+        name = services.metars.name_for(code)
+        if name:
+            config.fill_names({code: name})
 
     def edit_airports(change, fetch=False):
         """Runs one airport change; unknown LEDs and airports are 404s, bad values 400s."""
@@ -136,13 +144,21 @@ def add_routes(app, services, site, auth, updates=None):
         return airports_changed(fetch)
 
     def set_airport(pixel, key, value):
-        return edit_airports(lambda: config.set_airport(pixel, key, value), fetch=key == "code")
+        def change():
+            config.set_airport(pixel, key, value)
+            new_code = config.airports[int(pixel)].code
+            if key == "code" and new_code:
+                name_new_code(new_code)
+        return edit_airports(change, fetch=key == "code")
 
     def move_airport(src, dst):
         return edit_airports(lambda: config.move_airport(src, dst))
 
     def edit_airport(oldkey, newkey):
-        return edit_airports(lambda: config.edit_airport(oldkey, newkey), fetch=True)
+        def change():
+            config.edit_airport(oldkey, newkey)
+            name_new_code(parse_code(newkey))
+        return edit_airports(change, fetch=True)
 
     def edit_airport_property(airport, key, value):
         return edit_airports(lambda: config.edit_airport_property(airport, key, value))
