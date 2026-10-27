@@ -38,6 +38,14 @@ def map_page(services, site):
                   brightness=services.renderer.pixels().brightness)
 
 
+def remote(services, site):
+    """A remote control for the map, laid out for an iPad in kiosk mode."""
+    return render(site, "remote.tpl", stations=stations(services), cats=views.CATEGORIES,
+                  active=views.visualizer(services.renderer), visualizers=views.visualizer_choices(services.renderer),
+                  brightness=services.renderer.pixels().brightness,
+                  oled_on=services.display.on if services.config.data.display_screen.enabled else None)
+
+
 def legend(services, site):
     """The active visualizer's legend on its own: the Map page swaps it in when the visualizer changes."""
     return render(site, "legend.tpl", legend=views.visualizer(services.renderer)["legend"])
@@ -86,6 +94,7 @@ def add_routes(app, services, site, auth):
     app.route("/metars", "GET", lambda: metars(services, site))
     app.route("/map", "GET", lambda: map_page(services, site))
     app.route("/map/legend", "GET", lambda: legend(services, site))
+    app.route("/remote", "GET", lambda: remote(services, site))
     app.route("/debug", "GET", lambda: debug(services, site))
     app.route("/raw", "GET", lambda: raw(services))
     app.route("/raw/<code>", "GET", lambda code: raw_code(services, code))

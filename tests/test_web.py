@@ -80,8 +80,8 @@ def client(make_app):
         app.display.stop()
 
 
-@pytest.mark.parametrize("path", ["/", "/metars", "/raw", "/map", "/debug", "/config", "/config/airports",
-                                  "/static/app.js", "/update/progress"])
+@pytest.mark.parametrize("path", ["/", "/metars", "/raw", "/map", "/debug", "/config", "/config/airports", "/remote",
+                                  "/static/app.js", "/static/remote.js", "/update/progress"])
 def test_pages(client, path):
     status, body = client(path)
     assert status == 200, body
@@ -821,6 +821,50 @@ def test_no_oled_switch_when_turned_off_in_config(client):
     assert 'id="oled-on"' not in client("/")[1]
     assert client("/display/on")[0] == 409
     assert not client.services.display.is_alive()
+
+
+# ---- the Remote page ---------------------------------------------------------------------------------------------
+
+def test_remote_page(client):
+    app = client.services
+    status, body = client("/remote", auth=False)  # it changes nothing that's saved: no login
+    assert status == 200
+    assert '<body class="kiosk">' in body and 'class="topbar"' not in body and 'class="foot"' not in body
+    assert 'name="apple-mobile-web-app-capable" content="yes"' in body
+    assert [t.split('"')[0] for t in body.split('data-tab="')[1:]] == ["visualizer", "locator", "config"]
+    assert 'id="locator" role="tabpanel" aria-labelledby="tab-locator" hidden' in body
+    assert body.count("data-vis=") == len(app.renderer.visualizers)
+    assert 'data-vis="0" data-name="Flight Category"' in body
+    assert 'id="r-legend"' in body and 'class="legend"' in body
+    assert 'id="brightness"' in body and "data-update" not in body
+    assert "<dialog" not in body  # nothing opens them here; a browser without <dialog> would show them
+    codes = [a.code for a in app.config.airports if a.code]
+    assert body.count('class="r-apt') == len(codes)
+    assert f'data-call="/locate/0" data-then="none"\n                    data-station="{codes[0]}"' in body
+    assert 'id="station-search"' in body  # more than 12 airports
+    assert 'id="r-paused" hidden' in body  # Flight Category isn't exclusive
+
+
+def test_remote_controls_need_no_login(client):
+    for path in ("/visualizer/1", "/visualizer/next", "/brightness/0.4", "/display/on", "/locate/0", "/map/legend",
+                 "/api/live"):
+        assert client(path, auth=False)[0] == 200, path
+
+
+def test_remote_page_follows_the_map(client):
+    app = client.services
+    app.display.start()
+    assert 'id="oled-on" class="switch" type="checkbox" checked' in client("/remote")[1]
+    client("/visualizer/10")  # Rainbow: locate is paused
+    client("/config/edit/led.virtual_count/1")
+    client("/config/airports/50/code/KDWH")
+    body = client("/remote")[1]
+    assert '<div class="name" id="r-vis-name">Rainbow</div>' in body
+    assert '<span class="badge warn" id="r-paused">Locate is paused by Rainbow</span>' in body
+    assert 'class="r-grid paused"' in body
+    assert 'class="r-apt virtual" type="button" data-call="/locate/50"' in body
+    client("/config/edit/display_screen.enabled/false")
+    assert 'id="oled-on"' not in client("/remote")[1]
 
 
 # ---- airport names ----------------------------------------------------------------------------------------------

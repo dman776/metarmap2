@@ -1,5 +1,6 @@
 % import datetime
         </main>
+        % if not get('kiosk', False):
         <footer class="foot">
             &copy; {{datetime.date.today().year}} Darryl Quinn · <a href="http://metarmap.local">metarmap.local</a> · Version {{version}}{{' (' + release['build']['describe'] + ', commit ' + release['build']['commit'] + (', modified' if release['build']['modified'] else '') + ')' if get('release') and release['build'] and not release['build']['release'] else ''}}
         </footer>
@@ -23,6 +24,7 @@
                 <button class="btn primary update-restart" type="button" data-call="/restart" data-then="restart" hidden>Restart now</button>
             </form>
         </dialog>
+        % end
         <script src="/static/app.js?v={{assets}}"></script>
     </body>
 </html>

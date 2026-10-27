@@ -327,6 +327,7 @@ body.map-full-open { overflow: hidden; }
 }
 
 /* dialog */
+dialog:not([open]) { display: none; }  /* a browser without <dialog> (older iOS) would show it in the page */
 dialog { width: min(640px, calc(100vw - 32px)); padding: 0; border-radius: var(--radius); border: 1px solid var(--line); background: var(--surface); color: var(--text); }
 dialog::backdrop { background: rgba(0, 0, 0, .6); }
 dialog .card-head { padding: 16px 20px; }
@@ -367,4 +368,68 @@ pre.dump { margin: 0; padding: 16px 20px; overflow: auto; font: 13px/1.6 var(--m
     .trow.metar > :nth-child(3), .trow.brief > :nth-child(2) { grid-area: cat; }
     .trow.metar > :nth-child(4), .trow.brief > :nth-child(3) { grid-area: raw; white-space: normal; }
     .trow.metar > :nth-child(6) { grid-area: btn; }
+}
+
+/* remote (kiosk): a bar with the tabs, and the open tab filling the rest of the screen and scrolling on its own */
+body.kiosk { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
+body.kiosk main.wrap { max-width: none; height: 100vh; height: 100dvh; gap: 0; padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
+.remote { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
+.r-bar { display: flex; align-items: center; gap: 10px; }
+.r-brand { flex: none; }
+/* iPad Safari's own close button sits over the top left corner in fullscreen */
+@media (pointer: coarse) { .remote.fullscreen .r-bar { padding-left: 72px; } }
+.r-tabs { flex: 1 1 auto; min-width: 0; max-width: 560px; display: flex; gap: 4px; padding: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.r-tab { flex: 1 1 0; min-width: 0; min-height: 44px; padding: 0 8px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font: 600 14px var(--sans); cursor: pointer; }
+.r-tab svg { flex: none; }
+.r-tab span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.r-tab:hover { color: var(--text); }
+.r-tab[aria-selected="true"] { background: #2a2210; color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent-line); }
+.r-tab:focus-visible { outline: 2px solid #ffd27d; outline-offset: 2px; }
+.r-host { margin-left: auto; }
+.host.offline::before { background: var(--ifr); }
+.host.offline::after { content: "can't reach the map"; color: #ff8a8a; }
+.remote.offline .r-panel { opacity: .5; }
+.r-full .exit, .r-full[aria-pressed="true"] .enter { display: none; }
+.r-full[aria-pressed="true"] .exit { display: block; }
+.r-panel { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 14px; outline: none; }  /* Chrome focuses a scroller */
+
+/* Visualizer */
+/* the visualizers on top; their legend below, in two columns, scrolling on its own */
+.r-vis.r-panel { overflow: hidden; }
+.r-vis-pick { flex: none; display: flex; flex-direction: column; gap: 14px; }
+.r-legend { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; border-top: 1px solid var(--line); padding-top: 12px; }
+.r-vis-text { flex: 1; min-width: 0; text-align: center; }
+.r-vis .vis-head .name { font-size: 24px; }
+.r-vis .vis-head .desc { font-size: 13px; }
+.r-chips .chip { min-height: 44px; }
+.r-legend .legend { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.r-legend .legend li { padding: 8px 10px; font-size: 13px; }
+
+/* Locator */
+.r-air-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.r-air-head:empty { display: none; }
+.r-search { flex: 1 1 200px; }
+.r-search input { min-height: 44px; }
+.r-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; align-content: start; }
+.r-apt { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--control); background: var(--surface-2); color: var(--text); font: 600 16px var(--mono); cursor: pointer; }
+.r-apt svg { color: var(--muted); flex: none; }
+.r-apt:hover, .r-apt:active { border-color: var(--accent); }
+.r-apt:focus-visible { outline: 2px solid #ffd27d; outline-offset: 2px; }
+.r-apt.virtual { border-style: dashed; }
+.r-grid.paused .r-apt { opacity: .45; }
+.r-apt.locating { animation: r-locate 1s ease-in-out 1; }
+@keyframes r-locate { 50% { background: #fff; color: var(--bg); box-shadow: 0 0 18px rgba(255, 255, 255, .6); } }
+
+/* Config */
+.r-ctl { max-width: 720px; width: 100%; margin: 0 auto; }
+.r-set { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+.r-set p { margin: 0; font-size: 13px; }
+.r-set .big { font-size: 36px; }
+.r-set input[type=range] { height: 44px; }
+
+/* an iPad on its side: bigger names and airport tiles */
+@media (min-width: 1000px) and (min-height: 600px) {
+    .r-vis .vis-head .name { font-size: 28px; }
+    .r-grid { grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); gap: 10px; }
+    .r-apt { min-height: 64px; font-size: 18px; }
 }

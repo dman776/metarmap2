@@ -1,10 +1,20 @@
 % page = get('page', '')
+% kiosk = get('kiosk', False)
 <!DOCTYPE html>
 <html lang="en">
     <head>
         <meta charset="utf-8">
         <title>{{title}} · METARMap</title>
+        % if kiosk:
+        <!-- kiosk: no zooming, under the iPhone's notch, and full screen when added to the Home Screen -->
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+        <meta name="apple-mobile-web-app-title" content="{{title}}">
+        % else:
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        % end
         <meta name="theme-color" content="#0d141c">
         <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
         <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -16,7 +26,8 @@
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
         % end
     </head>
-    <body>
+    <body{{!' class="kiosk"' if kiosk else ''}}>
+        % if not kiosk:
         <header class="topbar">
             <div class="wrap">
                 <a class="brand" href="/">
@@ -47,4 +58,5 @@
                 % end
             </div>
         </header>
+        % end
         <main class="wrap">

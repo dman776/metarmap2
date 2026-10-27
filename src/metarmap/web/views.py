@@ -92,6 +92,11 @@ def visualizer_names(renderer):
     return [v.NAME for v in renderer.visualizers]
 
 
+def visualizer_choices(renderer):
+    """Every visualizer with what the Remote page shows when it's picked, before its legend loads."""
+    return [{"name": v.NAME, "description": v.DESCRIPTION, "exclusive": v.EXCLUSIVE} for v in renderer.visualizers]
+
+
 def rotation(renderer, skip):
     """The visualizers with whether auto-rotate shows each (exclusive ones are never shown)."""
     return [{"name": v.NAME, "exclusive": v.EXCLUSIVE, "shown": v.NAME not in skip} for v in renderer.visualizers]
