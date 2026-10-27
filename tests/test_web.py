@@ -831,8 +831,12 @@ def test_remote_page(client):
     assert status == 200
     assert '<body class="kiosk">' in body and 'class="topbar"' not in body and 'class="foot"' not in body
     assert 'name="apple-mobile-web-app-capable" content="yes"' in body
-    assert [t.split('"')[0] for t in body.split('data-tab="')[1:]] == ["visualizer", "locator", "config"]
+    assert [t.split('"')[0] for t in body.split('data-tab="')[1:]] == ["visualizer", "map", "locator", "config"]
     assert 'id="locator" role="tabpanel" aria-labelledby="tab-locator" hidden' in body
+    # the Map tab: map.js is only loaded when it opens
+    assert 'id="r-map" role="tabpanel" aria-labelledby="tab-map" hidden' in body
+    assert 'data-script="/static/map.js?v=' in body and '<script src="/static/map.js' not in body
+    assert 'id="map-settings"' in body and "leaflet.js" in body
     assert body.count("data-vis=") == len(app.renderer.visualizers)
     assert 'data-vis="0" data-name="Flight Category"' in body
     assert 'id="r-legend"' in body and 'class="legend"' in body

@@ -1,4 +1,5 @@
-%include("header.tpl", title="Remote", page="remote", kiosk=True)
+%include("header.tpl", title="Remote", page="remote", kiosk=True, leaflet=True)
+% import json
 <div class="remote" data-version="{{version}}">
     <header class="r-bar">
         <svg class="r-brand" width="22" height="22" viewBox="0 0 24 24" aria-label="METARMap" role="img"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z" fill="none" stroke="#f5b544" stroke-width="1.8" stroke-linejoin="round"/></svg>
@@ -6,6 +7,10 @@
             <button class="r-tab" type="button" role="tab" id="tab-visualizer" aria-controls="visualizer" aria-selected="true" data-tab="visualizer">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="6" cy="12" r="2.5"/><circle cx="12" cy="6" r="2.5"/><circle cx="18" cy="12" r="2.5"/><circle cx="12" cy="18" r="2.5"/></svg>
                 <span>Visualizer</span>
+            </button>
+            <button class="r-tab" type="button" role="tab" id="tab-map" aria-controls="r-map" aria-selected="false" data-tab="map">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg>
+                <span>Map</span>
             </button>
             <button class="r-tab" type="button" role="tab" id="tab-locator" aria-controls="locator" aria-selected="false" data-tab="locator">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
@@ -47,6 +52,15 @@
         <div class="r-legend" id="r-legend">
             %include("legend.tpl", legend=active['legend'])
         </div>
+    </section>
+
+    <!-- the Map page's map; remote.js loads map.js the first time the tab opens (Leaflet can't lay out a hidden map) -->
+    <section class="r-panel r-map" id="r-map" role="tabpanel" aria-labelledby="tab-map" hidden>
+        <div id="map" class="live-map" role="region" aria-label="Map of airport LEDs" data-script="/static/map.js?v={{assets}}"></div>
+        <div id="legend-source" hidden>
+            %include("legend.tpl", legend=active['legend'])
+        </div>
+        <script id="map-settings" type="application/json">{{!json.dumps(settings).replace('</', '<\\/')}}</script>
     </section>
 
     <section class="r-panel r-air" id="locator" role="tabpanel" aria-labelledby="tab-locator" hidden>

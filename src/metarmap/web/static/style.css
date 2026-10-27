@@ -405,6 +405,10 @@ body.kiosk main.wrap { max-width: none; height: 100vh; height: 100dvh; gap: 0; p
 .r-legend .legend { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .r-legend .legend li { padding: 8px 10px; font-size: 13px; }
 
+/* Map: the live map fills the tab */
+.r-map.r-panel { overflow: hidden; }
+.r-map .live-map { flex: 1; height: auto; min-height: 0; }
+
 /* Locator */
 .r-air-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 .r-air-head:empty { display: none; }

@@ -31,6 +31,21 @@
     const tiles = {};
     document.querySelectorAll('.r-apt').forEach(function (t) { tiles[t.dataset.pixel] = t; });
 
+    // ---- the Map tab: map.js, loaded when the tab first opens, then told the map's size each time it opens -----
+    const mapEl = document.getElementById('map');
+    let mapLoaded = false;
+
+    function openMap() {
+        if (mapLoaded) {
+            window.dispatchEvent(new Event('resize'));  // Leaflet re-measures the map on a window resize
+            return;
+        }
+        mapLoaded = true;
+        const script = document.createElement('script');
+        script.src = mapEl.dataset.script;
+        document.body.appendChild(script);
+    }
+
     // ---- tabs: #locator in the address opens that one (for a kiosk), else the one last used in this browser ------
     const tabs = Array.from(document.querySelectorAll('[data-tab]'));
 
@@ -42,6 +57,7 @@
             t.tabIndex = on ? 0 : -1;
             document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
         });
+        if (tab.dataset.tab === 'map') openMap();
         if (keep) {
             try { window.localStorage.setItem(TAB_KEY, tab.dataset.tab); } catch (e) { /* private window */ }
         }

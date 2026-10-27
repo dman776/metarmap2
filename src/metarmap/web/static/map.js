@@ -15,10 +15,14 @@
     const radarUrl = 'https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0q-900913/{z}/{x}/{y}.png';
     const chartName = settings.chart_label + (settings.chart_type === 'sectional' && settings.chart ? ' · ' + settings.chart : '');
 
-    const radarOverlay = L.tileLayer(radarUrl + '?t=' + Date.now(), {
-        maxZoom: 16, maxNativeZoom: 12, opacity: 0.8,
-        attribution: 'Radar: NWS NEXRAD via <a href="https://mesonet.agron.iastate.edu/">Iowa Environmental Mesonet</a>'
-    });
+    // radar tiles are cached by URL: each scan is a new layer with a new URL
+    let radarAt = Date.now();
+    function radarLayer() {
+        return L.tileLayer(radarUrl + '?t=' + radarAt, {
+            maxZoom: 16, maxNativeZoom: 12, opacity: 0.8, radar: true,
+            attribution: 'Radar: NWS NEXRAD via <a href="https://mesonet.agron.iastate.edu/">Iowa Environmental Mesonet</a>'
+        });
+    }
     const backgrounds = {
         sectional: {
             label: settings.chart_type === 'sectional' ? 'Sectional' : settings.chart_type === 'terminal' ? 'Terminal' : 'IFR Low',
@@ -40,7 +44,7 @@
             layers: [L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 maxZoom: 18, className: 'tiles-dark',
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            }), radarOverlay]
+            }), radarLayer()]
         }
     };
 
@@ -48,9 +52,11 @@
     let radarInfo = null;
     function useBackground(id) {
         if (!backgrounds[id]) id = 'sectional';
-        if (current) backgrounds[current].layers.forEach(function (l) { map.removeLayer(l); });
-        backgrounds[id].layers.forEach(function (l) { l.addTo(map); });
+        // every tile layer, including an old radar scan still waiting for the new one to load
+        map.eachLayer(function (l) { if (l instanceof L.TileLayer) map.removeLayer(l); });
         current = id;
+        if (id === 'radar' && radarStale()) refreshRadar();
+        backgrounds[id].layers.forEach(function (l) { l.addTo(map); });
         try { localStorage.setItem('metarmap.background', id); } catch (e) { /* private mode */ }
         switcher.querySelectorAll('button').forEach(function (b) {
             b.setAttribute('aria-pressed', b.dataset.bg === id ? 'true' : 'false');
@@ -58,11 +64,26 @@
         if (radarInfo) radarInfo.hidden = id !== 'radar';
     }
 
-    // radar tiles are cached by URL; bump it so new scans appear
-    setInterval(function () {
-        radarOverlay.setUrl(radarUrl + '?t=' + Date.now());
-        if (radarInfo) radarInfo.querySelector('time').textContent = clock(new Date());
-    }, RADAR_REFRESH_MS);
+    // new scans while Radar is shown (and at once when it's picked again, or the screen wakes, after a while away).
+    // The new scan goes on top of the old one, which is removed once it has loaded: the radar never blinks out.
+    function radarStale() {
+        return Date.now() - radarAt >= RADAR_REFRESH_MS;
+    }
+    function refreshRadar() {
+        radarAt = Date.now();
+        const layer = backgrounds.radar.layers[1] = radarLayer();
+        if (radarInfo) radarInfo.querySelector('time').textContent = clock(new Date(radarAt));
+        if (current !== 'radar') return;  // useBackground() adds it
+        layer.once('load', function () {
+            map.eachLayer(function (l) { if (l.options.radar && l !== layer) map.removeLayer(l); });
+        });
+        layer.addTo(map);
+    }
+    function checkRadar() {
+        if (current === 'radar' && !document.hidden && radarStale()) refreshRadar();
+    }
+    setInterval(checkRadar, 30 * 1000);
+    document.addEventListener('visibilitychange', checkRadar);
 
     function clock(d) {
         return d.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
@@ -84,7 +105,7 @@
                 L.DomEvent.on(b, 'click', function () { useBackground(id); });
             });
             radarInfo = L.DomUtil.create('div', 'map-note', box);
-            radarInfo.innerHTML = '<b>NEXRAD base reflectivity</b> · <time></time> · updates every 5 min' +
+            radarInfo.innerHTML = '<span><b>NEXRAD base reflectivity</b> · <time></time> · updates every 5 min</span>' +
                 '<span class="dbz"><span>dBZ 5</span><i></i><span>75</span></span>';
             radarInfo.querySelector('time').textContent = clock(new Date());
             radarInfo.hidden = true;
