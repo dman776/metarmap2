@@ -116,12 +116,12 @@ def test_a_virtual_airport_is_marked():
 
 
 def test_dashed_box_fits_between_the_code_the_badge_and_the_first_line():
-    """KWWW is the widest code; the 18 px code at (2, -1) has its letters at 2-64 across and 3-16 down."""
+    """KWWW is the widest code; the 16 px code at (2, -1) has its letters at 2-57 across and 2-13 down."""
     from metarmap.oled.screen import dashed_box
-    font = SimpleNamespace(getbbox=lambda text: (0, 4, 63, 17))
+    font = SimpleNamespace(getbbox=lambda text: (0, 3, 56, 15))  # FreeSans 16 px
     box = dashed_box(SimpleNamespace(x=2, y=-1, font=font), "KWWW")
-    assert box == (0, 1, 66, 17)
-    assert box[2] < 76 and box[3] < 19  # the badge starts at x=76; the first line's letters at y=19
+    assert box == (0, 0, 59, 15)  # at the top of the screen
+    assert box[2] < 76 and box[3] < 18  # the badge starts at x=76; the first line's letters at y=19
 
 
 def test_dashed_rectangle():

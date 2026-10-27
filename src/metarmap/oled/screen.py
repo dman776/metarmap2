@@ -66,8 +66,9 @@ class SSD1306Screen:
 
         def airport(last_icon_x, virtual=False):
             return {
-                # a virtual airport's code is 2 px smaller and moved in, to fit its dashed box (see dashed_box)
-                1: BigLine(2, o + 2, size=18) if virtual else BigLine(0, o, size=20),  # AIRPORT
+                # a virtual airport's code is the category's size and moved in, to fit its dashed box at the top
+                # (rows 0-15; see dashed_box)
+                1: BigLine(2, o + 2, size=16) if virtual else BigLine(0, o, size=20),  # AIRPORT
                 # x=76 leaves room for "MVFR*" (51 px) and still clears the widest K??? code (KWWW, 70 px)
                 2: BigLine(76, o, size=16),  # CAT
                 3: BigLine(20, 19 + o),  # line 1
@@ -110,7 +111,8 @@ class SSD1306Screen:
 def dashed_box(line, text, pad=2):
     """
     The box around `text` drawn on `line` (an oled_text line: x, y, font), `pad` pixels clear of the letters, as
-    (left, top, right, bottom). A virtual airport's 18 px code ends 1 px above the first line's letters.
+    (left, top, right, bottom). A virtual airport's 16 px code puts it in rows 0-15, 3 px above the first line's
+    letters.
     """
     left, top, right, bottom = line.font.getbbox(text)
     return (max(0, line.x + left - pad), max(0, line.y + top - pad),

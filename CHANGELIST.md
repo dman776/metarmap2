@@ -1,4 +1,4 @@
-### dman776 (unreleased)
+### dman776 3.0.0 (2026-10-26)
 
 - Virtual airports: airports with no LED, after the strip's (`led.virtual_count`, set on Config > Airports below the
   number of LEDs). They're fetched and shown like the others on the Map page, in a dashed circle, and in

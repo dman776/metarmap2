@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "metarmap2"
-version = "2.9.3"
+version = "3.0.0"
 description = "Raspberry Pi METAR map: NeoPixel LEDs, an OLED screen and a web UI"
 readme = "README.md"
 license = { file = "LICENSE" }

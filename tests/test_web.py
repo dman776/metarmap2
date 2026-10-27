@@ -593,7 +593,7 @@ def test_header_on_unreleased_commits(make_app):
         assert (f'<a class="build-pill" href="https://github.com/dman776/metarmap2/commit/{SHA}" target="_blank" '
                 'rel="noopener" title="This commit on GitHub">Unreleased: 3 commits after v2.8.4</a>') in body
         assert '<span class="host unreleased">10.0.0.2 · v2.8.4 +3 · 1234567</span>' in body
-    assert "Version 2.9" in c("/")[1] and "(v2.8.4+3, commit 1234567)" in c("/")[1]  # the footer
+    assert f"Version {__version__}" in c("/")[1] and "(v2.8.4+3, commit 1234567)" in c("/")[1]  # the footer
     assert c.json("/api/status", auth=False)["build"]["pill"] == "Unreleased: 3 commits after v2.8.4"
     c.services.display.stop()
 
