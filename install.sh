@@ -6,9 +6,14 @@
 #     cd metarmap2
 #     ./install.sh
 #
-# It installs the system packages, turns on I2C for the OLED screen, creates a Python environment (.venv) with the
-# map's packages, asks for the web UI login and your city, and installs and starts the metarmap service.
-# Running it again is safe: it updates what's there and keeps your settings.
+# It installs the system packages, turns on I2C for the OLED screen, puts the folder on the newest release, creates a
+# Python environment (.venv) with the map's packages, asks for the web UI login and your city, and installs and starts
+# the metarmap service. Running it again is safe: it updates what's there and keeps your settings.
+#
+# The map installed is the newest release (a tag such as v2.9.2), not the newest commit, which may be unfinished. A
+# folder that's already on a release, has changes to the code, or has update.channel set to "latest" is left as it is.
+#
+#     ./install.sh --latest      keep the newest commit instead of switching to a release (for testing)
 #
 set -euo pipefail
 
@@ -26,6 +31,15 @@ note() { printf '    %s\n' "$*"; }
 fail() { printf '\n\033[31mError: %s\033[0m\n' "$*" >&2; exit 1; }
 
 interactive() { [ -t 0 ] || [ "${METARMAP_INTERACTIVE:-}" = 1 ]; }
+
+LATEST=false
+for arg in "$@"; do
+    case "$arg" in
+        --latest) LATEST=true ;;
+        -h|--help) sed -n '3,16p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        *) fail "unknown option: $arg (see ./install.sh --help)" ;;
+    esac
+done
 
 # ask "question" default -> the answer, or the default if left empty
 ask() {
@@ -55,6 +69,18 @@ else:
     print(value)
 EOF
     )
+}
+
+# puts the folder on the newest release and prints what it did; exits 10 if the code changed, 1 if it couldn't
+newest_release() {
+    PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$REPO/src" python3 - "$REPO" <<'EOF'
+import sys
+from metarmap.lib import utils
+
+ok, message, changed = utils.install_newest_release(sys.argv[1])
+print(message)
+sys.exit((10 if changed else 0) if ok else 1)
+EOF
 }
 
 known_city() {
@@ -91,6 +117,24 @@ say "Installing system packages"
 if $on_pi && command -v raspi-config >/dev/null; then
     say "Turning on I2C (for the OLED screen)"
     "${SUDO[@]}" raspi-config nonint do_i2c 0
+fi
+
+# ---- release --------------------------------------------------------------------------------------------------
+
+if [ "$LATEST" = true ]; then
+    say "Keeping the newest commit (--latest)"
+elif [ -z "${METARMAP_INSTALL_AGAIN:-}" ]; then
+    say "Checking for the newest release"
+    status=0
+    output="$(newest_release 2>&1)" || status=$?
+    note "$(printf '%s\n' "$output" | tail -n 1)"
+    if [ "$status" -eq 10 ]; then
+        # the release has its own installer, matching its code: carry on with that one
+        note "Carrying on with that release's installer"
+        METARMAP_INSTALL_AGAIN=1 exec "$REPO/install.sh" "$@"
+    elif [ "$status" -ne 0 ]; then
+        note "Couldn't switch to a release, so this installs what's here. The web UI's Update can switch it later."
+    fi
 fi
 
 # ---- Python environment ---------------------------------------------------------------------------------------

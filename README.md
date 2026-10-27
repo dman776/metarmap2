@@ -69,8 +69,10 @@ The original project's write-ups cover the build in detail:
    - a user name and password for the web UI's settings pages
    - your city, for the sunrise and sunset times (a larger city nearby works too)
 
-   It then starts the map and prints its web address. Installing takes a few minutes, longer on a Pi Zero. Running
-   `./install.sh` again is safe; it keeps your settings.
+   It installs the newest **release** (a tagged version), not the newest commit, which may be unfinished, then
+   starts the map and prints its web address. Installing takes a few minutes, longer on a Pi Zero. Running
+   `./install.sh` again is safe; it keeps your settings, and leaves a folder that's already on a release (one you
+   picked yourself) where it is. To install the newest commit instead, for testing, use `./install.sh --latest`.
 5. Open the web address, go to **Config > Airports**, and set up your airports (next section).
 
 ## Setting up your airports

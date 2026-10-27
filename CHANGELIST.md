@@ -1,5 +1,10 @@
 ### dman776 Unreleased
 
+- `install.sh` installs the newest release (a tag such as `v2.9.2`) instead of the newest commit of the branch that
+  was cloned, then carries on with that release's own installer. A folder that's already on a release (picked over
+  SSH or on the web UI), has changes to the code, or has `update.channel` set to `latest` is left as it is, and
+  `./install.sh --latest` keeps the newest commit, for testing. If GitHub can't be reached or has no releases yet, it
+  installs what's there and says so
 - The header shows when the map isn't running a release: the dot by the version turns amber, the version reads
   `v2.9.2 +3 · 5c3e5a5` (commits after the last release, and the commit; `*` for code changed on the map), and an
   amber pill ("Unreleased: 3 commits after v2.9.2") links to the commit on GitHub. It also catches a version bump

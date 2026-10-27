@@ -156,7 +156,8 @@ def test_auto_rotate_changes_without_a_restart(client):
 
 def test_brightness_levels_apply_without_a_restart(client, monkeypatch):
     app = client.services
-    monkeypatch.setattr(app.renderer, "scheduled_level", lambda: "normal")  # daytime
+    monkeypatch.setattr(app.renderer, "scheduled_level", lambda: "normal")  # daytime, whatever time the test runs
+    monkeypatch.setattr(app.renderer, "brightness_for", lambda now: app.config.data.led.brightness.normal)
     assert client("/config/edit/led.brightness.normal/0.3")[0] == 200
     assert app.renderer.pixels().brightness == 0.3  # the level in use: right away
     assert client("/config/edit/led.brightness.off/0.02")[0] == 200

@@ -231,6 +231,99 @@ def test_unknown_channel(repos):
     assert not result.ok and result.errors == ["Unknown update channel 'nightly'"]
 
 
+# ---- install.sh: a fresh clone goes to the newest release --------------------------------------------------------
+
+def test_a_fresh_clone_goes_to_the_newest_release(repos):
+    release(repos, "v1.1.0", code="1.1")
+    commit(repos, "unfinished work")
+    git(repos.pi, "pull")  # what `git clone` gives: the newest commit of the branch
+    assert code(repos) == "VERSION = 'unfinished work'\n"
+
+    ok, message, changed = utils.install_newest_release(str(repos.pi))
+
+    assert (ok, message, changed) == (True, "Installed v1.1.0", True)
+    assert code(repos) == "VERSION = '1.1'\n"
+    assert subprocess.run(["git", "describe", "--tags", "--exact-match"], cwd=repos.pi, capture_output=True,
+                          text=True).stdout.strip() == "v1.1.0"
+
+
+def test_a_clone_that_is_already_at_the_newest_release(repos):
+    ok, message, changed = utils.install_newest_release(str(repos.pi))  # the clone is at v1.0.0's commit
+    assert ok and not changed and message == "Already on v1.0.0"
+
+
+def test_a_release_picked_by_hand_stays(repos):
+    """`git checkout v1.0.0` over SSH, or an older release picked on the web UI, isn't undone by install.sh."""
+    release(repos, "v1.1.0", code="1.1")
+    git(repos.pi, "fetch", "--tags")
+    git(repos.pi, "checkout", "v1.0.0")
+    assert utils.install_newest_release(str(repos.pi)) == (True, "Already on release v1.0.0", False)
+    assert code(repos) == "VERSION = 1\n"
+
+
+def test_a_map_on_the_latest_channel_stays_on_the_newest_commit(repos):
+    release(repos, "v1.1.0", code="1.1")
+    commit(repos, "unfinished work")
+    git(repos.pi, "pull")
+    (repos.pi / "config.json").write_text(json.dumps({"update": {"channel": "latest"}}))
+    ok, message, changed = utils.install_newest_release(str(repos.pi))
+    assert (ok, changed) == (True, False) and "Latest commit" in message
+    assert code(repos) == "VERSION = 'unfinished work'\n"
+
+
+def test_changes_to_the_code_are_not_thrown_away(repos):
+    release(repos, "v1.1.0", code="1.1")
+    git(repos.pi, "pull")
+    git(repos.pi, "fetch", "--tags")
+    commit(repos, "unfinished work")
+    git(repos.pi, "pull")
+    (repos.pi / "code.py").write_text("my own edit")
+    ok, message, changed = utils.install_newest_release(str(repos.pi))
+    assert (ok, changed) == (True, False) and "changes to the code" in message
+    assert code(repos) == "my own edit"
+
+
+def test_a_changed_config_doesnt_stop_it_and_is_kept(repos):
+    release(repos, "v1.1.0", code="1.1")
+    commit(repos, "unfinished work")
+    git(repos.pi, "pull")
+    (repos.pi / "config.json").write_text(json.dumps({"from": "user"}))
+    assert utils.install_newest_release(str(repos.pi)) == (True, "Installed v1.1.0", True)
+    assert json.loads((repos.pi / "config.json").read_text()) == {"from": "user"}
+
+
+def test_no_releases_yet_is_not_ok(tmp_path):
+    origin, pi = tmp_path / "origin.git", tmp_path / "map"
+    git(tmp_path, "init", "--bare", "-b", "main", str(origin))
+    git(tmp_path, "clone", str(origin), str(pi))
+    (pi / "code.py").write_text("x")
+    git(pi, "add", "-A")
+    git(pi, "commit", "-m", "first")
+    git(pi, "push", "-u", "origin", "main")
+    assert utils.install_newest_release(str(pi)) == (False, "There are no releases on GitHub yet", False)
+
+
+def test_a_folder_that_is_not_a_git_clone_is_not_ok(tmp_path):
+    ok, message, changed = utils.install_newest_release(str(tmp_path))
+    assert not ok and not changed and message
+
+
+def test_github_cant_be_reached_is_not_ok(repos):
+    git(repos.pi, "remote", "set-url", "origin", str(repos.origin) + "-missing")
+    ok, message, changed = utils.install_newest_release(str(repos.pi))
+    assert not ok and not changed and message
+
+
+def test_install_sh_is_valid_bash():
+    from pathlib import Path
+    script = Path(__file__).parent.parent / "install.sh"
+    assert subprocess.run(["bash", "-n", str(script)]).returncode == 0
+    helped = subprocess.run(["bash", str(script), "--help"], capture_output=True, text=True)
+    assert helped.returncode == 0 and "--latest" in helped.stdout
+    bad = subprocess.run(["bash", str(script), "--nope"], capture_output=True, text=True)
+    assert bad.returncode == 1 and "unknown option" in bad.stderr
+
+
 # ---- versions ---------------------------------------------------------------------------------------------------
 
 @pytest.mark.parametrize("text, version", [("v2.8.4", (2, 8, 4)), ("2.8.4", (2, 8, 4)), ("v10.0.12", (10, 0, 12)),

@@ -1,4 +1,5 @@
 from datetime import datetime
+import json
 import os
 import sys
 import subprocess
@@ -313,6 +314,41 @@ def run_update(repo=None, progress=None, channel="releases", version=None, curre
     say("update complete" if ok else "update FAILED; see the messages above")
     step(1.0, "Done" if ok else "Failed")
     return result
+
+
+def install_newest_release(repo):
+    """
+    For install.sh: puts a fresh clone on the newest release (a tag such as v2.9.2) instead of the newest commit of
+    the branch it was cloned from. Returns (ok, message, changed): changed is whether the code on disk changed.
+
+    It leaves the folder as it is (ok, with the reason in the message) if it's already on a release (one picked by
+    hand, over SSH or on the web UI, stays), if update.channel in config.json is "latest" (a map for testing), or if
+    the code has changes (config.json and airports.json aside). Not ok: GitHub couldn't be reached, or has no releases.
+    """
+    from metarmap.lib import versions
+
+    try:
+        with open(os.path.join(repo, "config.json")) as f:
+            channel = json.load(f).get("update", {}).get("channel")
+    except (OSError, ValueError, AttributeError):
+        channel = None
+    if channel == "latest":
+        return True, "Update channel is Latest commit: staying on the newest commit", False
+
+    try:
+        at_head = versions.releases(run_git(repo, "tag", "--points-at", "HEAD").stdout.split())
+        edited = run_git(repo, "diff", "--quiet", "HEAD", "--", ".", *(f":!{name}" for name in CONFIG_FILES))
+    except (OSError, subprocess.SubprocessError) as e:
+        return False, str(e), False
+    if at_head:
+        return True, f"Already on release {at_head[0]}", False
+    if edited.returncode == 1:
+        return True, "This folder has changes to the code, so it's left as it is", False
+
+    result = run_update(repo, channel="releases", current="0")  # "0": older than any release, so the newest installs
+    if not result.ok:
+        return False, (result.errors or ["the update failed"])[0], False
+    return True, result.message, result.changed
 
 
 def update(repo=None, **kwargs):
