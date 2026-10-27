@@ -4,7 +4,7 @@ import re
 import threading
 
 from metarmap.lib.safe_logging import safe_log
-from metarmap.settings import UPDATE_CHANNELS, Airport, Settings, parse_value
+from metarmap.settings import BRANCH_NAME, UPDATE_CHANNELS, Airport, Settings, parse_value
 
 MAX_LEDS = 1000
 ICAO = re.compile(r"^[A-Z0-9]{3,4}$")
@@ -75,8 +75,16 @@ class Config(object):
             return self.set_led_count(value)
         if key == "led.virtual_count":
             return self.set_virtual_count(value)
-        if key == "update.channel" and str(value).strip("\"'") not in UPDATE_CHANNELS:
-            raise ValueError(f"update.channel: {value!r} is not one of {', '.join(UPDATE_CHANNELS)}")
+        if key == "dev_mode":
+            raise ValueError("dev_mode is only changed by editing config.json")
+        if key == "update.channel":
+            channel = str(value).strip("\"'")
+            if channel not in UPDATE_CHANNELS:
+                raise ValueError(f"update.channel: {value!r} is not one of {', '.join(UPDATE_CHANNELS)}")
+            if channel == "branch" and not self._data.dev_mode:
+                raise ValueError("update.channel: branch needs dev_mode in config.json")
+        if key == "update.branch" and not BRANCH_NAME.match(str(value)):
+            raise ValueError(f"update.branch: {value!r} isn't a branch name")
         self._data.set(key, value)
         self.write()
 

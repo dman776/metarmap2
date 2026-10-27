@@ -437,11 +437,12 @@ SHA = "1234567" + "0" * 33
 
 
 def fake_git(tags=("v2.8.4", "v2.8.5", "v2.7.0", "v2.9.0-rc1"), newest="abcdef1234", described="v2.8.4-0-g1234567",
-             modified=False):
+             modified=False, branches=None):
     """
-    git for a ReleaseCheck: GitHub has these tags; this copy is on commit 1234567, `described` by git describe
-    (on the v2.8.4 release by default), from github.com/dman776/metarmap2.
+    git for a ReleaseCheck: GitHub has these tags (and branches: {name: newest commit}); this copy is on commit
+    1234567, `described` by git describe (on the v2.8.4 release by default), from github.com/dman776/metarmap2.
     """
+    branches = branches or {"master": newest, "feature/radar": "fedcba9876"}
     def run(*args):
         if args[0] == "describe":
             return subprocess.CompletedProcess(args, 0, described + "\n", "")
@@ -453,6 +454,8 @@ def fake_git(tags=("v2.8.4", "v2.8.5", "v2.7.0", "v2.9.0-rc1"), newest="abcdef12
             return subprocess.CompletedProcess(args, 0, SHA + "\n", "")
         if args[:2] == ("ls-remote", "--tags"):
             out = "".join(f"{n:040d}\trefs/tags/{tag}\n" for n, tag in enumerate(tags))
+        elif args[:2] == ("ls-remote", "--heads"):
+            out = "".join(f"{sha}\trefs/heads/{name}\n" for name, sha in branches.items())
         elif args[:2] == ("ls-remote", "origin"):
             out = f"{newest}\tHEAD\n"
         elif args[0] == "rev-parse":
@@ -516,7 +519,7 @@ def test_install_a_picked_release(release_client):
     c = release_client
     assert c.json("/update/start", method="POST", body={"version": "v2.7.0"})["target"] == "v2.7.0"
     job = wait_for_update(c)
-    assert job["ok"] and c.started == [{"channel": "releases", "version": "v2.7.0"}]
+    assert job["ok"] and c.started == [{"channel": "releases", "version": "v2.7.0", "branch": ""}]
     assert c.services.releases.installed == "v2.7.0"
     assert "Restart to use v2.7.0" in c("/")[1]
 
@@ -529,7 +532,7 @@ def test_update_follows_the_channel(release_client):
     assert "New commit available" in c("/")[1] and ">\n            Update\n" in c("/")[1]  # no version to name
     c.json("/update/start", method="POST")
     wait_for_update(c)
-    assert c.started == [{"channel": "latest", "version": None}]
+    assert c.started == [{"channel": "latest", "version": None, "branch": ""}]
     assert c.services.releases.badge() == "Restart to use v2.8.5"  # installed: it runs after a restart
 
 
@@ -553,12 +556,107 @@ def test_update_start_without_a_content_length(release_client):
         return int(status[0].split()[0])
     assert post_without_length("/update/start") == 202
     wait_for_update(c)
-    assert c.started == [{"channel": "releases", "version": None}]
+    assert c.started == [{"channel": "releases", "version": None, "branch": ""}]
 
 
 def test_unknown_update_channel_is_a_400(release_client):
     assert release_client("/config/edit/update.channel/nightly")[0] == 400
     assert release_client.services.config.data.update.channel == "releases"
+
+
+# ---- dev_mode: updating from a branch --------------------------------------------------------------------------
+
+@pytest.fixture
+def dev_client(make_app):
+    """A map with dev_mode on, set in config.json by hand."""
+    from metarmap.releases import ReleaseCheck
+    app = make_app()
+    app.config.data.dev_mode = True
+    data = lambda: app.config.data  # noqa: E731 (saving replaces it)
+    app.releases = ReleaseCheck(channel=lambda: data().update_channel(), branch=lambda: data().update.branch,
+                                dev_mode=lambda: data().dev_mode, current="2.8.4", git=fake_git())
+    app.releases.load_build()
+    started = []
+
+    def run_update(progress, **kwargs):
+        started.append(kwargs)
+        return SimpleNamespace(ok=True, changed=True, target="fedcba9", message="Installed", errors=[])
+    c = Client(create_app(app, ip="10.0.0.2", updates=control.Updates(run_update)))
+    c.services, c.started = app, started
+    yield c
+    app.display.stop()
+
+
+def test_no_branch_choice_without_dev_mode(release_client):
+    c = release_client
+    c.services.releases.check()
+    body = c("/config")[1]
+    assert '<option value="branch"' not in body and 'id="update-branch"' not in body
+    assert c("/config/edit/update.channel/branch")[0] == 400
+    assert c("/config/edit/dev_mode/true")[0] == 400  # config.json only
+    assert c.services.config.data.dev_mode is False
+
+
+def test_dev_mode_lists_the_branches(dev_client):
+    c = dev_client
+    c.services.releases.check()
+    body = c("/config")[1]
+    assert '<option value="branch">Branch</option>' in body
+    assert 'id="update-branch-row" hidden' in body  # until Branch is picked
+    assert '<option value="" selected disabled>Pick a branch</option>' in body
+    assert '<option value="feature/radar">feature/radar</option>' in body
+    assert c.json("/api/status", auth=False)["update"]["branches"] == ["feature/radar", "master"]
+
+
+def test_update_from_a_branch(dev_client):
+    c = dev_client
+    assert c("/config/edit/update.channel/branch")[0] == 200
+    assert c("/config/edit/update.branch/feature/radar")[0] == 200  # a / in the name (the server decodes %2F)
+    assert c.services.config.data.update.branch == "feature/radar"
+    state = c.services.releases.check()
+    assert state["available"] == "fedcba9" and state["badge"] == "New commit on feature/radar"
+    body = c("/config")[1]
+    assert 'id="update-branch-row">' in body and '<option value="feature/radar" selected>feature/radar</option>' in body
+    assert "A newer commit is on feature/radar (fedcba9)." in body
+    c.json("/update/start", method="POST")
+    wait_for_update(c)
+    assert c.started == [{"channel": "branch", "version": None, "branch": "feature/radar"}]
+
+
+def test_a_branch_gone_from_github_is_still_shown(dev_client):
+    c = dev_client
+    c("/config/edit/update.channel/branch")
+    c("/config/edit/update.branch/old-work")
+    c.services.releases.check()
+    body = c("/config")[1]
+    assert '<option value="old-work" selected>old-work (not on GitHub)</option>' in body
+    assert "There's no branch old-work on GitHub." in body
+    assert c.services.releases.state()["available"] is None
+
+
+@pytest.mark.parametrize("name", ["-x", "a..b", "has space"])
+def test_bad_branch_names_are_400s(dev_client, name):
+    assert dev_client("/config/edit/update.branch/" + name.replace(" ", "%20"))[0] == 400
+
+
+def test_dev_mode_off_acts_as_releases(dev_client):
+    c = dev_client
+    c("/config/edit/update.channel/branch")
+    c("/config/edit/update.branch/feature/radar")
+    c.services.config.data.dev_mode = False  # turned off by hand
+    state = c.services.releases.check()
+    assert state["available"] == "v2.8.5", state
+    assert '<option value="releases" selected>Releases</option>' in c("/config")[1]
+    c.json("/update/start", method="POST")
+    wait_for_update(c)
+    assert c.started[0]["channel"] == "releases"
+    assert c.services.config.data.update.channel == "branch"  # kept for when dev_mode is back on
+
+
+def test_software_is_first_in_the_side_column(release_client):
+    body = release_client("/config")[1]
+    side = body.split('<div class="side">', 1)[1]
+    assert side.index('id="updates"') < side.index('id="access"')
 
 
 def test_check_now_and_status(release_client):

@@ -29,6 +29,7 @@ class Updates:
         self._lock = threading.Lock()
         self.job = None
         self.channel = lambda: "releases"  # the update channel now (the web app sets it from the config)
+        self.branch = lambda: ""  # the branch the branch channel follows
         self.on_done = None  # called with the UpdateResult of an update that worked
 
     def start(self, version=None):
@@ -47,7 +48,8 @@ class Updates:
 
                 def run():
                     try:
-                        result = self._run_update(progress=progress, channel=self.channel(), version=version)
+                        result = self._run_update(progress=progress, channel=self.channel(), version=version,
+                                                  branch=self.branch())
                         job.update(ok=result.ok, changed=result.changed, target=result.target,
                                    message=result.message, errors=result.errors)
                         if result.ok and self.on_done:
@@ -75,7 +77,8 @@ def add_routes(app, services, site, auth, updates=None):
     renderer, config = services.renderer, services.config
     releases = getattr(services, "releases", None)
     updates = updates or Updates()
-    updates.channel = lambda: config.data.update.channel
+    updates.channel = lambda: config.data.update_channel()
+    updates.branch = lambda: config.data.update.branch
 
     def installed(result):
         """After an update: the header says to restart, and the check sees what's newest now."""
@@ -137,7 +140,7 @@ def add_routes(app, services, site, auth, updates=None):
             renderer.adjust_brightness_for_time()  # the level in use now changes now; the others at their time
         if key == "led.inittest" and config.data.led.inittest:  # shows what it looks like, without a restart
             threading.Thread(target=renderer.test_pattern, name="test-pattern", daemon=True).start()
-        if key == "update.channel" and releases is not None:  # "Update available" follows the new channel
+        if key in ("update.channel", "update.branch") and releases is not None:  # "Update available" follows it
             releases.check_soon()
         if key == "display_screen.enabled":  # the OLED turns on or off now, no restart needed
             services.display.turn_on() if config.data.display_screen.enabled else services.display.turn_off()
@@ -254,7 +257,7 @@ def add_routes(app, services, site, auth, updates=None):
 
     def update_now():
         """The older GET /update (Home Assistant's button): updates and answers with the log."""
-        result = utils.run_update(channel=config.data.update.channel)
+        result = utils.run_update(channel=config.data.update_channel(), branch=config.data.update.branch)
         if result.ok:
             installed(result)
         return "".join(line + "<br />" for line in result.log)
@@ -277,7 +280,7 @@ def add_routes(app, services, site, auth, updates=None):
     app.route("/display/<state>", "GET", display_power)
     app.route("/locate/<pixnum>", "GET", locate)
     app.route("/fetch", "GET", fetch)
-    app.route("/config/edit/<key>/<value>", "GET", edit_config, apply=auth)
+    app.route("/config/edit/<key>/<value:path>", "GET", edit_config, apply=auth)  # a branch name can have a /
     app.route("/config/airports/<pixel:int>/<key>/<value>", "GET", set_airport, apply=auth)
     app.route("/config/airports/move/<src:int>/<dst:int>", "GET", move_airport, apply=auth)
     # the older by-code edits, still used by anything written for airports.json

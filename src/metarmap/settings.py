@@ -7,6 +7,7 @@ so older or hand-edited files keep working and round-trip on save.
 import dataclasses
 import json
 import os
+import re
 import typing
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
@@ -115,13 +116,18 @@ class Lightning(_Section):
     animation: bool = True
 
 
-UPDATE_CHANNELS = ("releases", "latest")
+UPDATE_CHANNELS = ("releases", "latest", "branch")
+
+# a git branch name Update may check out: no leading "-" (git would read it as an option), no "..", no spaces
+BRANCH_NAME = re.compile(r"^(?!-)(?!.*\.\.)[A-Za-z0-9._/-]+$")
 
 
 @dataclass
 class UpdateSettings(_Section):
-    # releases: Update installs the newest release tag; latest: the newest commit, released or not (for testing)
+    # releases: Update installs the newest release tag; latest: the newest commit, released or not (for testing);
+    # branch: the newest commit of `branch` on GitHub, only with dev_mode (otherwise it's taken as releases)
     channel: str = "releases"
+    branch: str = ""
 
 
 @dataclass
@@ -142,6 +148,9 @@ class Settings(_Section):
     visualizer: VisualizerSettings = field(default_factory=VisualizerSettings)
     lightning: Lightning = field(default_factory=Lightning)
     update: UpdateSettings = field(default_factory=UpdateSettings)
+    # for developing the map: Config > Software can update from any branch on GitHub. Edited in config.json by
+    # hand only; the web UI can't change it
+    dev_mode: bool = False
     # in LED order: airports[0] is the first LED; the led.virtual_count virtual airports come after the strip's
     airports: List[Airport] = field(default_factory=list)
 
@@ -179,6 +188,11 @@ class Settings(_Section):
         os.replace(tmp, path)
 
     # ---- editing -------------------------------------------------------------------------------------------------
+
+    def update_channel(self) -> str:
+        """The update channel in use: update.channel, except that branch is releases without dev_mode."""
+        channel = self.update.channel
+        return "releases" if channel == "branch" and not self.dev_mode else channel
 
     def set(self, key: str, value: Any) -> Any:
         """

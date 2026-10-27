@@ -226,6 +226,71 @@ def test_latest_after_a_release_was_installed(repos):
     assert branch.stdout.strip() == "main"
 
 
+# ---- the branch channel (dev_mode) -------------------------------------------------------------------------------
+
+def push_branch(repos, name, code):
+    git(repos.dev, "checkout", "-B", name)
+    commit_on(repos, code)
+    git(repos.dev, "push", "-u", "origin", name)
+    git(repos.dev, "checkout", "main")
+
+
+def commit_on(repos, code):
+    (repos.dev / "code.py").write_text(f"VERSION = {code!r}\n")
+    git(repos.dev, "commit", "-am", "branch work")
+
+
+def current_branch(repo):
+    return subprocess.run(["git", "branch", "--show-current"], cwd=repo, capture_output=True, text=True).stdout.strip()
+
+
+def test_branch_installs_its_newest_commit(repos):
+    (repos.pi / "config.json").write_text(json.dumps({"from": "user"}))
+    push_branch(repos, "feature/radar", "radar")
+    result = utils.run_update(str(repos.pi), channel="branch", branch="feature/radar")
+    assert result.ok and result.changed and code(repos) == "VERSION = 'radar'\n"
+    assert current_branch(repos.pi) == "feature/radar"
+    assert result.message == f"Installed the newest commit of feature/radar ({head(repos.pi)[:7]})"
+    assert json.loads((repos.pi / "config.json").read_text()) == {"from": "user"}
+    assert utils.run_update(str(repos.pi), channel="branch", branch="feature/radar").message == \
+        f"Already on the newest commit of feature/radar ({head(repos.pi)[:7]})"
+
+
+def test_branch_follows_a_force_push(repos):
+    push_branch(repos, "work", "first try")
+    utils.run_update(str(repos.pi), channel="branch", branch="work")
+    git(repos.dev, "checkout", "work")
+    git(repos.dev, "reset", "--hard", "HEAD~1")
+    commit_on(repos, "second try")
+    git(repos.dev, "push", "--force", "origin", "work")
+    assert utils.run_update(str(repos.pi), channel="branch", branch="work").ok
+    assert code(repos) == "VERSION = 'second try'\n"
+
+
+@pytest.mark.parametrize("branch, error", [("", "Pick a branch to update from"),
+                                           ("nope", "There's no branch nope on GitHub"),
+                                           ("-x", "'-x' isn't a branch name")])
+def test_branch_errors(repos, branch, error):
+    before = head(repos.pi)
+    result = utils.run_update(str(repos.pi), channel="branch", branch=branch)
+    assert not result.ok and result.errors == [error] and head(repos.pi) == before
+
+
+def test_check_branch_channel(repos):
+    push_branch(repos, "work", "branch work")
+    state = ReleaseCheck(str(repos.pi), channel=lambda: "branch", branch=lambda: "work", dev_mode=lambda: True,
+                         current="1.0.0", clock=lambda: 0).check()
+    assert state["branches"] == ["main", "work"] and state["badge"] == "New commit on work"
+    utils.run_update(str(repos.pi), channel="branch", branch="work")
+    state = ReleaseCheck(str(repos.pi), channel=lambda: "branch", branch=lambda: "work", dev_mode=lambda: True,
+                         current="1.0.0", clock=lambda: 0).check()
+    assert state["available"] is None
+
+
+def test_check_lists_no_branches_without_dev_mode(repos):
+    assert check(repos)["branches"] == []
+
+
 def test_unknown_channel(repos):
     result = utils.run_update(str(repos.pi), channel="nightly")
     assert not result.ok and result.errors == ["Unknown update channel 'nightly'"]
@@ -269,6 +334,17 @@ def test_a_map_on_the_latest_channel_stays_on_the_newest_commit(repos):
     ok, message, changed = utils.install_newest_release(str(repos.pi))
     assert (ok, changed) == (True, False) and "Latest commit" in message
     assert code(repos) == "VERSION = 'unfinished work'\n"
+
+
+@pytest.mark.parametrize("dev_mode, stays", [(True, True), (False, False)])
+def test_install_leaves_a_branch_map_alone_in_dev_mode(repos, dev_mode, stays):
+    release(repos, "v1.1.0", code="1.1")
+    commit(repos, "unfinished work")
+    git(repos.pi, "pull")
+    (repos.pi / "config.json").write_text(json.dumps({"update": {"channel": "branch"}, "dev_mode": dev_mode}))
+    ok, message, changed = utils.install_newest_release(str(repos.pi))
+    assert ok and changed is not stays
+    assert code(repos) == ("VERSION = 'unfinished work'\n" if stays else "VERSION = '1.1'\n")
 
 
 def test_changes_to_the_code_are_not_thrown_away(repos):

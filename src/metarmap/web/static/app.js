@@ -108,18 +108,18 @@
 
     // ---- update: a progress bar instead of git's output ----------------------------------------------------------
 
-    // version: a release picked on Config (older ones too); none: what the update channel says
+    // version: a release picked on Config (older ones too); none: what the update channel says.
+    // New code that installed restarts the map at once, so it's running.
+    const UPDATE_RESTART_MS = 1500;  // long enough to read what was installed
     async function runUpdate(btn, version) {
         const dlg = document.getElementById('update-dialog');
         if (!dlg) return;
         const label = dlg.querySelector('.update-label');
         const bar = dlg.querySelector('.update-bar');
         const errors = dlg.querySelector('.update-errors');
-        const restart = dlg.querySelector('.update-restart');
         label.textContent = 'Starting';
         bar.value = 0;
         errors.hidden = true;
-        restart.hidden = true;
         dlg.showModal();
         busy(btn, true);
         try {
@@ -140,9 +140,11 @@
             bar.value = 1;
             if (job.ok) {
                 label.textContent = job.changed
-                    ? (job.message || 'Update installed') + '. Restart the map to start using it.'
+                    ? (job.message || 'Update installed') + '. Restarting the map…'
                     : (job.message || 'Already up to date') + '.';
-                restart.hidden = !job.changed;
+                if (job.changed) {
+                    setTimeout(function () { restartMap('/restart'); }, UPDATE_RESTART_MS);
+                }
             } else {
                 label.textContent = 'Update failed.';
                 errors.textContent = (job.errors || []).join('\n');
@@ -245,6 +247,13 @@
             }
         });
     });
+
+    // Config > Software (dev_mode): the branch list only for the Branch channel
+    const channel = document.getElementById('update-channel');
+    const branchRow = document.getElementById('update-branch-row');
+    if (channel && branchRow) {
+        channel.addEventListener('change', function () { branchRow.hidden = channel.value !== 'branch'; });
+    }
 
     // Config > Visualizer: the unticked visualizers are saved as a list of names (visualizer.auto_rotate.skip)
     const rotateBoxes = document.querySelectorAll('[data-rotate]');

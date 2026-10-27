@@ -79,6 +79,9 @@ Returns a read-only snapshot of the map's state as `application/json`. No authen
   "update": {
     "current": "2.8.4",
     "channel": "releases",
+    "dev_mode": false,
+    "branch": "",
+    "branches": [],
     "commit": "41cd311",
     "available": "v2.9.0",
     "installed": null,
@@ -118,7 +121,7 @@ Returns a read-only snapshot of the map's state as `application/json`. No authen
 | `ip` | IP address of the map |
 | `brightness` | Current LED brightness, `0.0`–`1.0` |
 | `build` | What's running, read when the map started: `tag` is the release it's at or after (`null` if none), `ahead` how many commits after it, `commit` and `sha` the commit, `modified` whether the code was changed on the map itself (`config.json` and `airports.json` don't count). `release` is true on a release exactly; otherwise `pill` says why not ("Unreleased: 3 commits after v2.9.2", "Not tagged: v2.9.3" when `untagged`, "Pre-release: v2.9.0-rc1", "Modified: local changes to v2.9.2", "Unreleased: no release tag"). `chip` is the header's version text and `url` the commit on GitHub (`null` if the map isn't from GitHub). `null` outside a git checkout. |
-| `update` | What's newest on GitHub: `current` is the running version, `commit` the running commit, `available` the release (or, on the `latest` channel, the commit) an update would install, or `null` when up to date; `installed` is what an update installed that needs a restart; `releases` lists the releases that can be installed, newest first; `checked` is when GitHub was last asked, and `error` why that failed. `null` if the map doesn't check. |
+| `update` | What's newest on GitHub: `current` is the running version, `commit` the running commit, `channel` is the channel in use (`branch` counts as `releases` without `dev_mode`), `available` the release (or, on the `latest` and `branch` channels, the commit) an update would install, or `null` when up to date; `installed` is what an update installed that needs a restart; `releases` lists the releases that can be installed, newest first; with `dev_mode`, `branches` lists GitHub's branches and `branch` is the one the `branch` channel follows; `checked` is when GitHub was last asked, and `error` why that failed. `null` if the map doesn't check. |
 | `visualizer` | The visualizer that is running now. `exclusive` visualizers ignore `/locate`. |
 | `visualizer.legend` | What the LEDs mean for that visualizer. `colors` are CSS hex colors; two or more mean a gradient across the range. `effect` is `solid`, `blink`, `pulse`, `flash` (the first color with flashes of the second), `chase` or `off`. `period` is the seconds per blink or pulse, or `null`. |
 | `visualizers` | Every visualizer, in index order (the indexes used by `/visualizer/<n>`) |
@@ -252,7 +255,10 @@ Settings that apply right away:
 - `lightning.animation`
 - `display_screen.locate_active`
 - `display_screen.delay`
-- `update.channel`: what **Update** installs: `releases` (the newest release tag, never an older one; the default) or `latest` (the newest commit on GitHub, released or not, for testing)
+- `update.channel`: what **Update** installs: `releases` (the newest release tag, never an older one; the default), `latest` (the newest commit on GitHub, released or not, for testing) or, only with `dev_mode`, `branch` (the newest commit of `update.branch`, even after a force push)
+- `update.branch`: the branch on GitHub the `branch` channel follows, e.g. `/config/edit/update.branch/feature/radar`. A name starting with `-`, with `..` or with spaces is a 400
+
+`dev_mode` (top level, `false` by default) can only be changed by editing `config.json` by hand: `/config/edit/dev_mode/…` is a 400. With it on, Config > Software offers **Branch** under *Update to*, with a list of GitHub's branches (refreshed by each check: push a branch, then **Check now**). Turning it off makes a `branch` channel act as `releases`; the saved channel and branch stay.
 - `led.brightness.normal`, `led.brightness.dimmed`, `led.brightness.off`: the level in use now changes right away; the others take over at their sun time
 - `led.inittest`: turning it on also runs the test pattern once now
 - `led.dim_on_refresh`: the LEDs fade to half their brightness while METARs are fetched (at least a second), then fade back
@@ -320,7 +326,7 @@ curl -u metar:map -H 'Content-Type: application/json' -d '{"user": "pilot", "pas
 
 | Endpoint | Description |
 |---|---|
-| `GET /update` | Updates the map from GitHub as `update.channel` says, keeping `config.json` (and an older `airports.json`): on `releases`, the newest release tag (`v2.9.0`), only if it's newer than the running version; on `latest`, the newest commit. Waits until it's done and returns the output as HTML. Restart afterwards to use the new code. |
+| `GET /update` | Updates the map from GitHub as `update.channel` says, keeping `config.json` (and an older `airports.json`): on `releases`, the newest release tag (`v2.9.0`), only if it's newer than the running version; on `latest`, the newest commit; on `branch` (`dev_mode`), the newest commit of `update.branch`. Waits until it's done and returns the output as HTML. Restart afterwards to use the new code (the web UI's Update and Install buttons restart the map for you when new code was installed). |
 | `POST /update/start` | Starts the same update in the background (or reports the one already running) and returns its progress, as below. Used by the web UI's progress bar. With a JSON body `{"version": "v2.7.0"}` it installs that release instead, older or newer, whatever the channel. A `version` that isn't a release version is a 400. |
 | `GET /update/progress` | Progress of the update started with `/update/start`: `{"fraction": 0.4, "label": "Downloading the update", "done": false, "ok": null, "changed": null, "target": "v2.9.0", "message": "", "errors": []}`. When `done`, `ok` says whether it worked, `changed` whether new code was installed, `target` what was installed (a release tag, or a commit on the `latest` channel), `message` a one-line summary such as `Installed v2.9.0` or `Already on the newest release (v2.8.4)`, and `errors` holds git's error messages. |
 | `GET /update/check` | Asks GitHub now what's newest (the map also does this when it starts and every 6 hours) and returns the same object as `update` in `/api/status`. |

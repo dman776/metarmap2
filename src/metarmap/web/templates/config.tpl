@@ -140,6 +140,99 @@
     </div>
 
     <div class="side">
+        % release = get('release')
+        % if release:
+        <section class="card settings" id="updates">
+            <h2>Software</h2>
+            <div class="set">
+                <div>
+                    <span class="t">Running v{{version}}</span>
+                    <div class="d">
+                        % if release['error']:
+                        Couldn't check GitHub: {{release['error']}}
+                        % elif release['checked'] is None:
+                        Not checked for updates yet.
+                        % elif release['available'] and release['channel'] == 'latest':
+                        A newer commit is on GitHub ({{release['available']}}).
+                        % elif release['available'] and release['channel'] == 'branch':
+                        A newer commit is on {{release['branch']}} ({{release['available']}}).
+                        % elif release['channel'] == 'branch' and release['branch'] not in release['branches']:
+                        % if release['branch']:
+                        There's no branch {{release['branch']}} on GitHub.
+                        % else:
+                        Pick a branch to update from.
+                        % end
+                        % elif release['available']:
+                        {{release['available']}} is available.
+                        % elif not release['releases'] and release['channel'] == 'releases':
+                        There are no releases on GitHub yet.
+                        % else:
+                        Up to date.
+                        % end
+                        % build = release['build']
+                        % if build:
+                        % if build['pill']:
+                        {{build['pill']}}.
+                        % end
+                        Commit
+                        % if build['url']:
+                        <a class="mono" href="{{build['url']}}" target="_blank" rel="noopener">{{build['commit']}}</a>.
+                        % else:
+                        <span class="mono">{{build['commit']}}</span>.
+                        % end
+                        % end
+                    </div>
+                </div>
+                <button class="btn" type="button" data-call="/update/check">Check now</button>
+            </div>
+            <div class="set">
+                <div>
+                    <label class="t" for="update-channel">Update to</label>
+                    <div class="d">Releases: the newest release. Latest commit: the newest code on GitHub, released or not, for testing.{{' Branch: the newest commit of a branch on GitHub (dev_mode).' if release['dev_mode'] else ''}}</div>
+                </div>
+                <select id="update-channel" data-key="update.channel">
+                    % channels = (('releases', 'Releases'), ('latest', 'Latest commit')) + ((('branch', 'Branch'),) if release['dev_mode'] else ())
+                    % for value, label in channels:
+                    <option value="{{value}}"{{!' selected' if release['channel'] == value else ''}}>{{label}}</option>
+                    % end
+                </select>
+            </div>
+            % if release['dev_mode']:
+            % branches = release['branches'] + ([release['branch']] if release['branch'] and release['branch'] not in release['branches'] else [])
+            <div class="set" id="update-branch-row"{{!'' if release['channel'] == 'branch' else ' hidden'}}>
+                <div>
+                    <label class="t" for="update-branch">Branch</label>
+                    <div class="d">Branches on GitHub. Push a new one, then Check now to see it here.</div>
+                </div>
+                <select id="update-branch" data-key="update.branch">
+                    % if not release['branch']:
+                    <option value="" selected disabled>Pick a branch</option>
+                    % end
+                    % for b in branches:
+                    <option value="{{b}}"{{!' selected' if b == release['branch'] else ''}}>{{b}}{{'' if b in release['branches'] else ' (not on GitHub)'}}</option>
+                    % end
+                </select>
+            </div>
+            % end
+            % if release['releases']:
+            <div class="set">
+                <div>
+                    <label class="t" for="release-pick">Install a release</label>
+                    <div class="d">Any release, older ones too. Your settings are kept.</div>
+                </div>
+                <div class="release-pick">
+                    <select id="release-pick">
+                        % for r in release['releases']:
+                        <option value="{{r['tag']}}"{{!' data-older="true"' if r['older'] else ''}}{{!' selected' if r['running'] else ''}}>{{r['tag']}}{{' (running)' if r['running'] else ''}}</option>
+                        % end
+                    </select>
+                    <button class="btn" type="button" data-install-release>Install</button>
+                </div>
+            </div>
+            % end
+        </section>
+        % end
+
         <section class="card settings" id="access">
             <h2>Access</h2>
             <form class="set access" data-form="/config/login" data-then="login" autocomplete="off">
@@ -177,72 +270,6 @@
             <p class="muted" style="margin: 0; padding: 0 24px 18px; font-size: 13px">The level in use now changes right away; the others take over at their time of day.</p>
         </section>
 
-        % release = get('release')
-        % if release:
-        <section class="card settings" id="updates">
-            <h2>Software</h2>
-            <div class="set">
-                <div>
-                    <span class="t">Running v{{version}}</span>
-                    <div class="d">
-                        % if release['error']:
-                        Couldn't check GitHub: {{release['error']}}
-                        % elif release['checked'] is None:
-                        Not checked for updates yet.
-                        % elif release['available'] and release['channel'] == 'latest':
-                        A newer commit is on GitHub ({{release['available']}}).
-                        % elif release['available']:
-                        {{release['available']}} is available.
-                        % elif not release['releases'] and release['channel'] == 'releases':
-                        There are no releases on GitHub yet.
-                        % else:
-                        Up to date.
-                        % end
-                        % build = release['build']
-                        % if build:
-                        % if build['pill']:
-                        {{build['pill']}}.
-                        % end
-                        Commit
-                        % if build['url']:
-                        <a class="mono" href="{{build['url']}}" target="_blank" rel="noopener">{{build['commit']}}</a>.
-                        % else:
-                        <span class="mono">{{build['commit']}}</span>.
-                        % end
-                        % end
-                    </div>
-                </div>
-                <button class="btn" type="button" data-call="/update/check">Check now</button>
-            </div>
-            <div class="set">
-                <div>
-                    <label class="t" for="update-channel">Update to</label>
-                    <div class="d">Releases: the newest release. Latest commit: the newest code on GitHub, released or not, for testing.</div>
-                </div>
-                <select id="update-channel" data-key="update.channel">
-                    % for value, label in (('releases', 'Releases'), ('latest', 'Latest commit')):
-                    <option value="{{value}}"{{!' selected' if release['channel'] == value else ''}}>{{label}}</option>
-                    % end
-                </select>
-            </div>
-            % if release['releases']:
-            <div class="set">
-                <div>
-                    <label class="t" for="release-pick">Install a release</label>
-                    <div class="d">Any release, older ones too. Your settings are kept.</div>
-                </div>
-                <div class="release-pick">
-                    <select id="release-pick">
-                        % for r in release['releases']:
-                        <option value="{{r['tag']}}"{{!' data-older="true"' if r['older'] else ''}}{{!' selected' if r['running'] else ''}}>{{r['tag']}}{{' (running)' if r['running'] else ''}}</option>
-                        % end
-                    </select>
-                    <button class="btn" type="button" data-install-release>Install</button>
-                </div>
-            </div>
-            % end
-        </section>
-        % end
     </div>
 </div>
 

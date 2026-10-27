@@ -74,7 +74,8 @@ def build(config_file=CONFIG_FILE, strip=None, screen=None, clock: Clock = None,
         screen = open_screen()  # the OLED on the Pi; an in-memory screen anywhere else (the web UI mirrors it)
     display = Display(config, metars, screen, renderer=renderer, clock=clock)
 
-    releases = ReleaseCheck(channel=lambda: config.data.update.channel)
+    releases = ReleaseCheck(channel=lambda: config.data.update_channel(),branch=lambda: config.data.update.branch,
+                            dev_mode=lambda: config.data.dev_mode)
     app = App(config, sun, metars, renderer, display, schedule.Scheduler(), releases)
     fill_names(app)
     schedule_jobs(app)

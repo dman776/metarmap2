@@ -173,20 +173,22 @@ class UpdateResult:
         self.errors = []
 
 
-def run_update(repo=None, progress=None, channel="releases", version=None, current=None):
+def run_update(repo=None, progress=None, channel="releases", version=None, current=None, branch=None):
     """
     Updates the map's code from GitHub, keeping config.json and airports.json. Git runs as the owner of the folder,
     not root, so file ownership stays consistent.
 
     channel "releases": installs the newest release tag (v2.8.4), but only if it's newer than the running version
     (current; default this code's version), so an update never goes backwards. "latest": installs the newest commit
-    on GitHub's default branch, released or not (for testing).
+    on GitHub's default branch, released or not (for testing). "branch": the newest commit on `branch` (dev_mode),
+    even if that branch was force-pushed.
     version: a release tag to install whatever the channel, older or newer (picking a release by hand).
     progress: optional callback(fraction 0..1, label) for the web UI's progress bar.
     Returns an UpdateResult.
     """
     from metarmap import __version__
     from metarmap.lib import versions
+    from metarmap.settings import BRANCH_NAME
 
     repo = repo or os.getcwd()
     current = current or __version__
@@ -220,7 +222,8 @@ def run_update(repo=None, progress=None, channel="releases", version=None, curre
         return done
 
     step(0.0, "Starting")
-    say(f"starting update ({'release ' + version if version else channel})... ")
+    what = f"release {version}" if version else f"branch {branch}" if channel == "branch" else channel
+    say(f"starting update ({what})... ")
     uid, gid = _repo_owner(repo)
     as_owner = _as_owner(uid, gid)
     if as_owner:
@@ -267,6 +270,18 @@ def run_update(repo=None, progress=None, channel="releases", version=None, curre
                 fail("Couldn't find GitHub's default branch")
             else:
                 checkout = ["checkout", "-B", remote_branch.split("/", 1)[1], remote_branch]
+    elif channel == "branch":
+        if not branch or not BRANCH_NAME.match(branch):
+            ok = False
+            fail("Pick a branch to update from" if not branch else f"{branch!r} isn't a branch name")
+        else:
+            # --prune: a branch deleted on GitHub is gone here too
+            ok = git("fetch", "--prune", "origin").returncode == 0
+            if ok and git("rev-parse", "--verify", "--quiet", f"refs/remotes/origin/{branch}", quiet=True).returncode:
+                ok = False
+                fail(f"There's no branch {branch} on GitHub")
+            elif ok:
+                checkout = ["checkout", "-B", branch, f"origin/{branch}"]
     else:
         ok = False
         fail(f"Unknown update channel {channel!r}")
@@ -301,16 +316,15 @@ def run_update(repo=None, progress=None, channel="releases", version=None, curre
     result.ok = ok
     after = git("rev-parse", "HEAD", quiet=True).stdout.strip() if ok else before
     result.changed = ok and after != before
-    if ok and channel == "latest" and not version:
+    latest = channel in ("latest", "branch") and not version
+    if ok and latest:
         result.target = after[:7] or None
     if ok and not result.message:
-        latest = channel == "latest" and not version
+        newest = f"the newest commit{' of ' + branch if channel == 'branch' else ''} ({result.target})"
         if result.changed:
-            result.message = f"Installed the newest commit ({result.target})" if latest else \
-                f"Installed {result.target}"
+            result.message = f"Installed {newest}" if latest else f"Installed {result.target}"
         else:
-            result.message = f"Already on the newest commit ({result.target})" if latest else \
-                f"Already on {result.target}"
+            result.message = f"Already on {newest}" if latest else f"Already on {result.target}"
     say("update complete" if ok else "update FAILED; see the messages above")
     step(1.0, "Done" if ok else "Failed")
     return result
@@ -322,18 +336,23 @@ def install_newest_release(repo):
     the branch it was cloned from. Returns (ok, message, changed): changed is whether the code on disk changed.
 
     It leaves the folder as it is (ok, with the reason in the message) if it's already on a release (one picked by
-    hand, over SSH or on the web UI, stays), if update.channel in config.json is "latest" (a map for testing), or if
+    hand, over SSH or on the web UI, stays), if update.channel in config.json is "latest" or (with dev_mode)
+    "branch" (a map for testing), or if
     the code has changes (config.json and airports.json aside). Not ok: GitHub couldn't be reached, or has no releases.
     """
     from metarmap.lib import versions
 
     try:
         with open(os.path.join(repo, "config.json")) as f:
-            channel = json.load(f).get("update", {}).get("channel")
+            data = json.load(f)
+        channel = data.get("update", {}).get("channel")
+        dev_mode = data.get("dev_mode") is True
     except (OSError, ValueError, AttributeError):
-        channel = None
+        channel, dev_mode = None, False
     if channel == "latest":
         return True, "Update channel is Latest commit: staying on the newest commit", False
+    if channel == "branch" and dev_mode:
+        return True, "Update channel is Branch (dev_mode): staying on this commit", False
 
     try:
         at_head = versions.releases(run_git(repo, "tag", "--points-at", "HEAD").stdout.split())

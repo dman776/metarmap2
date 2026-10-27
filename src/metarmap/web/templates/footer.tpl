@@ -21,7 +21,6 @@
             </div>
             <form method="dialog" class="foot-actions">
                 <button class="btn" type="submit">Close</button>
-                <button class="btn primary update-restart" type="button" data-call="/restart" data-then="restart" hidden>Restart now</button>
             </form>
         </dialog>
         % end
