@@ -1,4 +1,4 @@
-### dman776 Unreleased
+### dman776 2.9.3 (2026-10-26)
 
 - `install.sh` installs the newest release (a tag such as `v2.9.2`) instead of the newest commit of the branch that
   was cloned, then carries on with that release's own installer. A folder that's already on a release (picked over
