@@ -309,7 +309,7 @@
             el.appendChild(s);
             return s;
         };
-        add('o-title', screen.title);
+        add('o-title' + (screen.virtual ? ' virtual' : ''), screen.title);
         add('o-badge', screen.badge || '');
         if (screen.icon && ICONS[screen.icon]) {
             add('o-ico o-ico-title', '').innerHTML = ICONS[screen.icon];

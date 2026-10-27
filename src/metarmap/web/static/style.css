@@ -257,6 +257,8 @@ body.map-full-open { overflow: hidden; }
 /* a virtual airport (no LED on the strip): a dashed circle around the dot; the shadow keeps it visible on light charts */
 .mled.virtual::before { content: ""; position: absolute; left: -11px; top: -11px; width: 22px; height: 22px; box-sizing: border-box; border-radius: 50%;
     border: 1.5px dashed rgba(255, 255, 255, .9); filter: drop-shadow(0 0 1px rgba(0, 0, 0, .9)); pointer-events: none; }
+/* and its code in a dashed box, as on the OLED */
+.mled.virtual .mled-code { border: 1px dashed rgba(255, 255, 255, .85); padding: 0 3px; }
 .mled-dot::after { content: ""; position: absolute; inset: -5px; border-radius: 50%; pointer-events: none; opacity: 0;
     background: radial-gradient(circle, #fff 0 30%, rgba(255, 255, 255, .85) 45%, transparent 72%); box-shadow: 0 0 22px 10px rgba(255, 255, 255, .55); }
 .mled-dot.locate::after { animation: led-locate 1s ease-in-out 1; }
@@ -280,6 +282,8 @@ body.map-full-open { overflow: hidden; }
     background-image: repeating-linear-gradient(0deg, rgba(0, 0, 0, .35) 0 1px, transparent 1px 2px), repeating-linear-gradient(90deg, rgba(0, 0, 0, .35) 0 1px, transparent 1px 2px); }
 .oled-screen span { position: absolute; white-space: nowrap; }
 .o-title { left: 0; top: -4px; font-size: 38px; }
+/* a virtual airport: a smaller code in a dashed box, as on the OLED (box at 0,1 to 66,17) */
+.o-title.virtual { top: 2px; font-size: 34px; line-height: 28px; padding: 1px 2px 0; border: 2px dashed currentColor; }
 .o-badge { left: 152px; top: 0; font-size: 30px; }  /* x=76 on the 128x64 OLED */
 .o-line { left: 40px; font-size: 27px; }
 .o-l0 { top: 38px; } .o-l1 { top: 72px; } .o-l2 { top: 104px; }

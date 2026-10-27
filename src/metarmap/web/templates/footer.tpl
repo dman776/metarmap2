@@ -23,6 +23,6 @@
                 <button class="btn primary update-restart" type="button" data-call="/restart" data-then="restart" hidden>Restart now</button>
             </form>
         </dialog>
-        <script src="/static/app.js?v={{version}}"></script>
+        <script src="/static/app.js?v={{assets}}"></script>
     </body>
 </html>

@@ -69,6 +69,16 @@ def test_rotates_through_display_airports():
     assert d.screen == screen.shown[-1]
 
 
+def test_virtual_airports_are_shown_marked():
+    """KGLS, after the 3 LEDs, is virtual: shown like the others, with its code in a dashed box."""
+    d, screen, _, config = make(stop_after=5)
+    config.data.led.count = 3
+    run(d)
+    assert [(s["title"], s["virtual"]) for s in screen.shown] == [
+        ("KHOU", False), ("KHOU", False), ("KDKR", False), ("KGLS", True), ("KGLS", True)]
+    assert d._renderer.located == [0, 2, 3]  # the renderer pulses KGLS on the web map only
+
+
 def test_each_page_stays_for_the_delay():
     d, _, clock, _ = make(delay=7, stop_after=5)
     start = clock.time()

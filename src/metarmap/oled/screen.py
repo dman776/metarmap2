@@ -64,9 +64,10 @@ class SSD1306Screen:
             5: BigLine(0, 52 + o),  # line 3
         }
 
-        def airport(last_icon_x):
+        def airport(last_icon_x, virtual=False):
             return {
-                1: BigLine(0, o, size=20),  # AIRPORT
+                # a virtual airport's code is 2 px smaller and moved in, to fit its dashed box (see dashed_box)
+                1: BigLine(2, o + 2, size=18) if virtual else BigLine(0, o, size=20),  # AIRPORT
                 # x=76 leaves room for "MVFR*" (51 px) and still clears the widest K??? code (KWWW, 70 px)
                 2: BigLine(76, o, size=16),  # CAT
                 3: BigLine(20, 19 + o),  # line 1
@@ -77,7 +78,8 @@ class SSD1306Screen:
                 8: BigLine(last_icon_x, 52 + o, **icon),
             }
         # page 1's pressure icon sits a little to the right; page 0 (no data) uses page 1's layout
-        return {"message": message, 1: airport(6), 2: airport(0)}
+        return {"message": message, 1: airport(6), 2: airport(0),
+                (1, "virtual"): airport(6, virtual=True), (2, "virtual"): airport(0, virtual=True)}
 
     def show(self, screen: dict) -> None:
         oled = self._oled
@@ -88,16 +90,44 @@ class SSD1306Screen:
             for n, line in enumerate(screen["lines"]):
                 oled.text(line["text"], 3 + n)
         else:
-            oled.layout = self._layouts[2 if screen["page"] == 2 else 1]
+            page = 2 if screen["page"] == 2 else 1
+            oled.layout = self._layouts[(page, "virtual") if screen.get("virtual") else page]
             oled.text(screen["title"])
             oled.text(screen["badge"], 2)
             for n, line in enumerate(screen["lines"]):
                 oled.text(line["text"], 3 + n * 2)
                 oled.text(GLYPHS[line["icon"]], 4 + n * 2)
+        # drawn before the text, each time the screen is
+        title = oled.layout[1]
+        oled.on_draw = ((lambda draw: dashed_rectangle(draw, dashed_box(title, screen["title"])))
+                        if screen["kind"] == "airport" and screen.get("virtual") else None)
         oled.show()
 
     def clear(self) -> None:
         self._oled.clear()
+
+
+def dashed_box(line, text, pad=2):
+    """
+    The box around `text` drawn on `line` (an oled_text line: x, y, font), `pad` pixels clear of the letters, as
+    (left, top, right, bottom). A virtual airport's 18 px code ends 1 px above the first line's letters.
+    """
+    left, top, right, bottom = line.font.getbbox(text)
+    return (max(0, line.x + left - pad), max(0, line.y + top - pad),
+            line.x + right + pad - 1, line.y + bottom + pad - 1)
+
+
+def dashed_rectangle(draw, box, dash=2, gap=2):
+    """A dashed outline (PIL's ImageDraw has none): `box` is (left, top, right, bottom), each pixel included."""
+    left, top, right, bottom = box
+    for x in range(left, right + 1, dash + gap):
+        end = min(x + dash - 1, right)
+        draw.line((x, top, end, top), fill=255)
+        draw.line((x, bottom, end, bottom), fill=255)
+    for y in range(top, bottom + 1, dash + gap):
+        end = min(y + dash - 1, bottom)
+        draw.line((left, y, left, end), fill=255)
+        draw.line((right, y, right, end), fill=255)
 
 
 def open_screen():

@@ -25,6 +25,6 @@
 <p class="muted" style="margin: 0; font-size: 13px">LEDs are drawn at full brightness. The map itself is at {{int(round(brightness * 100))}}% right now. A white ring marks the airport on the OLED screen.</p>
 
 <script id="map-settings" type="application/json">{{!json.dumps(settings).replace('</', '<\\/')}}</script>
-<script src="/static/map.js?v={{version}}"></script>
+<script src="/static/map.js?v={{assets}}"></script>
 
 %include("footer.tpl")

@@ -5,6 +5,7 @@ and the view data behind the pages.
 import base64
 import io
 import json
+import os
 import subprocess
 import threading
 from datetime import datetime, timedelta, timezone
@@ -226,11 +227,12 @@ def test_virtual_airports_page(client):
     app = client.services
     assert client("/config/edit/led.virtual_count/2")[0] == 200
     assert client("/config/airports/50/code/KDWH")[0] == 303
-    assert client("/config/airports/50/display/true")[0] == 303  # saved, but a virtual airport is never on the OLED
+    assert client("/config/airports/50/display/true")[0] == 303  # on the OLED too, with its code in a dashed box
     body = client("/config/airports")[1]
     assert "50 LEDs in the order they're wired and 2 virtual airports: 51 with an airport, 1 without." in body
     assert body.count('class="ap-divider"') == 1 and body.count('<span class="tag">virtual</span>') == 2
-    assert 'data-led="50" data-field="display" disabled>' in body  # no OLED switch, and not shown as on
+    assert 'data-led="50" data-field="display" checked>' in body
+    assert 'data-led="51" data-field="display" disabled>' in body  # no airport yet
     assert 'id="led-count" class="led-count" type="number" inputmode="numeric" min="1" max="998"' in body
     assert len(app.renderer.looks) == 52 and len(app.renderer.animations) == 50
 
@@ -832,3 +834,15 @@ def test_a_new_code_gets_its_name(client, monkeypatch):
     assert (app.config.airports[0].code, app.config.airports[0].name) == ("KDWH", "Houston/D W Hooks Mem")
     assert client("/config/airports/0/code/KXXX")[0] == 303  # unknown: no name
     assert app.config.airports[0].name == ""
+
+
+def test_script_links_change_with_the_static_files(client, monkeypatch, tmp_path):
+    """The version alone stays the same between releases: browsers would keep running a cached, older app.js."""
+    from metarmap.web import site
+    (tmp_path / "app.js").write_text("")
+    monkeypatch.setattr(site, "STATIC_DIR", str(tmp_path))
+    first = site.assets_version()
+    assert f'/static/app.js?v={first}"' in client("/")[1] and first.startswith(__version__ + ".")
+    os.utime(tmp_path / "app.js", (0, 2_000_000_000))
+    assert site.assets_version() != first
+    assert f'/static/style.css?v={site.assets_version()}"' in client("/")[1]

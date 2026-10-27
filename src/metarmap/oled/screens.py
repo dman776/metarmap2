@@ -5,6 +5,7 @@ A screen is a dict:
   kind     "airport" (an airport's page) or "message" (startup and other messages)
   airport  the station shown, or None for a message
   title    big text at the top left
+  virtual  True for a virtual airport (no LED on the strip): the title is drawn in a dashed box (airports only)
   badge    flight category at the top right ("" if none), with a "*" when it's estimated (the station didn't
            report one; see decode.estimate_category)
   page     1 (wind, visibility, pressure), 2 (temperature, dewpoint, time) or 0 (no data / a message)
@@ -61,13 +62,13 @@ def badge_text(data):
     return estimate + "*" if estimate else ""
 
 
-def screen_for(station, data, page, tz=None):
+def screen_for(station, data, page, tz=None, virtual=False):
     """
     What the screen shows for one airport: page 1 (wind, visibility, pressure),
-    page 2 (temperature, dewpoint, time) or page 0 (no data).
+    page 2 (temperature, dewpoint, time) or page 0 (no data). A virtual airport (no LED) has its code in a dashed box.
     """
     if page == 0:
-        return {"kind": "airport", "airport": station, "title": station, "badge": "", "page": 0,
+        return {"kind": "airport", "airport": station, "title": station, "virtual": virtual, "badge": "", "page": 0,
                 "lines": [{"icon": "", "text": "Data"}, {"icon": "", "text": "Unavailable"}, {"icon": "", "text": ""}]}
     if page == 1:
         lines = [{"icon": "wind", "text": safe_text(wind_text, data)},
@@ -77,7 +78,7 @@ def screen_for(station, data, page, tz=None):
         lines = [{"icon": "temp", "text": safe_text(lambda d: temp_text(d['tempC']), data)},
                  {"icon": "dewpoint", "text": safe_text(lambda d: temp_text(d['dewpointC']), data)},
                  {"icon": "date", "text": safe_text(lambda d: time_text(d['obsTime'], tz), data)}]
-    return {"kind": "airport", "airport": station, "title": station, "badge": badge_text(data),
+    return {"kind": "airport", "airport": station, "title": station, "virtual": virtual, "badge": badge_text(data),
             "page": page, "lines": lines}
 
 
@@ -89,13 +90,12 @@ def message_screen(title, icon="", line1="", line2="", line3=""):
 
 # ---- which airports, which pages -------------------------------------------------------------------------------
 
-def airports_to_show(airports, count=None):
+def airports_to_show(airports):
     """
     The airports set to show on the OLED, in LED order, as (pixel, code).
-    `airports` is the airport on each LED (settings.Airport: code, display); the virtual airports after the first
-    `count` (led.count) are never shown, whatever their display flag says.
+    `airports` is the airport on each LED, then the virtual ones (settings.Airport: code, display).
     """
-    return [(pixel, a.code) for pixel, a in enumerate(airports[:count]) if a.display and a.code]
+    return [(pixel, a.code) for pixel, a in enumerate(airports) if a.display and a.code]
 
 
 def pages_for(metar):

@@ -2,11 +2,15 @@
 
 - Virtual airports: airports with no LED, after the strip's (`led.virtual_count`, set on Config > Airports below the
   number of LEDs). They're fetched and shown like the others on the Map page, in a dashed circle, and in
-  `/api/status` for Home Assistant, but never on the OLED. Their effects always run. Rainbow covers them too, while
+  `/api/status` for Home Assistant. On the OLED (if switched on) and its copy on the Map page, a virtual airport's
+  code is in a dashed box, and so is its code on the map. Their effects always run. Rainbow covers them too, while
   Chase (a wiring check) leaves them dark. Locate pulses them on the Map page only. The LEDs and the virtual airports
   together are at most 1000 airports, since each one is part of every METAR fetch. Changing the number of LEDs keeps
   the virtual airports after them. In an older `config.json`, airports past `led.count` (already on the Map page
   only) become virtual airports. `/api/status` airports and `/api/live` LEDs have a new `virtual` field
+- The pages' script and style links (`?v=`) change whenever a file in `static/` does, not only with the version.
+  Between releases (an update on the `latest` channel) browsers kept running a cached `app.js` with the new pages,
+  so the new Virtual airports number did nothing until a hard refresh
 
 ### dman776 2.9.3 (2026-10-26)
 

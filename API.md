@@ -127,7 +127,7 @@ Returns a read-only snapshot of the map's state as `application/json`. No authen
 | `suntimes` | Today's dimming schedule (ISO 8601 with time zone) |
 | `lastFetchTime` | When METARs were last fetched, in the map's local time (ISO 8601, no time zone); `null` before the first fetch |
 | `missingStations` | Airports that had no METAR in the last fetch |
-| `airports` | Airports in LED order, skipping LEDs with no airport. `pixel` is the LED index (counting from 0). `text` is the airport's name (`""` if none) and `display` whether it's shown on the OLED. `virtual` is true for a virtual airport (after the LEDs, `pixel` at least `led.count`): no LED, on the Map page and here only, never on the OLED. An airport on two LEDs is listed twice. The METAR fields are `null` when the map has no data for the airport. `windDir` is a string because it can be `VRB`. |
+| `airports` | Airports in LED order, skipping LEDs with no airport. `pixel` is the LED index (counting from 0). `text` is the airport's name (`""` if none) and `display` whether it's shown on the OLED. `virtual` is true for a virtual airport (after the LEDs, `pixel` at least `led.count`): no LED, so only on the Map page, here, and on the OLED if `display` is on (its code in a dashed box). An airport on two LEDs is listed twice. The METAR fields are `null` when the map has no data for the airport. `windDir` is a string because it can be `VRB`. |
 
 ### `GET /api/live`
 
@@ -147,7 +147,7 @@ What the physical map is doing right now. The Map page polls it every second. No
   "locate": { "pixel": 5, "at": 1792854523.96 },
   "display": {
     "enabled": true,
-    "screen": { "airport": "KGLS", "title": "KGLS", "badge": "LIFR", "page": 1,
+    "screen": { "airport": "KGLS", "title": "KGLS", "virtual": false, "badge": "LIFR", "page": 1,
                 "lines": [ { "icon": "wind", "text": "150@08" }, { "icon": "visibility", "text": "1SM" },
                            { "icon": "pressure", "text": "29.98" } ] }
   }
@@ -162,7 +162,7 @@ What the physical map is doing right now. The Map page polls it every second. No
 | `strip` | Set when one effect drives the whole strip instead: `rainbow` (`period`) or `chase` (`step`, `size`, `spacing`). The virtual airports keep their own `look` meanwhile: the same rainbow, or `off` for a chase (a wiring check). |
 | `locate` | The last white locate pulse: LED `pixel` and Unix time `at`. `null` until the first one. A virtual airport's pulse is only shown on the Map page. |
 | `display.on` | Whether the screen is showing; `false` after `/display/off` (then `screen` is `null`) |
-| `display.screen` | What the OLED shows. `badge` is the flight category, with a `*` after one that's estimated from the visibility and ceiling (`VFR*`). `page` is 1 or 2 for an airport, 0 for "Data Unavailable" or a message (then `airport` is `null`). Icons: `wind`, `visibility`, `pressure`, `temp`, `dewpoint`, `date`. |
+| `display.screen` | What the OLED shows. `badge` is the flight category, with a `*` after one that's estimated from the visibility and ceiling (`VFR*`). `virtual` is true for a virtual airport, whose code is in a dashed box. `page` is 1 or 2 for an airport, 0 for "Data Unavailable" or a message (then `airport` is `null`). Icons: `wind`, `visibility`, `pressure`, `temp`, `dewpoint`, `date`. |
 
 ### `GET /api/metar/<code>`
 
@@ -277,7 +277,7 @@ curl -u metar:map http://metarmap.local/config/edit/display_screen.delay/10
 The airports are the `airports` list in `config.json`, one entry per LED in the order the LEDs are wired:
 `{"code": "KHOU", "name": "Hobby", "display": true}`. An LED with no airport has `"code": ""`. The list has
 `led.count` entries, then `led.virtual_count` virtual airports: airports with no LED, shown on the Map page and in
-`/api/status` (for Home Assistant) but never on the OLED (their `display` is ignored). `/config/edit/led.count/<n>`
+`/api/status` (for Home Assistant), and on the OLED if their `display` is on, with the code in a dashed box. `/config/edit/led.count/<n>`
 also adds LEDs with no airport at the end of the strip, or removes the airports on the last LEDs; the virtual
 airports after them are kept. `/config/edit/led.virtual_count/<n>` adds or removes virtual airports at the end. The
 two together are at most 1000 airports (each is part of every METAR fetch). A new LED count takes effect after a

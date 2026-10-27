@@ -1,5 +1,6 @@
 """Tests for what the OLED shows (metarmap/oled/screens.py). No hardware needed."""
 from datetime import datetime, timezone
+from types import SimpleNamespace
 
 import pytest
 import pytz
@@ -107,9 +108,29 @@ def test_airports_to_show_keeps_led_order():
     assert screens.airports_to_show([]) == []
 
 
-def test_virtual_airports_are_never_on_the_oled():
-    leds = airports("KHOU", "KIAH", "KGLS", display=("KHOU", "KGLS"))
-    assert screens.airports_to_show(leds, 2) == [(0, "KHOU")]  # KGLS is virtual: no LED
+def test_a_virtual_airport_is_marked():
+    """It has no LED to light up: its code goes in a dashed box instead."""
+    assert screens.screen_for("KGLS", {}, 0, virtual=True)["virtual"] is True
+    assert screens.screen_for("KGLS", {"flightCategory": "VFR"}, 1, virtual=True)["virtual"] is True
+    assert screens.screen_for("KGLS", {"flightCategory": "VFR"}, 1)["virtual"] is False
+
+
+def test_dashed_box_fits_between_the_code_the_badge_and_the_first_line():
+    """KWWW is the widest code; the 18 px code at (2, -1) has its letters at 2-64 across and 3-16 down."""
+    from metarmap.oled.screen import dashed_box
+    font = SimpleNamespace(getbbox=lambda text: (0, 4, 63, 17))
+    box = dashed_box(SimpleNamespace(x=2, y=-1, font=font), "KWWW")
+    assert box == (0, 1, 66, 17)
+    assert box[2] < 76 and box[3] < 19  # the badge starts at x=76; the first line's letters at y=19
+
+
+def test_dashed_rectangle():
+    from metarmap.oled.screen import dashed_rectangle
+    lines = []
+    dashed_rectangle(SimpleNamespace(line=lambda xy, fill: lines.append(xy)), (0, 0, 6, 3))
+    assert (0, 0, 1, 0) in lines and (4, 0, 5, 0) in lines and (4, 3, 5, 3) in lines  # top and bottom: 2 on, 2 off
+    assert (0, 0, 0, 1) in lines and (6, 0, 6, 1) in lines  # left and right sides
+    assert all(x <= 6 and y <= 3 for x0, y0, x, y in lines)  # never past the box
 
 
 def test_pages_for():

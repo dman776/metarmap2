@@ -126,19 +126,20 @@ class Display(object):
     def loop(self, event):
         while not event.is_set():
             # a fresh copy each pass: airports can be edited while the loop runs
-            airports = airports_to_show(self._config.airports, self._config.data.led.count)
+            airports = airports_to_show(self._config.airports)
             for pixel, airport in airports:
                 if event.is_set():
                     return
                 if self._renderer is not None and self._config.data.display_screen.locate_active:
                     try:
-                        self._renderer.locate(pixel)
+                        self._renderer.locate(pixel)  # a virtual airport: on the web map only
                     except Exception as e:
                         # a failed LED pulse shouldn't cost the airport its pages
                         safe_log(f"[d]locate {airport}: {e}")
                 try:
                     self.show_airport(airport, self._data.data.get(airport) or {},
-                                      self._config.data.display_screen.delay, event)
+                                      self._config.data.display_screen.delay, event,
+                                      virtual=pixel >= self._config.data.led.count)
                 except Exception as e:
                     # never let one airport stop the loop
                     safe_log(f"[d]loop: {airport}: {e}\n{traceback.format_exc()}")
@@ -147,9 +148,9 @@ class Display(object):
                 self.last_change = self._clock.time()
                 self._clock.wait(event, 5)  # nothing to show; don't spin
 
-    def show_airport(self, airport, metar, delay, event):
+    def show_airport(self, airport, metar, delay, event, virtual=False):
         for page in pages_for(metar):
-            if not self.show_page(screen_for(airport, metar, page, self._tz), delay, event):
+            if not self.show_page(screen_for(airport, metar, page, self._tz, virtual), delay, event):
                 return
 
     def show_page(self, screen, delay, event):
