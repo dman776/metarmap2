@@ -139,27 +139,27 @@
     "airports": [
         {
             "code": "KVCT",
-            "name": "",
+            "name": "Victoria Rgnl",
             "display": false
         },
         {
             "code": "KPKV",
-            "name": "",
+            "name": "Port Lavaca/Calhoun Cnty",
             "display": false
         },
         {
             "code": "KPSX",
-            "name": "",
+            "name": "Palacios Muni",
             "display": false
         },
         {
             "code": "KBYY",
-            "name": "",
+            "name": "Bay City Muni",
             "display": false
         },
         {
             "code": "KLBX",
-            "name": "",
+            "name": "Angleton/Texas Gulf Coast Rgnl",
             "display": false
         },
         {
@@ -169,7 +169,7 @@
         },
         {
             "code": "KLVJ",
-            "name": "",
+            "name": "Houston/Pearland Rgnl",
             "display": false
         },
         {
@@ -184,42 +184,42 @@
         },
         {
             "code": "KSGR",
-            "name": "",
+            "name": "Houston/Sugar Land Rgnl",
             "display": false
         },
         {
             "code": "KARM",
-            "name": "",
+            "name": "Wharton Rgnl",
             "display": false
         },
         {
             "code": "KELA",
-            "name": "",
+            "name": "Eagle Lake Arpt",
             "display": false
         },
         {
             "code": "KTME",
-            "name": "",
+            "name": "Houston/Executive Arpt",
             "display": false
         },
         {
             "code": "K11R",
-            "name": "",
+            "name": "Brenham Muni",
             "display": false
         },
         {
             "code": "KCLL",
-            "name": "",
+            "name": "College Station/Easterwood Arpt",
             "display": false
         },
         {
             "code": "KLXY",
-            "name": "",
+            "name": "Mexia/Limestone Cnty",
             "display": false
         },
         {
             "code": "KPSN",
-            "name": "",
+            "name": "Palestine Muni",
             "display": false
         },
         {
@@ -249,27 +249,27 @@
         },
         {
             "code": "KT78",
-            "name": "",
+            "name": "Liberty Muni",
             "display": false
         },
         {
             "code": "KBMT",
-            "name": "",
+            "name": "Beaumont Muni",
             "display": false
         },
         {
             "code": "KBPT",
-            "name": "",
+            "name": "Beaumont/SE Texas Rgnl",
             "display": false
         },
         {
             "code": "KORG",
-            "name": "",
+            "name": "Orange/Orange Cnty",
             "display": false
         },
         {
             "code": "KUXL",
-            "name": "",
+            "name": "Sulphur/Southland Fld",
             "display": false
         },
         {
@@ -279,22 +279,22 @@
         },
         {
             "code": "KCWF",
-            "name": "",
+            "name": "Chenault Intl",
             "display": false
         },
         {
             "code": "K3R7",
-            "name": "",
+            "name": "Jennings Arpt",
             "display": false
         },
         {
             "code": "KLFT",
-            "name": "",
+            "name": "Lafayette Rgnl",
             "display": false
         },
         {
             "code": "KHUM",
-            "name": "",
+            "name": "Houma/Terrebonne Arpt",
             "display": false
         },
         {
@@ -304,32 +304,32 @@
         },
         {
             "code": "KREG",
-            "name": "",
+            "name": "Gonzales/Louisiana Rgnl",
             "display": false
         },
         {
             "code": "KBTR",
-            "name": "",
+            "name": "Baton Rouge/Ryan Fld",
             "display": false
         },
         {
             "code": "KHZR",
-            "name": "",
+            "name": "New Roads/False River Rgnl",
             "display": false
         },
         {
             "code": "KOPL",
-            "name": "",
+            "name": "Opelousas/St Landry",
             "display": false
         },
         {
             "code": "KACP",
-            "name": "",
+            "name": "Oakdale/Parish Arpt",
             "display": false
         },
         {
             "code": "KPOE",
-            "name": "",
+            "name": "Fort Polk AAF",
             "display": false
         },
         {
@@ -339,7 +339,7 @@
         },
         {
             "code": "KJAS",
-            "name": "",
+            "name": "Jasper/Bell Fld",
             "display": false
         },
         {
@@ -354,37 +354,37 @@
         },
         {
             "code": "KJSO",
-            "name": "",
+            "name": "Jacksonvil0e/Cherokee Cnty",
             "display": false
         },
         {
             "code": "KRFI",
-            "name": "",
+            "name": "Henderson/Rusk Cnty",
             "display": false
         },
         {
             "code": "K4F2",
-            "name": "",
+            "name": "Carthage/Panola Cnty",
             "display": false
         },
         {
             "code": "K3F3",
-            "name": "",
+            "name": "Mansfield/Williams Arpt",
             "display": false
         },
         {
             "code": "KIER",
-            "name": "",
+            "name": "Natchitoches Rgnl",
             "display": false
         },
         {
             "code": "KAEX",
-            "name": "",
+            "name": "Alexandria Intl",
             "display": false
         },
         {
             "code": "KHEZ",
-            "name": "",
+            "name": "Natchez/Adams Cnty",
             "display": false
         }
     ]

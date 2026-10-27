@@ -2,82 +2,74 @@
 Logging utilities for the WeatherMap
 """
 
-import traceback
+import sys
 from datetime import datetime
 
 from metarmap.lib.logger import LOGGER
 
 
-TAB_TEXT = ' ' * 4
 MODULE_NAME = '<module>'
+PACKAGE_PREFIX = 'metarmap.'
 
 
-def __get_callstack_indent_count(
-    stack_adjustment: int = 3
-) -> int:
-    """
-    Returns the number of indents that should be applied to the logging statement.
-
-    Keyword Arguments:
-        stack_adjustment {int -- The number of frames down the ACTUAL function name is. (default: {3})
-
-    Returns:
-        int -- The number of indents.
-    """
-
-    try:
-        cs_info = traceback.extract_stack()
-
-        indents = 0
-
-        for index in range(len(cs_info) - stack_adjustment, 0, -1):
-            if MODULE_NAME in cs_info[index].name:
-                break
-            else:
-                indents += 1
-
-        if indents < 0:
-            indents = 0
-
-        return indents
-    except Exception:
-        return 0
-
-
-def __get_indents(
-    count: int = 0,
-    stack_adjustment: int = 3
+def __get_location(
+    stack_adjustment: int = 2
 ) -> str:
     """
-    Returns whitespace for the number of given indents.
+    Returns where the logging statement is, to put in front of the message.
 
     Keyword Arguments:
-        count {int} -- The number of indents to return whitespace for. (default: {0})
-        stack_adjustment {int -- The number of frames down the ACTUAL function name is. (default: {3})
+        stack_adjustment {int} -- The number of frames down the ACTUAL function name is. (default: {2})
 
     Returns:
-        string -- A whitespace string.
+        string -- e.g. 'metar.METAR.fetch():177: '
     """
-
-    if count < 0:
-        count = 0
 
     function_name = 'UNKNOWN'
     line_num = 'UNKNOWN'
 
     try:
-        cs_info = traceback.extract_stack()
-        index = len(cs_info) - stack_adjustment
-        function_name = '{}()'.format(cs_info[index].name)
-
-        if MODULE_NAME in function_name:
-            function_name = cs_info[index].filename
-
-        line_num = cs_info[index].lineno
+        frame = sys._getframe(stack_adjustment)
+        function_name = __get_caller_name(frame)
+        line_num = frame.f_lineno
     except Exception:
         pass
 
-    return '{}{}:{}: '.format(TAB_TEXT * count, function_name, line_num)
+    return '{}:{}: '.format(function_name, line_num)
+
+
+def __get_caller_name(
+    frame
+) -> str:
+    """
+    Returns where a frame's code lives: the module, then the class and function if there are any,
+    e.g. 'metar.METAR.fetch()', 'app.main()', or just 'app' for module-level code.
+    The package prefix 'metarmap.' is left off, and so is '<locals>' for nested functions.
+
+    Arguments:
+        frame {frame} -- The frame of the code that logged the message.
+
+    Returns:
+        string -- The caller's name.
+    """
+
+    code = frame.f_code
+    qualname = getattr(code, 'co_qualname', None)  # Python 3.11+
+
+    if qualname is None:
+        owner = frame.f_locals.get('self', frame.f_locals.get('cls'))
+        qualname = code.co_name
+
+        if owner is not None and code.co_name != MODULE_NAME:
+            owner_class = owner if isinstance(owner, type) else type(owner)
+            qualname = '{}.{}'.format(owner_class.__name__, code.co_name)
+
+    module = str(frame.f_globals.get('__name__', '?')).removeprefix(PACKAGE_PREFIX)
+
+    if qualname == MODULE_NAME:
+        return module
+
+    return '{}.{}()'.format(module, qualname.replace('.<locals>', ''))
 
 
 def safe_log(
@@ -87,18 +79,20 @@ def safe_log(
     Logs an INFO level message safely. Also prints it to the screen.
 
     Arguments:
-        logger {logger} -- The logger to use.
         message {string} -- The message to log.
     """
 
+    location = ''
+
     try:
-        indents = __get_indents(__get_callstack_indent_count())
+        location = __get_location()
+
         if LOGGER is not None:
-            LOGGER.log_info_message(indents + message)
+            LOGGER.log_info_message(location + message)
         else:
-            print('{} INFO: {}{}'.format(datetime.now(), indents, message))
+            print('{} INFO: {}{}'.format(datetime.now(), location, message))
     except Exception:
-        print('{}{}'.format(indents,  message))
+        print('{}{}'.format(location, message))
 
 
 def safe_log_warning(
@@ -108,16 +102,17 @@ def safe_log_warning(
     Logs a WARN level message safely. Also prints it to the screen.
 
     Arguments:
-        logger {logger} -- The logger to use.
         message {string} -- The message to log.
     """
 
+    location = ''
+
     try:
-        indents = __get_indents(__get_callstack_indent_count())
+        location = __get_location()
 
         if LOGGER is not None:
-            LOGGER.log_warning_message(indents + message)
+            LOGGER.log_warning_message(location + message)
         else:
-            print('{} WARN: {}{}'.format(datetime.now(), indents, message))
+            print('{} WARN: {}{}'.format(datetime.now(), location, message))
     except Exception:
-        print(indents + message)
+        print('{}{}'.format(location, message))
