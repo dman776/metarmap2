@@ -215,7 +215,7 @@ select:focus, input[type=text]:focus, input[type=search]:focus, input[type=passw
 .ap-row .ap-move { display: flex; gap: 6px; }
 .ap-row .btn.icon.sm { width: 40px; min-height: 40px; }
 .ap-row .btn:disabled { opacity: .35; cursor: default; }
-.ap-row.off-strip { opacity: .55; }
+.ap-divider { padding: 14px 24px 8px; border-top: 1px dashed var(--line); font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
 .ap-row .tag { display: block; font-size: 11px; white-space: nowrap; }
 input.led-count { width: 110px; min-height: 44px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--control); background: var(--sunken); color: var(--text); font: 500 14px var(--mono); }
 input.led-count:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
@@ -254,6 +254,9 @@ body.map-full-open { overflow: hidden; }
 /* an airport with no METAR: an empty ring with no color (a faint light edge keeps it visible on dark backgrounds) */
 .mled-dot.no-data { background: transparent; border: 2px solid #1b222b; box-shadow: 0 0 0 1px rgba(255, 255, 255, .3); opacity: 1 !important; }
 .mled.no-data .mled-code { color: var(--muted); }
+/* a virtual airport (no LED on the strip): a dashed circle around the dot; the shadow keeps it visible on light charts */
+.mled.virtual::before { content: ""; position: absolute; left: -11px; top: -11px; width: 22px; height: 22px; box-sizing: border-box; border-radius: 50%;
+    border: 1.5px dashed rgba(255, 255, 255, .9); filter: drop-shadow(0 0 1px rgba(0, 0, 0, .9)); pointer-events: none; }
 .mled-dot::after { content: ""; position: absolute; inset: -5px; border-radius: 50%; pointer-events: none; opacity: 0;
     background: radial-gradient(circle, #fff 0 30%, rgba(255, 255, 255, .85) 45%, transparent 72%); box-shadow: 0 0 22px 10px rgba(255, 255, 255, .55); }
 .mled-dot.locate::after { animation: led-locate 1s ease-in-out 1; }

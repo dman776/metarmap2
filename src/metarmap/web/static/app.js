@@ -339,28 +339,33 @@
         });
     });
 
-    // airports: number of LEDs; lowering it removes the airports on the last LEDs
-    const ledCount = document.querySelector('[data-led-count]');
-    if (ledCount) {
-        ledCount.addEventListener('change', async function () {
-            const n = parseInt(ledCount.value, 10);
-            const was = parseInt(ledCount.dataset.ledCount, 10);
-            if (!(n >= 1) || n === was) return;
+    // airports: number of LEDs (led.count) and of virtual airports after them (led.virtual_count);
+    // lowering one removes the airports on its last rows: data-first is the row its airports start at
+    document.querySelectorAll('[data-led-count]').forEach(function (input) {
+        input.addEventListener('change', async function () {
+            const n = parseInt(input.value, 10);
+            const was = parseInt(input.dataset.ledCount, 10);
+            const first = parseInt(input.dataset.first, 10);
+            if (!(n >= parseInt(input.min, 10)) || n === was) return;
             const removed = Array.from(document.querySelectorAll('[data-row]'))
-                .filter(function (row) { return parseInt(row.dataset.row, 10) >= n && row.dataset.code; })
+                .filter(function (row) {
+                    const pixel = parseInt(row.dataset.row, 10);
+                    return pixel >= first + n && pixel < first + was && row.dataset.code;
+                })
                 .map(function (row) { return row.dataset.code; });
             if (removed.length && !window.confirm('Remove ' + removed.join(', ') + ' from the map?')) {
-                ledCount.value = was;
+                input.value = was;
                 return;
             }
             try {
-                await call('/config/edit/led.count/' + n);
+                await call('/config/edit/' + input.dataset.countKey + '/' + n);
                 window.location.reload();
             } catch (err) {
+                input.value = was;
                 showOutput('Could not save', String(err));
             }
         });
-    }
+    });
 
     // METAR list: category filter + search
     const rows = document.querySelectorAll('[data-station]');

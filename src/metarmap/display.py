@@ -126,7 +126,7 @@ class Display(object):
     def loop(self, event):
         while not event.is_set():
             # a fresh copy each pass: airports can be edited while the loop runs
-            airports = airports_to_show(self._config.airports)
+            airports = airports_to_show(self._config.airports, self._config.data.led.count)
             for pixel, airport in airports:
                 if event.is_set():
                     return

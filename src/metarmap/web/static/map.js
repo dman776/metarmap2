@@ -451,12 +451,12 @@
             if (!entry) {
                 const icon = L.divIcon({
                     className: 'mled',
-                    html: '<button type="button" class="mled-dot" aria-label="' + led.code + '"></button><span class="mled-code">' + led.code + '</span>',
+                    html: '<button type="button" class="mled-dot" aria-label="' + led.code + (led.virtual ? ' (virtual)' : '') + '"></button><span class="mled-code">' + led.code + '</span>',
                     iconSize: [0, 0]
                 });
                 const marker = L.marker([led.lat, led.lon], {icon: icon, keyboard: false}).addTo(map);
                 // the element only exists once the map has a view; animate() looks it up
-                entry = leds[led.pixel] = {marker: marker, dot: null, data: led, style: '', active: false};
+                entry = leds[led.pixel] = {marker: marker, dot: null, data: led, style: '', active: false, virtual: null};
                 // content is built on each open (a content function would be rebuilt by every update())
                 // pan clear of the zoom buttons and background switcher along the top of the map
                 marker.bindPopup('', {className: 'led-popup', autoPanPaddingTopLeft: [10, 64]});
@@ -519,9 +519,10 @@
                 if (!el) return;
                 e.dot = el.querySelector('.mled-dot');
             }
-            // an airport with no report is an open ring, unless a whole-strip effect (rainbow, chase) lights its LED
+            // an airport with no report is an open ring, unless a whole-strip effect (rainbow, chase) lights its LED;
+            // a virtual airport has no LED on the strip: its own look says whether it joins in (rainbow) or not
             const noData = !strip && !e.data.raw;
-            const f = noData ? null : frame(strip || e.data.look, +pixel, t);
+            const f = noData ? null : frame(strip && !e.data.virtual ? strip : e.data.look, +pixel, t);
             const style = noData ? 'no-data' : f ? '--c:' + f.c + ';opacity:' + Math.max(0.08, f.a).toFixed(2) : '';
             if (style !== e.style) {
                 e.dot.setAttribute('style', noData ? '' : style);
@@ -529,6 +530,11 @@
                 e.dot.classList.toggle('no-data', noData);
                 e.dot.parentElement.classList.toggle('no-data', noData);
                 e.style = style;
+            }
+            const virtual = !!e.data.virtual;  // a dashed circle: on the web map only, no LED
+            if (virtual !== e.virtual) {
+                e.dot.parentElement.classList.toggle('virtual', virtual);
+                e.virtual = virtual;
             }
             const active = e.data.code === activeAirport;
             if (active !== e.active) {

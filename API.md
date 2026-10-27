@@ -94,6 +94,7 @@ Returns a read-only snapshot of the map's state as `application/json`. No authen
       "pixel": 5,
       "text": "Galveston",
       "display": true,
+      "virtual": false,
       "flightCategory": "IFR",
       "raw": "KGLS 231753Z 00000KT 2SM BR OVC004 24/23 A3000",
       "windDir": "0",
@@ -126,7 +127,7 @@ Returns a read-only snapshot of the map's state as `application/json`. No authen
 | `suntimes` | Today's dimming schedule (ISO 8601 with time zone) |
 | `lastFetchTime` | When METARs were last fetched, in the map's local time (ISO 8601, no time zone); `null` before the first fetch |
 | `missingStations` | Airports that had no METAR in the last fetch |
-| `airports` | Airports in LED order, skipping LEDs with no airport. `pixel` is the LED index (counting from 0). `text` is the airport's name (`""` if none) and `display` whether it's shown on the OLED. An airport on two LEDs is listed twice. The METAR fields are `null` when the map has no data for the airport. `windDir` is a string because it can be `VRB`. |
+| `airports` | Airports in LED order, skipping LEDs with no airport. `pixel` is the LED index (counting from 0). `text` is the airport's name (`""` if none) and `display` whether it's shown on the OLED. `virtual` is true for a virtual airport (after the LEDs, `pixel` at least `led.count`): no LED, on the Map page and here only, never on the OLED. An airport on two LEDs is listed twice. The METAR fields are `null` when the map has no data for the airport. `windDir` is a string because it can be `VRB`. |
 
 ### `GET /api/live`
 
@@ -139,7 +140,7 @@ What the physical map is doing right now. The Map page polls it every second. No
   "visualizer": { "active": 0, "name": "Flight Category", "exclusive": false },
   "strip": null,
   "leds": [
-    { "code": "KLBX", "pixel": 4, "name": "", "lat": 29.11, "lon": -95.46, "flightCategory": "IFR",
+    { "code": "KLBX", "pixel": 4, "name": "", "virtual": false, "lat": 29.11, "lon": -95.46, "flightCategory": "IFR",
       "raw": "KLBX 241453Z ... LTG DSNT", "lightning": true,
       "look": { "effect": "cycle", "colors": ["#ff0000", "...", "#ffff00"], "step": 0.1 } }
   ],
@@ -157,8 +158,9 @@ What the physical map is doing right now. The Map page polls it every second. No
 |---|---|
 | `leds[].lat`, `leds[].lon` | Where the airport is: from its METAR, or for an airport without a report, from aviationweather.gov's station information. `null` if neither knows it. `raw` is `null` for an airport without a report. |
 | `leds[].look` | The LED's current effect: `solid`, `off`, `blink` (`period` seconds per on/off cycle; with two `colors` it alternates between them instead of turning off), `pulse` (`period`; `low`, if present, is its dimmest point, e.g. `0.3`, otherwise it fades to off), or `cycle` (steps through `colors`, `step` seconds each). Colors are CSS hex colors. |
-| `strip` | Set when one effect drives the whole strip instead: `rainbow` (`period`) or `chase` (`step`, `size`, `spacing`). |
-| `locate` | The last white locate pulse: LED `pixel` and Unix time `at`. `null` until the first one. |
+| `leds[].virtual` | A virtual airport: no LED on the strip, so the Map page draws it in a dashed circle. |
+| `strip` | Set when one effect drives the whole strip instead: `rainbow` (`period`) or `chase` (`step`, `size`, `spacing`). The virtual airports keep their own `look` meanwhile: the same rainbow, or `off` for a chase (a wiring check). |
+| `locate` | The last white locate pulse: LED `pixel` and Unix time `at`. `null` until the first one. A virtual airport's pulse is only shown on the Map page. |
 | `display.on` | Whether the screen is showing; `false` after `/display/off` (then `screen` is `null`) |
 | `display.screen` | What the OLED shows. `badge` is the flight category, with a `*` after one that's estimated from the visibility and ceiling (`VFR*`). `page` is 1 or 2 for an airport, 0 for "Data Unavailable" or a message (then `airport` is `null`). Icons: `wind`, `visibility`, `pressure`, `temp`, `dewpoint`, `date`. |
 
@@ -274,9 +276,12 @@ curl -u metar:map http://metarmap.local/config/edit/display_screen.delay/10
 
 The airports are the `airports` list in `config.json`, one entry per LED in the order the LEDs are wired:
 `{"code": "KHOU", "name": "Hobby", "display": true}`. An LED with no airport has `"code": ""`. The list has
-`led.count` entries; `/config/edit/led.count/<n>` also adds LEDs with no airport at the end, or removes the last
-ones. A new LED count takes effect after a restart, except without an LED strip (the in-memory one), where it
-takes effect right away.
+`led.count` entries, then `led.virtual_count` virtual airports: airports with no LED, shown on the Map page and in
+`/api/status` (for Home Assistant) but never on the OLED (their `display` is ignored). `/config/edit/led.count/<n>`
+also adds LEDs with no airport at the end of the strip, or removes the airports on the last LEDs; the virtual
+airports after them are kept. `/config/edit/led.virtual_count/<n>` adds or removes virtual airports at the end. The
+two together are at most 1000 airports (each is part of every METAR fetch). A new LED count takes effect after a
+restart, except without an LED strip (the in-memory one), where it takes effect right away.
 
 `<led>` counts from 0. In a URL, `-` stands for an empty code or name.
 
@@ -294,7 +299,7 @@ An LED number or code that doesn't exist is a 404; a bad code or value is a 400.
 
 Older maps kept the airports in a separate `airports.json`. The first start of a version with the `airports` list
 moves them into `config.json` (`NULL...` placeholders become LEDs with no airport) and leaves `airports.json` as a
-backup.
+backup. Airports past `led.count` in an older file (they were already on the Map page only) become virtual airports.
 
 ### Login and Wi-Fi
 

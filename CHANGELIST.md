@@ -1,3 +1,13 @@
+### dman776 (unreleased)
+
+- Virtual airports: airports with no LED, after the strip's (`led.virtual_count`, set on Config > Airports below the
+  number of LEDs). They're fetched and shown like the others on the Map page, in a dashed circle, and in
+  `/api/status` for Home Assistant, but never on the OLED. Their effects always run. Rainbow covers them too, while
+  Chase (a wiring check) leaves them dark. Locate pulses them on the Map page only. The LEDs and the virtual airports
+  together are at most 1000 airports, since each one is part of every METAR fetch. Changing the number of LEDs keeps
+  the virtual airports after them. In an older `config.json`, airports past `led.count` (already on the Map page
+  only) become virtual airports. `/api/status` airports and `/api/live` LEDs have a new `virtual` field
+
 ### dman776 2.9.3 (2026-10-26)
 
 - `install.sh` installs the newest release (a tag such as `v2.9.2`) instead of the newest commit of the branch that

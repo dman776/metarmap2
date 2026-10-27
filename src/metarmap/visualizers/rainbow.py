@@ -8,6 +8,7 @@ from metarmap.visualizers.visualizer import legend_item
 NAME = "Rainbow"
 DESCRIPTION = "Display a rainbow pattern across all of the LEDS."
 EXCLUSIVE = True
+COVERS_VIRTUAL = True  # just colors: the web map's virtual airports join in
 
 
 def legend(settings):

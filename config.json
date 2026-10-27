@@ -6,6 +6,7 @@
     },
     "led": {
         "count": 50,
+        "virtual_count": 0,
         "pin": 18,
         "order": "GRB",
         "brightness": {

@@ -22,7 +22,8 @@ def locked(method):
 
 class Config(object):
     """
-    The map's settings, including its airports (one per LED, in LED order), saved in config.json.
+    The map's settings, including its airports (one per LED, in LED order, then the virtual ones), saved in
+    config.json.
 
     Older maps kept the airports in a separate airports.json; read() moves them into config.json once and leaves
     airports.json as a backup.
@@ -39,9 +40,11 @@ class Config(object):
         self._data = Settings.from_dict(raw)
         if "airports" not in raw:
             self._migrate(raw)
-        # one entry per LED; LEDs without an entry show nothing
-        airports = self._data.airports
-        airports.extend(Airport() for _ in range(self._data.led.count - len(airports)))
+        # one entry per LED, then the virtual airports; LEDs without an entry show nothing
+        airports, led = self._data.airports, self._data.led
+        # airports past both (older files kept airports past the strip) are already on the web map only: virtual
+        led.virtual_count = max(led.virtual_count, len(airports) - led.count, 0)
+        airports.extend(Airport() for _ in range(led.count + led.virtual_count - len(airports)))
 
     def _migrate(self, raw):
         path = raw.get("airports_file", "airports.json")
@@ -70,6 +73,8 @@ class Config(object):
         """
         if key == "led.count":
             return self.set_led_count(value)
+        if key == "led.virtual_count":
+            return self.set_virtual_count(value)
         if key == "update.channel" and str(value).strip("\"'") not in UPDATE_CHANNELS:
             raise ValueError(f"update.channel: {value!r} is not one of {', '.join(UPDATE_CHANNELS)}")
         self._data.set(key, value)
@@ -92,23 +97,50 @@ class Config(object):
 
     @property
     def airports(self):
-        """The airports, one per LED in LED order (Airport; code is "" for an LED with no airport)."""
+        """
+        The airports, one per LED in LED order, then the virtual ones (Airport; code is "" for an LED with no
+        airport).
+        """
         return self._data.airports
+
+    def is_virtual(self, pixel):
+        """Whether airport `pixel` is a virtual one: after the strip's LEDs, so on the web map only."""
+        return pixel >= self._data.led.count
 
     # ---- airports --------------------------------------------------------------------------------------------
 
     @locked
     def set_led_count(self, count):
         """
-        Sets the number of LEDs (led.count) and gives the airport list the same length:
-        new LEDs at the end have no airport; airports past the new end are removed.
+        Sets the number of LEDs (led.count): new LEDs at the end of the strip have no airport; lowering it removes
+        the airports on the last LEDs. The virtual airports after them are kept.
         """
         count = parse_value(count, int, "led.count")
-        if not 1 <= count <= MAX_LEDS:
-            raise ValueError(f"led.count: {count} is not between 1 and {MAX_LEDS}")
+        if not 1 <= count <= MAX_LEDS - self._data.led.virtual_count:
+            raise ValueError(f"led.count: {count} is not between 1 and {MAX_LEDS - self._data.led.virtual_count} "
+                             f"({MAX_LEDS} airports in all, with the virtual ones)")
+        old, airports = self._data.led.count, self._data.airports
+        if count < old:
+            del airports[count:old]
+        else:
+            airports[old:old] = [Airport() for _ in range(count - old)]
         self._data.led.count = count
-        del self._data.airports[count:]
         self.write()
+
+    @locked
+    def set_virtual_count(self, count):
+        """
+        Sets the number of virtual airports (led.virtual_count), after the strip's: new ones have no airport;
+        lowering it removes the last ones. The strip and its virtual airports have MAX_LEDS airports at most
+        (each is part of every METAR fetch).
+        """
+        count = parse_value(count, int, "led.virtual_count")
+        if not 0 <= count <= MAX_LEDS - self._data.led.count:
+            raise ValueError(f"led.virtual_count: {count} is not between 0 and {MAX_LEDS - self._data.led.count} "
+                             f"({MAX_LEDS} airports in all, with the LEDs)")
+        self._data.led.virtual_count = count
+        del self._data.airports[self._data.led.count + count:]
+        self.write()  # read() adds the new ones
 
     @locked
     def set_airport(self, pixel, key, value):

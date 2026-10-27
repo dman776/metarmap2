@@ -11,7 +11,8 @@ from metarmap.web.site import render
 
 
 def stations(services):
-    return views.stations(services.config.airports, services.metars.data, getattr(services.metars, "position", None))
+    return views.stations(services.config.airports, services.metars.data, getattr(services.metars, "position", None),
+                          services.config.data.led.count)
 
 
 def index(services, site):
@@ -61,10 +62,11 @@ def config(services, site):
 
 def airports(services, site):
     config = services.config
-    leds = views.leds(config.airports, config.data.led.count)
+    count, virtual = config.data.led.count, config.data.led.virtual_count
+    leds = views.leds(config.airports, count)
     with_airport = len([led for led in leds if led["code"]])
     return render(site, "airports.tpl", leds=leds, with_airport=with_airport, without_airport=len(leds) - with_airport,
-                  count=config.data.led.count, strip_leds=len(services.renderer.pixels()), max_leds=MAX_LEDS)
+                  count=count, virtual=virtual, strip_leds=len(services.renderer.pixels()), max_leds=MAX_LEDS)
 
 
 def raw(services):

@@ -9,6 +9,7 @@ NAME = "Chase"
 DESCRIPTION = ("Display a simple chase pattern of BLUE LEDS in sequence. "
                "Runs one complete cycle across all of the LEDs, then repeats.")
 EXCLUSIVE = True
+COVERS_VIRTUAL = False  # a wiring check: the virtual airports have no wire, so they stay dark
 
 
 def legend(settings):

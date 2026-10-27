@@ -89,12 +89,13 @@ def message_screen(title, icon="", line1="", line2="", line3=""):
 
 # ---- which airports, which pages -------------------------------------------------------------------------------
 
-def airports_to_show(airports):
+def airports_to_show(airports, count=None):
     """
     The airports set to show on the OLED, in LED order, as (pixel, code).
-    `airports` is the airport on each LED (settings.Airport: code, display).
+    `airports` is the airport on each LED (settings.Airport: code, display); the virtual airports after the first
+    `count` (led.count) are never shown, whatever their display flag says.
     """
-    return [(pixel, a.code) for pixel, a in enumerate(airports) if a.display and a.code]
+    return [(pixel, a.code) for pixel, a in enumerate(airports[:count]) if a.display and a.code]
 
 
 def pages_for(metar):

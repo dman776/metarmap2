@@ -222,6 +222,23 @@ def test_set_move_and_count_airports(client, monkeypatch):
     assert first != second
 
 
+def test_virtual_airports_page(client):
+    app = client.services
+    assert client("/config/edit/led.virtual_count/2")[0] == 200
+    assert client("/config/airports/50/code/KDWH")[0] == 303
+    assert client("/config/airports/50/display/true")[0] == 303  # saved, but a virtual airport is never on the OLED
+    body = client("/config/airports")[1]
+    assert "50 LEDs in the order they're wired and 2 virtual airports: 51 with an airport, 1 without." in body
+    assert body.count('class="ap-divider"') == 1 and body.count('<span class="tag">virtual</span>') == 2
+    assert 'data-led="50" data-field="display" disabled>' in body  # no OLED switch, and not shown as on
+    assert 'id="led-count" class="led-count" type="number" inputmode="numeric" min="1" max="998"' in body
+    assert len(app.renderer.looks) == 52 and len(app.renderer.animations) == 50
+
+    assert client("/config/edit/led.count/3")[0] == 200  # the virtual airports stay, after the strip
+    assert [a.code for a in app.config.airports[3:]] == ["KDWH", ""]
+    assert client("/config/edit/led.virtual_count/998")[0] == 400  # 1000 airports at most, with the LEDs
+
+
 def test_led_count_on_a_strip_that_cant_resize(client):
     """A NeoPixel strip's length is fixed when it opens: the new count waits for a restart."""
     app = client.services
@@ -320,6 +337,15 @@ def test_live_places_airports_without_a_report(services):
     assert (kdkr["lat"], kdkr["lon"], kdkr["raw"], kdkr["look"]["effect"]) == (31.307, -95.404, None, "off")
     khou = next(led for led in api.live(services)["leds"] if led["code"] == "KHOU")
     assert (khou["lat"], khou["lon"]) == (29.6, -95.3)  # a report's own position comes first
+
+
+def test_virtual_airports_in_the_api(services):
+    services.config.data.led.count = 3  # KDKR, on the 4th, is virtual
+    assert [a["virtual"] for a in api.status(services, "")["airports"]] == [False, False, True]
+    live = api.live(services)
+    assert [led["virtual"] for led in live["leds"]] == [False, False, True]
+    services.renderer.visualizer = 1  # rainbow: the virtual airport joins in, in its own look
+    assert api.live(services)["leds"][2]["look"]["effect"] == "rainbow"
 
 
 def test_live_whole_strip_visualizer(services):

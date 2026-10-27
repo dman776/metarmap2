@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from metarmap.config import Config, airports_from_json, parse_code
+from metarmap.config import MAX_LEDS, Config, airports_from_json, parse_code
 from metarmap.settings import Settings
 
 REPO = Path(__file__).parent.parent
@@ -124,7 +124,57 @@ def test_airports_past_the_strip_are_kept(tmp_path):
     settings.led.count = 2
     settings.airports = airports_from_json({"KHOU": {}, "KIAH": {}, "KGLS": {}})
     settings.save(tmp_path / "config.json")
-    assert codes(Config(str(tmp_path / "config.json"))) == ["KHOU", "KIAH", "KGLS"]
+    config = Config(str(tmp_path / "config.json"))
+    assert codes(config) == ["KHOU", "KIAH", "KGLS"]
+    # they were on the web map only already: now they're virtual airports
+    assert config.data.led.virtual_count == 1 and config.is_virtual(2) and not config.is_virtual(1)
+
+
+# ---- virtual airports -----------------------------------------------------------------------------------------
+
+def test_virtual_airports_come_after_the_leds(config):
+    config.edit("led.virtual_count", "2")
+    assert config.data.led.virtual_count == 2
+    assert codes(config) == ["KHOU", "KIAH", "", "KGLS", "", ""]
+    assert [config.is_virtual(p) for p in range(6)] == [False] * 4 + [True] * 2
+
+
+def test_led_count_keeps_the_virtual_airports(config):
+    config.set_virtual_count(1)
+    config.set_airport(4, "code", "KDWH")
+    config.set_led_count(5)  # a new LED goes at the end of the strip, before the virtual airport
+    assert codes(config) == ["KHOU", "KIAH", "", "KGLS", "", "KDWH"]
+    config.set_led_count(2)  # the last LEDs' airports go; the virtual one stays
+    assert codes(config) == ["KHOU", "KIAH", "KDWH"]
+    assert config.is_virtual(2)
+
+
+def test_fewer_virtual_airports_drop_the_last(config):
+    config.set_virtual_count(2)
+    config.set_airport(5, "code", "KDWH")
+    config.set_virtual_count(1)
+    assert codes(config) == ["KHOU", "KIAH", "", "KGLS", ""]
+    config.set_virtual_count(0)
+    assert len(config.airports) == 4
+
+
+def test_leds_and_virtual_airports_share_the_limit(config):
+    """Every airport is part of each METAR fetch: MAX_LEDS is for both together."""
+    config.set_virtual_count(MAX_LEDS - 4)
+    with pytest.raises(ValueError, match="1000 airports in all"):
+        config.set_led_count(5)
+    with pytest.raises(ValueError):
+        config.set_virtual_count(MAX_LEDS - 3)
+    config.set_led_count(3)  # lowering one makes room for the other
+    config.set_virtual_count(MAX_LEDS - 3)
+    assert len(config.airports) == MAX_LEDS
+
+
+@pytest.mark.parametrize("count", ["-1", "many", "1.5"])
+def test_virtual_count_limits(config, count):
+    with pytest.raises(ValueError):
+        config.set_virtual_count(count)
+    assert len(config.airports) == 4 and config.data.led.virtual_count == 0
 
 
 # ---- editing --------------------------------------------------------------------------------------------------

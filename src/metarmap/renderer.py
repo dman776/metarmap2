@@ -9,6 +9,7 @@ from contextlib import contextmanager
 import metarmap.lib.safe_logging as safe_logging
 from metarmap.clock import Clock
 from metarmap.leds.animations import animation_for
+from metarmap.models import Look
 from metarmap.sun import SunTimes, brightness_for, level_at
 from metarmap.visualizers import visualizer
 
@@ -73,8 +74,9 @@ class Renderer(object):
             looks, animations = [], [animation_for(strip_look, self._pixels)]
         else:
             looks = visualizer.looks(self._vis, [a.code for a in settings.airports], data, settings)
-            # an airport list longer than the strip can't be shown; extra airports are ignored
-            animations = [animation_for(look, pixel) for look, pixel in zip(looks, self._pix)]
+            # the virtual airports (after led.count) have no LED; their looks are for the web map. A strip still
+            # longer than led.count (a NeoPixel strip until the restart) keeps its extra LEDs dark
+            animations = [animation_for(look, pixel) for look, pixel in zip(looks[:settings.led.count], self._pix)]
         self._looks, self._strip_look, self._animations = looks, strip_look, animations
 
     @property
@@ -93,9 +95,15 @@ class Renderer(object):
     def led_states(self):
         """
         What every LED is doing right now, for the web UI: {pixel: look} plus any look that drives the whole strip.
+        While one does, the virtual airports get their own look: the strip's (rainbow) or off (chase, a wiring check).
         """
         leds = {i: look.to_dict() for i, look in enumerate(self._looks)}
-        strip = self._strip_look.to_dict() if self._strip_look is not None else None
+        strip = None
+        if self._strip_look is not None:
+            strip = self._strip_look.to_dict()
+            settings = self._config.data
+            virtual = strip if visualizer.covers_virtual(self._vis) else Look.off().to_dict()
+            leds.update({i: virtual for i in range(settings.led.count, len(settings.airports))})
         return leds, strip
 
     # ---- running the LEDs -------------------------------------------------------------------------------------
@@ -160,11 +168,16 @@ class Renderer(object):
                 self.resume()
 
     def locate(self, pixnum):
-        """Pulses one LED white (ignored while an exclusive visualizer is running)."""
+        """
+        Pulses one LED white (ignored while an exclusive visualizer is running). A virtual airport has no LED: only
+        the web map pulses it (from last_locate).
+        """
         if self._vis.EXCLUSIVE:
             return
         try:
             self.last_locate = {"pixel": int(pixnum), "at": self._clock.time()}
+            if int(pixnum) >= self._config.data.led.count:
+                return
             self.animate_once(Pulse(self._pix[int(pixnum)], speed=0.1, period=1, color=WHITE), False)
         except Exception as e:
             safe_logging.safe_log(f"[r]locate {pixnum}: {e}\n{traceback.format_exc()}")

@@ -34,6 +34,7 @@ def status(services, ip):
             "pixel": index,
             "text": airport.name,
             "display": airport.display,
+            "virtual": index >= cfg.led.count,  # on the web map and here only, no LED
             "flightCategory": m.get("flightCategory"),
             "raw": m.get("raw"),
             "windDir": m.get("windDir"),
@@ -106,12 +107,14 @@ def live(services, now=None):
     active_num, active_vis = renderer.visualizer
     display = services.display if services.config.data.display_screen.enabled else None
     leds = []
-    for s in views.stations(services.config.airports, services.metars.data, getattr(services.metars, "position", None)):
+    for s in views.stations(services.config.airports, services.metars.data, getattr(services.metars, "position", None),
+                            services.config.data.led.count):
         m = services.metars.data.get(s["code"]) or {}
         leds.append({
             "code": s["code"],
             "pixel": s["pixel"],
             "name": s["name"],
+            "virtual": s["virtual"],
             "lat": num(s["lat"]),
             "lon": num(s["lon"]),
             "flightCategory": s["cat"],

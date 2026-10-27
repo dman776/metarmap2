@@ -32,11 +32,12 @@ def is_login(web_server, user, password):
 
 # ---- airports ------------------------------------------------------------------------------------------------
 
-def stations(airports, data, position=None):
+def stations(airports, data, position=None, count=None):
     """
     One entry per airport (in LED order, skipping LEDs with no airport) for the templates.
     airports: config.airports; data: metars.data;
-    position: code -> (lat, lon) or None (metars.position), for airports without a report
+    position: code -> (lat, lon) or None (metars.position), for airports without a report;
+    count: led.count, the airports on the strip; the ones after it are virtual (web map and Home Assistant only)
     """
     result = []
     for pixel, airport in enumerate(airports):
@@ -51,6 +52,7 @@ def stations(airports, data, position=None):
             "pixel": pixel,
             "name": airport.name,
             "display": airport.display,
+            "virtual": count is not None and pixel >= count,
             "has_data": bool(m),
             "cat": m.get("flightCategory") or None,
             "raw": m.get("raw"),
@@ -63,10 +65,9 @@ def stations(airports, data, position=None):
 
 def leds(airports, count):
     """
-    Every LED for the Airports page, with its airport (code "" for none).
-    Airports past led.count (possible in older files) are listed as not on the strip.
+    Every LED for the Airports page, with its airport (code "" for none), then the virtual airports after led.count.
     """
-    return [{"pixel": pixel, "code": a.code, "name": a.name, "display": a.display, "on_strip": pixel < count}
+    return [{"pixel": pixel, "code": a.code, "name": a.name, "display": a.display, "virtual": pixel >= count}
             for pixel, a in enumerate(airports)]
 
 

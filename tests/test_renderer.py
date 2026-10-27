@@ -358,9 +358,52 @@ def test_locate_ignored_by_exclusive_visualizers(config, clock):
 
 
 def test_locate_errors_are_logged_not_raised(config, clock):
+    config.data.led.count = 100  # longer than the strip
     r, _ = make(config, clock)
     r.locate(99)  # no such LED
     assert r.last_locate["pixel"] == 99
+
+
+# ---- virtual airports -----------------------------------------------------------------------------------------
+
+@pytest.fixture
+def virtual(config):
+    """The first 3 airports are on the strip; KDKR and KGLS are virtual."""
+    config.data.led.count = 3
+    config.data.led.virtual_count = 2
+    return config
+
+
+def test_virtual_airports_get_looks_but_no_leds(virtual, clock):
+    r, strip = make(virtual, clock, leds=3)
+    assert len(r.looks) == 5 and len(r.animations) == 3
+    assert r.looks[4] == Look.solid(virtual.data.color.cat.lifr)  # for the web map
+    assert set(r.led_states()[0]) == {0, 1, 2, 3, 4}
+
+
+def test_a_longer_strip_leaves_its_extra_leds_dark(virtual, clock):
+    """A NeoPixel strip keeps its length until a restart: a virtual airport mustn't light the LED it used to have."""
+    r, strip = make(virtual, clock, leds=5)
+    draw_frame(r)
+    assert len(r.animations) == 3 and strip[4] == (0, 0, 0)
+
+
+def test_virtual_airports_join_a_rainbow_but_not_a_chase(virtual, clock):
+    r, _ = make(virtual, clock, leds=3, visualizers=[chase, rainbow])
+    leds, strip = r.led_states()  # chase: a wiring check, so the virtual airports have nothing to show
+    assert strip["effect"] == "chase"
+    assert leds == {3: {"effect": "off", "colors": []}, 4: {"effect": "off", "colors": []}}
+    r.visualizer = 1
+    leds, strip = r.led_states()
+    assert leds == {3: strip, 4: strip} and strip["effect"] == "rainbow"
+
+
+def test_locate_a_virtual_airport_only_on_the_web_map(virtual, clock):
+    r, strip = make(virtual, clock, leds=5)  # LEDs 3 and 4 exist, but aren't the virtual airports'
+    shows = strip.shows
+    r.locate(4)
+    assert r.last_locate == {"pixel": 4, "at": NOON.timestamp()}  # the web map pulses it
+    assert strip.shows == shows
 
 
 # ---- brightness by sun time -----------------------------------------------------------------------------------

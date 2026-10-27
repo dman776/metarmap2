@@ -34,7 +34,8 @@ class Brightness(_Section):
 
 @dataclass
 class Led(_Section):
-    count: int = 50
+    count: int = 50  # LEDs on the strip
+    virtual_count: int = 0  # airports after the strip's: on the web map and in Home Assistant only, no LED
     pin: int = 18
     order: str = "GRB"
     brightness: Brightness = field(default_factory=Brightness)
@@ -125,7 +126,7 @@ class UpdateSettings(_Section):
 
 @dataclass
 class Airport(_Section):
-    """One LED of the strip and the airport it shows."""
+    """One LED of the strip (or a virtual airport, after them) and the airport it shows."""
     code: str = ""  # ICAO code; empty for an LED with no airport
     name: str = ""  # shown next to the code in the web UI
     display: bool = False  # show this airport on the OLED screen
@@ -141,7 +142,8 @@ class Settings(_Section):
     visualizer: VisualizerSettings = field(default_factory=VisualizerSettings)
     lightning: Lightning = field(default_factory=Lightning)
     update: UpdateSettings = field(default_factory=UpdateSettings)
-    airports: List[Airport] = field(default_factory=list)  # in LED order: airports[0] is the first LED
+    # in LED order: airports[0] is the first LED; the led.virtual_count virtual airports come after the strip's
+    airports: List[Airport] = field(default_factory=list)
 
     # ---- loading and saving ------------------------------------------------------------------------------------
 

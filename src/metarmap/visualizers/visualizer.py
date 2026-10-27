@@ -35,11 +35,17 @@ def legend_item(label, detail, *colors, effect="solid", period=None, low=None):
 #   legend(settings)    legend_item() entries describing what the LEDs mean
 #   look(metar, settings) -> Look        how one airport's LED looks ({} when it has no report), or
 #   strip_look(settings) -> Look         one look for the whole strip (rainbow, chase)
+#   COVERS_VIRTUAL      with strip_look: True if the virtual airports show it too (default: they stay dark)
 # Visualizers don't touch the LEDs; the renderer turns their looks into animations.
 
 def strip_look(vis, settings) -> Optional[Look]:
     """The visualizer's look for the whole strip, or None if it has one look per airport."""
     return vis.strip_look(settings) if hasattr(vis, "strip_look") else None
+
+
+def covers_virtual(vis) -> bool:
+    """Whether the virtual airports show the visualizer's whole-strip look, or stay dark while it runs."""
+    return getattr(vis, "COVERS_VIRTUAL", False)
 
 
 def looks(vis, codes, data, settings) -> List[Look]:

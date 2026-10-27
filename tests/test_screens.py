@@ -107,6 +107,11 @@ def test_airports_to_show_keeps_led_order():
     assert screens.airports_to_show([]) == []
 
 
+def test_virtual_airports_are_never_on_the_oled():
+    leds = airports("KHOU", "KIAH", "KGLS", display=("KHOU", "KGLS"))
+    assert screens.airports_to_show(leds, 2) == [(0, "KHOU")]  # KGLS is virtual: no LED
+
+
 def test_pages_for():
     assert screens.pages_for(KHOU) == (1, 2)
     assert screens.pages_for({}) == (0,)
