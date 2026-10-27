@@ -46,6 +46,6 @@ def open_strip(led):
         pin = getattr(board, f"D{led.pin}")
         order = getattr(neopixel, led.order)
     except (ImportError, NotImplementedError, AttributeError) as e:
-        safe_log(f"[l]no LED hardware ({type(e).__name__}: {e}); using an in-memory strip")
+        safe_log(f"no LED hardware ({type(e).__name__}: {e}); using an in-memory strip")
         return FakeStrip(led.count, brightness=led.brightness.normal)
     return neopixel.NeoPixel(pin, led.count, brightness=led.brightness.normal, pixel_order=order, auto_write=False)

@@ -137,5 +137,5 @@ def open_screen():
     try:
         return SSD1306Screen()
     except (ImportError, NotImplementedError, OSError, ValueError, RuntimeError) as e:
-        safe_log(f"[d]no OLED screen ({type(e).__name__}: {e}); using an in-memory screen")
+        safe_log(f"no OLED screen ({type(e).__name__}: {e}); using an in-memory screen")
         return FakeScreen()

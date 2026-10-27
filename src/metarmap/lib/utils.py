@@ -49,7 +49,7 @@ def get_sun_times(city_name):
     except KeyError:
         safe_logging.safe_log("Error: Location not recognized, please check list of supported cities and reconfigure")
     else:
-        safe_logging.safe_log("[u]" + str(city))
+        safe_logging.safe_log(str(city))
         sun = astral.sun.sun(city.observer, date=datetime.now().date(), tzinfo=city.timezone)
         # DAWN = sun['dawn']
         # SUNRISE = sun['sunrise']
@@ -197,7 +197,7 @@ def run_update(repo=None, progress=None, channel="releases", version=None, curre
             progress(fraction, label)
 
     def say(msg):
-        safe_logging.safe_log("[u]" + msg)
+        safe_logging.safe_log(msg)
         result.log.append("[u]" + msg)
 
     def fail(message):
@@ -368,7 +368,7 @@ def restart():
     src = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # .../src
     path = os.environ.get("PYTHONPATH")
     env = {**os.environ, "PYTHONPATH": src + (os.pathsep + path if path else "")}
-    safe_logging.safe_log("[u]restarting... python -m metarmap")
+    safe_logging.safe_log("restarting... python -m metarmap")
     os.execve(sys.executable, [sys.executable, "-m", "metarmap", *sys.argv[1:]], env)
 
 

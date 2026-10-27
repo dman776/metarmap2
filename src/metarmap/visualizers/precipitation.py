@@ -67,7 +67,7 @@ def look_for_weather(obs, settings) -> Look:
         return Look.off()  # nothing to report ("NSW": no significant weather)
     groups = parse_weather(obs)
     if not groups:
-        safe_logging.safe_log(f"[v]unknown weather codes: {obs}")
+        safe_logging.safe_log(f"unknown weather codes: {obs}")
         return style.missing()
 
     storm = next((g for g in groups if g.descriptor == "TS"), None)

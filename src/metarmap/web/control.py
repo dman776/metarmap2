@@ -53,7 +53,7 @@ class Updates:
                         if result.ok and self.on_done:
                             self.on_done(result)
                     except Exception as e:
-                        safe_log(f"[w]update failed: {e}")
+                        safe_log(f"update failed: {e}")
                         job.update(ok=False, changed=False, errors=[str(e)])
                     finally:
                         job["done"] = True
@@ -223,7 +223,7 @@ def add_routes(app, services, site, auth, updates=None):
             bottle.abort(400, str(e))
         except system.ChangeFailed as e:
             bottle.abort(500, f"The Pi's password couldn't be changed, so nothing was changed: {e}")
-        safe_log(f"[w]web UI login changed (user {config.data.web_server.user}); Linux password: {linux}")
+        safe_log(f"web UI login changed (user {config.data.web_server.user}); Linux password: {linux}")
         return as_json({"user": config.data.web_server.user, "linux_password": linux})
 
     def set_wifi():
@@ -238,9 +238,9 @@ def add_routes(app, services, site, auth, updates=None):
         def switch():
             time.sleep(WIFI_DELAY)  # let the answer reach the browser before the connection drops
             try:
-                safe_log(f"[w]Wi-Fi: {system.set_wifi(ssid, password)}")
+                safe_log(f"Wi-Fi: {system.set_wifi(ssid, password)}")
             except (system.ChangeFailed, OSError, subprocess.SubprocessError) as e:
-                safe_log(f"[w]Wi-Fi change to {ssid} failed: {e}")
+                safe_log(f"Wi-Fi change to {ssid} failed: {e}")
         threading.Thread(target=switch, name="wifi", daemon=True).start()
         return as_json({"ssid": ssid, "current": system.current_wifi(), "delay": WIFI_DELAY}, status=202)
 

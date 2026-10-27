@@ -78,10 +78,10 @@ def starts(text, repo, run) -> bool:
         done = run([command[0], "-c", "import metarmap.app"], cwd=str(repo), env=env, capture_output=True,
                    text=True, timeout=120)
     except (OSError, subprocess.SubprocessError) as e:
-        safe_log(f"[s]{command[0]} can't run: {e}")
+        safe_log(f"{command[0]} can't run: {e}")
         return False
     if done.returncode != 0:
-        safe_log(f"[s]{command[0]} can't import the map: {done.stderr.strip()}")
+        safe_log(f"{command[0]} can't import the map: {done.stderr.strip()}")
     return done.returncode == 0
 
 
@@ -104,10 +104,10 @@ def migrate(paths=INSTALLED, repo=REPO, run=subprocess.run, root=None) -> List[P
             continue  # already switched
         reason = why_not(old, repo)
         if reason:
-            safe_log(f"[s]leaving {path} as it is: {reason}")
+            safe_log(f"leaving {path} as it is: {reason}")
             continue
         if not replaced and not starts(new, repo, run):
-            safe_log(f"[s]leaving {path} as it is: the new service wouldn't start")
+            safe_log(f"leaving {path} as it is: the new service wouldn't start")
             return []
         shutil.copy2(path, path.with_name(path.name + BACKUP_SUFFIX))
         tmp = path.with_name(path.name + ".new")
@@ -121,8 +121,8 @@ def migrate(paths=INSTALLED, repo=REPO, run=subprocess.run, root=None) -> List[P
         if done.returncode != 0:
             for path in replaced:
                 shutil.copy2(path.with_name(path.name + BACKUP_SUFFIX), path)
-            safe_log(f"[s]systemctl daemon-reload failed ({done.stderr.strip()}); put the old service file back")
+            safe_log(f"systemctl daemon-reload failed ({done.stderr.strip()}); put the old service file back")
             return []
-        safe_log(f"[s]switched {', '.join(map(str, replaced))} to `python3 -m metarmap`; "
+        safe_log(f"switched {', '.join(map(str, replaced))} to `python3 -m metarmap`; "
                  f"the old file is saved as *{BACKUP_SUFFIX}")
     return replaced

@@ -72,7 +72,7 @@ def process(content, codes, now):
         try:
             parsed = parse_report(metar)
             if parsed["obsTime"] is not None and parsed["obsTime"] < oldest_allowed:
-                safe_logging.safe_log(f"[m]{airport}: latest report is from {parsed['obsTime']:%Y-%m-%d %H:%MZ}; "
+                safe_logging.safe_log(f"{airport}: latest report is from {parsed['obsTime']:%Y-%m-%d %H:%MZ}; "
                                       f"treating it as not reporting")
                 data[airport] = {}
                 missing.append(airport)
@@ -81,7 +81,7 @@ def process(content, codes, now):
             reporting.append(airport)
         except Exception as e:
             # one malformed report only affects its own airport
-            safe_logging.safe_log(f"[m]Could not parse METAR for {airport}: {e} raw: {metar.get('raw_text')}\n"
+            safe_logging.safe_log(f"Could not parse METAR for {airport}: {e} raw: {metar.get('raw_text')}\n"
                                   f"{traceback.format_exc()}")
             data[airport] = {}
             missing.append(airport)
@@ -174,28 +174,28 @@ class METAR(object):
         ok = False
         try:
             self._is_fetching = True
-            safe_logging.safe_log("[m]Fetching...")
+            safe_logging.safe_log("Fetching...")
             url = API_URL + ",".join(airport_codes(self._config.airports))
             response = requests.get(url, headers={'User-Agent': USER_AGENT}, timeout=30, verify=True)
             response.raise_for_status()
             content = response.content
             self._is_fetching = False
             self.lastFetchTime = datetime.now()
-            safe_logging.safe_log("[m]Fetching completed.")
+            safe_logging.safe_log("Fetching completed.")
             self._process(content)
             ok = True
             self.locate()
         except requests.exceptions.RequestException as e:
-            safe_logging.safe_log(f"[m]Error occurred (RequestException): {e}")
+            safe_logging.safe_log(f"Error occurred (RequestException): {e}")
         except Exception as e:
-            safe_logging.safe_log(f"[m]Error occurred: {e}\n{traceback.format_exc()}")
+            safe_logging.safe_log(f"Error occurred: {e}\n{traceback.format_exc()}")
         finally:
             self._is_fetching = False
             self.last_fetch_ok = ok
             if callback is not None:
-                safe_logging.safe_log("[m]Calling callback function...")
+                safe_logging.safe_log("Calling callback function...")
                 callback()
-                safe_logging.safe_log("[m]done.")
+                safe_logging.safe_log("done.")
         return ok
 
     def locate(self):
@@ -217,7 +217,7 @@ class METAR(object):
             response.raise_for_status()
             stations = response.json()
         except (requests.exceptions.RequestException, ValueError) as e:
-            safe_logging.safe_log(f"[m]Could not look up {', '.join(codes)}: {e}")
+            safe_logging.safe_log(f"Could not look up {', '.join(codes)}: {e}")
             return False
         found = {}
         for station in stations if isinstance(stations, list) else []:
@@ -256,12 +256,12 @@ class METAR(object):
         return self._is_fetching
 
     def _process(self, content):
-        safe_logging.safe_log("[m]Processing...")
+        safe_logging.safe_log("Processing...")
         # built separately, then swapped in, so readers never see half-filled data
         self.data, self._stations, self._missing_stations = process(
             content, airport_codes(self._config.airports), self._clock.now())
-        safe_logging.safe_log(f"[m]Missing stations: {self._missing_stations}")
-        safe_logging.safe_log("[m]Processing complete.")
+        safe_logging.safe_log(f"Missing stations: {self._missing_stations}")
+        safe_logging.safe_log("Processing complete.")
 
     def missing_stations(self):
         """

@@ -107,7 +107,7 @@ class Display(object):
             self.stop(False)
             self._thread.join(timeout)
             if self._thread.is_alive():
-                safe_log("[d]display thread did not stop; starting a new one anyway")
+                safe_log("display thread did not stop; starting a new one anyway")
             self.event = threading.Event()
             self._thread = self._new_thread()
             self.start()
@@ -135,14 +135,14 @@ class Display(object):
                         self._renderer.locate(pixel)  # a virtual airport: on the web map only
                     except Exception as e:
                         # a failed LED pulse shouldn't cost the airport its pages
-                        safe_log(f"[d]locate {airport}: {e}")
+                        safe_log(f"locate {airport}: {e}")
                 try:
                     self.show_airport(airport, self._data.data.get(airport) or {},
                                       self._config.data.display_screen.delay, event,
                                       virtual=pixel >= self._config.data.led.count)
                 except Exception as e:
                     # never let one airport stop the loop
-                    safe_log(f"[d]loop: {airport}: {e}\n{traceback.format_exc()}")
+                    safe_log(f"loop: {airport}: {e}\n{traceback.format_exc()}")
                     self._clock.wait(event, 1)
             if not airports:
                 self.last_change = self._clock.time()
@@ -176,4 +176,4 @@ class Display(object):
             self._screen = screen
         except Exception as e:
             # e.g. an I2C error; keep going with the next page
-            safe_log(f"[d]draw {screen.get('title')}: {e}")
+            safe_log(f"draw {screen.get('title')}: {e}")

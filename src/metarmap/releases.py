@@ -140,7 +140,7 @@ class ReleaseCheck:
                 available = releases[0] if releases and versions.is_newer(releases[0], self.current) else None
             found = {"releases": releases, "available": available, "error": None}
         except CheckFailed as e:
-            safe_log(f"[u]couldn't check GitHub for updates: {e}")
+            safe_log(f"couldn't check GitHub for updates: {e}")
             found = {**self._found, "error": str(e)}
         found["checked"] = self._clock()
         with self._lock:

@@ -121,11 +121,11 @@ class Renderer(object):
                         break
                 time.sleep(FRAME_SECONDS)  # outside the lock, so locate() and the web UI can get in
         except Exception as e:
-            safe_logging.safe_log("[r]render error: " + str(e))
+            safe_logging.safe_log("render error: " + str(e))
             time.sleep(FRAME_SECONDS)  # the main loop calls render() again at once: no hot loop of errors
 
     def update_data(self, metars):
-        safe_logging.safe_log("[r]" + "updating data in the renderer")
+        safe_logging.safe_log("updating data in the renderer")
         self._metars = metars
         self._rebuild()
 
@@ -180,7 +180,7 @@ class Renderer(object):
                 return
             self.animate_once(Pulse(self._pix[int(pixnum)], speed=0.1, period=1, color=WHITE), False)
         except Exception as e:
-            safe_logging.safe_log(f"[r]locate {pixnum}: {e}\n{traceback.format_exc()}")
+            safe_logging.safe_log(f"locate {pixnum}: {e}\n{traceback.format_exc()}")
 
     # ---- visualizers ------------------------------------------------------------------------------------------
 
@@ -278,7 +278,7 @@ class Renderer(object):
         return level_at(self._clock.now(), self._sun.times)
 
     def adjust_brightness_for_time(self):
-        safe_logging.safe_log("[r]adjust brightness for time")
+        safe_logging.safe_log("adjust brightness for time")
         self.brightness(self.brightness_for(self._clock.now()))
 
     def test_pattern(self):

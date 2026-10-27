@@ -52,12 +52,12 @@ class Config(object):
             with open(path) as f:
                 old = json.load(f)
         except (OSError, ValueError) as e:
-            safe_log(f"[cfg]no airports in {self._file} and can't read {path} ({e}); starting with none")
+            safe_log(f"no airports in {self._file} and can't read {path} ({e}); starting with none")
             return
         self._data.airports = airports_from_json(old)
         self._data._extra.pop("airports_file", None)
         self._data.save(self._file)
-        safe_log(f"[cfg]moved {len(self._data.airports)} airports from {path} into {self._file}; "
+        safe_log(f"moved {len(self._data.airports)} airports from {path} into {self._file}; "
                  f"{path} is kept as a backup")
 
     @locked

@@ -61,7 +61,7 @@ def build(config_file=CONFIG_FILE, strip=None, screen=None, clock: Clock = None,
     sun = SunTimes(config.data.geo.city)
     sun.reload()
 
-    safe_logging.safe_log("[c]" + "Get weather for all airports...")
+    safe_logging.safe_log("Get weather for all airports...")
     metars = METAR(config, fetch=fetch, clock=clock)
 
     if strip is None:
@@ -116,7 +116,7 @@ def fill_names(app: App):
     """Airports with an empty name get the name the station lookup found (saved to config.json)."""
     filled = app.config.fill_names(app.metars.station_names())
     if filled:
-        safe_logging.safe_log(f"[c]filled in the names of {filled} airports")
+        safe_logging.safe_log(f"filled in the names of {filled} airports")
 
 
 def needs_retry(app: App):
@@ -128,7 +128,7 @@ def retry_soon(app: App):
     """Tries again every RETRY_SECONDS until it works, instead of waiting for the next regular fetch."""
     if not app.scheduler.get_jobs("retry"):
         what = "METAR fetch" if app.metars.last_fetch_ok is False else "airport position lookup"
-        safe_logging.safe_log(f"[c]{what} failed; trying again every {RETRY_SECONDS} s until it works")
+        safe_logging.safe_log(f"{what} failed; trying again every {RETRY_SECONDS} s until it works")
         app.scheduler.every(RETRY_SECONDS).seconds.do(retry_fetch, app).tag("retry")
 
 
@@ -147,7 +147,7 @@ def retry_fetch(app: App):
 
 
 def load_suntimes(app: App):
-    safe_logging.safe_log("[sched]load suntimes")
+    safe_logging.safe_log("load suntimes")
     app.sun.reload()
     schedule_brightness(app)
 
@@ -167,7 +167,7 @@ def set_brightness(app: App, level):
     """
     if isinstance(level, str):
         level = getattr(app.config.data.led.brightness, level)
-    safe_logging.safe_log("[sched]set brightness: " + str(level))
+    safe_logging.safe_log("set brightness: " + str(level))
     app.renderer.brightness(level)
 
 
@@ -190,12 +190,12 @@ def watch_display(app: App):
         return  # turned off
     reason = disp.stalled()
     if reason:
-        safe_logging.safe_log(f"[c]display watchdog: {reason}; restarting")
+        safe_logging.safe_log(f"display watchdog: {reason}; restarting")
         try:
             disp.restart(timeout=5)
         except Exception as e:
             # an exception here would end the main loop; just try again next time
-            safe_logging.safe_log(f"[c]display watchdog restart failed: {e}\n{traceback.format_exc()}")
+            safe_logging.safe_log(f"display watchdog restart failed: {e}\n{traceback.format_exc()}")
 
 
 # ---- running -------------------------------------------------------------------------------------------------
@@ -217,10 +217,10 @@ def run(app: App):
         web_server = serve(web_app, "0.0.0.0", app.config.data.web_server.port)
     except OSError as e:
         # e.g. the port is in use; the LEDs and OLED still run
-        safe_logging.safe_log(f"[c]web server can't start on port {app.config.data.web_server.port}: {e}")
+        safe_logging.safe_log(f"web server can't start on port {app.config.data.web_server.port}: {e}")
         web_server = None
 
-    safe_logging.safe_log("[c]" + "Main loop...")
+    safe_logging.safe_log("Main loop...")
     if app.config.data.display_screen.enabled:
         app.display.start()
     try:
@@ -230,13 +230,13 @@ def run(app: App):
     except KeyboardInterrupt:
         pass
     except Exception as e:
-        safe_logging.safe_log(f"[c]main loop stopped: {e}\n{traceback.format_exc()}")
+        safe_logging.safe_log(f"main loop stopped: {e}\n{traceback.format_exc()}")
     finally:
         shutdown(app, web_app, web_server)
 
 
 def shutdown(app: App, web_app, web_server):
-    safe_logging.safe_log("[c]" + "Cleaning up...")
+    safe_logging.safe_log("Cleaning up...")
     app.scheduler.clear()
     app.display.stop()
     app.renderer.stop()
@@ -248,11 +248,11 @@ def shutdown(app: App, web_app, web_server):
 
 
 def wait_for_internet():
-    safe_logging.safe_log("[c]" + "Testing to see if internet (8.8.8.8) is reachable...")
+    safe_logging.safe_log("Testing to see if internet (8.8.8.8) is reachable...")
     while utils.is_pingable("8.8.8.8") != 0:
-        safe_logging.safe_log("[c]" + ".")
+        safe_logging.safe_log(".")
         time.sleep(1)
-    safe_logging.safe_log("[c]" + "done.")
+    safe_logging.safe_log("done.")
 
 
 # ---- process setup -------------------------------------------------------------------------------------------
@@ -262,7 +262,7 @@ def log_thread_exception(args):
     Uncaught exceptions in background threads only go to stderr by default; put them in the log too.
     """
     name = args.thread.name if args.thread else "?"
-    safe_logging.safe_log(f"[c]uncaught exception in thread {name}: "
+    safe_logging.safe_log(f"uncaught exception in thread {name}: "
                           + "".join(traceback.format_exception(args.exc_type, args.exc_value, args.exc_traceback)))
 
 
@@ -271,7 +271,7 @@ def log_uncaught_exception(exc_type, exc_value, exc_traceback):
     A crash in the main thread only goes to stderr (the systemd journal); put it in the log too.
     """
     if not issubclass(exc_type, KeyboardInterrupt):
-        safe_logging.safe_log("[c]uncaught exception: "
+        safe_logging.safe_log("uncaught exception: "
                               + "".join(traceback.format_exception(exc_type, exc_value, exc_traceback)))
     sys.__excepthook__(exc_type, exc_value, exc_traceback)
 
@@ -286,10 +286,10 @@ def main(config_file=CONFIG_FILE):
     threading.excepthook = log_thread_exception
     sys.excepthook = log_uncaught_exception
 
-    safe_logging.safe_log(f"[c]Starting metarmap {__version__} at " + datetime.now().strftime('%d/%m/%Y %H:%M'))
+    safe_logging.safe_log(f"Starting metarmap {__version__} at " + datetime.now().strftime('%d/%m/%Y %H:%M'))
     try:
         service.migrate()  # an installed metarmap.service that still runs controller.py
     except Exception as e:
-        safe_logging.safe_log(f"[c]service file check failed: {e}\n{traceback.format_exc()}")
+        safe_logging.safe_log(f"service file check failed: {e}\n{traceback.format_exc()}")
     wait_for_internet()
     run(build(config_file))
