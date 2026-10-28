@@ -1,3 +1,20 @@
+### dman776 3.0.1 (2026-10-27)
+
+- Remote page (`/remote`): a kiosk remote control for the map, laid out for an iPad, with Visualizer, Map, Locator
+  and Config tabs. On the Map tab the radar ("Weather") background refreshes every few minutes
+- Lightning: one double flicker (about 4 s apart) over every weather visualizer, for an airport reporting `LTG` or any
+  thunderstorm (`TS`, including `VCTS`). It always honors `lightning.animation`: with it off, Precipitation shows the
+  storm's precipitation and the other visualizers a steady yellow (dim for `VCTS`)
+- `dev_mode` (top level in `config.json`, edited by hand only, off by default) for testing on a real map:
+  - Config > Software > *Update to* gains **Branch**, with a list of GitHub's branches (refreshed by each check), to
+    install a pushed branch. With `dev_mode` off, a saved `branch` channel acts as Releases
+  - Update and Install restart the map when the new code is in
+  - **Mock METARs**: each Airports row has a *Mock METAR* field that replaces the airport's real report on the LEDs,
+    OLED, web pages and API, until cleared. It can't be set by URL. Airports with one say `mock` on the Home, METARs
+    and Airports pages and the Map popup, and have `"mock": true` in the API. Changing the airport's code removes it
+- Config > Software moved to the top of Config's right-hand column
+- Every log message now starts with the module, class and function that logged it, and the line number
+
 ### dman776 3.0.0 (2026-10-26)
 
 - Virtual airports: airports with no LED, after the strip's (`led.virtual_count`, set on Config > Airports below the

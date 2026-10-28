@@ -13,7 +13,7 @@ web UI, an API and a Home Assistant integration (see [Credits](#credits)).
 - **Visualizers**: show the flight category, wind, wind gusts, temperature, pressure, precipitation, visibility,
   density altitude, ceiling or dewpoint spread (fog risk) on the LEDs, plus Rainbow and Chase patterns. Switch
   between them on the web UI, or let the map rotate through them.
-- **Lightning**: airports reporting lightning or a thunderstorm flicker yellow (two quick flashes every 2 s) in every weather visualizer.
+- **Lightning**: airports reporting lightning or a thunderstorm flicker yellow (a double flash every 4 s) in every weather visualizer, unless you turn the animation off in Config.
 - **Estimated flight categories**: a station that doesn't report its flight category, but does report its visibility
   or clouds, gets an estimate from them. Its LED breathes slowly so you can tell, and the OLED shows it with a `*`
   (`VFR*`).
@@ -24,7 +24,7 @@ web UI, an API and a Home Assistant integration (see [Credits](#credits)).
 - **Web UI**: current conditions, a METAR list, a live map that mirrors the LEDs and the OLED screen, and settings.
   Click an airport on the map for its weather in plain English, its raw METAR, or the METAR decoded line by line.
   The map can go fullscreen, and follows the visualizer as it changes. Update and restart the map from the Home
-  page.
+  page. `/remote` is a remote control for a tablet in kiosk mode.
 - **API and Home Assistant**: everything in the web UI also works over HTTP (see [API.md](API.md)); the
   [metarmap2_ha](https://github.com/dman776/metarmap2_ha) integration adds the map to Home Assistant.
 
@@ -183,6 +183,11 @@ and the web UI (including the live Map page and its OLED window) works as usual 
 - Run the map: `.venv/bin/python -m metarmap` (or `.venv/bin/metarmap`), from the folder with `config.json`.
   The web server uses `web_server.port` from `config.json`. Port 80 needs `sudo`, so on a laptop use something like
   8080 and open http://localhost:8080.
+
+For testing on a real map, set `"dev_mode": true` in `config.json` by hand (stop the map first). Then **Config >
+Software > Update to** offers **Branch**, to install a branch you pushed to GitHub (**Check now** refreshes the list),
+and every row on **Config > Airports** gets a **Mock METAR** field: paste a raw METAR and it replaces that airport's
+real report on the LEDs and everywhere else, until you clear it. Mocked airports are marked `mock` on the web pages.
 
 To release a version, so maps see it as an update: bump the version (`bump2version patch` or `minor`), commit, tag
 the commit with the version, and push both:
