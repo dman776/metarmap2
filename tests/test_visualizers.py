@@ -54,7 +54,7 @@ def test_exclusive_visualizers():
 
 def test_info(settings):
     assert visualizer.info(wind, settings) == {"name": "Wind", "description": wind.DESCRIPTION, "exclusive": False,
-                                               "legend": wind.legend(settings)}
+                                               "legend": visualizer.legend(wind, settings)}
 
 
 # ---- flight category ----------------------------------------------------------------------------------------
@@ -123,12 +123,6 @@ def test_a_reported_category_is_never_estimated(settings):
     assert look == Look.solid(settings.color.cat.vfr)
 
 
-def test_lightning_over_an_estimated_category(settings):
-    look = estimated({"visibilitySM": 2.0, "lightning": True}, settings)
-    assert look == Look.cycle(flightcategory.lightning_pattern(settings.color.cat.ifr,
-                                                                settings.color.weather.lightning), step=0.1)
-
-
 def test_the_legend_explains_estimates(settings):
     item = next(i for i in flightcategory.legend(settings) if i["label"] == "Estimated")
     assert item["effect"] == "pulse" and item["period"] == flightcategory.ESTIMATE_PERIOD
@@ -147,17 +141,66 @@ def test_estimating_from_real_reports():
     assert decode.estimate_category(neither) is None
 
 
-def test_lightning_flashes_over_category(settings):
-    look = flightcategory.look(metar(flightCategory="IFR", lightning=True), settings)
-    assert look.effect == "cycle"
-    assert look.step == 0.1
-    assert look.colors == (tuple(settings.color.cat.ifr),) * 15 + (tuple(settings.color.weather.lightning),)
+# ---- lightning: the same double flicker over every weather visualizer ----------------------------------------
+
+def lit(v, settings, **fields):
+    return visualizer.look(v, metar(**fields), settings)
 
 
-def test_lightning_animation_can_be_turned_off(settings):
+def flicker(base, flash):
+    """The frames of 2 s: flash, back, flash, then the base color."""
+    return [flash] * 3 + [base] * 2 + [flash] * 3 + [base] * 32
+
+
+def test_lightning_flickers_over_the_category(settings):
+    look = lit(flightcategory, settings, flightCategory="IFR", lightning=True)
+    ifr, yellow = tuple(settings.color.cat.ifr), tuple(settings.color.weather.lightning)
+    assert look.effect == "cycle" and look.step == style.LIGHTNING_STEP
+    assert list(look.colors) == flicker(ifr, yellow) * 2  # every 2 s, for 4 s
+
+
+@pytest.mark.parametrize("v", visualizers.WEATHER)
+def test_every_weather_visualizer_shows_lightning(v, settings):
+    look = lit(v, settings, lightning=True)
+    yellow = tuple(settings.color.weather.lightning)
+    assert look.effect == "cycle" and look.colors[:3] == (yellow,) * 3 and look.colors[40:43] == (yellow,) * 3
+    assert any(i["label"] == "Lightning or a thunderstorm" for i in visualizer.legend(v, settings))
+
+
+@pytest.mark.parametrize("v", visualizers.WEATHER)
+def test_lightning_animation_off_is_honored_everywhere(v, settings):
     settings.lightning.animation = False
-    look = flightcategory.look(metar(flightCategory="IFR", lightning=True), settings)
-    assert look == Look.solid(settings.color.cat.ifr)
+    m = metar(lightning=True, obs="TSRA")
+    assert visualizer.look(v, m, settings) == v.look(m, settings)
+    assert all(i["label"] != "Lightning or a thunderstorm" for i in visualizer.legend(v, settings))
+
+
+@pytest.mark.parametrize("fields, has", [({"lightning": True}, True), ({"obs": "TSRA"}, True),
+                                         ({"obs": "+TSRA BR"}, True), ({"obs": "VCTS"}, True),
+                                         ({"obs": "-RA"}, False), ({}, False)])
+def test_what_counts_as_lightning(fields, has):
+    assert style.has_lightning(metar(**fields)) is has
+    assert style.has_lightning({}) is False  # no report
+
+
+def test_lightning_keeps_the_look_moving_between_flashes(settings):
+    """A heavy blink (or a breath) carries on between the flickers."""
+    base = Look.blink((200, 0, 0), period=1, background=(60, 0, 0))
+    frames = style.with_lightning(base, settings).colors
+    assert frames[8] == (200, 0, 0) and frames[10] == (60, 0, 0)  # 0.4 s: bright half; 0.5 s: dim half
+    breath = style.with_lightning(Look.pulse((100, 100, 100), period=4, low=0.3), settings).colors
+    assert breath[8] != breath[20]
+
+
+def test_lightning_on_yellow_is_dimmed_between_flashes(settings):
+    yellow = tuple(settings.color.weather.lightning)
+    frames = lit(precipitation, settings, obs="TS").colors
+    assert frames[:3] == (yellow,) * 3 and frames[3] == style.dim(yellow)
+
+
+def test_lightning_isnt_added_to_whole_strip_patterns(settings):
+    assert not visualizer.shows_lightning(rainbow, settings)
+    assert all(i["label"] != "Lightning or a thunderstorm" for i in visualizer.legend(rainbow, settings))
 
 
 # ---- the shared conventions (style.py) ---------------------------------------------------------------------
@@ -333,11 +376,13 @@ def test_most_significant_wins(settings):
 
 
 def test_thunderstorms(settings):
+    """Without lightning (look_for_weather is the base look): the storm's precipitation, else yellow."""
     yellow = W(settings, "lightning")
-    assert P("TS", settings) == Look.blink(yellow, period=1, background=style.dim(yellow))
-    assert P("TSRA", settings) == Look.blink(W(settings, "rain"), period=1, background=yellow)
+    assert P("TS", settings) == Look.solid(yellow)
+    assert P("TSRA", settings) == Look.solid(W(settings, "rain"))
+    assert P("+TSRA", settings) == style.by_intensity(W(settings, "rain"), "+")
     assert P("VCTS", settings) == Look.solid(style.dim(yellow))
-    assert P("-RA TS", settings).effect == "blink"  # a thunderstorm anywhere wins
+    assert P("BR TS", settings) == Look.solid(yellow)  # a thunderstorm anywhere wins
 
 
 def test_two_kinds_at_once_alternate(settings):

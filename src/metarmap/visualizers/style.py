@@ -7,14 +7,18 @@ How the LEDs show things, shared by every visualizer so the same meaning always 
   moderate                            solid
   heavy (+)                           fast blink between full and dim, so the LED never looks dead
   in the vicinity (VC)                solid, dim
+  lightning or a thunderstorm         two quick flashes every 2 s over the airport's look, in every weather
+                                      visualizer (with lightning.animation on; with_lightning())
 
 Ranges (wind, temperature, ...) are a few solid bands of clearly different colors, not blends: a Band table is the
 one place each visualizer's thresholds live, and its legend is built from the same table.
 """
+import math
 from dataclasses import dataclass
 from typing import Callable, Optional, Sequence, Union
 
 import metarmap.lib.colors as colors_lib
+from metarmap.decode import parse_weather
 from metarmap.models import Look
 from metarmap.visualizers.visualizer import legend_item
 
@@ -52,6 +56,62 @@ def by_intensity(color, intensity=MODERATE) -> Look:
     if intensity == VICINITY:
         return Look.solid(dim(color))
     return Look.solid(color)
+
+
+# ---- lightning ----------------------------------------------------------------------------------------------
+#
+# A double flicker, like real lightning: flash, the airport's look, flash, then its look until the next one.
+
+LIGHTNING_STEP = 0.05  # seconds per frame
+LIGHTNING_EVERY = 2.0  # seconds from one flicker to the next
+FLICKER = (True, True, True, False, False, True, True, True)  # 0.15 s flash, 0.1 s back, 0.15 s flash
+# frames repeat after this long: a whole number of every look's period (breathing is 4 s), so they loop seamlessly
+LIGHTNING_CYCLE = 4.0
+
+
+def has_lightning(metar) -> bool:
+    """LTG in the report (LTG DSNT W...), or a thunderstorm: TS, TSRA, VCTS..."""
+    if not metar:
+        return False
+    return bool(metar.get("lightning")) or any(g.descriptor == "TS" for g in parse_weather(metar.get("obs")))
+
+
+def color_at(look: Look, t: float):
+    """The color an LED with `look` shows t seconds in (as the renderer and the web map draw it)."""
+    black = (0, 0, 0)
+    if look.effect == "blink":
+        first = math.floor(t / (look.period / 2)) % 2 == 0
+        return look.colors[0] if first else (look.colors[1] if len(look.colors) > 1 else black)
+    if look.effect == "pulse":
+        level = look.low + (1 - look.low) * (0.5 - 0.5 * math.cos(2 * math.pi * t / look.period))
+        return dim(look.colors[0], level)
+    if look.effect == "cycle":
+        return look.colors[int(round(t / look.step)) % len(look.colors)]
+    return look.colors[0] if look.effect != "off" and look.colors else black
+
+
+def with_lightning(look: Look, settings) -> Look:
+    """
+    `look` with lightning flickering over it. Between flickers the LED does what `look` does; where that's the
+    lightning color itself (a thunderstorm with nothing else to show), it's dimmed so the flashes stand out.
+    """
+    flash = tuple(settings.color.weather.lightning)
+    every = round(LIGHTNING_EVERY / LIGHTNING_STEP)
+    frames = []
+    for n in range(round(LIGHTNING_CYCLE / LIGHTNING_STEP)):
+        i = n % every
+        if i < len(FLICKER) and FLICKER[i]:
+            frames.append(flash)
+        else:
+            color = tuple(color_at(look, n * LIGHTNING_STEP))
+            frames.append(dim(color) if color == flash else color)
+    return Look.cycle(frames, step=LIGHTNING_STEP)
+
+
+def lightning_legend(settings):
+    return legend_item("Lightning or a thunderstorm", "Two quick yellow flashes every 2 s over the airport's color",
+                       dim(named(colors_lib.WHITE)), settings.color.weather.lightning, effect="flash",
+                       period=LIGHTNING_EVERY)
 
 
 # ---- legend entries for the conventions ---------------------------------------------------------------------

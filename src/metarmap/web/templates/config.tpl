@@ -69,7 +69,7 @@
                     % end
                 </select>
             </div>
-            % switch('lightning.animation', d.lightning.animation, 'Lightning animation', 'Flash airports that report lightning.')
+            % switch('lightning.animation', d.lightning.animation, 'Lightning animation', 'Two quick yellow flashes on airports with lightning or a thunderstorm, in every weather visualizer.')
             % switch('visualizer.auto_rotate.enabled', d.visualizer.auto_rotate.enabled, 'Auto-rotate visualizers', 'Cycle through the visualizers on a timer.')
             % slider('visualizer.auto_rotate.delay_seconds', d.visualizer.auto_rotate.delay_seconds, 'Auto-rotate delay', 'Time on each visualizer.', lo=10, hi=600, step=10, fmt='sec')
             <div class="set">

@@ -2,7 +2,8 @@
 Precipitation: shows each airport's observed weather. The color says what it is (rain, snow, ice, fog...), the effect
 says how much (see style.py): light breathes, moderate is solid, heavy blinks, nearby is dim.
 
-When an airport reports several things, the most significant wins: a thunderstorm, then hazards (squalls, funnel
+When an airport reports several things, the most significant wins: a thunderstorm (its precipitation, else yellow;
+lightning flashes over it, as in every visualizer: see style.with_lightning), then hazards (squalls, funnel
 clouds...), freezing precipitation and ice, snow, rain, drizzle, unknown precipitation, then fog, smoke, haze, mist
 and dust. Two kinds in one group (e.g. -RASN) alternate.
 """
@@ -75,11 +76,9 @@ def look_for_weather(obs, settings) -> Look:
 
     if storm is not None:
         storm_kinds = kinds_in(storm)
-        if storm_kinds:  # e.g. TSRA: the precipitation's color, alternating with the thunderstorm's yellow
-            return Look.blink(COLOR[storm_kinds[0]](w), period=style.HEAVY_PERIOD, background=w.lightning)
-        if storm.vicinity:  # VCTS
-            return style.by_intensity(w.lightning, style.VICINITY)
-        return Look.blink(w.lightning, period=style.HEAVY_PERIOD, background=style.dim(w.lightning))
+        if storm_kinds:  # e.g. +TSRA: heavy rain
+            return style.by_intensity(COLOR[storm_kinds[0]](w), intensity_of(storm))
+        return style.by_intensity(w.lightning, intensity_of(storm))  # TS: yellow; VCTS: dim yellow
 
     if not ranked:  # e.g. only a descriptor we don't show, like "SH" on its own
         return Look.off()
@@ -97,8 +96,7 @@ def legend(settings):
         legend_item("Drizzle", "Dim blue", style.dim(rain, 0.5)),
         legend_item("Snow", "White", w.snow),
         legend_item("Freezing rain or drizzle, ice pellets, hail", "Cyan", w.ice),
-        legend_item("Thunderstorm", "Yellow, blinking; with rain, snow... alternating with their color",
-                    w.lightning, rain, effect="alternate", period=style.HEAVY_PERIOD),
+        legend_item("Thunderstorm", "With rain, snow...: their color. Without: yellow (dim if nearby)", w.lightning),
         legend_item("Squalls, funnel cloud, sand or dust storm, volcanic ash", "Magenta", w.hazard),
         legend_item("Unknown precipitation", "Orange", w.unknown),
         legend_item("Fog", "Gray", w.fog),

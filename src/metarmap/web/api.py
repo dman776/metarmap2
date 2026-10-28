@@ -9,6 +9,7 @@ import bottle
 
 from metarmap import __version__
 from metarmap.decode import decode, summary
+from metarmap.visualizers import visualizer
 from metarmap.web import views
 
 
@@ -55,7 +56,7 @@ def status(services, ip):
         "ip": ip,
         "brightness": services.renderer.pixels().brightness,
         "visualizer": {"active": active_num, "name": active_vis.NAME, "exclusive": active_vis.EXCLUSIVE,
-                       "description": active_vis.DESCRIPTION, "legend": active_vis.legend(cfg)},
+                       "description": active_vis.DESCRIPTION, "legend": visualizer.legend(active_vis, cfg)},
         "visualizers": [{"index": i, "name": v.NAME, "exclusive": v.EXCLUSIVE}
                         for i, v in enumerate(services.renderer.visualizers)],
         "config": {

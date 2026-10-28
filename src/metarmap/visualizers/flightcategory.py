@@ -16,13 +16,7 @@ DESCRIPTION = "Display the flight category (VFR, MVFR, IFR, LIFR). A station tha
               "estimate from its visibility and ceiling, shown breathing."
 EXCLUSIVE = False
 
-LIGHTNING_STEP = 0.1  # seconds per frame of the lightning pattern
 ESTIMATE_PERIOD = 4.0  # seconds per breath of an estimated category
-
-
-def lightning_pattern(cat, color):
-    """15 frames of the category color, then one lightning flash."""
-    return [cat] * 15 + [color]
 
 
 def legend(settings):
@@ -37,9 +31,6 @@ def legend(settings):
                     period=ESTIMATE_PERIOD, low=style.LIGHT_LOW),
         style.missing_legend("flight category, visibility or sky condition"),
     ]
-    if settings.lightning.animation:
-        items.append(legend_item("Lightning", "Yellow flashes over the flight category color",
-                                 cat.vfr, settings.color.weather.lightning, effect="flash"))
     items.append(style.no_report_legend())
     return items
 
@@ -52,8 +43,6 @@ def look(metar: Metar, settings) -> Look:
     if estimated:
         category = estimate_category(metar)
     color = color_for(category, settings)
-    if settings.lightning.animation and metar.get('lightning', False):
-        return Look.cycle(lightning_pattern(color, settings.color.weather.lightning), step=LIGHTNING_STEP)
     if category is None:  # other data is reported, but nothing to tell the flight category from
         return style.missing()
     if estimated:
