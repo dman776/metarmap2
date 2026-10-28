@@ -37,6 +37,7 @@ def legend_item(label, detail, *colors, effect="solid", period=None, low=None):
 #   strip_look(settings) -> Look         one look for the whole strip (rainbow, chase)
 #   COVERS_VIRTUAL      with strip_look: True if the virtual airports show it too (default: they stay dark)
 # Visualizers don't touch the LEDs; the renderer turns their looks into animations.
+# Lightning isn't a visualizer's job: looks() and legend() add it to every one with a look per airport.
 
 def strip_look(vis, settings) -> Optional[Look]:
     """The visualizer's look for the whole strip, or None if it has one look per airport."""
@@ -53,10 +54,32 @@ def looks(vis, codes, data, settings) -> List[Look]:
     One look per LED. codes: each LED's airport, in LED order ("" for none, which stays dark);
     data: airport code -> METAR.
     """
-    return [vis.look(data.get(code) or {}, settings) if code else Look.off() for code in codes]
+    return [look(vis, data.get(code) or {}, settings) if code else Look.off() for code in codes]
+
+
+def shows_lightning(vis, settings) -> bool:
+    return hasattr(vis, "look") and settings.lightning.animation
+
+
+def look(vis, metar, settings) -> Look:
+    """One airport's look: the visualizer's, with lightning over it when the airport has some."""
+    from metarmap.visualizers import style  # style uses legend_item() from here
+    base = vis.look(metar, settings)
+    return style.with_lightning(base, settings) if shows_lightning(vis, settings) and style.has_lightning(metar) \
+        else base
+
+
+def legend(vis, settings) -> List[dict]:
+    """The visualizer's legend, with lightning before "METAR not available" (or last) when it shows lightning."""
+    from metarmap.visualizers import style
+    items = list(vis.legend(settings))
+    if shows_lightning(vis, settings):
+        at = next((n for n, item in enumerate(items) if item["effect"] == "off"), len(items))
+        items.insert(at, style.lightning_legend(settings))
+    return items
 
 
 def info(vis, settings) -> dict:
     """What the web UI and API show about a visualizer."""
     return {"name": vis.NAME, "description": vis.DESCRIPTION, "exclusive": vis.EXCLUSIVE,
-            "legend": vis.legend(settings)}
+            "legend": legend(vis, settings)}

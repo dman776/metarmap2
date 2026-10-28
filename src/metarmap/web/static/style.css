@@ -140,12 +140,12 @@ select:focus, input[type=text]:focus, input[type=search]:focus, input[type=passw
 .led.blink, .led.chase { animation: led-blink var(--period) steps(1) infinite; }
 .led.chase { animation-duration: calc(var(--period) / 2); }
 .led.pulse { animation: led-pulse var(--period) ease-in-out infinite; }
-.led.flash { animation: led-flash 1.6s infinite; }
+.led.flash { animation: led-flash var(--period, 2s) steps(1) infinite; }  /* lightning: a double flicker */
 .led.alternate { animation: led-alternate var(--period) steps(1) infinite; }
 @keyframes led-blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: .1; } }
 @keyframes led-pulse { 0%, 100% { opacity: var(--low, .15); } 50% { opacity: 1; } }
 @keyframes led-alternate { 0%, 49% { background: var(--c); box-shadow: 0 0 8px var(--c); } 50%, 100% { background: var(--c2); box-shadow: 0 0 8px var(--c2); } }
-@keyframes led-flash { 0%, 85% { background: var(--c); box-shadow: 0 0 8px var(--c); } 88%, 97% { background: var(--c2); box-shadow: 0 0 12px var(--c2); } }
+@keyframes led-flash { 0%, 12.5% { background: var(--c2); box-shadow: 0 0 14px var(--c2); } 7.5%, 20%, 100% { background: var(--c); box-shadow: 0 0 8px var(--c); } }
 @media (prefers-reduced-motion: reduce) { .led { animation: none !important; } }
 
 /* brightness */

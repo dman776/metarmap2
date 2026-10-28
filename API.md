@@ -252,7 +252,7 @@ Each value is checked against the setting's type: an unknown setting or a value 
 
 Settings that apply right away:
 - `display_screen.enabled`: turns the OLED screen on or off (blank)
-- `lightning.animation`
+- `lightning.animation`: two quick yellow flashes every 2 s on airports with lightning (`LTG` in the report) or a thunderstorm (`TS`, `TSRA`, `VCTS`...), over whatever every weather visualizer shows; Rainbow and Chase are unaffected. Off: no flashes anywhere (Precipitation still shows a thunderstorm: its precipitation, else yellow)
 - `display_screen.locate_active`
 - `display_screen.delay`
 - `update.channel`: what **Update** installs: `releases` (the newest release tag, never an older one; the default), `latest` (the newest commit on GitHub, released or not, for testing) or, only with `dev_mode`, `branch` (the newest commit of `update.branch`, even after a force push)
