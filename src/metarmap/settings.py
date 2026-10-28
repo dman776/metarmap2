@@ -107,7 +107,9 @@ class AutoRotate(_Section):
 
 @dataclass
 class VisualizerSettings(_Section):
-    active: int = 0
+    active: int = 0  # a number in visualizers.ALL
+    # which list `active` counts in; a file without it is from before Wind Direction (see renumber_visualizers)
+    numbering: int = 2
     auto_rotate: AutoRotate = field(default_factory=AutoRotate)
 
 
@@ -158,7 +160,9 @@ class Settings(_Section):
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Settings":
-        return _from_dict(cls, data)
+        settings = _from_dict(cls, data)
+        renumber_visualizers(settings, data)
+        return settings
 
     @classmethod
     def load(cls, path) -> "Settings":
@@ -252,6 +256,20 @@ def _to_dict(obj):
         out[f.name] = value
     out.update(obj._extra)
     return out
+
+
+# numbering 1 -> 2: Wind Direction went in at 3, after Wind Gusts, moving the visualizers from Pressure on by one
+INSERTED_AT = {2: 3}
+
+
+def renumber_visualizers(settings, data):
+    """Keeps an older file's visualizer.active on the same visualizer after one was added before it."""
+    vis = data.get("visualizer") if isinstance(data.get("visualizer"), dict) else {}
+    numbering = vis.get("numbering", 1 if "active" in vis else VisualizerSettings.numbering)
+    for version in range(numbering + 1, VisualizerSettings.numbering + 1):
+        if settings.visualizer.active >= INSERTED_AT[version]:
+            settings.visualizer.active += 1
+    settings.visualizer.numbering = VisualizerSettings.numbering
 
 
 def _is_section_list(kind):

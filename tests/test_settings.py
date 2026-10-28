@@ -116,3 +116,18 @@ def test_config_edit_writes_file(tmp_path):
     assert config.data.display_screen.delay == 8
     with pytest.raises(KeyError):
         config.edit("no.such.setting", "1")
+
+
+# ---- visualizer numbering -----------------------------------------------------------------------------------------
+
+@pytest.mark.parametrize("active, now", [(0, 0), (2, 2), (3, 4), (9, 10), (10, 11), (11, 12)])
+def test_an_older_file_keeps_its_visualizer(active, now):
+    """Wind Direction went in at 3: a file from before it keeps showing the same visualizer."""
+    settings = Settings.from_dict({"visualizer": {"active": active}})
+    assert (settings.visualizer.active, settings.visualizer.numbering) == (now, 2)
+    assert Settings.from_dict(settings.to_dict()).visualizer.active == now  # once only
+
+
+def test_a_current_file_is_not_renumbered():
+    assert Settings.from_dict({"visualizer": {"active": 5, "numbering": 2}}).visualizer.active == 5
+    assert Settings.from_dict({}).visualizer.active == 0

@@ -10,10 +10,10 @@ web UI, an API and a Home Assistant integration (see [Credits](#credits)).
 
 ## Features
 
-- **Visualizers**: show the flight category, wind, wind gusts, temperature, pressure, precipitation, visibility,
-  density altitude, ceiling or dewpoint spread (fog risk) on the LEDs, plus Rainbow and Chase patterns. Switch
-  between them on the web UI, or let the map rotate through them.
-- **Lightning**: airports reporting lightning or a thunderstorm flicker yellow (a double flash every 4 s) in every weather visualizer, unless you turn the animation off in Config.
+- **Visualizers**: show the flight category, wind, wind gusts, wind direction, temperature, pressure, precipitation,
+  visibility, density altitude, ceiling or dewpoint spread (fog risk) on the LEDs, plus Rainbow and Chase patterns.
+  Switch between them on the web UI, or let the map rotate through them.
+- **Lightning**: airports reporting lightning or a thunderstorm flicker yellow (a double flash every 2 s) in every weather visualizer, unless you turn the animation off in Config.
 - **Estimated flight categories**: a station that doesn't report its flight category, but does report its visibility
   or clouds, gets an estimate from them. Its LED breathes slowly so you can tell, and the OLED shows it with a `*`
   (`VFR*`).

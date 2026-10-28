@@ -9,7 +9,8 @@ from metarmap.models import Look
 from metarmap.settings import Settings
 from metarmap import decode, visualizers
 from metarmap.visualizers import (ceiling, chase, density_altitude, flightcategory, precipitation, pressure, rainbow,
-                                  spread, style, temperature, visibility, visualizer, wind, windgusts)
+                                  spread, style, temperature, visibility, visualizer, wind, wind_direction,
+                                  windgusts)
 from metarmap.visualizers.density_altitude import calculate_density_altitude
 
 C = colors_lib.get_colors()
@@ -467,10 +468,47 @@ def test_spread_missing_and_no_report(settings):
     assert spread.look({}, settings) == OFF
 
 
+# ---- wind direction -----------------------------------------------------------------------------------------
+
+@pytest.mark.parametrize("direction, name", [
+    ("360", colors_lib.RED), ("10", colors_lib.RED), ("22", colors_lib.RED), ("338", colors_lib.RED),
+    ("23", colors_lib.ORANGE), ("67", colors_lib.ORANGE), ("68", colors_lib.YELLOW), ("90", colors_lib.YELLOW),
+    ("135", colors_lib.GREEN), ("180", colors_lib.CYAN), ("225", colors_lib.BLUE), ("270", colors_lib.PURPLE),
+    ("315", colors_lib.MAGENTA), ("337", colors_lib.MAGENTA),
+])
+def test_wind_direction_sectors(settings, direction, name):
+    assert wind_direction.look(metar(windDir=direction, windSpeed=8), settings) == Look.solid(C[name])
+
+
+def test_wind_direction_calm_variable_and_missing(settings):
+    calm = Look.solid(C[colors_lib.GRAY])
+    assert wind_direction.look(metar(windDir="0", windSpeed=0), settings) == calm
+    assert wind_direction.look(metar(windDir="270", windSpeed=0), settings) == calm
+    assert wind_direction.look(metar(windDir="0", windSpeed=None), settings) == calm
+    assert wind_direction.look(metar(windDir="VRB", windSpeed=3), settings) == \
+        Look.pulse(C[colors_lib.WHITE], period=style.LIGHT_PERIOD, low=style.LIGHT_LOW)
+    assert wind_direction.look(metar(windDir="", windSpeed=None), settings) == style.missing()
+    assert wind_direction.look(metar(windDir="", windSpeed=5), settings) == style.missing()
+    assert wind_direction.look({}, settings) == OFF
+
+
+def test_wind_direction_legend(settings):
+    labels = [item["label"] for item in wind_direction.legend(settings)]
+    assert labels[:3] == ["From the north (338-22°)", "From the northeast (23-67°)", "From the east (68-112°)"]
+    assert labels[7] == "From the northwest (293-337°)"
+    assert {"Calm", "Variable"} <= set(labels)
+
+
+def test_wind_direction_flickers_with_lightning(settings):
+    storm = metar(windDir="180", windSpeed=10, lightning=True)
+    assert visualizer.look(wind_direction, storm, settings) == style.with_lightning(Look.solid(C[colors_lib.CYAN]),
+                                                                                 settings)
+
+
 def test_the_patterns_are_last():
     """Rainbow and Chase (one look for the whole strip) always come after the weather visualizers."""
-    assert [v.NAME for v in ALL] == ["Flight Category", "Wind", "Wind Gusts", "Pressure", "Precipitation",
-                                     "Temperature", "Visibility", "Density Altitude", "Ceiling", "Dewpoint Spread",
-                                     "Rainbow", "Chase"]
+    assert [v.NAME for v in ALL] == ["Flight Category", "Wind", "Wind Gusts", "Wind Direction", "Pressure",
+                                     "Precipitation", "Temperature", "Visibility", "Density Altitude", "Ceiling",
+                                     "Dewpoint Spread", "Rainbow", "Chase"]
     patterns = [visualizer.strip_look(v, Settings()) is not None for v in ALL]
     assert patterns == sorted(patterns), "a whole-strip visualizer comes before a weather one"

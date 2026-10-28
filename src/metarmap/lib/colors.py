@@ -12,6 +12,7 @@ YELLOW = 'YELLOW'
 DARK_YELLOW = 'DARK YELLOW'
 WHITE = 'WHITE'
 MAGENTA = "MAGENTA"
+CYAN = "CYAN"
 PURPLE = "PURPLE"
 ORANGE = "ORANGE"
 OFF = "OFF"
@@ -31,6 +32,7 @@ def get_colors() -> dict:
         BLUE: (0, 0, 255),
         LIGHT_BLUE: (255, 51, 255),
         MAGENTA: (0, 255, 255),
+        CYAN: (255, 0, 255),
         OFF: (0, 0, 0),
         DARK_GRAY: (1, 1, 1),
         GRAY: (50, 50, 50),

@@ -79,6 +79,8 @@ class Config(object):
             return self.set_virtual_count(value)
         if key == "dev_mode":
             raise ValueError("dev_mode is only changed by editing config.json")
+        if key == "visualizer.numbering":
+            raise ValueError("visualizer.numbering is kept by the map")
         if key == "update.channel":
             channel = str(value).strip("\"'")
             if channel not in UPDATE_CHANNELS:

@@ -1,8 +1,17 @@
+### Unreleased
+
+- Wind Direction visualizer, after Wind Gusts: each airport in the color of the direction its wind blows from, in
+  eight 45° sectors (red from the north, then orange, yellow, green, cyan, blue, purple and magenta clockwise).
+  Calm is dim white and variable (`VRB`) breathes white
+- The visualizers from Pressure on move up by one number (Rainbow is now 11, Chase 12). A `config.json` from before
+  (no `visualizer.numbering`) keeps showing the same visualizer; scripts that call `/visualizer/<n>` need the new
+  numbers. Home Assistant picks visualizers by name, so it's unaffected
+
 ### dman776 3.0.1 (2026-10-27)
 
 - Remote page (`/remote`): a kiosk remote control for the map, laid out for an iPad, with Visualizer, Map, Locator
   and Config tabs. On the Map tab the radar ("Weather") background refreshes every few minutes
-- Lightning: one double flicker (about 4 s apart) over every weather visualizer, for an airport reporting `LTG` or any
+- Lightning: one double flicker (every 2 s) over every weather visualizer, for an airport reporting `LTG` or any
   thunderstorm (`TS`, including `VCTS`). It always honors `lightning.animation`: with it off, Precipitation shows the
   storm's precipitation and the other visualizers a steady yellow (dim for `VCTS`)
 - `dev_mode` (top level in `config.json`, edited by hand only, off by default) for testing on a real map:

@@ -225,15 +225,20 @@ Visualizer indexes:
 | 0 | Flight Category | |
 | 1 | Wind | |
 | 2 | Wind Gusts | |
-| 3 | Pressure | |
-| 4 | Precipitation | |
-| 5 | Temperature | |
-| 6 | Visibility | |
-| 7 | Density Altitude | |
-| 8 | Ceiling | |
-| 9 | Dewpoint Spread | |
-| 10 | Rainbow | yes |
-| 11 | Chase | yes |
+| 3 | Wind Direction | |
+| 4 | Pressure | |
+| 5 | Precipitation | |
+| 6 | Temperature | |
+| 7 | Visibility | |
+| 8 | Density Altitude | |
+| 9 | Ceiling | |
+| 10 | Dewpoint Spread | |
+| 11 | Rainbow | yes |
+| 12 | Chase | yes |
+
+Wind Direction (3) was added after 3.0.1, moving the visualizers after it up by one. A `config.json` from before then
+(no `visualizer.numbering`) has its `visualizer.active` moved with them when the map starts, so it keeps the same
+visualizer; scripts and automations that pick a visualizer by number need the new numbers.
 
 ```sh
 curl http://metarmap.local/brightness/0.25
@@ -254,7 +259,7 @@ Each value is checked against the setting's type: an unknown setting or a value 
 
 Settings that apply right away:
 - `display_screen.enabled`: turns the OLED screen on or off (blank)
-- `lightning.animation`: two quick yellow flashes every 2 s on airports with lightning (`LTG` in the report) or a thunderstorm (`TS`, `TSRA`, `VCTS`...), over whatever every weather visualizer shows; Rainbow and Chase are unaffected. Off: no flashes anywhere (Precipitation still shows a thunderstorm: its precipitation, else yellow)
+- `lightning.animation`: a double yellow flicker every 2 s on airports with lightning (`LTG` in the report) or a thunderstorm (`TS`, `TSRA`, `VCTS`...), over whatever every weather visualizer shows; Rainbow and Chase are unaffected. Off: no flashes anywhere (Precipitation still shows a thunderstorm: its precipitation, else yellow)
 - `display_screen.locate_active`
 - `display_screen.delay`
 - `update.channel`: what **Update** installs: `releases` (the newest release tag, never an older one; the default), `latest` (the newest commit on GitHub, released or not, for testing) or, only with `dev_mode`, `branch` (the newest commit of `update.branch`, even after a force push)
@@ -264,7 +269,7 @@ Settings that apply right away:
 - `led.brightness.normal`, `led.brightness.dimmed`, `led.brightness.off`: the level in use now changes right away; the others take over at their sun time
 - `led.inittest`: turning it on also runs the test pattern once now
 - `led.dim_on_refresh`: the LEDs fade to half their brightness while METARs are fetched (at least a second), then fade back
-- `visualizer.active`, the default visualizer used at startup. Saving it doesn't change the visualizer that's running now; use `/visualizer/<n>` for that.
+- `visualizer.active`, the default visualizer used at startup. Saving it doesn't change the visualizer that's running now; use `/visualizer/<n>` for that. (`visualizer.numbering` says which list of visualizer numbers it counts in; the map keeps it, and `/config/edit/visualizer.numbering/…` is a 400.)
 - `visualizer.auto_rotate.enabled`
 - `visualizer.auto_rotate.delay_seconds` (the new delay starts counting when it's saved)
 - `visualizer.auto_rotate.skip`: the visualizers auto-rotate leaves out, as a JSON list of names, e.g. `/config/edit/visualizer.auto_rotate.skip/%5B%22Wind%22%2C%22Wind%20Gusts%22%5D` for `["Wind","Wind Gusts"]` (`[]` leaves none out). Exclusive visualizers (`"exclusive": true` in `/api/status`) are always left out. The previous/next buttons still go to every visualizer.

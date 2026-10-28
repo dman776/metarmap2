@@ -957,7 +957,7 @@ def test_remote_page_follows_the_map(client):
     app = client.services
     app.display.start()
     assert 'id="oled-on" class="switch" type="checkbox" checked' in client("/remote")[1]
-    client("/visualizer/10")  # Rainbow: locate is paused
+    client("/visualizer/11")  # Rainbow: locate is paused
     client("/config/edit/led.virtual_count/1")
     client("/config/airports/50/code/KDWH")
     body = client("/remote")[1]
