@@ -35,6 +35,7 @@ def status(services, ip):
             "text": airport.name,
             "display": airport.display,
             "virtual": index >= cfg.led.count,  # on the web map and here only, no LED
+            "mock": bool(m.get("mock")),  # a mock METAR (dev_mode) in place of the real one
             "flightCategory": m.get("flightCategory"),
             "raw": m.get("raw"),
             "windDir": m.get("windDir"),
@@ -115,6 +116,7 @@ def live(services, now=None):
             "pixel": s["pixel"],
             "name": s["name"],
             "virtual": s["virtual"],
+            "mock": s["mock"],
             "lat": num(s["lat"]),
             "lon": num(s["lon"]),
             "flightCategory": s["cat"],
@@ -145,6 +147,7 @@ def metar(services, code):
     return {
         "code": code,
         "raw": m.get("raw"),
+        "mock": bool(m.get("mock")),
         "flightCategory": m.get("flightCategory"),
         "obsTime": obs.isoformat() if obs else None,
         "decoded": decode(m),

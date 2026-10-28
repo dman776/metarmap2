@@ -348,6 +348,18 @@
         });
     });
 
+    // airports (dev_mode): a mock METAR in place of the airport's real one; empty goes back to the real one
+    document.querySelectorAll('[data-mock]').forEach(function (el) {
+        el.addEventListener('change', async function () {
+            try {
+                await postJSON('/config/airports/mock', {pixel: +el.dataset.mock, metar: el.value.trim()});
+                window.location.reload();  // the row's MOCK tag
+            } catch (err) {
+                showOutput('Could not save the mock METAR', String(err));
+            }
+        });
+    });
+
     // airports: number of LEDs (led.count) and of virtual airports after them (led.virtual_count);
     // lowering one removes the airports on its last rows: data-first is the row its airports start at
     document.querySelectorAll('[data-led-count]').forEach(function (input) {

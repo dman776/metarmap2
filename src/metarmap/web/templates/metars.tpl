@@ -38,7 +38,7 @@
         % cat = s['cat'] if s['cat'] in cats else 'none'
         <div class="trow metar" data-station="{{s['code']}}" data-cat="{{cat}}">
             <span class="mono muted">{{s['pixel'] + 1}}</span>
-            <span class="station"><b>{{s['code']}}</b>
+            <span class="station"><b>{{s['code']}}</b>{{!'<span class="badge-mock" title="A mock METAR from the Airports page (dev_mode)">mock</span>' if s['mock'] else ''}}
                 % if s['name']:
                 <span>{{s['name']}}</span>
                 % end

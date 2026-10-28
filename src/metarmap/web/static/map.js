@@ -422,6 +422,13 @@
         pill.className = 'pill' + (cat ? ' ' + cat.toLowerCase() : '');
         pill.textContent = cat || (led.raw ? 'No category' : 'No METAR');
         head.appendChild(b);
+        if (led.mock) {  // dev_mode: a report typed on the Airports page, not a real one
+            const mock = document.createElement('span');
+            mock.className = 'badge-mock';
+            mock.textContent = 'mock';
+            mock.title = 'A mock METAR from the Airports page (dev_mode)';
+            b.appendChild(mock);
+        }
         head.appendChild(pill);
         box.appendChild(head);
 

@@ -1,6 +1,7 @@
 """Tests for METAR fetching and parsing (metar.py)."""
 import json
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 
 import pytest
 import requests
@@ -328,3 +329,81 @@ def test_name_for_one_code(monkeypatch, make_config, fixture_bytes):
 
 def test_name_for_without_network(make_config):
     assert metar.METAR(make_config("KDKR"), clock=CLOCK).name_for("KEFD") == ""  # no error
+
+
+# ---- mock METARs (dev_mode): a raw report typed on the Airports page ---------------------------------------------
+
+NOW = datetime(2026, 10, 28, 1, 0, tzinfo=timezone.utc)
+KDWH = "METAR KDWH 272353Z AUTO 08003KT 9SM CLR 21/18 A3014 RMK AO2 SLP203 T02110178 10228 20200 55002"
+
+
+def test_parse_raw_a_us_report():
+    m = metar.parse_raw(KDWH, NOW)
+    assert m["flightCategory"] == "VFR"  # from the visibility and ceiling: 9 SM, clear
+    assert (m["windDir"], m["windSpeed"], m["windGustSpeed"], m["windGust"]) == ("80", 3, 0, False)
+    assert (m["visibilitySM"], m["vis"], m["visibilityMore"]) == (9.0, 9, False)
+    assert m["skyConditions"] == [{"cover": "CLR", "cloudBaseFt": 0}]
+    assert (m["tempC"], m["dewpointC"], m["altimHg"]) == (21, 18, 30.14)
+    assert m["obsTime"] == datetime(2026, 10, 27, 23, 53, tzinfo=timezone.utc)
+    assert m["raw"] == KDWH and m["obs"] == "" and m["lightning"] is False
+
+
+def test_parse_raw_a_storm():
+    m = metar.parse_raw("KHOU 280053Z 18012G25KT 1 1/2SM +TSRA BR BKN008 OVC015CB 22/21 A2992 RMK LTG DSNT", NOW)
+    assert m["flightCategory"] == "IFR"  # ceiling 800 ft
+    assert (m["windSpeed"], m["windGustSpeed"], m["windGust"]) == (12, 25, True)
+    assert m["visibilitySM"] == 1.5 and m["obs"] == "+TSRA BR" and m["lightning"] is True
+    assert m["skyConditions"] == [{"cover": "BKN", "cloudBaseFt": 800}, {"cover": "OVC", "cloudBaseFt": 1500}]
+
+
+def test_parse_raw_obscured_and_below_zero():
+    m = metar.parse_raw("KXXX 272300Z 00000KT M1/4SM FG VV002 M02/M03 A3001", NOW)
+    assert m["flightCategory"] == "LIFR" and m["vertVisFt"] == 200 and m["obs"] == "FG"
+    assert m["skyConditions"] == [{"cover": "OVX", "cloudBaseFt": 0}] and (m["tempC"], m["dewpointC"]) == (-2, -3)
+
+
+def test_parse_raw_metric():
+    m = metar.parse_raw("EGLL 272350Z 24010MPS 9999 -RA SCT020 12/08 Q1012", NOW)
+    assert m["windSpeed"] == 19 and m["visibilityMore"] and m["altimHg"] == 29.88 and m["flightCategory"] == "VFR"
+
+
+def test_a_day_still_ahead_is_last_month():
+    assert metar.parse_raw("KDWH 302353Z 00000KT 10SM CLR 20/10 A3000", NOW)["obsTime"] == \
+        datetime(2026, 9, 30, 23, 53, tzinfo=timezone.utc)
+
+
+@pytest.mark.parametrize("text", ["", "hello world", "METAR"])
+def test_parse_raw_rejects_what_isnt_a_metar(text):
+    with pytest.raises(ValueError):
+        metar.parse_raw(text, NOW)
+
+
+def mocked(make_config, dev_mode=True, mock=KDWH, code="KDWH"):
+    cfg = make_config(code, "KHOU")
+    cfg.data = SimpleNamespace(dev_mode=dev_mode)
+    cfg.airports[0]._extra[metar.MOCK_KEY] = mock
+    return metar.METAR(cfg, clock=FakeClock(NOW))
+
+
+def test_a_mock_replaces_the_fetched_report(make_config):
+    m = mocked(make_config)
+    assert m.data["KDWH"]["mock"] is True and m.data["KDWH"]["raw"] == KDWH  # before any fetch
+    real = report("KDWH", **{**GOOD, "rawOb": "KDWH 280053Z 18005KT 2SM BR OVC004 20/19 A3010", "fltCat": "LIFR",
+                             "obsTime": at("2026-10-28T00:53:00Z"), "lat": 30.06, "lon": -95.55,
+                             "name": "Houston/D W Hooks"})
+    m._process(response(real, report("KHOU", **{**GOOD, "obsTime": at("2026-10-28T00:53:00Z")})))
+    kdwh = m.data["KDWH"]
+    assert kdwh["raw"] == KDWH and kdwh["flightCategory"] == "VFR" and kdwh["mock"] is True
+    assert (kdwh["latitude"], kdwh["longitude"], kdwh["name"]) == (30.06, -95.55, "Houston/D W Hooks")  # the station's
+    assert "mock" not in m.data["KHOU"]
+    m._config.airports[0]._extra.pop(metar.MOCK_KEY)
+    m.apply_mocks()
+    assert m.data["KDWH"]["flightCategory"] == "LIFR" and "mock" not in m.data["KDWH"]  # the real one again
+
+
+def test_mocks_need_dev_mode(make_config):
+    assert "KDWH" not in mocked(make_config, dev_mode=False).data
+
+
+def test_a_bad_mock_leaves_the_real_report(make_config):
+    assert "KDWH" not in mocked(make_config, mock="not a metar").data

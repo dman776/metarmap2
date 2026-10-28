@@ -217,6 +217,9 @@ select:focus, input[type=text]:focus, input[type=search]:focus, input[type=passw
 .ap-row .btn:disabled { opacity: .35; cursor: default; }
 .ap-divider { padding: 14px 24px 8px; border-top: 1px dashed var(--line); font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
 .ap-row .tag { display: block; font-size: 11px; white-space: nowrap; }
+.ap-row .mock-tag, .badge-mock { color: #ffb86b; text-transform: uppercase; letter-spacing: .04em; }
+.ap-row input.ap-mock { grid-column: 2 / -1; font-size: 13px; }  /* dev_mode: under the row's other fields */
+.badge-mock { display: inline-block; margin-left: 6px; padding: 1px 6px; border: 1px solid #ffb86b; border-radius: 6px; font: 600 10px var(--sans); vertical-align: middle; }
 input.led-count { width: 110px; min-height: 44px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--control); background: var(--sunken); color: var(--text); font: 500 14px var(--mono); }
 input.led-count:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 

@@ -146,6 +146,150 @@ def altimeter_inhg(raw, hectopascals):
     return round(hectopascals / HPA_PER_INHG, 2) if hectopascals else 0.0
 
 
+# ---- mock METARs (dev_mode): a report typed on the Airports page replaces the fetched one ---------------------
+
+MOCK_KEY = "mock_metar"  # the airport's key in config.json
+MPS_TO_KT = 1.94384
+METERS_PER_SM = 1609.344
+
+
+def mock_text(airport):
+    """The mock METAR saved for an airport (config.json's mock_metar), or ""."""
+    return str(getattr(airport, "_extra", {}).get(MOCK_KEY) or "").strip()
+
+
+def observed(day, hour, minute, now):
+    """The time of a report's DDHHMMZ: this month, or last month if that day is still ahead."""
+    month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    for _ in range(2):
+        try:
+            at = month.replace(day=day, hour=hour, minute=minute)
+        except ValueError:  # e.g. the 31st in a 30-day month
+            at = None
+        if at is not None and at <= now + timedelta(minutes=5):
+            return at
+        month = (month - timedelta(days=1)).replace(day=1)
+    raise ValueError(f"{day:02d}{hour:02d}{minute:02d}Z isn't a time in the last month")
+
+
+def parse_raw(raw, now):
+    """
+    A METAR typed by hand ("METAR KDWH 272353Z AUTO 08003KT 9SM CLR 21/18 A3014 RMK ...") as parse_report() gives
+    one from the JSON, for the mock METARs. The flight category comes from the visibility and ceiling (FAA limits).
+    Only the body is read, not the remarks. Raises ValueError if it doesn't start like a METAR.
+    """
+    from metarmap.decode import estimate_category, parse_weather_group
+
+    raw = " ".join(str(raw or "").split())
+    tokens = raw.split(" RMK ")[0].split()
+    if tokens and tokens[0] in ("METAR", "SPECI"):
+        tokens = tokens[1:]
+    if not tokens or not re.fullmatch(r"[A-Z0-9]{3,4}", tokens[0]):
+        raise ValueError("a METAR starts with the airport code, e.g. METAR KDWH 272353Z ...")
+    tokens = tokens[1:]
+    obs_time = None
+    if tokens and re.fullmatch(r"\d{6}Z", tokens[0]):
+        obs_time = observed(int(tokens[0][:2]), int(tokens[0][2:4]), int(tokens[0][4:6]), now)
+        tokens = tokens[1:]
+
+    wind_dir, wind_speed, gust = "", 0, 0
+    visibility, more, wx, sky, vert_vis = None, False, [], [], None
+    temp_c = dewpoint_c = None
+    altim = 0.0
+    i = 0
+    while i < len(tokens):
+        t = tokens[i]
+        wind = re.fullmatch(r"(\d{3}|VRB)(\d{2,3})(?:G(\d{2,3}))?(KT|MPS)", t)
+        miles = re.fullmatch(r"([MP])?(\d+(?:/\d+)?)SM", t)
+        clouds = re.fullmatch(r"(FEW|SCT|BKN|OVC)(\d{3})(?:CB|TCU)?", t)
+        temps = re.fullmatch(r"(M?\d{2})/(M?\d{2})?", t)
+        if wind:
+            factor = MPS_TO_KT if wind.group(4) == "MPS" else 1
+            wind_dir = wind.group(1) if wind.group(1) == "VRB" else str(int(wind.group(1)))  # as the JSON: "80"
+            wind_speed = int(round(int(wind.group(2)) * factor))
+            gust = int(round(int(wind.group(3)) * factor)) if wind.group(3) else 0
+        elif re.fullmatch(r"\d{3}V\d{3}", t):  # varying wind direction
+            pass
+        elif t.isdigit() and i + 1 < len(tokens) and re.fullmatch(r"\d/\dSM", tokens[i + 1]):  # 1 1/2SM
+            visibility = float(int(t) + Fraction(tokens[i + 1][:-2]))
+            i += 1
+        elif miles:
+            visibility = float(Fraction(miles.group(2)))
+            more = miles.group(1) == "P"
+        elif re.fullmatch(r"\d{4}", t) and visibility is None:  # meters, outside the US; 9999: 10 km or more
+            visibility = round(int(t) / METERS_PER_SM, 2)
+            more = t == "9999"
+        elif t == "CAVOK":
+            visibility, more = 10.0, True
+            sky.append({"cover": "CAVOK", "cloudBaseFt": 0})
+        elif clouds:
+            sky.append({"cover": clouds.group(1), "cloudBaseFt": int(clouds.group(2)) * 100})
+        elif re.fullmatch(r"VV(\d{3}|///)", t):  # sky obscured
+            vert_vis = int(t[2:]) * 100 if t[2:].isdigit() else 0
+            sky.append({"cover": "OVX", "cloudBaseFt": 0})
+        elif t in ("CLR", "SKC", "NSC", "NCD"):
+            sky.append({"cover": t, "cloudBaseFt": 0})
+        elif temps:
+            temp_c, dewpoint_c = (int(v.replace("M", "-")) if v else None for v in temps.groups())
+        elif re.fullmatch(r"A\d{4}", t):
+            altim = int(t[1:]) / 100
+        elif re.fullmatch(r"Q\d{4}", t):
+            altim = round(int(t[1:]) / HPA_PER_INHG, 2)
+        elif parse_weather_group(t):
+            wx.append(t)
+        i += 1  # anything else (AUTO, COR, RVR, NOSIG...) is skipped
+
+    report = {
+        "raw": raw,
+        "name": "",
+        "elevation_m": 0,
+        "windDir": wind_dir,
+        "windSpeed": wind_speed,
+        "windGustSpeed": gust,
+        "windGust": gust > 0,
+        "vis": int(round(visibility or 0)),
+        "visibilitySM": visibility,
+        "visibilityMore": more,
+        "vertVisFt": vert_vis,
+        "obs": " ".join(wx),
+        "tempC": temp_c,
+        "dewpointC": dewpoint_c,
+        "altimHg": altim,
+        "lightning": "LTG" in raw,
+        "skyConditions": sky,
+        "obsTime": obs_time,
+        "latitude": None,
+        "longitude": None,
+    }
+    report["flightCategory"] = estimate_category(report)
+    return report
+
+
+def with_mocks(real, airports, positions, now):
+    """
+    The METARs with each mocked airport's report replaced by its mock (marked "mock": True). The station's own
+    name, elevation and position are kept from its real report, or its station lookup. A mock that can't be read
+    is logged and the real report stays.
+    """
+    data = dict(real)
+    for airport in airports:
+        text = mock_text(airport) if airport.code else ""
+        if not text:
+            continue
+        try:
+            mock = parse_raw(text, now)
+        except ValueError as e:
+            safe_logging.safe_log(f"{airport.code}: mock METAR ignored: {e}")
+            continue
+        known = real.get(airport.code) or {}
+        station = positions.get(airport.code) or {}
+        mock.update(name=known.get("name") or station.get("name", ""), elevation_m=known.get("elevation_m", 0),
+                    latitude=known.get("latitude") or station.get("lat"),
+                    longitude=known.get("longitude") or station.get("lon"), mock=True)
+        data[airport.code] = mock
+    return data
+
+
 class METAR(object):
     """
     Object to control and handle METARs.
@@ -161,11 +305,13 @@ class METAR(object):
         self._is_fetching = False
         self._missing_stations = []
         self._stations = []
-        self.data = {}
+        self.data = {}  # what the map shows: the fetched reports, with mock METARs in their place (dev_mode)
+        self._real = {}  # the fetched reports
         self.lastFetchTime = None
         self.last_fetch_ok = None  # None until the first fetch, then whether the last one worked
         self.positions = {}  # code -> {"lat", "lon", "name"} from STATION_URL, or None if it doesn't know the code
         self.locate_failed = False  # whether the last position lookup failed (e.g. a 502); locate() tries again
+        self.apply_mocks()  # mocks show before the first fetch, and without a network
         if fetch:
             self.fetch()
 
@@ -258,10 +404,20 @@ class METAR(object):
     def _process(self, content):
         safe_logging.safe_log("Processing...")
         # built separately, then swapped in, so readers never see half-filled data
-        self.data, self._stations, self._missing_stations = process(
+        self._real, self._stations, self._missing_stations = process(
             content, airport_codes(self._config.airports), self._clock.now())
+        self.apply_mocks()
         safe_logging.safe_log(f"Missing stations: {self._missing_stations}")
         safe_logging.safe_log("Processing complete.")
+
+    def apply_mocks(self):
+        """
+        Puts the mock METARs typed on the Airports page in place of the fetched ones (dev_mode only), or takes them
+        away. Called after each fetch, and when a mock changes.
+        """
+        dev_mode = getattr(getattr(self._config, "data", None), "dev_mode", False)
+        airports = self._config.airports if dev_mode is True else []
+        self.data = with_mocks(self._real, airports, self.positions, self._clock.now())
 
     def missing_stations(self):
         """

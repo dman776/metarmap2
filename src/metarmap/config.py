@@ -2,8 +2,10 @@ import functools
 import json
 import re
 import threading
+from datetime import datetime, timezone
 
 from metarmap.lib.safe_logging import safe_log
+from metarmap.metar import MOCK_KEY, parse_raw
 from metarmap.settings import BRANCH_NAME, UPDATE_CHANNELS, Airport, Settings, parse_value
 
 MAX_LEDS = 1000
@@ -162,6 +164,7 @@ class Config(object):
             code = parse_code(value)
             if code != airport.code:
                 airport.name = ""  # the old name was the old airport's; fill_names() gives the new one
+                airport._extra.pop(MOCK_KEY, None)  # and so was its mock METAR
             airport.code = code
         elif key == "name":
             airport.name = "" if value == NO_AIRPORT else str(value)
@@ -169,6 +172,26 @@ class Config(object):
             airport.display = parse_value(value, bool, "display")
         else:
             raise ValueError(f"unknown airport setting: {key}")
+        self.write()
+
+    @locked
+    def set_mock_metar(self, pixel, text):
+        """
+        Saves a mock METAR for the airport on LED `pixel` (dev_mode; the Airports page), or with "" removes it.
+        Raises IndexError for no such LED, and ValueError without dev_mode, without an airport, or for text that
+        isn't a METAR.
+        """
+        if not self._data.dev_mode:
+            raise ValueError("mock METARs need dev_mode in config.json")
+        airport = self.airports[self._pixel(pixel)]
+        text = " ".join(str(text or "").split())
+        if text and not airport.code:
+            raise ValueError("this LED has no airport")
+        if text:
+            parse_raw(text, datetime.now(timezone.utc))  # raises ValueError if it isn't a METAR
+            airport._extra[MOCK_KEY] = text
+        else:
+            airport._extra.pop(MOCK_KEY, None)
         self.write()
 
     @locked
@@ -212,6 +235,8 @@ class Config(object):
             self.set_airport(pixel, "name", value)
         elif key == "display":
             self.set_airport(pixel, "display", value)
+        elif key == MOCK_KEY:
+            raise ValueError(f"{MOCK_KEY} is set on the Airports page (dev_mode) or in config.json")
         else:
             # anything else is kept with the airport, as airports.json did
             self.airports[pixel]._extra[key] = value == "true" if value in ("true", "false") else value

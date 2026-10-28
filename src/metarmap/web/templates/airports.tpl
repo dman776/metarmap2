@@ -43,7 +43,7 @@
     <div class="ap-divider">Virtual airports · web map and Home Assistant only</div>
     % end
     <div class="ap-row{{' virtual' if led['virtual'] else ''}}" data-row="{{led['pixel']}}" data-code="{{led['code']}}">
-        <span class="mono muted">{{n}}{{!'<span class="tag">virtual</span>' if led['virtual'] else ''}}</span>
+        <span class="mono muted">{{n}}{{!'<span class="tag">virtual</span>' if led['virtual'] else ''}}{{!'<span class="tag mock-tag">mock</span>' if dev_mode and led['mock'] else ''}}</span>
         <input class="code" type="text" value="{{led['code']}}" maxlength="4" spellcheck="false" placeholder="—" aria-label="Airport for LED {{n}}" data-led="{{led['pixel']}}" data-field="code">
         <input class="ap-name" type="text" value="{{led['name']}}" maxlength="40" placeholder="Name" aria-label="Name for LED {{n}}" data-led="{{led['pixel']}}" data-field="name">
         <input class="switch" type="checkbox" aria-label="Show LED {{n}} on the OLED display" data-led="{{led['pixel']}}" data-field="display"{{!' checked' if led['display'] else ''}}{{!'' if led['code'] else ' disabled'}}>
@@ -55,6 +55,9 @@
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
             </button>
         </span>
+        % if dev_mode:
+        <input class="ap-mock mono" type="text" value="{{led['mock']}}" spellcheck="false" autocapitalize="characters" placeholder="Mock METAR (dev_mode): replaces the real report, e.g. METAR {{led['code'] or 'KDWH'}} 272353Z 08003KT 9SM CLR 21/18 A3014" aria-label="Mock METAR for LED {{n}}" data-mock="{{led['pixel']}}"{{!'' if led['code'] else ' disabled'}}>
+        % end
     </div>
     % end
 </section>

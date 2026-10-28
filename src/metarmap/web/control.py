@@ -207,6 +207,28 @@ def add_routes(app, services, site, auth, updates=None):
             bottle.abort(400, "Send the values as a JSON object")
         return data
 
+    def set_mock_metar():
+        """
+        The Airports page's mock METAR field (dev_mode): {"pixel": 3, "metar": "METAR KDWH 272353Z ..."} saves it and
+        shows it in place of the fetched report at once; an empty "metar" goes back to the real one.
+        """
+        data = body()
+        try:
+            pixel = int(data.get("pixel"))
+            config.set_mock_metar(pixel, data.get("metar") or "")
+        except (TypeError, ValueError) as e:
+            bottle.abort(400, str(e))
+        except IndexError:
+            bottle.abort(404, f"No LED {data.get('pixel')}")
+        services.metars.apply_mocks()
+        renderer.update_data(services.metars)
+        if services.display:
+            services.display.restart(timeout=15)
+        code = config.airports[pixel].code
+        shown = services.metars.data.get(code) or {}
+        return as_json({"code": code, "mock": shown.get("raw") if shown.get("mock") else None,
+                        "flightCategory": shown.get("flightCategory")})
+
     def set_login():
         """
         Changes the web UI login, and the Pi login user's Linux password to the same password. The Linux password
@@ -283,6 +305,7 @@ def add_routes(app, services, site, auth, updates=None):
     app.route("/config/edit/<key>/<value:path>", "GET", edit_config, apply=auth)  # a branch name can have a /
     app.route("/config/airports/<pixel:int>/<key>/<value>", "GET", set_airport, apply=auth)
     app.route("/config/airports/move/<src:int>/<dst:int>", "GET", move_airport, apply=auth)
+    app.route("/config/airports/mock", "POST", set_mock_metar, apply=auth)
     # the older by-code edits, still used by anything written for airports.json
     app.route("/config/airports/edit/<oldkey>/<newkey>", "GET", edit_airport, apply=auth)
     app.route("/config/airports/edit/prop/<airport>/<key>/<value>", "GET", edit_airport_property, apply=auth)

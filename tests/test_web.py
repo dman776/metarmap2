@@ -992,3 +992,67 @@ def test_script_links_change_with_the_static_files(client, monkeypatch, tmp_path
     os.utime(tmp_path / "app.js", (0, 2_000_000_000))
     assert site.assets_version() != first
     assert f'/static/style.css?v={site.assets_version()}"' in client("/")[1]
+
+
+# ---- mock METARs (dev_mode) on the Airports page ------------------------------------------------------------------
+
+MOCK = "METAR KHOU 272353Z AUTO 08003KT 1/2SM FG OVC002 21/21 A3014 RMK AO2"
+
+
+@pytest.fixture
+def dev_map(make_app):
+    app = make_app(dev_mode=True)
+    c = Client(create_app(app, ip="10.0.0.2"))
+    c.services = app
+    yield c
+    app.display.stop()
+
+
+def mock(c, pixel, text):
+    return c("/config/airports/mock", method="POST", body={"pixel": pixel, "metar": text})
+
+
+def test_no_mock_field_without_dev_mode(client):
+    assert "data-mock=" not in client("/config/airports")[1]
+    assert mock(client, 0, MOCK)[0] == 400
+    assert "mock_metar" not in client.services.config.airports[0]._extra
+
+
+def test_a_mock_metar_replaces_the_real_one_at_once(dev_map):
+    c = dev_map
+    code = c.services.config.airports[0].code
+    assert 'data-mock="0"' in c("/config/airports")[1]
+    status, body = mock(c, 0, MOCK.replace("KHOU", code))
+    assert status == 200 and json.loads(body)["flightCategory"] == "LIFR"
+    assert c.services.config.airports[0]._extra["mock_metar"] == MOCK.replace("KHOU", code)  # saved in config.json
+    assert c.services.metars.data[code]["mock"] is True
+    assert c.services.renderer.looks[0] == Look.solid(c.services.config.data.color.cat.lifr)  # on the LED now
+    assert 'class="tag mock-tag">mock</span>' in c("/config/airports")[1]
+    assert 'class="badge-mock"' in c("/metars")[1]
+    live = c.json("/api/live")["leds"][0]
+    assert live["mock"] is True and c.json(f"/api/metar/{code}")["mock"] is True
+    assert next(a for a in c.json("/api/status")["airports"] if a["code"] == code)["mock"] is True
+    assert mock(c, 0, "")[0] == 200  # empty: the real report again
+    assert "mock_metar" not in c.services.config.airports[0]._extra and code not in c.services.metars.data
+
+
+def test_bad_mock_metars(dev_map):
+    c = dev_map
+    assert mock(c, 0, "not a metar")[0] == 400
+    assert mock(c, 999, MOCK)[0] == 404
+    assert c("/config/airports/mock", method="POST", body={"metar": MOCK})[0] == 400  # no pixel
+    assert c("/config/airports/mock", method="POST", body={"pixel": 0, "metar": MOCK}, auth=False)[0] == 401
+
+
+def test_a_mock_isnt_set_with_a_url(dev_map):
+    code = dev_map.services.config.airports[0].code
+    assert dev_map(f"/config/airports/edit/prop/{code}/mock_metar/KHOU%20272353Z")[0] == 400
+
+
+def test_a_new_code_drops_the_mock(dev_map, monkeypatch):
+    c = dev_map
+    monkeypatch.setattr(c.services.metars, "fetch", lambda: None)
+    monkeypatch.setattr(c.services.metars, "name_for", lambda code: "")
+    mock(c, 0, MOCK)
+    c("/config/airports/0/code/KDWH")
+    assert "mock_metar" not in c.services.config.airports[0]._extra

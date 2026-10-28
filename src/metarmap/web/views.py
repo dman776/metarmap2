@@ -5,6 +5,7 @@ import json
 import os
 from datetime import datetime
 
+from metarmap.metar import mock_text
 from metarmap.sun import LEVEL_AT
 from metarmap.visualizers.visualizer import info as visualizer_info
 
@@ -50,6 +51,7 @@ def stations(airports, data, position=None, count=None):
         result.append({
             "code": airport.code,
             "pixel": pixel,
+            "mock": bool(m.get("mock")),  # a mock METAR (dev_mode) in place of the real one
             "name": airport.name,
             "display": airport.display,
             "virtual": count is not None and pixel >= count,
@@ -67,8 +69,8 @@ def leds(airports, count):
     """
     Every LED for the Airports page, with its airport (code "" for none), then the virtual airports after led.count.
     """
-    return [{"pixel": pixel, "code": a.code, "name": a.name, "display": a.display, "virtual": pixel >= count}
-            for pixel, a in enumerate(airports)]
+    return [{"pixel": pixel, "code": a.code, "name": a.name, "display": a.display, "virtual": pixel >= count,
+             "mock": mock_text(a)} for pixel, a in enumerate(airports)]
 
 
 def summary(stations):

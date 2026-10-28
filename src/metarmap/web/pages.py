@@ -76,7 +76,8 @@ def airports(services, site):
     leds = views.leds(config.airports, count)
     with_airport = len([led for led in leds if led["code"]])
     return render(site, "airports.tpl", leds=leds, with_airport=with_airport, without_airport=len(leds) - with_airport,
-                  count=count, virtual=virtual, strip_leds=len(services.renderer.pixels()), max_leds=MAX_LEDS)
+                  count=count, virtual=virtual, strip_leds=len(services.renderer.pixels()), max_leds=MAX_LEDS,
+                  dev_mode=config.data.dev_mode)
 
 
 def raw(services):

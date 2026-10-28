@@ -118,7 +118,7 @@
     <div class="scroll-x">
         % for s in below_vfr:
         <div class="trow brief">
-            <span class="station"><b>{{s['code']}}</b>
+            <span class="station"><b>{{s['code']}}</b>{{!'<span class="badge-mock" title="A mock METAR from the Airports page (dev_mode)">mock</span>' if s['mock'] else ''}}
                 % if s['name']:
                 <span>{{s['name']}}</span>
                 % end

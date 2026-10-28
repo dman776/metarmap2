@@ -98,6 +98,7 @@ Returns a read-only snapshot of the map's state as `application/json`. No authen
       "text": "Galveston",
       "display": true,
       "virtual": false,
+      "mock": false,
       "flightCategory": "IFR",
       "raw": "KGLS 231753Z 00000KT 2SM BR OVC004 24/23 A3000",
       "windDir": "0",
@@ -176,6 +177,7 @@ case-insensitive; an airport that isn't on the map is a 404.
 {
   "code": "KHOU",
   "raw": "METAR KHOU 241753Z 10013G19KT 10SM SCT044 28/16 A3020 RMK AO2 ...",
+  "mock": false,
   "flightCategory": "VFR",
   "obsTime": "2026-10-24T17:53:00+00:00",
   "decoded": [
@@ -258,7 +260,7 @@ Settings that apply right away:
 - `update.channel`: what **Update** installs: `releases` (the newest release tag, never an older one; the default), `latest` (the newest commit on GitHub, released or not, for testing) or, only with `dev_mode`, `branch` (the newest commit of `update.branch`, even after a force push)
 - `update.branch`: the branch on GitHub the `branch` channel follows, e.g. `/config/edit/update.branch/feature/radar`. A name starting with `-`, with `..` or with spaces is a 400
 
-`dev_mode` (top level, `false` by default) can only be changed by editing `config.json` by hand: `/config/edit/dev_mode/…` is a 400. With it on, Config > Software offers **Branch** under *Update to*, with a list of GitHub's branches (refreshed by each check: push a branch, then **Check now**). Turning it off makes a `branch` channel act as `releases`; the saved channel and branch stay.
+`dev_mode` (top level, `false` by default) can only be changed by editing `config.json` by hand: `/config/edit/dev_mode/…` is a 400. With it on, Config > Software offers **Branch** under *Update to*, with a list of GitHub's branches (refreshed by each check: push a branch, then **Check now**). Turning it off makes a `branch` channel act as `releases`; the saved channel and branch stay. It also turns on mock METARs on the Airports page (see *Mock METARs*).
 - `led.brightness.normal`, `led.brightness.dimmed`, `led.brightness.off`: the level in use now changes right away; the others take over at their sun time
 - `led.inittest`: turning it on also runs the test pattern once now
 - `led.dim_on_refresh`: the LEDs fade to half their brightness while METARs are fetched (at least a second), then fade back
@@ -297,8 +299,13 @@ restart, except without an LED strip (the in-memory one), where it takes effect 
 | `GET /config/airports/<led>/name/<name>` | Set the airport's name, shown in the web UI. An empty name (`-`) is filled in with the airport's name after the next METAR fetch. |
 | `GET /config/airports/<led>/display/<true\|false>` | Whether the airport is shown on the OLED screen |
 | `GET /config/airports/move/<from>/<to>` | Move the airport on LED `from` to LED `to`; the airports in between shift by one |
+| `POST /config/airports/mock` | `dev_mode` only (a 400 without it): the Airports page's *Mock METAR* field. `{"pixel": 0, "metar": "METAR KDWH 272353Z AUTO 08003KT 9SM CLR 21/18 A3014"}` saves it as the airport's `mock_metar` in `config.json` and shows it at once, and after every fetch, in place of the fetched report; `"metar": ""` goes back to the real one. Text that doesn't start like a METAR (airport code, then the time) is a 400. Answers `{"code", "mock", "flightCategory"}`. See *Mock METARs* below. |
 | `GET /config/airports/edit/<oldcode>/<newcode>` | Older, by code: change the first airport with `oldcode` to `newcode` |
-| `GET /config/airports/edit/prop/<airport>/<key>/<value>` | Older, by code: set `text` (the name) or `display` of the first airport with that code |
+| `GET /config/airports/edit/prop/<airport>/<key>/<value>` | Older, by code: set `text` (the name) or `display` of the first airport with that code (not `mock_metar`: a 400) |
+
+#### Mock METARs (`dev_mode`)
+
+To test a report on the physical map, type a raw METAR in an airport's *Mock METAR* field on the Airports page (shown only with `dev_mode`), or put it in `config.json` as the airport's `"mock_metar"` (then restart). It replaces that airport's real report everywhere: the LEDs, the OLED, Home Assistant and the web pages, until it's cleared. The map reads the report's body (not the remarks): wind (`KT` or `MPS`), visibility (`9SM`, `1 1/2SM`, `M1/4SM`, `P6SM`, meters, `CAVOK`), weather codes, clouds and `VV`, temperature/dewpoint, and the altimeter (`A` or `Q`); `LTG` anywhere is lightning. The flight category comes from the visibility and ceiling (FAA limits), and the time from `DDHHMMZ` (this month, or last month if that day is still ahead). The airport's name and position stay its real station's. A mocked airport says `mock` on the Home, METARs and Airports pages and in the Map popup, and has `"mock": true` in `/api/status`, `/api/live` and `/api/metar/<code>`; the LEDs and OLED look as a real report would. With `dev_mode` off, saved mocks are ignored. Changing the airport's code removes its mock.
 
 All of them save `config.json`, update the LEDs, restart the OLED display loop, and redirect to `/config/airports`.
 An LED number or code that doesn't exist is a 404; a bad code or value is a 400.
