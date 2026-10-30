@@ -45,7 +45,7 @@
 
     // ---- restart: close any popup, wait, then reload once the map answers again ------------------------------
 
-    const RESTART_WAIT_S = 5;
+    const RESTART_WAIT_S = 10;
     const RESTART_POLL_MS = 3000;
     const RESTART_GIVE_UP_S = 90;  // after the wait; then reload anyway
 
