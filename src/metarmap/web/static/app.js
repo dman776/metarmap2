@@ -248,6 +248,35 @@
         });
     });
 
+    // Config tabs: #physical, #visualizers, ... show one panel; the address keeps the tab, and the last one is
+    // remembered for the next visit. Airports is its own page (/config/airports).
+    const panels = document.querySelectorAll('[data-panel]');
+    if (panels.length) {
+        const TAB_KEY = 'metarmap.config.tab';
+        const keys = Array.from(panels).map(function (p) { return p.dataset.panel; });
+        const showTab = function (key) {
+            if (key === 'airports') {
+                location.replace('/config/airports');
+                return;
+            }
+            if (keys.indexOf(key) < 0) key = keys[0];
+            panels.forEach(function (p) { p.hidden = p.dataset.panel !== key; });
+            document.querySelectorAll('.tab[data-tab]').forEach(function (tab) {
+                if (tab.dataset.tab === key) {
+                    tab.setAttribute('aria-current', 'page');
+                    tab.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+                } else {
+                    tab.removeAttribute('aria-current');
+                }
+            });
+            try { localStorage.setItem(TAB_KEY, key); } catch (e) { /* private mode: not remembered */ }
+        };
+        let remembered = null;
+        try { remembered = localStorage.getItem(TAB_KEY); } catch (e) { /* private mode */ }
+        window.addEventListener('hashchange', function () { showTab(location.hash.slice(1)); });
+        showTab(location.hash.slice(1) || remembered);
+    }
+
     // Config > Software (dev_mode): the branch list only for the Branch channel
     const channel = document.getElementById('update-channel');
     const branchRow = document.getElementById('update-branch-row');

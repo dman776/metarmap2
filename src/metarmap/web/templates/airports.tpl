@@ -1,13 +1,9 @@
 %include("header.tpl", title="Airports", page="config")
 <section class="page-head">
     <div>
-        <h1>Airports</h1>
-        <p>{{count}} {{'LED' if count == 1 else 'LEDs'}} in the order they're wired{{!' and %d virtual %s' % (virtual, 'airport' if virtual == 1 else 'airports') if virtual else ''}}: {{with_airport}} with an airport{{', %d without' % without_airport if without_airport else ''}}. Changes save right away.</p>
+        <h1>Configuration</h1>
+        <p>Changes save as you make them.</p>
     </div>
-    <nav class="subnav" aria-label="Config sections">
-        <a class="chip" href="/config">Settings</a>
-        <a class="chip" href="/config/airports" aria-current="page" style="border-color: var(--accent); color: var(--accent)">Airports</a>
-    </nav>
 </section>
 
 <section class="banner" id="restart-banner" role="status"{{!'' if count != strip_leds else ' hidden'}}>
@@ -17,6 +13,10 @@
     </span>
     <button class="btn primary" type="button" data-call="/restart" data-then="restart">Restart now</button>
 </section>
+
+%include("config_tabs.tpl", active="airports")
+
+<p class="tab-intro">{{count}} {{'LED' if count == 1 else 'LEDs'}} in the order they're wired{{!' and %d virtual %s' % (virtual, 'airport' if virtual == 1 else 'airports') if virtual else ''}}: {{with_airport}} with an airport{{', %d without' % without_airport if without_airport else ''}}. Changes save right away.</p>
 
 <section class="card settings">
     <div class="set" style="border-top: 0">

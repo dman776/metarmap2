@@ -6,6 +6,11 @@
 - The visualizers from Pressure on move up by one number (Rainbow is now 11, Chase 12). A `config.json` from before
   (no `visualizer.numbering`) keeps showing the same visualizer; scripts that call `/visualizer/<n>` need the new
   numbers. Home Assistant picks visualizers by name, so it's unaffected
+- Config > LED pixels: Data pin (GPIO 18, 12, 13, 21 or 10) and Color order (GRB or RGB), both after a restart.
+  Before, they could only be changed in `config.json`
+- The Config page has tabs: Physical display (LED pixels and the OLED screen), Visualizers, Airports, Virtual map
+  (the Map page's settings) and System (software updates, the web login and Wi-Fi). The address keeps the tab
+  (`/config#system`) and the last one is remembered; the System tab has a dot when an update is available
 
 ### dman776 3.0.1 (2026-10-27)
 

@@ -133,6 +133,23 @@ def test_led_pin_and_order(client):
     assert '<option value="RGB" selected>RGB</option>' in body
 
 
+def test_config_tabs(client):
+    body = client("/config")[1]
+    tabs = re.findall(r'<a class="tab" href="([^"]+)" data-tab="(\w+)"', body)
+    assert tabs == [("#physical", "physical"), ("#visualizers", "visualizers"), ("/config/airports", "airports"),
+                    ("#map", "map"), ("#system", "system")]
+    assert re.findall(r'data-panel="(\w+)"( hidden)?>', body) == [("physical", ""), ("visualizers", " hidden"),
+                                                                 ("map", " hidden"), ("system", " hidden")]
+    panel = body[body.index('data-panel="physical"'):body.index('data-panel="visualizers"')]
+    assert "<h2>LED pixels</h2>" in panel and "<h2>OLED screen</h2>" in panel
+    assert "<h2>Virtual map</h2>" in body and 'class="subnav"' not in body
+
+    airports = client("/config/airports")[1]
+    tabs = re.findall(r'<a class="tab" href="([^"]+)" data-tab="(\w+)"( aria-current="page")?', airports)
+    assert tabs[0] == ("/config#physical", "physical", "") and tabs[2] == ("/config/airports", "airports",
+                                                                          ' aria-current="page"')
+
+
 def test_airport_edit_restarts_the_display(client):
     app = client.services
     app.display.start()
@@ -669,10 +686,19 @@ def test_dev_mode_off_acts_as_releases(dev_client):
     assert c.services.config.data.update.channel == "branch"  # kept for when dev_mode is back on
 
 
-def test_software_is_first_in_the_side_column(release_client):
+def test_software_is_first_in_the_system_tab(release_client):
     body = release_client("/config")[1]
-    side = body.split('<div class="side">', 1)[1]
-    assert side.index('id="updates"') < side.index('id="access"')
+    system = body.split('data-panel="system"', 1)[1]
+    assert system.index('id="updates"') < system.index('id="access"')
+    assert 'class="tab-dot"' not in body  # not checked for updates yet
+    release_client("/update/check")
+    # v2.8.5 is out, so the System tab has a dot, like the header's badge
+    body = release_client("/config")[1]
+    assert re.search(r'data-tab="system">System\s*<span class="tab-dot" title="Update available: v2.8.5"', body)
+
+
+def test_no_update_dot_when_up_to_date(client):
+    assert 'class="tab-dot"' not in client("/config")[1]
 
 
 def test_check_now_and_status(release_client):
