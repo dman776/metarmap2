@@ -28,7 +28,9 @@
             "background": "sectional",
             "chart_type": "sectional",
             "chart": "Houston",
-            "view": "airports"
+            "view": "airports",
+            "traffic_seconds": 5,
+            "traffic_ground": false
         }
     },
     "display_screen": {

@@ -21,6 +21,7 @@ from metarmap.models import Look
 from metarmap.renderer import Renderer
 from metarmap.settings import Airport, Settings
 from metarmap.sun import SunTimes
+from metarmap.traffic import Traffic
 from metarmap.visualizers import flightcategory, rainbow
 from metarmap.web import api, control, create_app, views
 
@@ -117,6 +118,37 @@ def test_config_edit(client):
     assert client.services.config.data.display_screen.delay == 7
     assert client("/config/edit/no.such/1")[0] == 400
     assert client("/config/edit/display_screen.delay/soon")[0] == 400
+
+
+def test_traffic_settings(client):
+    assert client("/config/edit/geo.map.traffic_seconds/10")[0] == 200
+    assert client.services.config.data.geo.map.traffic_seconds == 10
+    for seconds in ("1", "0.5", "61", "fast"):  # adsb.fi allows one request a second; 2 s at least
+        assert client(f"/config/edit/geo.map.traffic_seconds/{seconds}")[0] == 400
+    assert client.services.config.data.geo.map.traffic_seconds == 10
+    assert client("/config/edit/geo.map.traffic_ground/true")[0] == 200
+    assert client.services.config.data.geo.map.traffic_ground is True
+    assert 'data-key="geo.map.traffic_seconds"' in client("/config")[1]
+
+
+def test_api_traffic(client):
+    calls = []
+
+    def get(url, **kwargs):
+        calls.append(url)
+        return SimpleNamespace(status_code=200, raise_for_status=lambda: None, json=lambda: {"ac": [
+            {"hex": "a0822c", "flight": "UCA4878 ", "alt_baro": 2450, "lat": 30.0, "lon": -95.5, "seen_pos": 1}]})
+    # the fake map fetched no METARs, so it doesn't know where its airports are
+    client.services.traffic = Traffic(lambda: client.services.config.data.geo.map, lambda: [(29.65, -95.28)], get=get)
+    traffic = client.json("/api/traffic")
+    assert [a["flight"] for a in traffic["aircraft"]] == ["UCA4878"]
+    assert traffic["source"]["name"] == "adsb.fi"
+    client.json("/api/traffic")
+    assert len(calls) == 1  # the second page gets the same fetch
+
+
+def test_api_traffic_without_it(services):
+    assert api.traffic(services) is None
 
 
 def test_led_pin_and_order(client):

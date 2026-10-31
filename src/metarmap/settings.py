@@ -37,6 +37,9 @@ class Brightness(_Section):
 LED_PINS = (18, 12, 13, 21, 10)
 # the order the strip wants its colors in; the wrong one swaps red and green
 LED_ORDERS = ("GRB", "RGB")
+# geo.map.traffic_seconds: the fewest and most seconds between live traffic fetches. adsb.fi allows one request a
+# second; 2 leaves room for a slow answer and a retry
+TRAFFIC_SECONDS = (2, 60)
 
 
 @dataclass
@@ -58,6 +61,10 @@ class MapPage(_Section):
     chart_type: str = "sectional"  # sectional | terminal | ifr_low
     chart: str = ""  # FAA sectional name; empty = the one covering the most airports
     view: str = "airports"  # airports | chart | custom
+    # live traffic (adsb.fi), shown when a viewer ticks it on the Map page: how often it's fetched, and whether
+    # aircraft on the ground are shown too
+    traffic_seconds: float = 5  # TRAFFIC_SECONDS: adsb.fi allows one request a second
+    traffic_ground: bool = False
 
 
 @dataclass

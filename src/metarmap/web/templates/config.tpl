@@ -176,6 +176,13 @@
             </div>
         </div>
     </section>
+
+    <section class="card settings">
+        <h2>Live traffic</h2>
+        <p class="muted" style="margin: 0; padding: 0 24px 6px; font-size: 13px">Aircraft around your airports from <a href="https://adsb.fi/" target="_blank" rel="noopener">adsb.fi</a>, shown when a viewer ticks Live traffic on the Map page. The map only asks adsb.fi while a page shows it.</p>
+        % slider('geo.map.traffic_seconds', d.geo.map.traffic_seconds, 'Update every', 'How often the map asks adsb.fi. %d seconds at least: adsb.fi allows one request a second.' % traffic_seconds[0], lo=traffic_seconds[0], hi=traffic_seconds[1], step=1, fmt='sec')
+        % switch('geo.map.traffic_ground', d.geo.map.traffic_ground, 'Ground traffic', 'Also show aircraft on the ground (parked and taxiing).')
+    </section>
 </div>
 
 <div class="tab-panel" id="panel-system" data-panel="system" hidden>

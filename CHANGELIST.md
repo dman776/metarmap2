@@ -1,5 +1,15 @@
 ### dman776 3.0.4 (2026-10-31)
 
+- Live traffic on the Map page, from [adsb.fi](https://adsb.fi/): tick **Live traffic** (under the background
+  switcher; remembered in that browser) to show the aircraft around your airports, each pointing along its track and
+  gliding between updates. Click one for its details (type, operator, registration, altitude and climb, speed,
+  track, squawk, with a link to globe.adsb.fi): the map follows it and draws its trail until the popup closes or the
+  map is dragged. Emergency squawks are red
+- Config > Virtual map > Live traffic: **Update every** (2 to 60 s, 5 by default; adsb.fi allows one request a
+  second) and **Ground traffic** (off by default). The map only asks adsb.fi while a page shows live traffic, and
+  every open page shares one fetch. New `GET /api/traffic` (see API.md); `geo.map.traffic_seconds` and
+  `geo.map.traffic_ground` settings
+
 - Precipitation legend: removed "Moderate (rain)", which repeated "Rain" (both solid blue). Moderate is solid, as
   each kind's own entry shows; the legend still lists Light (breathing), Heavy (fast blink) and In the vicinity (dim)
 

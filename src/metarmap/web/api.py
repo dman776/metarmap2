@@ -1,5 +1,6 @@
 """
-The JSON API: /api/status (used by the Home Assistant integration) and /api/live (polled by the Map page).
+The JSON API: /api/status (used by the Home Assistant integration), /api/live (polled by the Map page) and
+/api/traffic (the Map page's live traffic).
 See API.md; the field names are part of the API.
 """
 import json
@@ -156,6 +157,12 @@ def metar(services, code):
     }
 
 
+def traffic(services):
+    """Live traffic around the airports (see metarmap.traffic); None for a map without it."""
+    found = getattr(services, "traffic", None)
+    return found.snapshot() if found is not None else None
+
+
 def as_json(data):
     bottle.response.content_type = "application/json"
     return json.dumps(data)
@@ -164,5 +171,6 @@ def as_json(data):
 def add_routes(app, services, site):
     app.route("/api/status", "GET", lambda: as_json(status(services, site.ip)))
     app.route("/api/live", "GET", lambda: as_json(live(services)))
+    app.route("/api/traffic", "GET", lambda: as_json(traffic(services) or bottle.abort(404, "No live traffic")))
     app.route("/api/metar/<code>", "GET", lambda code: as_json(metar(services, code.upper())
                                                              or bottle.abort(404, f"{code} isn't on the map")))

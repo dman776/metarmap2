@@ -204,6 +204,48 @@ case-insensitive; an airport that isn't on the map is a 404.
 | `summary` | A few sentences about the weather, in this order, for what the report has: the flight category and what it means, the weather (e.g. `Light rain, mist`), `Lightning reported`, the wind, the ceiling (or the lowest clouds, or `Clear skies`), the density altitude (to the nearest 100 ft), a fog warning when the temperature and dewpoint are 2°C or less apart, and an icing warning between -20°C and 2°C with clouds or precipitation. Empty when the airport isn't reporting. |
 | `raw`, `flightCategory`, `obsTime` | `null` when the airport isn't reporting |
 
+### `GET /api/traffic`
+
+The aircraft around the map's airports, from [adsb.fi](https://adsb.fi/)'s open data. The Map page asks for it while its
+**Live traffic** box is ticked. No authentication.
+
+The map asks adsb.fi only when this is requested and what it has is older than `geo.map.traffic_seconds`, so any number
+of open pages share one fetch. Nothing is fetched while no page asks. A failed fetch waits longer each time (twice the
+interval, doubling, at most 5 minutes; at least a minute after adsb.fi answers 429), and keeps the aircraft from the
+last fetch that worked. adsb.fi's data is free for personal, non-commercial use, and must be credited.
+
+```json
+{
+  "now": 1793466896.77,
+  "interval": 5.0,
+  "fetched": 1793466896.42,
+  "error": null,
+  "center": [30.41495, -93.75705],
+  "radius": 216,
+  "source": { "name": "adsb.fi", "url": "https://adsb.fi/" },
+  "aircraft": [
+    {
+      "hex": "a0822c", "flight": "UCA4878", "reg": "N13161", "type": "E45X", "desc": "EMBRAER ERJ-145XR",
+      "operator": "UNITED AIRLINES INC", "lat": 30.006683, "lon": -95.498765, "ground": false, "alt": 2450,
+      "gs": 211.0, "track": 90.54, "vrate": -1152, "squawk": "4561", "emergency": null, "category": "A2",
+      "at": 1793466896.25
+    }
+  ]
+}
+```
+
+| Field | Description |
+|---|---|
+| `now`, `fetched` | Unix times on the map's clock: now, and the last fetch that worked (`null` before the first) |
+| `interval` | Seconds between fetches: `geo.map.traffic_seconds`, kept between 2 and 60 |
+| `error` | Why the last fetch failed (e.g. `couldn't reach adsb.fi: …`, `no airport positions yet`), else `null` |
+| `center`, `radius` | The circle asked about: around every airport plus 25 NM, at most 250 NM (adsb.fi's limit) |
+| `aircraft[]` | Aircraft with a position no older than 60 s. Ones on the ground only with `geo.map.traffic_ground` |
+| `aircraft[].alt` | Barometric altitude in feet (the GPS one if there's none); `null` on the ground |
+| `aircraft[].gs`, `track`, `vrate` | Ground speed (kt), track (degrees true) and vertical rate (ft/min); `null` when not sent |
+| `aircraft[].emergency` | adsb.fi's emergency status (e.g. `general`), `null` for none. Squawks 7500, 7600 and 7700 are in `squawk` |
+| `aircraft[].at` | When the position was reported (map's clock). The Map page moves each aircraft along its track from there |
+
 ## Control
 
 These endpoints change the map immediately. Nothing they change is saved to `config.json`, so the changes are lost on restart. Each one returns the HTML of a UI page; ignore it.
@@ -279,6 +321,9 @@ Map page settings (apply the next time the Map page is opened):
 - `geo.map.chart_type`: `sectional`, `terminal` (VFR Terminal Area) or `ifr_low` (IFR Enroute Low)
 - `geo.map.chart`: the sectional name, as listed in [sectionals.json](src/metarmap/web/static/sectionals.json), such as `Houston`. If it's missing or unknown, the map uses the sectional that covers the most airports.
 - `geo.map.view`: `airports` (fit to the airports), `chart` (the whole sectional) or `custom` (`geo.map.center` and `geo.map.zoom`)
+- `geo.map.traffic_seconds`: how often live traffic is fetched from adsb.fi (see `/api/traffic`), 2 to 60 seconds,
+  5 by default. adsb.fi allows one request a second; anything outside that range is a 400. Applies right away
+- `geo.map.traffic_ground`: `true` to show aircraft on the ground too (off by default). Applies right away
 
 ```sh
 curl -u metar:map http://metarmap.local/config/edit/lightning.animation/false

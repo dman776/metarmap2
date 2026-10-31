@@ -23,7 +23,8 @@ web UI, an API and a Home Assistant integration (see [Credits](#credits)).
   choose, with that airport's LED pulsing while it's shown.
 - **Web UI**: current conditions, a METAR list, a live map that mirrors the LEDs and the OLED screen, and settings.
   Click an airport on the map for its weather in plain English, its raw METAR, or the METAR decoded line by line.
-  The map can go fullscreen, and follows the visualizer as it changes. Update and restart the map from the Home
+  The map can go fullscreen, and follows the visualizer as it changes. Tick **Live traffic** to see the aircraft
+  around your airports; click one for its details and the map follows it. Update and restart the map from the Home
   page. `/remote` is a remote control for a tablet in kiosk mode.
 - **API and Home Assistant**: everything in the web UI also works over HTTP (see [API.md](API.md)); the
   [metarmap2_ha](https://github.com/dman776/metarmap2_ha) integration adds the map to Home Assistant.
@@ -270,3 +271,6 @@ map, with portions by [@lostlocalhost](https://github.com/lostlocalhost) and Joh
 rewritten from scratch, with a web UI, an API, a Home Assistant integration and more, and shares little, if any, of
 their code. Their work is where the idea and the first version came from, and John Marzulli's visualizer ideas were
 a particular inspiration. Thank you.
+
+Live traffic comes from [adsb.fi](https://adsb.fi/)'s open data, a community ADS-B network. Their terms allow
+personal, non-commercial use only.

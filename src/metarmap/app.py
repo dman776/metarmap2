@@ -27,6 +27,7 @@ from metarmap.oled.screen import open_screen
 from metarmap.releases import CHECK_HOURS, ReleaseCheck
 from metarmap.renderer import Renderer
 from metarmap.sun import LEVEL_AT, SunTimes
+from metarmap.traffic import Traffic
 from metarmap.web import create_app, serve
 
 CONFIG_FILE = "config.json"
@@ -45,6 +46,7 @@ class App:
     display: Display  # always built; its loop runs while display_screen.enabled is on
     scheduler: schedule.Scheduler
     releases: Optional[ReleaseCheck] = None  # what's newest on GitHub, for "Update available"
+    traffic: Optional[Traffic] = None  # live traffic for the Map page, fetched while a page asks for it
 
     def schedule_rotation(self):
         schedule_rotation(self)
@@ -76,7 +78,9 @@ def build(config_file=CONFIG_FILE, strip=None, screen=None, clock: Clock = None,
 
     releases = ReleaseCheck(channel=lambda: config.data.update_channel(),branch=lambda: config.data.update.branch,
                             dev_mode=lambda: config.data.dev_mode)
-    app = App(config, sun, metars, renderer, display, schedule.Scheduler(), releases)
+    traffic = Traffic(lambda: config.data.geo.map,
+                      lambda: [p for p in (metars.position(a.code) for a in config.airports if a.code) if p])
+    app = App(config, sun, metars, renderer, display, schedule.Scheduler(), releases, traffic)
     fill_names(app)
     schedule_jobs(app)
     return app

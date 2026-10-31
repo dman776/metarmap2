@@ -90,6 +90,7 @@
     }
 
     let switcher;
+    let trafficToggle, trafficNote;  // the live traffic checkbox and its status (see "live traffic" below)
     const BgControl = L.Control.extend({
         options: {position: 'topright'},
         onAdd: function () {
@@ -109,6 +110,11 @@
                 '<span class="dbz"><span>dBZ 5</span><i></i><span>75</span></span>';
             radarInfo.querySelector('time').textContent = clock(new Date());
             radarInfo.hidden = true;
+            const toggle = L.DomUtil.create('label', 'map-toggle', box);
+            toggle.innerHTML = '<input type="checkbox"> Live traffic';
+            trafficToggle = toggle.querySelector('input');
+            trafficNote = L.DomUtil.create('div', 'map-note', box);
+            trafficNote.hidden = true;
             L.DomEvent.disableClickPropagation(box);
             return box;
         }
@@ -579,6 +585,264 @@
         void e.dot.offsetWidth;  // restart the animation
         e.dot.classList.add('locate');
     }
+
+    // ---- live traffic: aircraft from adsb.fi, through the map (/api/traffic); ticked on in this browser -----------
+    // Between updates every aircraft glides along its track at its ground speed. Clicking one opens its details and
+    // follows it (the map keeps it centered and draws its trail) until the popup closes or the map is dragged.
+    const TRAFFIC_KEY = 'metarmap.traffic';
+    const GLIDE_MS = 250;
+    const MAX_GLIDE_S = 60;  // no further than this past its last report
+    const TRAIL_POINTS = 720;
+    const TRAFFIC_CREDIT = 'Traffic: <a href="https://adsb.fi/" target="_blank" rel="noopener">adsb.fi</a>';
+    const PLANE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 1.5c.8 0 1.3.9 1.3 2v5.4l7.9 4.7v2.1l-7.9-2.5v5l2.3 1.7v1.8L12 20.6l-3.6 1.1v-1.8l2.3-1.7v-5l-7.9 2.5v-2.1l7.9-4.7V3.5c0-1.1.5-2 1.3-2z"/></svg>';
+    const EMERGENCY_SQUAWKS = {'7500': 'Hijack', '7600': 'Radio failure', '7700': 'Emergency'};
+    const aircraft = {};  // hex -> {marker, data, el, track, pop}
+    let trafficOn = false;
+    let trafficTimer = null;
+    let trafficAsking = false;  // a request to /api/traffic is in flight
+    let glideTimer = null;
+    let trafficInterval = 5;
+    let serverSkew = 0;  // this browser's clock minus the map's
+    let followed = null;  // {hex, points, trail}
+
+    function serverNow() {
+        return Date.now() / 1000 - serverSkew;
+    }
+
+    // where an aircraft is now: its last report moved along its track at its ground speed
+    function glide(a) {
+        if (!a.gs || a.track === null) return [a.lat, a.lon];
+        const nm = a.gs * Math.min(MAX_GLIDE_S, Math.max(0, serverNow() - a.at)) / 3600;
+        const rad = a.track * Math.PI / 180;
+        return [a.lat + nm * Math.cos(rad) / 60, a.lon + nm * Math.sin(rad) / (60 * Math.cos(a.lat * Math.PI / 180))];
+    }
+
+    function callsign(a) {
+        return a.flight || a.reg || a.hex.toUpperCase();
+    }
+
+    function emergencyOf(a) {
+        return EMERGENCY_SQUAWKS[a.squawk] || (a.emergency ? a.emergency.replace(/^\w/, function (c) { return c.toUpperCase(); }) : null);
+    }
+
+    function feet(n) {
+        return Math.round(n).toLocaleString() + ' ft';
+    }
+
+    // the popup: built once, its values refreshed by fillPopup()
+    function aircraftPopup(entry) {
+        const box = document.createElement('div');
+        box.innerHTML = '<div class="pop-head"><b></b><span class="pill"></span></div><dl class="pop-decoded"></dl>' +
+            '<a class="ac-link" target="_blank" rel="noopener"></a>';
+        entry.pop = {box: box, title: box.querySelector('b'), pill: box.querySelector('.pill'), dl: box.querySelector('dl'),
+            link: box.querySelector('a')};
+        fillPopup(entry);
+        return box;
+    }
+
+    function fillPopup(entry) {
+        const p = entry.pop;
+        if (!p) return;
+        const a = entry.data;
+        p.title.textContent = callsign(a);
+        const emergency = emergencyOf(a);
+        p.pill.className = 'pill' + (emergency ? ' ac-emergency' : '');
+        p.pill.textContent = emergency || (a.ground ? 'Ground' : a.alt !== null ? feet(a.alt) : '');
+        p.pill.hidden = !p.pill.textContent;
+        const vrate = a.vrate && Math.abs(a.vrate) >= 100 ? (a.vrate > 0 ? ' ↑ ' : ' ↓ ') + Math.abs(Math.round(a.vrate)).toLocaleString() + ' ft/min' : '';
+        const rows = [
+            ['Aircraft', [a.desc, a.type && a.desc ? '(' + a.type + ')' : a.type].filter(Boolean).join(' ')],
+            ['Operator', a.operator],
+            ['Registration', a.reg],
+            ['Callsign', a.flight],
+            ['Altitude', a.ground ? 'On the ground' : a.alt !== null ? feet(a.alt) + vrate : null],
+            ['Speed', a.gs !== null ? Math.round(a.gs) + ' kt' : null],
+            ['Track', a.track !== null ? String(Math.round(a.track) % 360).padStart(3, '0') + '°' : null],
+            ['Squawk', a.squawk ? a.squawk + (emergency ? ' · ' + emergency : '') : null],
+            ['ICAO', a.hex.toUpperCase()],
+            ['Position', Math.max(0, Math.round(serverNow() - a.at)) + ' s old']
+        ];
+        p.dl.textContent = '';
+        rows.forEach(function (r) {
+            if (!r[1]) return;
+            const dt = document.createElement('dt');
+            dt.textContent = r[0];
+            const dd = document.createElement('dd');
+            dd.textContent = r[1];
+            p.dl.appendChild(dt);
+            p.dl.appendChild(dd);
+        });
+        p.link.href = 'https://globe.adsb.fi/?icao=' + encodeURIComponent(a.hex);
+        p.link.textContent = 'Open on globe.adsb.fi';
+    }
+
+    function follow(hex) {
+        unfollow();
+        const entry = aircraft[hex];
+        if (!entry) return;
+        const here = glide(entry.data);
+        followed = {hex: hex, points: [[entry.data.lat, entry.data.lon]], at: entry.data.at,
+            trail: L.polyline([here], {color: '#f5b544', weight: 2, opacity: 0.85, interactive: false}).addTo(map)};
+        entry.marker.setZIndexOffset(1000);
+        styleAircraft(entry);
+        map.panTo(here);
+    }
+
+    function unfollow() {
+        if (!followed) return;
+        const entry = aircraft[followed.hex];
+        map.removeLayer(followed.trail);
+        followed = null;
+        if (entry) {
+            entry.marker.setZIndexOffset(-1000);
+            styleAircraft(entry);
+        }
+    }
+    map.on('dragstart', unfollow);  // looking somewhere else; the popup stays open
+
+    // the plane's color and heading (the element only exists once the map has a view)
+    function styleAircraft(entry) {
+        const el = entry.el || (entry.el = entry.marker.getElement());
+        if (!el) return;
+        const a = entry.data;
+        el.classList.toggle('ground', a.ground);
+        el.classList.toggle('emergency', !!emergencyOf(a));
+        el.classList.toggle('followed', !!followed && followed.hex === a.hex);
+        el.querySelector('.ac-code').textContent = callsign(a);
+        if (a.track !== entry.track) {
+            el.querySelector('.ac-plane').style.setProperty('--track', (a.track || 0) + 'deg');
+            entry.track = a.track;
+        }
+    }
+
+    function syncAircraft(list) {
+        const seen = {};
+        list.forEach(function (a) {
+            seen[a.hex] = true;
+            let entry = aircraft[a.hex];
+            if (!entry) {
+                const icon = L.divIcon({
+                    className: 'ac',
+                    html: '<button type="button" class="ac-plane" aria-label="Aircraft ' + callsign(a).replace(/[^\w-]/g, '') + '">' + PLANE + '</button><span class="ac-code"></span>',
+                    iconSize: [0, 0]
+                });
+                // under the airports, so the LEDs stay easy to click
+                const marker = L.marker([a.lat, a.lon], {icon: icon, keyboard: false, zIndexOffset: -1000}).addTo(map);
+                entry = aircraft[a.hex] = {marker: marker, data: a, el: null, track: undefined, pop: null};
+                marker.bindPopup('', {className: 'led-popup', autoPanPaddingTopLeft: [10, 64]});
+                marker.on('popupopen', function (e) {
+                    e.popup.setContent(aircraftPopup(entry));
+                    follow(a.hex);
+                });
+                marker.on('popupclose', function () {
+                    entry.pop = null;
+                    if (followed && followed.hex === a.hex) unfollow();
+                });
+            }
+            entry.data = a;
+            if (followed && followed.hex === a.hex && a.at !== followed.at) {
+                followed.points.push([a.lat, a.lon]);
+                if (followed.points.length > TRAIL_POINTS) followed.points.shift();
+                followed.at = a.at;
+            }
+            styleAircraft(entry);
+            if (entry.pop) {
+                fillPopup(entry);
+                entry.marker.getPopup().update();  // its size may have changed
+            }
+        });
+        Object.keys(aircraft).forEach(function (hex) {
+            if (seen[hex]) return;
+            const entry = aircraft[hex];
+            if (followed && followed.hex === hex) unfollow();
+            entry.marker.closePopup();
+            map.removeLayer(entry.marker);
+            delete aircraft[hex];
+        });
+        moveAircraft();
+    }
+
+    function moveAircraft() {
+        Object.keys(aircraft).forEach(function (hex) {
+            const entry = aircraft[hex];
+            if (!entry.el) styleAircraft(entry);
+            entry.marker.setLatLng(glide(entry.data));
+        });
+        if (followed && aircraft[followed.hex]) {
+            const here = aircraft[followed.hex].marker.getLatLng();
+            followed.trail.setLatLngs(followed.points.concat([here]));
+            map.panTo(here, {animate: false});
+        }
+    }
+
+    function trafficStatus(t) {
+        const count = t.aircraft.length;
+        let text;
+        if (t.error) {
+            text = 'Live traffic: ' + t.error + (t.fetched ? ' · last update ' + clock(new Date((t.fetched + serverSkew) * 1000)) : '');
+        } else if (t.fetched === null) {
+            text = 'Live traffic: loading…';
+        } else {
+            text = count + ' aircraft within ' + t.radius + ' NM · every ' + t.interval + ' s';
+        }
+        trafficNote.textContent = text;
+        trafficNote.hidden = false;
+    }
+
+    async function pollTraffic() {
+        if (trafficAsking) return;  // the one in flight schedules the next
+        trafficTimer = null;
+        if (!trafficOn) return;
+        if (!document.hidden) {
+            trafficAsking = true;
+            try {
+                const res = await fetch('/api/traffic', {cache: 'no-store'});
+                if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+                const t = await res.json();
+                if (!trafficOn) return;  // ticked off while it loaded (finally still clears trafficAsking)
+                serverSkew = Date.now() / 1000 - t.now;
+                trafficInterval = Math.max(1, t.interval || trafficInterval);
+                syncAircraft(t.aircraft);
+                trafficStatus(t);
+            } catch (err) {
+                console.error('[map] traffic failed', err);
+                trafficNote.textContent = 'Live traffic: the map can\'t be reached';
+                trafficNote.hidden = !trafficOn;
+            } finally {
+                trafficAsking = false;
+            }
+        }
+        if (trafficOn && !trafficTimer) trafficTimer = setTimeout(pollTraffic, trafficInterval * 1000);
+    }
+
+    function showTraffic(on) {
+        trafficOn = on;
+        trafficToggle.checked = on;
+        try { localStorage.setItem(TRAFFIC_KEY, on ? 'on' : 'off'); } catch (e) { /* private mode */ }
+        clearTimeout(trafficTimer);
+        clearInterval(glideTimer);
+        trafficTimer = glideTimer = null;
+        if (on) {
+            map.attributionControl.addAttribution(TRAFFIC_CREDIT);
+            trafficNote.textContent = 'Live traffic: loading…';
+            trafficNote.hidden = false;
+            glideTimer = setInterval(moveAircraft, GLIDE_MS);
+            pollTraffic();
+        } else {
+            map.attributionControl.removeAttribution(TRAFFIC_CREDIT);
+            trafficNote.hidden = true;
+            unfollow();
+            syncAircraft([]);
+        }
+    }
+    trafficToggle.addEventListener('change', function () { showTraffic(trafficToggle.checked); });
+    document.addEventListener('visibilitychange', function () {
+        if (trafficOn && !document.hidden) {
+            clearTimeout(trafficTimer);
+            pollTraffic();
+        }
+    });
+    try { if (localStorage.getItem(TRAFFIC_KEY) === 'on') showTraffic(true); } catch (e) { /* private mode */ }
 
     async function poll() {
         try {
