@@ -594,7 +594,41 @@
     const MAX_GLIDE_S = 60;  // no further than this past its last report
     const TRAIL_POINTS = 720;
     const TRAFFIC_CREDIT = 'Traffic: <a href="https://adsb.fi/" target="_blank" rel="noopener">adsb.fi</a>';
-    const PLANE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 1.5c.8 0 1.3.9 1.3 2v5.4l7.9 4.7v2.1l-7.9-2.5v5l2.3 1.7v1.8L12 20.6l-3.6 1.1v-1.8l2.3-1.7v-5l-7.9 2.5v-2.1l7.9-4.7V3.5c0-1.1.5-2 1.3-2z"/></svg>';
+    // an aircraft's shape by its kind (from its ADS-B category and type, see metarmap.traffic); its size is in the CSS
+    const JET = '<path d="M12 1.5c.8 0 1.3.9 1.3 2v5.4l7.9 4.7v2.1l-7.9-2.5v5l2.3 1.7v1.8L12 20.6l-3.6 1.1v-1.8l2.3-1.7v-5l-7.9 2.5v-2.1l7.9-4.7V3.5c0-1.1.5-2 1.3-2z"/>';
+    const TWIN = '<ellipse cx="16.6" cy="12.2" rx=".9" ry="1.7"/><ellipse cx="7.4" cy="12.2" rx=".9" ry="1.7"/>';
+    const FOUR = '<ellipse cx="15.6" cy="11.8" rx=".8" ry="1.5"/><ellipse cx="18.8" cy="13.3" rx=".8" ry="1.5"/>' +
+        '<ellipse cx="8.4" cy="11.8" rx=".8" ry="1.5"/><ellipse cx="5.2" cy="13.3" rx=".8" ry="1.5"/>';
+    const SHAPES = {
+        light: '<path d="M10.8 4.5C10.8 3 11.3 2 12 2s1.2 1 1.2 2.5v4h8.8c.3 0 .5.2.5.5v2c0 .3-.2.5-.5.5h-8.8V18h3c.3 0 .5.2.5.5v1.4c0 .3-.2.5-.5.5h-3l-.5 1.6h-1.4l-.5-1.6h-3c-.3 0-.5-.2-.5-.5v-1.4c0-.3.2-.5.5-.5h3v-6.5H2c-.3 0-.5-.2-.5-.5V9c0-.3.2-.5.5-.5h8.8z"/><rect x="9.6" y="1" width="4.8" height=".9" rx=".45"/>',
+        small: JET,
+        large: JET + TWIN,
+        heavy: JET + TWIN,
+        super: JET + FOUR,
+        unknown: JET,
+        helicopter: '<circle cx="12" cy="10" r="9" fill-opacity=".18"/><ellipse cx="12" cy="10.5" rx="2.8" ry="4.3"/>' +
+            '<rect x="11.4" y="14" width="1.2" height="7.5" rx=".6"/><rect x="9.6" y="19.8" width="4.8" height="1.1" rx=".5"/>' +
+            '<path d="M5.6 3.6l12.8 12.8M18.4 3.6L5.6 16.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>',
+        glider: '<ellipse cx="12" cy="4.6" rx="1" ry="2"/><rect x="11.4" y="3.5" width="1.2" height="17.5" rx=".6"/>' +
+            '<rect x=".5" y="8.6" width="23" height="1.5" rx=".75"/><rect x="8.5" y="19" width="7" height="1.2" rx=".6"/>',
+        balloon: '<circle cx="12" cy="9" r="6.5"/><rect x="10.3" y="18.5" width="3.4" height="2.8" rx=".5"/>' +
+            '<path d="M7.2 12.6l3.4 5.9M16.8 12.6l-3.4 5.9" stroke="currentColor" stroke-width=".9"/>',
+        drone: '<path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8"/><rect x="9.8" y="9.8" width="4.4" height="4.4" rx="1"/>' +
+            '<circle cx="6" cy="6" r="2.6" fill-opacity=".6"/><circle cx="18" cy="6" r="2.6" fill-opacity=".6"/>' +
+            '<circle cx="6" cy="18" r="2.6" fill-opacity=".6"/><circle cx="18" cy="18" r="2.6" fill-opacity=".6"/>',
+        vehicle: '<rect x="7" y="4" width="10" height="16" rx="2.5"/><rect x="8.5" y="6" width="7" height="3" rx="1" fill="#000" fill-opacity=".35"/>'
+    };
+    const KIND_LABELS = {light: 'Light (under 15,500 lb)', small: 'Small or fast (15,500–75,000 lb, or military)',
+        large: 'Large (75,000–300,000 lb)', heavy: 'Heavy (over 300,000 lb)', super: 'Super heavy (A380, 747, An-124…)',
+        helicopter: 'Helicopter', glider: 'Glider', balloon: 'Balloon or airship', drone: 'Drone', vehicle: 'Ground vehicle'};
+
+    function kindOf(a) {
+        return SHAPES[a.kind] ? a.kind : 'unknown';
+    }
+
+    function shapeSvg(kind) {
+        return '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' + SHAPES[kind] + '</svg>';
+    }
     const EMERGENCY_SQUAWKS = {'7500': 'Hijack', '7600': 'Radio failure', '7700': 'Emergency'};
     const aircraft = {};  // hex -> {marker, data, el, track, pop}
     let trafficOn = false;
@@ -652,6 +686,7 @@
         const vrate = a.vrate && Math.abs(a.vrate) >= 100 ? (a.vrate > 0 ? ' ↑ ' : ' ↓ ') + Math.abs(Math.round(a.vrate)).toLocaleString() + ' ft/min' : '';
         const rows = [
             ['Aircraft', [a.desc, a.type && a.desc ? '(' + a.type + ')' : a.type].filter(Boolean).join(' ')],
+            ['Class', KIND_LABELS[kindOf(a)]],
             ['Operator', a.operator],
             ['Registration', a.reg],
             ['Callsign', a.flight],
@@ -709,6 +744,13 @@
         el.classList.toggle('emergency', !!emergencyOf(a));
         el.classList.toggle('followed', !!followed && followed.hex === a.hex);
         el.querySelector('.ac-code').textContent = callsign(a);
+        const kind = kindOf(a);
+        if (kind !== entry.kind) {  // e.g. its type arrived after its first report
+            if (entry.kind) el.classList.remove('k-' + entry.kind);
+            el.classList.add('k-' + kind);
+            el.querySelector('.ac-plane').innerHTML = shapeSvg(kind);
+            entry.kind = kind;
+        }
         if (a.track !== entry.track) {
             el.querySelector('.ac-plane').style.setProperty('--track', (a.track || 0) + 'deg');
             entry.track = a.track;
@@ -723,12 +765,13 @@
             if (!entry) {
                 const icon = L.divIcon({
                     className: 'ac',
-                    html: '<button type="button" class="ac-plane" aria-label="Aircraft ' + callsign(a).replace(/[^\w-]/g, '') + '">' + PLANE + '</button><span class="ac-code"></span>',
+                    // styleAircraft() puts in the shape for its kind
+                    html: '<button type="button" class="ac-plane" aria-label="Aircraft ' + callsign(a).replace(/[^\w-]/g, '') + '"></button><span class="ac-code"></span>',
                     iconSize: [0, 0]
                 });
                 // under the airports, so the LEDs stay easy to click
                 const marker = L.marker([a.lat, a.lon], {icon: icon, keyboard: false, zIndexOffset: -1000}).addTo(map);
-                entry = aircraft[a.hex] = {marker: marker, data: a, el: null, track: undefined, pop: null};
+                entry = aircraft[a.hex] = {marker: marker, data: a, el: null, track: undefined, kind: null, pop: null};
                 marker.bindPopup('', {className: 'led-popup', autoPanPaddingTopLeft: [10, 64]});
                 marker.on('popupopen', function (e) {
                     e.popup.setContent(aircraftPopup(entry));

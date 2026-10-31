@@ -92,7 +92,7 @@ def test_parse():
     assert flying == {"hex": "a0822c", "flight": "UCA4878", "reg": "N13161", "type": "E45X",
                       "desc": "EMBRAER ERJ-145XR", "operator": "UNITED AIRLINES INC", "lat": 30.006683,
                       "lon": -95.498765, "ground": False, "alt": 2450, "gs": 211.0, "track": 90.54, "vrate": -1152,
-                      "squawk": "4561", "emergency": None, "category": "A2", "at": 999.5}
+                      "squawk": "4561", "emergency": None, "category": "A2", "kind": "small", "at": 999.5}
     assert parked["ground"] is True and parked["alt"] is None and parked["flight"] is None
 
 
@@ -105,6 +105,33 @@ def test_parse_falls_back_to_other_fields():
     (a,) = traffic.parse({"ac": [{**FLYING, "alt_baro": None, "track": None, "true_heading": 45, "baro_rate": None,
                                   "geom_rate": 300, "seen_pos": None, "emergency": "general"}]}, fetched=1000.0)
     assert (a["alt"], a["track"], a["vrate"], a["at"], a["emergency"]) == (2625, 45, 300, 999.9, "general")
+
+
+@pytest.mark.parametrize("category, type_code, kind", [
+    ("A1", "C172", "light"),
+    ("A2", "E145", "small"),
+    ("A3", "B738", "large"),
+    ("A4", "B752", "large"),
+    ("A5", "B77W", "heavy"),
+    ("A5", "A388", "super"),  # the category can't tell an A380 from a 777
+    (None, "B748", "super"),
+    ("A7", "B407", "helicopter"),
+    ("A1", "R44", "helicopter"),  # many helicopters send A1
+    (None, "EC35", "helicopter"),
+    ("B1", "DG1T", "glider"),
+    ("B2", None, "balloon"),
+    ("B6", None, "drone"),
+    ("C1", None, "vehicle"),
+    (None, None, "unknown"),
+    ("A0", "ZZZZ", "unknown"),  # no category information
+])
+def test_kind(category, type_code, kind):
+    assert traffic.kind_of(category, type_code) == kind
+
+
+def test_parse_gives_each_aircraft_its_kind():
+    flying, parked = traffic.parse({"ac": [FLYING, PARKED]}, fetched=1000.0)
+    assert (flying["kind"], parked["kind"]) == ("small", "unknown")
 
 
 @pytest.mark.parametrize("data", [None, {}, {"ac": None}, {"msg": "No error", "ac": []}])

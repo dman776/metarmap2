@@ -228,7 +228,7 @@ last fetch that worked. adsb.fi's data is free for personal, non-commercial use,
       "hex": "a0822c", "flight": "UCA4878", "reg": "N13161", "type": "E45X", "desc": "EMBRAER ERJ-145XR",
       "operator": "UNITED AIRLINES INC", "lat": 30.006683, "lon": -95.498765, "ground": false, "alt": 2450,
       "gs": 211.0, "track": 90.54, "vrate": -1152, "squawk": "4561", "emergency": null, "category": "A2",
-      "at": 1793466896.25
+      "kind": "small", "at": 1793466896.25
     }
   ]
 }
@@ -243,6 +243,8 @@ last fetch that worked. adsb.fi's data is free for personal, non-commercial use,
 | `aircraft[]` | Aircraft with a position no older than 60 s. Ones on the ground only with `geo.map.traffic_ground` |
 | `aircraft[].alt` | Barometric altitude in feet (the GPS one if there's none); `null` on the ground |
 | `aircraft[].gs`, `track`, `vrate` | Ground speed (kt), track (degrees true) and vertical rate (ft/min); `null` when not sent |
+| `aircraft[].category` | The ADS-B emitter category the aircraft sends (`A1` to `A7`, `B1` to `B7`, `C1` to `C3`), `null` if none |
+| `aircraft[].kind` | What the Map page draws, from `category`: `light` (A1, and B4 ultralights), `small` (A2, and A6 high performance), `large` (A3, A4), `heavy` (A5), `helicopter` (A7), `glider` (B1), `balloon` (B2), `drone` (B6), `vehicle` (C1, C2), else `unknown`. Some ICAO types override it: `super` for the biggest (A388, 747, An-124, C-5…), and `helicopter` for common helicopter types, since many send `A1` |
 | `aircraft[].emergency` | adsb.fi's emergency status (e.g. `general`), `null` for none. Squawks 7500, 7600 and 7700 are in `squawk` |
 | `aircraft[].at` | When the position was reported (map's clock). The Map page moves each aircraft along its track from there |
 

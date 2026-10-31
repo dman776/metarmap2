@@ -51,6 +51,41 @@ def area(points):
     return center, min(MAX_RADIUS_NM, math.ceil(radius))
 
 
+# what the Map page draws, from the ADS-B emitter category (DO-260B): its shape and size
+KINDS = {
+    "A1": "light",  # under 15,500 lb: a Cessna 172, a Bonanza
+    "A2": "small",  # 15,500 to 75,000 lb: business and regional jets
+    "A3": "large",  # 75,000 to 300,000 lb: a 737, an A320
+    "A4": "large",  # a 757 (high vortex)
+    "A5": "heavy",  # over 300,000 lb: a 777, an A330
+    "A6": "small",  # high performance (fast, agile): military jets
+    "A7": "helicopter",
+    "B1": "glider",
+    "B2": "balloon",
+    "B4": "light",  # ultralight, hang glider, paraglider
+    "B6": "drone",
+    "C1": "vehicle",  # emergency vehicle on an airport
+    "C2": "vehicle",  # service vehicle
+}
+# ICAO type designators the category doesn't tell apart: the biggest heavies, and helicopters (many send A1, or none)
+SUPER = {"A388", "A124", "A225", "B741", "B742", "B743", "B744", "B748", "C5M", "BLCF"}
+HELICOPTERS = {
+    "R22", "R44", "R66", "H500", "MD52", "MD60", "H269", "G2CA", "EN28", "EN48", "B06", "B06T", "B407", "B427", "B429",
+    "B430", "B505", "B205", "B212", "B412", "UH1", "UH1Y", "H60", "S70", "S76", "S92", "H47", "H53", "H64", "AH1",
+    "AS50", "AS55", "AS65", "AS32", "AS3B", "EC20", "EC25", "EC30", "EC35", "EC45", "EC55", "EC75", "H160", "BK17",
+    "A109", "A119", "A139", "A169", "A189", "NH90",
+}
+
+
+def kind_of(category, type_code):
+    """What an aircraft looks like on the Map page (see KINDS); "unknown" when neither tells."""
+    if type_code in HELICOPTERS:
+        return "helicopter"
+    if type_code in SUPER:
+        return "super"
+    return KINDS.get(category, "unknown")
+
+
 def number(value):
     return value if isinstance(value, (int, float)) and not isinstance(value, bool) else None
 
@@ -92,6 +127,7 @@ def parse(data, fetched):
             "squawk": a.get("squawk"),
             "emergency": emergency if emergency and emergency != "none" else None,
             "category": a.get("category"),
+            "kind": kind_of(a.get("category"), a.get("t")),
             "at": round(fetched - seen, 2),
         })
     return aircraft

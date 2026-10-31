@@ -5,6 +5,10 @@
   gliding between updates. Click one for its details (type, operator, registration, altitude and climb, speed,
   track, squawk, with a link to globe.adsb.fi): the map follows it and draws its trail until the popup closes or the
   map is dragged. Emergency squawks are red
+- Each aircraft's icon shows its class, from the category it broadcasts and its type: light aircraft (a C172) are a
+  small straight-wing plane, then bigger jets for small, large and heavy (twin engines) and the biggest (A380, 747:
+  four engines), plus helicopters, gliders, balloons, drones and airport vehicles. The popup names the class.
+  `kind` and `category` in `/api/traffic`
 - Config > Virtual map > Live traffic: **Update every** (2 to 60 s, 5 by default; adsb.fi allows one request a
   second) and **Ground traffic** (off by default). The map only asks adsb.fi while a page shows live traffic, and
   every open page shares one fetch. New `GET /api/traffic` (see API.md); `geo.map.traffic_seconds` and
