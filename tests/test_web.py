@@ -6,6 +6,7 @@ import base64
 import io
 import json
 import os
+import re
 import subprocess
 import threading
 from datetime import datetime, timedelta, timezone
@@ -118,6 +119,20 @@ def test_config_edit(client):
     assert client("/config/edit/display_screen.delay/soon")[0] == 400
 
 
+def test_led_pin_and_order(client):
+    def led():
+        return client.services.config.data.led  # a save reads config.json back, so look it up each time
+    assert client("/config/edit/led.pin/12")[0] == 200
+    assert client("/config/edit/led.order/RGB")[0] == 200
+    assert (led().pin, led().order) == (12, "RGB")
+    assert client("/config/edit/led.pin/4")[0] == 400  # not a pin the NeoPixel library can drive
+    assert client("/config/edit/led.order/BRG")[0] == 400
+    assert (led().pin, led().order) == (12, "RGB")
+    body = client("/config")[1]
+    assert '<option value="12" selected>GPIO 12</option>' in body
+    assert '<option value="RGB" selected>RGB</option>' in body
+
+
 def test_airport_edit_restarts_the_display(client):
     app = client.services
     app.display.start()
@@ -166,7 +181,8 @@ def test_brightness_levels_apply_without_a_restart(client, monkeypatch):
     assert app.config.data.led.brightness.off == 0.02
     body = client("/config")[1]
     assert 'data-key="led.brightness.normal" data-label="led-brightness-normal-val" data-format="pct">' in body
-    assert "data-restart" not in body and "Brightness levels load at midnight" not in body
+    assert 'data-key="led.brightness.' in body and "Brightness levels load at midnight" not in body
+    assert not re.search(r'data-key="led\.brightness\.[^"]*"[^>]*data-restart', body)
 
 
 def test_turning_on_the_test_pattern_runs_it(client, monkeypatch):

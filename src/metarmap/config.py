@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 from metarmap.lib.safe_logging import safe_log
 from metarmap.metar import MOCK_KEY, parse_raw
-from metarmap.settings import BRANCH_NAME, UPDATE_CHANNELS, Airport, Settings, parse_value
+from metarmap.settings import BRANCH_NAME, LED_ORDERS, LED_PINS, UPDATE_CHANNELS, Airport, Settings, parse_value
 
 MAX_LEDS = 1000
 ICAO = re.compile(r"^[A-Z0-9]{3,4}$")
@@ -89,6 +89,10 @@ class Config(object):
                 raise ValueError("update.channel: branch needs dev_mode in config.json")
         if key == "update.branch" and not BRANCH_NAME.match(str(value)):
             raise ValueError(f"update.branch: {value!r} isn't a branch name")
+        if key == "led.pin" and str(value).strip("\"'") not in {str(pin) for pin in LED_PINS}:
+            raise ValueError(f"led.pin: {value!r} is not one of {', '.join(map(str, LED_PINS))}")
+        if key == "led.order" and str(value).strip("\"'") not in LED_ORDERS:
+            raise ValueError(f"led.order: {value!r} is not one of {', '.join(LED_ORDERS)}")
         self._data.set(key, value)
         self.write()
 

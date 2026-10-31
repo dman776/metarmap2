@@ -33,6 +33,12 @@ class Brightness(_Section):
     off: float = 0.01
 
 
+# the GPIO pins the Pi's NeoPixel library can drive a strip from: PWM0 (18, 12), PWM1 (13), PCM (21) and SPI (10)
+LED_PINS = (18, 12, 13, 21, 10)
+# the order the strip wants its colors in; the wrong one swaps red and green
+LED_ORDERS = ("GRB", "RGB")
+
+
 @dataclass
 class Led(_Section):
     count: int = 50  # LEDs on the strip

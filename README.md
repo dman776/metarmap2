@@ -37,7 +37,8 @@ web UI, an API and a Home Assistant integration (see [Credits](#credits)).
 
 Wiring:
 
-- **LEDs**: data to GPIO 18 (pin 12), ground to a Pi ground, power from the 5V supply. See Adafruit's
+- **LEDs**: data to GPIO 18 (pin 12), ground to a Pi ground, power from the 5V supply. GPIO 12, 13, 21 or 10 also
+  work: pick it in Config > LED pixels. See Adafruit's
   [NeoPixels on Raspberry Pi](https://learn.adafruit.com/neopixels-on-raspberry-pi/raspberry-pi-wiring) guide.
 - **OLED screen**: SDA to GPIO 2 (pin 3), SCL to GPIO 3 (pin 5), VCC to 3.3V, GND to ground.
 
@@ -163,10 +164,11 @@ through this API. It provides:
 - **What happened?** The map's log is `metarmap.log` in the `metarmap2` folder; crashes also go to
   `journalctl -u metarmap`.
 - **LEDs stay dark or show the wrong colors**:
-  1. Check the data wire goes to GPIO 18 and that the strip shares a ground with the Pi.
+  1. Check the data wire goes to the pin set in Config > LED pixels (GPIO 18 unless you changed it) and that the
+     strip shares a ground with the Pi.
   2. Run a test pattern: choose the **Chase** visualizer on the Home page (it lights each LED in turn), or turn on
      **Test pattern on startup** in Config (it runs a rainbow comet along the strip once, right away).
-  3. If the colors are swapped, change `led.order` in `config.json` (such as `RGB` or `GRB`).
+  3. If red and green are swapped, change **Color order** in Config > LED pixels (GRB or RGB) and restart.
 - **OLED screen stays blank**: `sudo i2cdetect -y 1` should show the screen at address `3c`. If it shows nothing,
   check the wiring, and that I2C is on (`sudo raspi-config`, Interface Options).
 - **An airport's LED is off**: it hasn't reported in the last 5 hours, or its code is wrong. The METARs page shows

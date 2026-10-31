@@ -90,6 +90,44 @@
         </section>
 
         <section class="card settings">
+            <h2>LED pixels</h2>
+            <div class="set">
+                <div>
+                    <label class="t" for="led-pin">Data pin <span class="rs">Restart</span></label>
+                    <div class="d">The Pi GPIO pin wired to the strip's data line.</div>
+                </div>
+                <select id="led-pin" data-key="led.pin" data-restart>
+                    % for pin in led_pins:
+                    <option value="{{pin}}"{{!' selected' if pin == d.led.pin else ''}}>GPIO {{pin}}</option>
+                    % end
+                    % if d.led.pin not in led_pins:
+                    <option value="{{d.led.pin}}" selected disabled>GPIO {{d.led.pin}} (not supported)</option>
+                    % end
+                </select>
+            </div>
+            <div class="set">
+                <div>
+                    <label class="t" for="led-order">Color order <span class="rs">Restart</span></label>
+                    <div class="d">Change it if red and green are swapped on the LEDs.</div>
+                </div>
+                <select id="led-order" data-key="led.order" data-restart>
+                    % for order in led_orders:
+                    <option value="{{order}}"{{!' selected' if order == d.led.order else ''}}>{{order}}</option>
+                    % end
+                    % if d.led.order not in led_orders:
+                    <option value="{{d.led.order}}" selected disabled>{{d.led.order}}</option>
+                    % end
+                </select>
+            </div>
+            % switch('led.inittest', d.led.inittest, 'Test pattern on startup', 'A rainbow along the strip when the map starts. Turning it on runs it once now.')
+            % switch('led.dim_on_refresh', d.led.dim_on_refresh, 'Dim while updating', 'The LEDs fade down for a moment while new METARs download.')
+            % slider('led.brightness.normal', d.led.brightness.normal, 'Daytime brightness', 'Sunrise to sunset.')
+            % slider('led.brightness.dimmed', d.led.brightness.dimmed, 'Dawn / dusk brightness', 'Dawn to sunrise, sunset to dusk.')
+            % slider('led.brightness.off', d.led.brightness.off, 'Night brightness', 'Dusk to dawn.')
+            <p class="muted" style="margin: 0; padding: 0 24px 18px; font-size: 13px">The level in use now changes right away; the others take over at their time of day.</p>
+        </section>
+
+        <section class="card settings">
             <h2>Display screen</h2>
             % switch('display_screen.enabled', d.display_screen.enabled, 'Enabled', 'Show airport details on the OLED screen.')
             % switch('display_screen.locate_active', d.display_screen.locate_active, 'Highlight active airport', 'Pulse the LED of the airport on screen.')
@@ -258,16 +296,6 @@
                 <label>Password<input type="password" name="password" autocomplete="new-password" placeholder="Empty for an open network"></label>
                 <button class="btn" type="submit" data-current="{{wifi or ''}}">Switch network</button>
             </form>
-        </section>
-
-        <section class="card settings">
-            <h2>LED pixels</h2>
-            % switch('led.inittest', d.led.inittest, 'Test pattern on startup', 'A rainbow along the strip when the map starts. Turning it on runs it once now.')
-            % switch('led.dim_on_refresh', d.led.dim_on_refresh, 'Dim while updating', 'The LEDs fade down for a moment while new METARs download.')
-            % slider('led.brightness.normal', d.led.brightness.normal, 'Daytime brightness', 'Sunrise to sunset.')
-            % slider('led.brightness.dimmed', d.led.brightness.dimmed, 'Dawn / dusk brightness', 'Dawn to sunrise, sunset to dusk.')
-            % slider('led.brightness.off', d.led.brightness.off, 'Night brightness', 'Dusk to dawn.')
-            <p class="muted" style="margin: 0; padding: 0 24px 18px; font-size: 13px">The level in use now changes right away; the others take over at their time of day.</p>
         </section>
 
     </div>
