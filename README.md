@@ -46,6 +46,46 @@ The original project's write-ups cover the build in detail:
 [making the map](https://slingtsi.rueker.com/making-a-led-powered-metar-map-for-your-wall/) and
 [adding the display](https://slingtsi.rueker.com/adding-a-mini-display-to-show-metar-information-to-the-metar-map/).
 
+## Try it on your computer
+
+You don't need a Raspberry Pi, LEDs or an OLED screen to try METARMap2. On your own computer it runs with in-memory
+stand-ins for the LED strip and the screen, and the web UI works as it does on a Pi, with live METARs: the Map page
+shows each airport's LED, colors and effects included, over an FAA chart, and a copy of the OLED screen.
+
+These steps are for macOS or Linux, with Python 3.9 or newer and git installed.
+
+1. Download the map and install what it needs:
+
+   ```sh
+   git clone https://github.com/dman776/metarmap2
+   cd metarmap2
+   python3 -m venv .venv
+   .venv/bin/pip install -e .
+   ```
+
+2. In `config.json`, change the web server's port from `80` to `8080` (port 80 usually needs `sudo`):
+
+   ```json
+   "web_server": {
+       "user": "metar",
+       "password": "map",
+       "port": 8080
+   },
+   ```
+
+3. Start it:
+
+   ```sh
+   .venv/bin/python -m metarmap
+   ```
+
+4. Open http://localhost:8080. The first METARs arrive within a few seconds. The Config pages ask for the login in
+   `config.json` (`metar` / `map` to start).
+
+It starts with the 50 example airports around Houston; change them on **Config > Airports**. Settings are saved in
+the `config.json` of the folder you start it from, and the log is `metarmap.log` in the same folder. Settings for the
+hardware, such as the LED data pin, are saved but have nothing to drive. Stop the map with Ctrl-C.
+
 ## Install
 
 1. With [Raspberry Pi Imager](https://www.raspberrypi.com/software/), write **Raspberry Pi OS Lite** to the microSD
@@ -182,9 +222,8 @@ and the web UI (including the live Map page and its OLED window) works as usual 
 - Set up: `uv sync --extra dev` (or `python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"`)
 - Run the tests: `.venv/bin/pytest`
 - Check the code: `.venv/bin/ruff check .`
-- Run the map: `.venv/bin/python -m metarmap` (or `.venv/bin/metarmap`), from the folder with `config.json`.
-  The web server uses `web_server.port` from `config.json`. Port 80 needs `sudo`, so on a laptop use something like
-  8080 and open http://localhost:8080.
+- Run the map: `.venv/bin/python -m metarmap` (or `.venv/bin/metarmap`), from the folder with `config.json`; see
+  [Try it on your computer](#try-it-on-your-computer) for the port
 
 For testing on a real map, set `"dev_mode": true` in `config.json` by hand (stop the map first). Then **Config >
 Software > Update to** offers **Branch**, to install a branch you pushed to GitHub (**Check now** refreshes the list),
