@@ -126,10 +126,10 @@ def missing_legend(what):
 
 
 def intensity_legend(color, example):
-    """How light, moderate, heavy and nearby look, shown with one color (e.g. rain's)."""
+    """How light, heavy and nearby look, shown with one color (e.g. rain's). Moderate is solid, which is how each
+    kind's own entry already shows it, so it has no entry here."""
     return [
         legend_item(f"Light ({example})", "Breathing", color, effect="pulse", period=LIGHT_PERIOD, low=LIGHT_LOW),
-        legend_item(f"Moderate ({example})", "Solid", color),
         legend_item(f"Heavy ({example})", "Fast blink, bright and dim", color, dim(color), effect="alternate",
                     period=HEAVY_PERIOD),
         legend_item(f"In the vicinity ({example})", "Dim", dim(color)),

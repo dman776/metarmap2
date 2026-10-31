@@ -1,3 +1,8 @@
+### dman776 3.0.4 (2026-10-31)
+
+- Precipitation legend: removed "Moderate (rain)", which repeated "Rain" (both solid blue). Moderate is solid, as
+  each kind's own entry shows; the legend still lists Light (breathing), Heavy (fast blink) and In the vicinity (dim)
+
 ### dman776 3.0.3 (2026-10-30)
 
 - Config > LED pixels: Data pin (GPIO 18, 12, 13, 21 or 10) and Color order (GRB or RGB), both after a restart.
