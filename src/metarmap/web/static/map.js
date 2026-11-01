@@ -613,7 +613,7 @@
         e.dot.classList.add('locate');
     }
 
-    // ---- advisory areas (the AIRMET / SIGMET visualizer), from /api/advisories: translucent, in each hazard's color;
+    // ---- advisory areas (the Advisories visualizer), from /api/advisories: translucent, in each hazard's color;
     // a SIGMET has a heavier, dashed outline and is drawn on top
     const AREAS_MS = 60 * 1000;  // how often to look for new ones while they're shown (the map fetches every 10 min)
     let areasWanted = false;

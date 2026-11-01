@@ -179,7 +179,7 @@ def test_api_advisories_without_them(services):
 def test_live_says_when_the_map_draws_the_advisory_areas(client):
     renderer = client.services.renderer
     assert client.json("/api/live")["visualizer"]["areas"] is False
-    renderer.visualizer = [v.NAME for v in renderer.visualizers].index("AIRMET / SIGMET")
+    renderer.visualizer = [v.NAME for v in renderer.visualizers].index("Advisories")
     assert client.json("/api/live")["visualizer"]["areas"] is True
 
 

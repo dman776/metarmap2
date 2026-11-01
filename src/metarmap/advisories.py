@@ -1,5 +1,5 @@
 """
-G-AIRMETs and SIGMETs for the AIRMET / SIGMET visualizer: which advisories each airport is inside.
+G-AIRMETs and SIGMETs for the Advisories visualizer: which advisories each airport is inside.
 
 AIRMETs: over the contiguous US, text AIRMETs ended in January 2025; aviationweather.gov now has G-AIRMETs (graphical
 AIRMETs), areas forecast as snapshots 0, 3, 6, 9 and 12 hours ahead. Asked without a forecast hour, it answers with the

@@ -1,5 +1,5 @@
 """
-AIRMET / SIGMET: colors each airport by the advisory it's inside (metarmap.advisories), below 18,000 ft. A G-AIRMET's
+Advisories: colors each airport by the advisory it's inside (metarmap.advisories), below 18,000 ft. A G-AIRMET's
 hazard is a steady color (IFR, mountain obscuration, turbulence, low-level wind shear, strong surface wind or icing);
 an airport in two at once alternates between their colors, and in none it's dim white. A SIGMET (thunderstorms,
 severe turbulence or icing...) is more serious and takes over: a fast bright-and-dim blink in its hazard's color.
@@ -9,7 +9,7 @@ from metarmap.models import Look, Metar
 from metarmap.visualizers import style
 from metarmap.visualizers.visualizer import legend_item
 
-NAME = "AIRMET / SIGMET"
+NAME = "Advisories"
 DESCRIPTION = "Display the advisory over each airport, below 18,000 ft. G-AIRMETs in steady colors: IFR orange, " \
               "mountain obscuration magenta, turbulence yellow, wind shear red, strong surface wind blue, icing " \
               "cyan; two at once alternate, none is dim white. A SIGMET takes over, blinking in its hazard's color."

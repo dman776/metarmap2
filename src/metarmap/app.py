@@ -48,7 +48,7 @@ class App:
     scheduler: schedule.Scheduler
     releases: Optional[ReleaseCheck] = None  # what's newest on GitHub, for "Update available"
     traffic: Optional[Traffic] = None  # live traffic for the Map page, fetched while a page asks for it
-    advisories: Optional[Advisories] = None  # G-AIRMETs and SIGMETs, for AIRMET / SIGMET (fetched with the METARs)
+    advisories: Optional[Advisories] = None  # G-AIRMETs and SIGMETs, for Advisories (fetched with the METARs)
 
     def schedule_rotation(self):
         schedule_rotation(self)

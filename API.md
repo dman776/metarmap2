@@ -164,7 +164,7 @@ What the physical map is doing right now. The Map page polls it every second. No
 | `leds[].look` | The LED's current effect: `solid`, `off`, `blink` (`period` seconds per on/off cycle; with two `colors` it alternates between them instead of turning off), `pulse` (`period`; `low`, if present, is its dimmest point, e.g. `0.3`, otherwise it fades to off), or `cycle` (steps through `colors`, `step` seconds each). Colors are CSS hex colors. |
 | `leds[].wind` | While a wind visualizer runs (Wind, Wind Gusts, Wind Direction): the airport's wind for its barb on the Map page, `{"dir": 270.0, "kt": 12}` (the direction it blows from, and the sustained speed). `null` when it's calm, variable (`VRB`), has no direction or no report, and for every other visualizer. |
 | `leds[].virtual` | A virtual airport: no LED on the strip, so the Map page draws it in a dashed circle. |
-| `visualizer.areas` | `true` while a visualizer runs whose areas the Map page draws (AIRMET / SIGMET: the areas from `/api/advisories`) |
+| `visualizer.areas` | `true` while a visualizer runs whose areas the Map page draws (Advisories: the areas from `/api/advisories`) |
 | `strip` | Set when one effect drives the whole strip instead: `rainbow` (`period`) or `chase` (`step`, `size`, `spacing`). The virtual airports keep their own `look` meanwhile: the same rainbow, or `off` for a chase (a wiring check). |
 | `locate` | The last white locate pulse: LED `pixel` and Unix time `at`. `null` until the first one. A virtual airport's pulse is only shown on the Map page. |
 | `display.on` | Whether the screen is showing; `false` after `/display/off` (then `screen` is `null`) |
@@ -208,7 +208,7 @@ case-insensitive; an airport that isn't on the map is a 404.
 
 ### `GET /api/advisories`
 
-The G-AIRMETs and SIGMETs the AIRMET / SIGMET visualizer shows, for the Map page's areas. No authentication. The map
+The G-AIRMETs and SIGMETs the Advisories visualizer shows, for the Map page's areas. No authentication. The map
 fetches both from aviationweather.gov with the METARs (every 10 minutes). Only areas starting below 18,000 ft are
 included (no high-level turbulence, and no freezing level lines), and only those in effect now.
 
@@ -244,7 +244,7 @@ included (no high-level turbulence, and no freezing level lines), and only those
 | `areas[].valid` | A G-AIRMET's snapshot time (ISO) |
 | `areas[].from`, `expires` | When it's valid from (SIGMETs; `null` for G-AIRMETs) and until (Unix time) |
 | `areas[].coords` | The area's outline, `[lat, lon]` pairs |
-| `areas[].color` | The hazard's color in the AIRMET / SIGMET visualizer (CSS hex) |
+| `areas[].color` | The hazard's color in the Advisories visualizer (CSS hex) |
 
 ### `GET /api/traffic`
 
@@ -319,11 +319,11 @@ Visualizer indexes:
 | 8 | Density Altitude | |
 | 9 | Ceiling | |
 | 10 | Dewpoint Spread | |
-| 11 | AIRMET / SIGMET | |
+| 11 | Advisories | |
 | 12 | Rainbow | yes |
 | 13 | Chase | yes |
 
-Wind Direction (3) was added after 3.0.1, and AIRMET / SIGMET (11) after 3.1.0, each moving the visualizers after it up by one.
+Wind Direction (3) was added after 3.0.1, and Advisories (11) after 3.1.0, each moving the visualizers after it up by one.
 A `config.json` from before then (`visualizer.numbering` missing or older) has its `visualizer.active` moved with
 them when the map starts, so it keeps the same visualizer; scripts and automations that pick a visualizer by number
 need the new numbers.

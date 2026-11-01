@@ -1,5 +1,5 @@
 """
-Tests for G-AIRMETs and SIGMETs (metarmap.advisories), the hazards added to each METAR, and the AIRMET / SIGMET
+Tests for G-AIRMETs and SIGMETs (metarmap.advisories), the hazards added to each METAR, and the Advisories
 visualizer.
 """
 import pytest
