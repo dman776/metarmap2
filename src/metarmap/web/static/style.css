@@ -279,6 +279,15 @@ body.map-full-open { overflow: hidden; }
 .mled-dot.active::before { content: ""; position: absolute; inset: -11px; border-radius: 50%; border: 1.5px solid rgba(255, 255, 255, .8); }
 .mled-dot:focus-visible { outline: 2px solid #ffd27d; outline-offset: 6px; }
 @keyframes led-locate { 0% { opacity: 0; } 50% { opacity: 1; } 100% { opacity: 0; } }
+/* a wind barb (the wind visualizers): white with a dark edge, so it reads on every background */
+.mled-barb { position: absolute; left: -32px; top: -32px; width: 64px; height: 64px; pointer-events: none; }
+.mled-barb:empty { display: none; }
+.mled-barb svg { display: block; overflow: visible; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.mled-barb .edge { stroke: #0b1117; stroke-width: 4; }
+.mled-barb .edge .flag { fill: #0b1117; }
+.mled-barb .line { stroke: #fff; stroke-width: 1.6; }
+.mled-barb .line .flag { fill: #fff; }
+.mled.code-left .mled-code { left: auto; right: 11px; }
 .mled-code { position: absolute; left: 11px; top: 0; transform: translateY(-50%); font: 600 10px var(--mono); color: var(--text); background: rgba(11, 17, 23, .78); border-radius: 4px; padding: 1px 4px; white-space: nowrap; pointer-events: none; }
 
 .map-panel { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }

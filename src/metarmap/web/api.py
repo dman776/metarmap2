@@ -10,7 +10,7 @@ import bottle
 
 from metarmap import __version__
 from metarmap.decode import decode, summary
-from metarmap.visualizers import visualizer
+from metarmap.visualizers import visualizer, wind_direction
 from metarmap.web import views
 
 
@@ -95,6 +95,15 @@ def update_state(services):
             "releases": [r["tag"] for r in state["releases"]]}
 
 
+def wind_barb(metar):
+    """An airport's wind for its barb on the Map page: {"dir": degrees, "kt": speed}, or None when calm or variable."""
+    direction = wind_direction.heading(metar)
+    speed = metar.get("windSpeed")
+    if not isinstance(direction, float) or not speed:
+        return None
+    return {"dir": direction, "kt": speed}
+
+
 def live(services, now=None):
     """
     What the physical map is doing right now: every LED's effect, the OLED screen and the last locate pulse.
@@ -109,6 +118,7 @@ def live(services, now=None):
     led_looks, strip = renderer.led_states()
     active_num, active_vis = renderer.visualizer
     display = services.display if services.config.data.display_screen.enabled else None
+    barbs = visualizer.shows_barbs(active_vis)
     leds = []
     for s in views.stations(services.config.airports, services.metars.data, getattr(services.metars, "position", None),
                             services.config.data.led.count):
@@ -125,6 +135,7 @@ def live(services, now=None):
             "raw": s["raw"],
             "lightning": m.get("lightning", False),
             "look": led_looks.get(s["pixel"], {"effect": "off", "colors": []}),
+            "wind": wind_barb(m) if barbs else None,
         })
     return {
         "now": now if now is not None else time.time(),

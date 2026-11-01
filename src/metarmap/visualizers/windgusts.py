@@ -11,6 +11,7 @@ NAME = "Wind Gusts"
 DESCRIPTION = "Display how much stronger the gusts are than the wind: dim white with no gusts, then blue, yellow, " \
               "orange and red as the gusts get stronger."
 EXCLUSIVE = False
+BARBS = True  # the Map page draws each airport's wind barb
 
 # knots the gusts are above the wind
 BANDS = [

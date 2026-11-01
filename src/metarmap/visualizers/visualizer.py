@@ -36,6 +36,7 @@ def legend_item(label, detail, *colors, effect="solid", period=None, low=None):
 #   look(metar, settings) -> Look        how one airport's LED looks ({} when it has no report), or
 #   strip_look(settings) -> Look         one look for the whole strip (rainbow, chase)
 #   COVERS_VIRTUAL      with strip_look: True if the virtual airports show it too (default: they stay dark)
+#   BARBS               True: the Map page draws a wind barb on each airport (default: none)
 # Visualizers don't touch the LEDs; the renderer turns their looks into animations.
 # Lightning isn't a visualizer's job: looks() and legend() add it to every one with a look per airport.
 
@@ -47,6 +48,11 @@ def strip_look(vis, settings) -> Optional[Look]:
 def covers_virtual(vis) -> bool:
     """Whether the virtual airports show the visualizer's whole-strip look, or stay dark while it runs."""
     return getattr(vis, "COVERS_VIRTUAL", False)
+
+
+def shows_barbs(vis) -> bool:
+    """Whether the Map page draws the airports' wind barbs while the visualizer runs."""
+    return getattr(vis, "BARBS", False)
 
 
 def looks(vis, codes, data, settings) -> List[Look]:
