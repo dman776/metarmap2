@@ -5,8 +5,7 @@ A Raspberry Pi turns a wall map into a live weather display: an LED at each airp
 optional small OLED screen cycles through the details for the airports you pick, and a web UI lets you control and
 set up the map from your phone.
 
-Started from [prueker/METARMap](https://github.com/prueker/METARMap), and since rewritten from the ground up with a
-web UI, an API and a Home Assistant integration (see [Credits](#credits)).
+Written from the ground up with a web UI, an API and a Home Assistant integration (see [Credits](#credits)).
 
 ![The METARMap2 map on a wall: an FAA sectional chart with an LED at each airport](docs/images/physical_map.jpg)
 
@@ -290,21 +289,6 @@ Software > Update to** offers **Branch**, to install a branch you pushed to GitH
 and every row on **Config > Airports** gets a **Mock METAR** field: paste a raw METAR and it replaces that airport's
 real report on the LEDs and everywhere else, until you clear it. Mocked airports are marked `mock` on the web pages.
 
-To release a version, so maps see it as an update: bump the version (`bump2version patch` or `minor`), commit, tag
-the commit with the version, and push both:
-
-```sh
-git tag -a v2.9.0 -m "Release 2.9.0"
-git push origin master v2.9.0
-```
-
-Maps only install tags that look like `v2.9.0` (or `2.9.0`); a pre-release such as `v2.9.0-rc1` is skipped.
-
-A map running anything but a release says so at the top of every page: the dot by the version turns amber, the
-version reads like `v2.9.2 +3 · 5c3e5a5` (3 commits after v2.9.2, at commit 5c3e5a5; a `*` means code was changed
-on the map itself), and an amber pill such as **Unreleased: 3 commits after v2.9.2** links to that commit on
-GitHub. If you bumped the version but haven't tagged it, the pill says **Not tagged: v2.9.3** instead.
-
 The code is the `metarmap` package in `src/metarmap/`:
 - `app.py` builds the map from `config.json` (settings, METARs, LED renderer, OLED loop, scheduled jobs) and runs it
 - `config.py` and `settings.py`: `config.json`, including the airport on each LED
@@ -326,7 +310,8 @@ See [CHANGELIST.md](CHANGELIST.md).
 ## Credits
 
 METARMap2 started from [prueker/METARMap](https://github.com/prueker/METARMap), Philip Rueker's Raspberry Pi METAR
-map, with portions by [@lostlocalhost](https://github.com/lostlocalhost) and John Marzulli. It has since been
+map, with portions by [@lostlocalhost](https://github.com/lostlocalhost) and
+[John Marzulli](https://github.com/JohnMarzulli/categorical-sectional). It has since been
 rewritten from scratch, with a web UI, an API, a Home Assistant integration and more, and shares little, if any, of
 their code. Their work is where the idea and the first version came from, and John Marzulli's visualizer ideas were
 a particular inspiration. Thank you.
