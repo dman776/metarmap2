@@ -11,6 +11,7 @@ NAME = "Wind Direction"
 DESCRIPTION = "Display the direction the wind blows from: red from the north, then orange, yellow, green, cyan, " \
               "blue, purple and magenta around the compass."
 EXCLUSIVE = False
+BARBS = True  # the Map page draws each airport's wind barb
 
 # clockwise from north, 45° each, centered on the heading (north is 338-22°)
 SECTORS = [

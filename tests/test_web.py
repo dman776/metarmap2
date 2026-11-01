@@ -21,7 +21,7 @@ from metarmap.models import Look
 from metarmap.renderer import Renderer
 from metarmap.settings import Airport, Settings
 from metarmap.sun import SunTimes
-from metarmap.visualizers import flightcategory, rainbow
+from metarmap.visualizers import flightcategory, rainbow, wind, wind_direction, windgusts
 from metarmap.web import api, control, create_app, views
 
 AUTH = "Basic " + base64.b64encode(b"metar:map").decode()
@@ -388,6 +388,24 @@ def test_live_whole_strip_visualizer(services):
     live = api.live(services)
     assert live["strip"]["effect"] == "rainbow"
     assert live["visualizer"] == {"active": 1, "name": "Rainbow", "exclusive": True}
+
+
+def test_live_wind_barbs(services):
+    """Only the wind visualizers send each airport's wind, for the Map page's barbs."""
+    assert [led["wind"] for led in api.live(services)["leds"]] == [None, None, None]  # Flight Category
+    services.metars.data["KIAH"].update(windDir="VRB", windSpeed=4)
+    for vis in (wind, windgusts, wind_direction):
+        services.renderer = Renderer(FakeStrip(4), services.metars, services.config, [vis], services.sun)
+        # KHOU 100° at 5 kt; KIAH variable and KDKR (no report) get no barb
+        assert [led["wind"] for led in api.live(services)["leds"]] == [{"dir": 100.0, "kt": 5}, None, None]
+
+
+def test_wind_barb():
+    assert api.wind_barb({"windDir": "270", "windSpeed": 12}) == {"dir": 270.0, "kt": 12}
+    assert api.wind_barb({"windDir": "0", "windSpeed": 0}) is None  # calm
+    assert api.wind_barb({"windDir": "VRB", "windSpeed": 3}) is None
+    assert api.wind_barb({"windSpeed": 8}) is None  # no direction
+    assert api.wind_barb({}) is None
 
 
 def test_metar(services):

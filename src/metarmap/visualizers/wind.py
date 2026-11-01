@@ -9,6 +9,7 @@ from metarmap.visualizers.style import Band
 NAME = "Wind"
 DESCRIPTION = "Display the current wind speed."
 EXCLUSIVE = False
+BARBS = True  # the Map page draws each airport's wind barb
 
 # also the gust colors in Wind Gusts
 BANDS = [

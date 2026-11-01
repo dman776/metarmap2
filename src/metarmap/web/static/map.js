@@ -353,6 +353,23 @@
     let lastLocateAt = null;
     let viewSet = false;
 
+    // ---- wind barbs (the wind visualizers): the staff points where the wind blows from, rounded to 5 kt ----------
+    // a pennant is 50 kt, a full feather 10 and a half 5, from the tip in; drawn for a north wind, then turned
+    function barbSvg(wind) {
+        const kt = Math.round(wind.kt / 5) * 5;
+        let shapes = '<path d="M0 -8V-30"/>';
+        let y = -30;
+        for (let n = Math.floor(kt / 50); n > 0; n--, y += 7) shapes += '<path class="flag" d="M0 ' + y + 'L10 ' + (y - 3) + 'L0 ' + (y + 6) + 'Z"/>';
+        for (let n = Math.floor(kt % 50 / 10); n > 0; n--, y += 4) shapes += '<path d="M0 ' + y + 'l10 -5"/>';
+        if (kt % 10) {
+            if (kt < 10) y += 4;  // a lone half feather sits in from the tip, so it isn't read as a full one
+            shapes += '<path d="M0 ' + y + 'l5 -2.5"/>';
+        }
+        const g = '<g transform="rotate(' + wind.dir + ')">' + shapes + '</g>';
+        return '<svg viewBox="-32 -32 64 64" width="64" height="64" aria-hidden="true">' +
+            '<g class="edge">' + g + '</g><g class="line">' + g + '</g></svg>';
+    }
+
     // the popup's last tab (summary, raw or decoded), remembered in this browser
     const TAB_KEY = 'metarmap.popupTab';
     const TABS = [['summary', 'Summary'], ['raw', 'Raw'], ['decoded', 'Decoded']];
@@ -479,12 +496,13 @@
             if (!entry) {
                 const icon = L.divIcon({
                     className: 'mled',
-                    html: '<button type="button" class="mled-dot" aria-label="' + led.code + (led.virtual ? ' (virtual)' : '') + '"></button><span class="mled-code">' + led.code + '</span>',
+                    html: '<span class="mled-barb"></span><button type="button" class="mled-dot" aria-label="' + led.code + (led.virtual ? ' (virtual)' : '') + '"></button><span class="mled-code">' + led.code + '</span>',
                     iconSize: [0, 0]
                 });
                 const marker = L.marker([led.lat, led.lon], {icon: icon, keyboard: false}).addTo(map);
                 // the element only exists once the map has a view; animate() looks it up
-                entry = leds[led.pixel] = {marker: marker, dot: null, data: led, style: '', active: false, virtual: null};
+                entry = leds[led.pixel] = {marker: marker, dot: null, barb: null, data: led, style: '', active: false,
+                    virtual: null, wind: ''};
                 // content is built on each open (a content function would be rebuilt by every update())
                 // pan clear of the zoom buttons and background switcher along the top of the map
                 marker.bindPopup('', {className: 'led-popup', autoPanPaddingTopLeft: [10, 64]});
@@ -546,6 +564,15 @@
                 const el = e.marker.getElement();
                 if (!el) return;
                 e.dot = el.querySelector('.mled-dot');
+                e.barb = el.querySelector('.mled-barb');
+            }
+            const w = e.data.wind;
+            const wind = w ? w.dir + '@' + w.kt : '';
+            if (wind !== e.wind) {
+                e.barb.innerHTML = w ? barbSvg(w) : '';
+                // a barb pointing east would run under the code: move the code to the left of the dot
+                e.dot.parentElement.classList.toggle('code-left', !!w && w.dir > 30 && w.dir < 150);
+                e.wind = wind;
             }
             // an airport with no report is an open ring, unless a whole-strip effect (rainbow, chase) lights its LED;
             // a virtual airport has no LED on the strip: its own look says whether it joins in (rainbow) or not
