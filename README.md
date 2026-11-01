@@ -8,6 +8,8 @@ set up the map from your phone.
 Started from [prueker/METARMap](https://github.com/prueker/METARMap), and since rewritten from the ground up with a
 web UI, an API and a Home Assistant integration (see [Credits](#credits)).
 
+![The METARMap2 map on a wall: an FAA sectional chart with an LED at each airport](docs/images/physical_map.jpg)
+
 ## Features
 
 - **Visualizers**: show the flight category, wind, wind gusts, wind direction, temperature, pressure, precipitation,
@@ -28,6 +30,63 @@ web UI, an API and a Home Assistant integration (see [Credits](#credits)).
   page. `/remote` is a remote control for a tablet in kiosk mode.
 - **API and Home Assistant**: everything in the web UI also works over HTTP (see [API.md](API.md)); the
   [metarmap2_ha](https://github.com/dman776/metarmap2_ha) integration adds the map to Home Assistant.
+
+## Screenshots
+
+### The map page
+
+The Map page mirrors the LEDs, with a copy of the OLED screen, over an FAA chart, satellite imagery or live radar.
+
+![The Map page's Wind visualizer over the FAA sectional chart, with the legend and the OLED copy](docs/images/map_sectional.jpg)
+
+The Wind Direction visualizer, with wind barbs, over the radar background:
+
+![The Wind Direction visualizer over live radar: each airport in the color of the direction its wind blows from, with a barb](docs/images/map_wind_direction_with_barbs.jpg)
+
+Click an airport for its weather in plain English, the raw METAR, or the METAR decoded line by line:
+
+![An airport's popup on the Map page, with its weather in plain English](docs/images/map_airport_popup.jpg)
+
+### Live traffic
+
+Tick **Live traffic** to see the aircraft around your airports from [adsb.fi](https://adsb.fi/), each icon sized and
+colored by the class of aircraft (light, small, large, heavy, helicopter...).
+
+![Live traffic on the Map page over radar, with a key to the aircraft classes](docs/images/map_live_traffic.jpg)
+
+Click an aircraft for its details; the map follows it and draws its trail.
+
+![An aircraft's popup: type, operator, registration, altitude, speed, track and squawk](docs/images/map_aircraft_popup.jpg)
+
+### Home and METARs
+
+The Home page has the map's status, the visualizer and its legend, brightness and the OLED switch, and the airports
+that are below VFR. The METARs page lists every airport's report.
+
+![The Home page: airports by flight category, the active visualizer with its legend, brightness and the OLED switch](docs/images/page_home.png)
+
+![The METARs page: every airport's flight category and raw report](docs/images/page_metars.png)
+
+### Config
+
+Settings save as you change them.
+
+![Config, Physical display: the LED pixels (data pin, color order, brightness) and the OLED screen](docs/images/config_physical_display.png)
+
+![Config, Visualizers: the default visualizer, auto-rotate and which visualizers take part](docs/images/config_visualizers.png)
+
+![Config, Airports: the airport at each LED, in the order the LEDs are wired](docs/images/config_airports.png)
+
+![Config, Virtual map: the Map page's background, chart and starting view, and the live traffic settings](docs/images/config_virtual_map.png)
+
+### Remote control
+
+`/remote` is a remote control for a tablet in kiosk mode, here on an iPad in landscape: pick a visualizer, or find an
+airport's LED with the locator.
+
+![The remote page's Visualizer tab](docs/images/remote_visualizer.png)
+
+![The remote page's Locator tab: an airport's button pulses its LED on the map](docs/images/remote_locator.png)
 
 ## What you need
 
