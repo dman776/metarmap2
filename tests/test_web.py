@@ -16,14 +16,14 @@ import pytest
 
 from metarmap import __version__
 from metarmap import app as app_module
-from metarmap.airmet import Airmets
+from metarmap.advisories import Advisories
 from metarmap.leds.strip import FakeStrip
 from metarmap.models import Look
 from metarmap.renderer import Renderer
 from metarmap.settings import Airport, Settings
 from metarmap.sun import SunTimes
 from metarmap.traffic import Traffic
-from metarmap.visualizers import airmet as airmet_vis, flightcategory, rainbow, wind, wind_direction, windgusts
+from metarmap.visualizers import advisories as advisories_vis, flightcategory, rainbow, wind, wind_direction, windgusts
 from metarmap.web import api, control, create_app, views
 
 AUTH = "Basic " + base64.b64encode(b"metar:map").decode()
@@ -152,28 +152,34 @@ def test_api_traffic_without_it(services):
     assert api.traffic(services) is None
 
 
-def test_api_airmets(client):
+def test_api_advisories(client):
     def get(url, **kwargs):
-        return SimpleNamespace(status_code=200, raise_for_status=lambda: None, json=lambda: [
-            {"hazard": "IFR", "geometryType": "AREA", "product": "SIERRA", "base": None, "top": None,
-             "validTime": "2026-11-02T00:00:00.000Z", "expireTime": None, "due_to": "CIG BLW 010",
-             "coords": [{"lat": "29", "lon": "-96"}, {"lat": "29", "lon": "-94"}, {"lat": "31", "lon": "-95"}]}])
-    client.services.airmets = Airmets(get=get)
-    assert client.json("/api/airmets")["areas"] == []  # before the first fetch
-    client.services.airmets.fetch()
-    state = client.json("/api/airmets")
-    assert [(a["hazard"], a["color"]) for a in state["areas"]] == [("IFR", airmet_vis.css("IFR"))]
-    assert state["areas"][0]["coords"][0] == [29.0, -96.0] and state["error"] is None
+        if "gairmet" in url:
+            data = [{"hazard": "IFR", "geometryType": "AREA", "product": "SIERRA", "base": None, "top": None,
+                     "validTime": "2026-11-02T00:00:00.000Z", "expireTime": None, "due_to": "CIG BLW 010",
+                     "coords": [{"lat": "29", "lon": "-96"}, {"lat": "29", "lon": "-94"}, {"lat": "31", "lon": "-95"}]}]
+        else:
+            data = [{"hazard": "CONV", "base": None, "top": 45000, "validTimeFrom": None, "validTimeTo": None,
+                     "coords": [{"lat": 29, "lon": -96}, {"lat": 29, "lon": -94}, {"lat": 31, "lon": -95}]}]
+        return SimpleNamespace(status_code=200, raise_for_status=lambda: None, json=lambda: data)
+    client.services.advisories = Advisories(get=get)
+    assert client.json("/api/advisories")["areas"] == []  # before the first fetch
+    client.services.advisories.fetch()
+    state = client.json("/api/advisories")
+    assert [(a["kind"], a["hazard"], a["color"]) for a in state["areas"]] == [
+        ("SIGMET", "CONV", advisories_vis.css("CONV", "SIGMET")), ("AIRMET", "IFR", advisories_vis.css("IFR"))]
+    assert state["areas"][1]["coords"][0] == [29.0, -96.0]
+    assert state["airmet"]["error"] is None and state["sigmet"]["fetched"] is not None
 
 
-def test_api_airmets_without_it(services):
-    assert api.airmets(services) is None
+def test_api_advisories_without_them(services):
+    assert api.advisories(services) is None
 
 
-def test_live_says_when_the_map_draws_the_airmet_areas(client):
+def test_live_says_when_the_map_draws_the_advisory_areas(client):
     renderer = client.services.renderer
     assert client.json("/api/live")["visualizer"]["areas"] is False
-    renderer.visualizer = [v.NAME for v in renderer.visualizers].index("AIRMET")
+    renderer.visualizer = [v.NAME for v in renderer.visualizers].index("AIRMET / SIGMET")
     assert client.json("/api/live")["visualizer"]["areas"] is True
 
 

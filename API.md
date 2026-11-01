@@ -164,7 +164,7 @@ What the physical map is doing right now. The Map page polls it every second. No
 | `leds[].look` | The LED's current effect: `solid`, `off`, `blink` (`period` seconds per on/off cycle; with two `colors` it alternates between them instead of turning off), `pulse` (`period`; `low`, if present, is its dimmest point, e.g. `0.3`, otherwise it fades to off), or `cycle` (steps through `colors`, `step` seconds each). Colors are CSS hex colors. |
 | `leds[].wind` | While a wind visualizer runs (Wind, Wind Gusts, Wind Direction): the airport's wind for its barb on the Map page, `{"dir": 270.0, "kt": 12}` (the direction it blows from, and the sustained speed). `null` when it's calm, variable (`VRB`), has no direction or no report, and for every other visualizer. |
 | `leds[].virtual` | A virtual airport: no LED on the strip, so the Map page draws it in a dashed circle. |
-| `visualizer.areas` | `true` while a visualizer runs whose areas the Map page draws (AIRMET: the G-AIRMET areas from `/api/airmets`) |
+| `visualizer.areas` | `true` while a visualizer runs whose areas the Map page draws (AIRMET / SIGMET: the areas from `/api/advisories`) |
 | `strip` | Set when one effect drives the whole strip instead: `rainbow` (`period`) or `chase` (`step`, `size`, `spacing`). The virtual airports keep their own `look` meanwhile: the same rainbow, or `off` for a chase (a wiring check). |
 | `locate` | The last white locate pulse: LED `pixel` and Unix time `at`. `null` until the first one. A virtual airport's pulse is only shown on the Map page. |
 | `display.on` | Whether the screen is showing; `false` after `/display/off` (then `screen` is `null`) |
@@ -206,20 +206,28 @@ case-insensitive; an airport that isn't on the map is a 404.
 | `summary` | A few sentences about the weather, in this order, for what the report has: the flight category and what it means, the weather (e.g. `Light rain, mist`), `Lightning reported`, the wind, the ceiling (or the lowest clouds, or `Clear skies`), the density altitude (to the nearest 100 ft), a fog warning when the temperature and dewpoint are 2°C or less apart, and an icing warning between -20°C and 2°C with clouds or precipitation. Empty when the airport isn't reporting. |
 | `raw`, `flightCategory`, `obsTime` | `null` when the airport isn't reporting |
 
-### `GET /api/airmets`
+### `GET /api/advisories`
 
-The G-AIRMETs (graphical AIRMETs) the AIRMET visualizer shows, for the Map page's areas. No authentication. Over the
-contiguous US, text AIRMETs ended in January 2025; aviationweather.gov's G-AIRMETs replaced them. The map fetches them
-with the METARs (every 10 minutes): the snapshot nearest the current time. Only hazard areas starting below 18,000 ft
-are included (no high-level turbulence, and no freezing level lines). Expired areas are left out.
+The G-AIRMETs and SIGMETs the AIRMET / SIGMET visualizer shows, for the Map page's areas. No authentication. The map
+fetches both from aviationweather.gov with the METARs (every 10 minutes). Only areas starting below 18,000 ft are
+included (no high-level turbulence, and no freezing level lines), and only those in effect now.
+
+- **G-AIRMETs** (graphical AIRMETs): over the contiguous US, text AIRMETs ended in January 2025 and G-AIRMETs
+  replaced them. The map takes the forecast snapshot nearest the current time.
+- **SIGMETs**: the US convective SIGMETs (thunderstorms) and the other SIGMETs, from the US and other countries:
+  thunderstorms, severe turbulence and icing, mountain wave, volcanic ash, dust and sand storms, tropical cyclones.
 
 ```json
 {
-  "fetched": 1793574895.04,
-  "error": null,
+  "airmet": { "fetched": 1793576671.42, "error": null },
+  "sigmet": { "fetched": 1793576671.52, "error": null },
   "areas": [
-    { "hazard": "IFR", "product": "SIERRA", "name": "IFR", "base": 0, "top": null,
-      "due_to": "CIG BLW 010 VIS BLW 3SM PCPN BR", "severity": null, "valid": "2026-11-02T00:00:00.000Z",
+    { "kind": "SIGMET", "hazard": "CONV", "name": "Convective SIGMET", "series": "41C", "qualifier": null,
+      "observed": true, "base": 0, "top": 37000, "moving": "Toward 320° at 5 kt", "from": 1793573700,
+      "expires": 1793580900, "text": "CONVECTIVE SIGMET 41C\nVALID UNTIL 0055Z\nLA AND CSTL WTRS\n...",
+      "coords": [[31.41, -92.07], [30.53, -91.56], [29.98, -92.3]], "color": "#ff0000" },
+    { "kind": "AIRMET", "hazard": "IFR", "product": "SIERRA", "name": "IFR", "base": 0, "top": null,
+      "due_to": "CIG BLW 010 VIS BLW 3SM PCPN BR", "severity": null, "valid": "2026-11-02T00:00:00.000Z", "from": null,
       "expires": 1793588400, "coords": [[36.12, -91.52], [35.81, -90.11], [34.95, -90.33]], "color": "#ff7e00" }
   ]
 }
@@ -227,13 +235,16 @@ are included (no high-level turbulence, and no freezing level lines). Expired ar
 
 | Field | Description |
 |---|---|
-| `fetched` | Unix time of the last fetch that worked; `null` before the first |
-| `error` | Why the last fetch failed, else `null`. The areas from the last fetch that worked are kept until they expire |
-| `areas[].hazard` | `IFR`, `MT_OBSC` (mountain obscuration), `TURB-LO` / `TURB-HI` (turbulence), `LLWS` (low-level wind shear), `SFC_WND` (sustained surface wind of 30 kt or more) or `ICE` |
-| `areas[].base`, `top` | Altitudes in feet: `base` 0 is the surface (icing based at the freezing level gives its lowest); `top` is `null` when none is given |
-| `areas[].valid`, `expires` | When the snapshot is for (ISO time), and when the G-AIRMET expires (Unix time) |
+| `airmet`, `sigmet` | Each feed's last fetch that worked (`fetched`, Unix time; `null` before the first) and why its last one failed (`error`). A feed that fails keeps its last areas until they expire |
+| `areas` | The SIGMETs first, then the G-AIRMETs |
+| `areas[].kind`, `hazard` | `AIRMET`: `IFR`, `MT_OBSC` (mountain obscuration), `TURB-LO` / `TURB-HI` (turbulence), `LLWS` (low-level wind shear), `SFC_WND` (sustained surface wind of 30 kt or more) or `ICE`. `SIGMET`: `CONV` (US convective), `TS` (thunderstorms), `TC` (tropical cyclone), `ICE`, `TURB`, `MTW` (mountain wave), `VA` (volcanic ash), `DS` (dust storm) or `SS` (sandstorm) |
+| `areas[].base`, `top` | Altitudes in feet: `base` 0 is the surface (G-AIRMET icing based at the freezing level gives its lowest); `top` is `null` when none is given |
+| `areas[].product` | A G-AIRMET's group: `SIERRA`, `TANGO` or `ZULU` |
+| `areas[].qualifier`, `observed`, `moving`, `series`, `text` | A SIGMET's qualifier as issued (`SEV`, `OCNL SEV`, `FRQ`, `EMBD`...), whether it's observed or forecast, where it's heading, its series and its text |
+| `areas[].valid` | A G-AIRMET's snapshot time (ISO) |
+| `areas[].from`, `expires` | When it's valid from (SIGMETs; `null` for G-AIRMETs) and until (Unix time) |
 | `areas[].coords` | The area's outline, `[lat, lon]` pairs |
-| `areas[].color` | The hazard's color in the AIRMET visualizer (CSS hex) |
+| `areas[].color` | The hazard's color in the AIRMET / SIGMET visualizer (CSS hex) |
 
 ### `GET /api/traffic`
 
@@ -308,11 +319,11 @@ Visualizer indexes:
 | 8 | Density Altitude | |
 | 9 | Ceiling | |
 | 10 | Dewpoint Spread | |
-| 11 | AIRMET | |
+| 11 | AIRMET / SIGMET | |
 | 12 | Rainbow | yes |
 | 13 | Chase | yes |
 
-Wind Direction (3) was added after 3.0.1, and AIRMET (11) after 3.1.0, each moving the visualizers after it up by one.
+Wind Direction (3) was added after 3.0.1, and AIRMET / SIGMET (11) after 3.1.0, each moving the visualizers after it up by one.
 A `config.json` from before then (`visualizer.numbering` missing or older) has its `visualizer.active` moved with
 them when the map starts, so it keeps the same visualizer; scripts and automations that pick a visualizer by number
 need the new numbers.

@@ -613,7 +613,8 @@
         e.dot.classList.add('locate');
     }
 
-    // ---- G-AIRMET areas (the AIRMET visualizer): translucent, in each hazard's color, from /api/airmets ----------
+    // ---- advisory areas (the AIRMET / SIGMET visualizer), from /api/advisories: translucent, in each hazard's color;
+    // a SIGMET has a heavier, dashed outline and is drawn on top
     const AREAS_MS = 60 * 1000;  // how often to look for new ones while they're shown (the map fetches every 10 min)
     let areasWanted = false;
     let areasLayer = null;
@@ -625,16 +626,30 @@
         return ft === 0 ? 'the surface' : ft >= 18000 ? 'FL' + Math.round(ft / 100) : ft.toLocaleString() + ' ft';
     }
 
+    function when(epoch) {
+        return new Date(epoch * 1000).toLocaleString([], {weekday: 'short', hour: '2-digit', minute: '2-digit'});
+    }
+
+    const QUALIFIERS = {SEV: 'Severe', 'OCNL SEV': 'Occasional severe', FRQ: 'Frequent', OCNL: 'Occasional',
+        EMBD: 'Embedded', SQL: 'Squall line', ISOL: 'Isolated', HVY: 'Heavy', OBSC: 'Obscured', MOD: 'Moderate'};
+
     function areaPopup(a) {
         const box = document.createElement('div');
-        box.innerHTML = '<div class="pop-head"><b></b><span class="pill">G-AIRMET</span></div><dl class="pop-decoded"></dl>';
+        box.innerHTML = '<div class="pop-head"><b></b><span class="pill"></span></div><dl class="pop-decoded"></dl>';
         box.querySelector('b').textContent = a.name;
+        const sigmet = a.kind === 'SIGMET';
+        // a SIGMET, or the G-AIRMET it's in: Sierra, Tango or Zulu
+        box.querySelector('.pill').textContent = sigmet ? 'SIGMET' :
+            a.product ? a.product.charAt(0) + a.product.slice(1).toLowerCase() : 'G-AIRMET';
         const rows = [
             ['Altitude', a.top !== null ? 'From ' + altitude(a.base) + ' to ' + altitude(a.top) : 'From ' + altitude(a.base)],
             ['Due to', a.due_to],
-            ['Severity', a.severity === 'MOD' ? 'Moderate' : a.severity],
+            ['Severity', sigmet ? (QUALIFIERS[a.qualifier] || a.qualifier) : (QUALIFIERS[a.severity] || a.severity)],
+            ['Reported', sigmet ? (a.observed ? 'Observed' : 'Forecast') : null],
+            ['Moving', a.moving],
             ['Forecast for', a.valid ? new Date(a.valid).toLocaleString([], {weekday: 'short', hour: '2-digit', minute: '2-digit'}) : null],
-            ['Expires', a.expires ? new Date(a.expires * 1000).toLocaleString([], {weekday: 'short', hour: '2-digit', minute: '2-digit'}) : null]
+            ['Valid from', sigmet && a.from ? when(a.from) : null],
+            [sigmet ? 'Valid until' : 'Expires', a.expires ? when(a.expires) : null]
         ];
         const dl = box.querySelector('dl');
         rows.forEach(function (r) {
@@ -646,6 +661,12 @@
             dl.appendChild(dt);
             dl.appendChild(dd);
         });
+        if (sigmet && a.text) {  // the SIGMET as issued
+            const raw = document.createElement('div');
+            raw.className = 'pop-raw area-text';
+            raw.textContent = a.text.trim();
+            box.appendChild(raw);
+        }
         return box;
     }
 
@@ -666,19 +687,24 @@
         areasLoading = true;
         areasAt = Date.now();
         try {
-            const res = await fetch('/api/airmets', {cache: 'no-store'});
+            const res = await fetch('/api/advisories', {cache: 'no-store'});
             if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
             const state = await res.json();
-            if (!areasWanted || (areasLayer && state.fetched === areasFetched)) return;  // switched away, or unchanged
-            const layer = L.layerGroup(state.areas.map(function (a) {
-                return L.polygon(a.coords, {color: a.color, weight: 1.5, opacity: 0.85, fillColor: a.color, fillOpacity: 0.15})
+            const fetched = state.airmet.fetched + '/' + state.sigmet.fetched;
+            if (!areasWanted || (areasLayer && fetched === areasFetched)) return;  // switched away, or unchanged
+            // AIRMETs first, so SIGMETs are drawn (and clicked) on top
+            const order = state.areas.slice().sort(function (x, y) { return (x.kind === 'SIGMET') - (y.kind === 'SIGMET'); });
+            const layer = L.layerGroup(order.map(function (a) {
+                const sigmet = a.kind === 'SIGMET';
+                return L.polygon(a.coords, {color: a.color, weight: sigmet ? 3 : 1.5, dashArray: sigmet ? '8 5' : null,
+                    opacity: 0.9, fillColor: a.color, fillOpacity: sigmet ? 0.22 : 0.15})
                     .bindPopup(function () { return areaPopup(a); }, {className: 'led-popup', autoPanPaddingTopLeft: [10, 64]});
             }));
             clearAreas();
             areasLayer = layer.addTo(map);
-            areasFetched = state.fetched;
+            areasFetched = fetched;
         } catch (err) {
-            console.error('[map] AIRMET areas failed', err);
+            console.error('[map] advisory areas failed', err);
         } finally {
             areasLoading = false;
         }

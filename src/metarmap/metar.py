@@ -290,10 +290,11 @@ def with_mocks(real, airports, positions, now):
     return data
 
 
-def with_airmets(data, airmets):
+def with_advisories(data, advisories):
     """
-    The METARs, each with "airmets": the G-AIRMET hazards over the airport (metarmap.airmet), most important first, or
-    None while there are no G-AIRMETs to go by (before the first fetch that worked) or the airport has no position.
+    The METARs, each with "airmets" and "sigmets": the G-AIRMET and SIGMET hazards over the airport
+    (metarmap.advisories), most important first. Either is None while there are none to go by (before its first fetch
+    that worked) or the airport has no position.
     """
     result = {}
     for code, m in data.items():
@@ -302,10 +303,10 @@ def with_airmets(data, airmets):
             continue
         lat, lon = m.get("latitude"), m.get("longitude")
         try:
-            hazards = airmets.hazards_at(float(lat), float(lon)) if lat is not None and lon is not None else None
+            hazards = advisories.hazards_at(float(lat), float(lon)) if lat is not None and lon is not None else None
         except (TypeError, ValueError):
             hazards = None
-        result[code] = {**m, "airmets": hazards}
+        result[code] = {**m, **(hazards or {"airmets": None, "sigmets": None})}
     return result
 
 
@@ -314,14 +315,14 @@ class METAR(object):
     Object to control and handle METARs.
     """
 
-    def __init__(self, cfg, fetch=False, clock: Clock = None, airmets=None):
+    def __init__(self, cfg, fetch=False, clock: Clock = None, advisories=None):
         """
-        Creates a new METAR class. airmets: metarmap.airmet.Airmets, whose hazards are added to each report
-        (with_airmets); None for none.
+        Creates a new METAR class. advisories: metarmap.advisories.Advisories, whose hazards are added to each report
+        (with_advisories); None for none.
         """
 
         self._config = cfg
-        self.airmets = airmets
+        self.advisories = advisories
         self._clock = clock or Clock()
         self._is_fetching = False
         self._missing_stations = []
@@ -434,13 +435,13 @@ class METAR(object):
     def apply_mocks(self):
         """
         Puts the mock METARs typed on the Airports page in place of the fetched ones (dev_mode only), or takes them
-        away, and adds each airport's G-AIRMET hazards. Called after each fetch (METARs or G-AIRMETs), and when a mock
-        changes.
+        away, and adds each airport's G-AIRMET and SIGMET hazards. Called after each fetch (METARs or advisories), and
+        when a mock changes.
         """
         dev_mode = getattr(getattr(self._config, "data", None), "dev_mode", False)
         airports = self._config.airports if dev_mode is True else []
         data = with_mocks(self._real, airports, self.positions, self._clock.now())
-        self.data = with_airmets(data, self.airmets) if self.airmets is not None else data
+        self.data = with_advisories(data, self.advisories) if self.advisories is not None else data
 
     def missing_stations(self):
         """

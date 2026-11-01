@@ -1,12 +1,16 @@
 ### dman776 3.1.1 (2026-11-01)
 
-- AIRMET visualizer, after Dewpoint Spread: each airport in the color of the G-AIRMET hazard it's inside, below
-  18,000 ft: IFR orange, mountain obscuration magenta, turbulence yellow, low-level wind shear red, strong surface
-  wind blue, icing cyan. Two at once alternate (the more important first); none is dim white. G-AIRMETs replaced text
-  AIRMETs over the contiguous US in January 2025; the map fetches them from aviationweather.gov with the METARs
-  (every 10 minutes), the snapshot nearest the current time. On the Map page, the G-AIRMET areas are drawn in the
-  hazard's color while AIRMET is showing; click one for its altitudes, cause and times. New `GET /api/airmets`;
-  `visualizer.areas` in `/api/live`
+- AIRMET / SIGMET visualizer, after Dewpoint Spread: each airport in the color of the advisory it's inside, below
+  18,000 ft. G-AIRMETs in steady colors: IFR orange, mountain obscuration magenta, turbulence yellow, low-level wind
+  shear red, strong surface wind blue, icing cyan; two at once alternate (the more important first), none is dim
+  white. A SIGMET takes over, with a fast bright-and-dim blink in its hazard's color: thunderstorms (including the US
+  convective SIGMETs) and tropical cyclones red, severe icing cyan, severe turbulence and mountain wave yellow,
+  volcanic ash, dust and sand storms orange. The legend names each G-AIRMET's group: Sierra (IFR, mountain
+  obscuration), Tango (turbulence, wind) or Zulu (icing). G-AIRMETs replaced text AIRMETs over the contiguous US in
+  January 2025; the map fetches them and the SIGMETs from aviationweather.gov with the METARs (every 10 minutes): the
+  G-AIRMET snapshot nearest the current time, and the SIGMETs valid now. On the Map page, the areas are drawn in their
+  hazard's color while AIRMET / SIGMET is showing, SIGMETs with a heavier dashed outline; click one for its altitudes,
+  cause, movement and times, and a SIGMET's text. New `GET /api/advisories`; `visualizer.areas` in `/api/live`
 - Rainbow and Chase move up by one (now 12 and 13). A `config.json` from before (`visualizer.numbering` 2) keeps
   showing the same visualizer; scripts that call `/visualizer/<n>` need the new numbers. Home Assistant picks
   visualizers by name, so it's unaffected
