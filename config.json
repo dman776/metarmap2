@@ -126,7 +126,7 @@
     },
     "visualizer": {
         "active": 0,
-        "numbering": 2,
+        "numbering": 3,
         "auto_rotate": {
             "enabled": false,
             "delay_seconds": 60,

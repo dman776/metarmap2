@@ -122,7 +122,7 @@ class AutoRotate(_Section):
 class VisualizerSettings(_Section):
     active: int = 0  # a number in visualizers.ALL
     # which list `active` counts in; a file without it is from before Wind Direction (see renumber_visualizers)
-    numbering: int = 2
+    numbering: int = 3
     auto_rotate: AutoRotate = field(default_factory=AutoRotate)
 
 
@@ -271,8 +271,9 @@ def _to_dict(obj):
     return out
 
 
-# numbering 1 -> 2: Wind Direction went in at 3, after Wind Gusts, moving the visualizers from Pressure on by one
-INSERTED_AT = {2: 3}
+# numbering 1 -> 2: Wind Direction went in at 3, after Wind Gusts, moving the visualizers from Pressure on by one;
+# 2 -> 3: AIRMET went in at 11, after Dewpoint Spread, moving Rainbow and Chase by one
+INSERTED_AT = {2: 3, 3: 11}
 
 
 def renumber_visualizers(settings, data):

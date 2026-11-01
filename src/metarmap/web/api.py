@@ -1,6 +1,6 @@
 """
 The JSON API: /api/status (used by the Home Assistant integration), /api/live (polled by the Map page) and
-/api/traffic (the Map page's live traffic).
+/api/traffic (the Map page's live traffic) and /api/airmets (the G-AIRMET areas).
 See API.md; the field names are part of the API.
 """
 import json
@@ -10,7 +10,7 @@ import bottle
 
 from metarmap import __version__
 from metarmap.decode import decode, summary
-from metarmap.visualizers import visualizer, wind_direction
+from metarmap.visualizers import airmet as airmet_vis, visualizer, wind_direction
 from metarmap.web import views
 
 
@@ -140,7 +140,8 @@ def live(services, now=None):
     return {
         "now": now if now is not None else time.time(),
         "brightness": renderer.pixels().brightness,
-        "visualizer": {"active": active_num, "name": active_vis.NAME, "exclusive": active_vis.EXCLUSIVE},
+        "visualizer": {"active": active_num, "name": active_vis.NAME, "exclusive": active_vis.EXCLUSIVE,
+                       "areas": visualizer.shows_areas(active_vis)},
         "strip": strip,
         "leds": leds,
         "locate": renderer.last_locate,
@@ -174,6 +175,16 @@ def traffic(services):
     return found.snapshot() if found is not None else None
 
 
+def airmets(services):
+    """The G-AIRMET areas below 18,000 ft (see metarmap.airmet), each with its color, for the Map page."""
+    found = getattr(services, "airmets", None)
+    if found is None:
+        return None
+    state = found.state()
+    state["areas"] = [{**area, "color": airmet_vis.css(area["hazard"])} for area in state["areas"]]
+    return state
+
+
 def as_json(data):
     bottle.response.content_type = "application/json"
     return json.dumps(data)
@@ -182,6 +193,7 @@ def as_json(data):
 def add_routes(app, services, site):
     app.route("/api/status", "GET", lambda: as_json(status(services, site.ip)))
     app.route("/api/live", "GET", lambda: as_json(live(services)))
+    app.route("/api/airmets", "GET", lambda: as_json(airmets(services) or bottle.abort(404, "No G-AIRMETs")))
     app.route("/api/traffic", "GET", lambda: as_json(traffic(services) or bottle.abort(404, "No live traffic")))
     app.route("/api/metar/<code>", "GET", lambda code: as_json(metar(services, code.upper())
                                                              or bottle.abort(404, f"{code} isn't on the map")))

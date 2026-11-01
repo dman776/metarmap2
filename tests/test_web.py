@@ -16,13 +16,14 @@ import pytest
 
 from metarmap import __version__
 from metarmap import app as app_module
+from metarmap.airmet import Airmets
 from metarmap.leds.strip import FakeStrip
 from metarmap.models import Look
 from metarmap.renderer import Renderer
 from metarmap.settings import Airport, Settings
 from metarmap.sun import SunTimes
 from metarmap.traffic import Traffic
-from metarmap.visualizers import flightcategory, rainbow, wind, wind_direction, windgusts
+from metarmap.visualizers import airmet as airmet_vis, flightcategory, rainbow, wind, wind_direction, windgusts
 from metarmap.web import api, control, create_app, views
 
 AUTH = "Basic " + base64.b64encode(b"metar:map").decode()
@@ -149,6 +150,31 @@ def test_api_traffic(client):
 
 def test_api_traffic_without_it(services):
     assert api.traffic(services) is None
+
+
+def test_api_airmets(client):
+    def get(url, **kwargs):
+        return SimpleNamespace(status_code=200, raise_for_status=lambda: None, json=lambda: [
+            {"hazard": "IFR", "geometryType": "AREA", "product": "SIERRA", "base": None, "top": None,
+             "validTime": "2026-11-02T00:00:00.000Z", "expireTime": None, "due_to": "CIG BLW 010",
+             "coords": [{"lat": "29", "lon": "-96"}, {"lat": "29", "lon": "-94"}, {"lat": "31", "lon": "-95"}]}])
+    client.services.airmets = Airmets(get=get)
+    assert client.json("/api/airmets")["areas"] == []  # before the first fetch
+    client.services.airmets.fetch()
+    state = client.json("/api/airmets")
+    assert [(a["hazard"], a["color"]) for a in state["areas"]] == [("IFR", airmet_vis.css("IFR"))]
+    assert state["areas"][0]["coords"][0] == [29.0, -96.0] and state["error"] is None
+
+
+def test_api_airmets_without_it(services):
+    assert api.airmets(services) is None
+
+
+def test_live_says_when_the_map_draws_the_airmet_areas(client):
+    renderer = client.services.renderer
+    assert client.json("/api/live")["visualizer"]["areas"] is False
+    renderer.visualizer = [v.NAME for v in renderer.visualizers].index("AIRMET")
+    assert client.json("/api/live")["visualizer"]["areas"] is True
 
 
 def test_led_pin_and_order(client):
@@ -419,7 +445,7 @@ def test_live_whole_strip_visualizer(services):
     services.renderer.visualizer = 1  # rainbow
     live = api.live(services)
     assert live["strip"]["effect"] == "rainbow"
-    assert live["visualizer"] == {"active": 1, "name": "Rainbow", "exclusive": True}
+    assert live["visualizer"] == {"active": 1, "name": "Rainbow", "exclusive": True, "areas": False}
 
 
 def test_live_wind_barbs(services):
@@ -1049,7 +1075,7 @@ def test_remote_page_follows_the_map(client):
     app = client.services
     app.display.start()
     assert 'id="oled-on" class="switch" type="checkbox" checked' in client("/remote")[1]
-    client("/visualizer/11")  # Rainbow: locate is paused
+    client("/visualizer/12")  # Rainbow: locate is paused
     client("/config/edit/led.virtual_count/1")
     client("/config/airports/50/code/KDWH")
     body = client("/remote")[1]

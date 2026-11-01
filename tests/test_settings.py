@@ -120,14 +120,22 @@ def test_config_edit_writes_file(tmp_path):
 
 # ---- visualizer numbering -----------------------------------------------------------------------------------------
 
-@pytest.mark.parametrize("active, now", [(0, 0), (2, 2), (3, 4), (9, 10), (10, 11), (11, 12)])
+# numbering 1: before Wind Direction (in at 3); 2: before AIRMET (in at 11, so Rainbow 10 -> 11 -> 12)
+@pytest.mark.parametrize("active, now", [(0, 0), (2, 2), (3, 4), (9, 10), (10, 12), (11, 13)])
 def test_an_older_file_keeps_its_visualizer(active, now):
-    """Wind Direction went in at 3: a file from before it keeps showing the same visualizer."""
+    """A file from before Wind Direction and AIRMET keeps showing the same visualizer."""
     settings = Settings.from_dict({"visualizer": {"active": active}})
-    assert (settings.visualizer.active, settings.visualizer.numbering) == (now, 2)
+    assert (settings.visualizer.active, settings.visualizer.numbering) == (now, 3)
     assert Settings.from_dict(settings.to_dict()).visualizer.active == now  # once only
 
 
+@pytest.mark.parametrize("active, now", [(3, 3), (10, 10), (11, 12), (12, 13)])
+def test_a_file_from_before_airmet_keeps_its_visualizer(active, now):
+    """AIRMET went in at 11, after Dewpoint Spread: Rainbow (11) and Chase (12) move up by one."""
+    settings = Settings.from_dict({"visualizer": {"active": active, "numbering": 2}})
+    assert (settings.visualizer.active, settings.visualizer.numbering) == (now, 3)
+
+
 def test_a_current_file_is_not_renumbered():
-    assert Settings.from_dict({"visualizer": {"active": 5, "numbering": 2}}).visualizer.active == 5
+    assert Settings.from_dict({"visualizer": {"active": 11, "numbering": 3}}).visualizer.active == 11
     assert Settings.from_dict({}).visualizer.active == 0

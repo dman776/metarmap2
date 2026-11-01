@@ -141,7 +141,7 @@ What the physical map is doing right now. The Map page polls it every second. No
 {
   "now": 1792854523.9,
   "brightness": 0.5,
-  "visualizer": { "active": 0, "name": "Flight Category", "exclusive": false },
+  "visualizer": { "active": 0, "name": "Flight Category", "exclusive": false, "areas": false },
   "strip": null,
   "leds": [
     { "code": "KLBX", "pixel": 4, "name": "", "virtual": false, "lat": 29.11, "lon": -95.46, "flightCategory": "IFR",
@@ -164,6 +164,7 @@ What the physical map is doing right now. The Map page polls it every second. No
 | `leds[].look` | The LED's current effect: `solid`, `off`, `blink` (`period` seconds per on/off cycle; with two `colors` it alternates between them instead of turning off), `pulse` (`period`; `low`, if present, is its dimmest point, e.g. `0.3`, otherwise it fades to off), or `cycle` (steps through `colors`, `step` seconds each). Colors are CSS hex colors. |
 | `leds[].wind` | While a wind visualizer runs (Wind, Wind Gusts, Wind Direction): the airport's wind for its barb on the Map page, `{"dir": 270.0, "kt": 12}` (the direction it blows from, and the sustained speed). `null` when it's calm, variable (`VRB`), has no direction or no report, and for every other visualizer. |
 | `leds[].virtual` | A virtual airport: no LED on the strip, so the Map page draws it in a dashed circle. |
+| `visualizer.areas` | `true` while a visualizer runs whose areas the Map page draws (AIRMET: the G-AIRMET areas from `/api/airmets`) |
 | `strip` | Set when one effect drives the whole strip instead: `rainbow` (`period`) or `chase` (`step`, `size`, `spacing`). The virtual airports keep their own `look` meanwhile: the same rainbow, or `off` for a chase (a wiring check). |
 | `locate` | The last white locate pulse: LED `pixel` and Unix time `at`. `null` until the first one. A virtual airport's pulse is only shown on the Map page. |
 | `display.on` | Whether the screen is showing; `false` after `/display/off` (then `screen` is `null`) |
@@ -204,6 +205,35 @@ case-insensitive; an airport that isn't on the map is a 404.
 | `decoded` | One line per item the report has, in this order: `Observed`, `Wind`, `Visibility`, `Weather` (e.g. `Light rain, mist`), `Clouds` (one line per layer; later layers have an empty `label`, and the ceiling is marked), `Temperature`, `Dewpoint`, `Altimeter`, `Lightning`. Empty when the airport isn't reporting. Weather codes the map doesn't know are shown as they are. |
 | `summary` | A few sentences about the weather, in this order, for what the report has: the flight category and what it means, the weather (e.g. `Light rain, mist`), `Lightning reported`, the wind, the ceiling (or the lowest clouds, or `Clear skies`), the density altitude (to the nearest 100 ft), a fog warning when the temperature and dewpoint are 2°C or less apart, and an icing warning between -20°C and 2°C with clouds or precipitation. Empty when the airport isn't reporting. |
 | `raw`, `flightCategory`, `obsTime` | `null` when the airport isn't reporting |
+
+### `GET /api/airmets`
+
+The G-AIRMETs (graphical AIRMETs) the AIRMET visualizer shows, for the Map page's areas. No authentication. Over the
+contiguous US, text AIRMETs ended in January 2025; aviationweather.gov's G-AIRMETs replaced them. The map fetches them
+with the METARs (every 10 minutes): the snapshot nearest the current time. Only hazard areas starting below 18,000 ft
+are included (no high-level turbulence, and no freezing level lines). Expired areas are left out.
+
+```json
+{
+  "fetched": 1793574895.04,
+  "error": null,
+  "areas": [
+    { "hazard": "IFR", "product": "SIERRA", "name": "IFR", "base": 0, "top": null,
+      "due_to": "CIG BLW 010 VIS BLW 3SM PCPN BR", "severity": null, "valid": "2026-11-02T00:00:00.000Z",
+      "expires": 1793588400, "coords": [[36.12, -91.52], [35.81, -90.11], [34.95, -90.33]], "color": "#ff7e00" }
+  ]
+}
+```
+
+| Field | Description |
+|---|---|
+| `fetched` | Unix time of the last fetch that worked; `null` before the first |
+| `error` | Why the last fetch failed, else `null`. The areas from the last fetch that worked are kept until they expire |
+| `areas[].hazard` | `IFR`, `MT_OBSC` (mountain obscuration), `TURB-LO` / `TURB-HI` (turbulence), `LLWS` (low-level wind shear), `SFC_WND` (sustained surface wind of 30 kt or more) or `ICE` |
+| `areas[].base`, `top` | Altitudes in feet: `base` 0 is the surface (icing based at the freezing level gives its lowest); `top` is `null` when none is given |
+| `areas[].valid`, `expires` | When the snapshot is for (ISO time), and when the G-AIRMET expires (Unix time) |
+| `areas[].coords` | The area's outline, `[lat, lon]` pairs |
+| `areas[].color` | The hazard's color in the AIRMET visualizer (CSS hex) |
 
 ### `GET /api/traffic`
 
@@ -278,12 +308,14 @@ Visualizer indexes:
 | 8 | Density Altitude | |
 | 9 | Ceiling | |
 | 10 | Dewpoint Spread | |
-| 11 | Rainbow | yes |
-| 12 | Chase | yes |
+| 11 | AIRMET | |
+| 12 | Rainbow | yes |
+| 13 | Chase | yes |
 
-Wind Direction (3) was added after 3.0.1, moving the visualizers after it up by one. A `config.json` from before then
-(no `visualizer.numbering`) has its `visualizer.active` moved with them when the map starts, so it keeps the same
-visualizer; scripts and automations that pick a visualizer by number need the new numbers.
+Wind Direction (3) was added after 3.0.1, and AIRMET (11) after 3.1.0, each moving the visualizers after it up by one.
+A `config.json` from before then (`visualizer.numbering` missing or older) has its `visualizer.active` moved with
+them when the map starts, so it keeps the same visualizer; scripts and automations that pick a visualizer by number
+need the new numbers.
 
 ```sh
 curl http://metarmap.local/brightness/0.25

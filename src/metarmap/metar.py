@@ -290,17 +290,38 @@ def with_mocks(real, airports, positions, now):
     return data
 
 
+def with_airmets(data, airmets):
+    """
+    The METARs, each with "airmets": the G-AIRMET hazards over the airport (metarmap.airmet), most important first, or
+    None while there are no G-AIRMETs to go by (before the first fetch that worked) or the airport has no position.
+    """
+    result = {}
+    for code, m in data.items():
+        if not m:  # no report: stays empty, so every visualizer still shows it as "METAR not available"
+            result[code] = m
+            continue
+        lat, lon = m.get("latitude"), m.get("longitude")
+        try:
+            hazards = airmets.hazards_at(float(lat), float(lon)) if lat is not None and lon is not None else None
+        except (TypeError, ValueError):
+            hazards = None
+        result[code] = {**m, "airmets": hazards}
+    return result
+
+
 class METAR(object):
     """
     Object to control and handle METARs.
     """
 
-    def __init__(self, cfg, fetch=False, clock: Clock = None):
+    def __init__(self, cfg, fetch=False, clock: Clock = None, airmets=None):
         """
-        Creates a new METAR class.
+        Creates a new METAR class. airmets: metarmap.airmet.Airmets, whose hazards are added to each report
+        (with_airmets); None for none.
         """
 
         self._config = cfg
+        self.airmets = airmets
         self._clock = clock or Clock()
         self._is_fetching = False
         self._missing_stations = []
@@ -413,11 +434,13 @@ class METAR(object):
     def apply_mocks(self):
         """
         Puts the mock METARs typed on the Airports page in place of the fetched ones (dev_mode only), or takes them
-        away. Called after each fetch, and when a mock changes.
+        away, and adds each airport's G-AIRMET hazards. Called after each fetch (METARs or G-AIRMETs), and when a mock
+        changes.
         """
         dev_mode = getattr(getattr(self._config, "data", None), "dev_mode", False)
         airports = self._config.airports if dev_mode is True else []
-        self.data = with_mocks(self._real, airports, self.positions, self._clock.now())
+        data = with_mocks(self._real, airports, self.positions, self._clock.now())
+        self.data = with_airmets(data, self.airmets) if self.airmets is not None else data
 
     def missing_stations(self):
         """

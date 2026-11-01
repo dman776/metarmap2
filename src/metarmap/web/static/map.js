@@ -613,6 +613,77 @@
         e.dot.classList.add('locate');
     }
 
+    // ---- G-AIRMET areas (the AIRMET visualizer): translucent, in each hazard's color, from /api/airmets ----------
+    const AREAS_MS = 60 * 1000;  // how often to look for new ones while they're shown (the map fetches every 10 min)
+    let areasWanted = false;
+    let areasLayer = null;
+    let areasAt = 0;
+    let areasFetched;
+    let areasLoading = false;
+
+    function altitude(ft) {
+        return ft === 0 ? 'the surface' : ft >= 18000 ? 'FL' + Math.round(ft / 100) : ft.toLocaleString() + ' ft';
+    }
+
+    function areaPopup(a) {
+        const box = document.createElement('div');
+        box.innerHTML = '<div class="pop-head"><b></b><span class="pill">G-AIRMET</span></div><dl class="pop-decoded"></dl>';
+        box.querySelector('b').textContent = a.name;
+        const rows = [
+            ['Altitude', a.top !== null ? 'From ' + altitude(a.base) + ' to ' + altitude(a.top) : 'From ' + altitude(a.base)],
+            ['Due to', a.due_to],
+            ['Severity', a.severity === 'MOD' ? 'Moderate' : a.severity],
+            ['Forecast for', a.valid ? new Date(a.valid).toLocaleString([], {weekday: 'short', hour: '2-digit', minute: '2-digit'}) : null],
+            ['Expires', a.expires ? new Date(a.expires * 1000).toLocaleString([], {weekday: 'short', hour: '2-digit', minute: '2-digit'}) : null]
+        ];
+        const dl = box.querySelector('dl');
+        rows.forEach(function (r) {
+            if (!r[1]) return;
+            const dt = document.createElement('dt');
+            dt.textContent = r[0];
+            const dd = document.createElement('dd');
+            dd.textContent = r[1];
+            dl.appendChild(dt);
+            dl.appendChild(dd);
+        });
+        return box;
+    }
+
+    function clearAreas() {
+        if (areasLayer) map.removeLayer(areasLayer);
+        areasLayer = null;
+        areasFetched = undefined;
+    }
+
+    // called with each /api/live poll: show is whether the visualizer draws the areas
+    async function syncAreas(show) {
+        areasWanted = !!show;
+        if (!areasWanted) {
+            clearAreas();
+            return;
+        }
+        if (areasLoading || (areasLayer && Date.now() - areasAt < AREAS_MS)) return;
+        areasLoading = true;
+        areasAt = Date.now();
+        try {
+            const res = await fetch('/api/airmets', {cache: 'no-store'});
+            if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+            const state = await res.json();
+            if (!areasWanted || (areasLayer && state.fetched === areasFetched)) return;  // switched away, or unchanged
+            const layer = L.layerGroup(state.areas.map(function (a) {
+                return L.polygon(a.coords, {color: a.color, weight: 1.5, opacity: 0.85, fillColor: a.color, fillOpacity: 0.15})
+                    .bindPopup(function () { return areaPopup(a); }, {className: 'led-popup', autoPanPaddingTopLeft: [10, 64]});
+            }));
+            clearAreas();
+            areasLayer = layer.addTo(map);
+            areasFetched = state.fetched;
+        } catch (err) {
+            console.error('[map] AIRMET areas failed', err);
+        } finally {
+            areasLoading = false;
+        }
+    }
+
     // ---- live traffic: aircraft from adsb.fi, through the map (/api/traffic); ticked on in this browser -----------
     // Between updates every aircraft glides along its track at its ground speed. Clicking one opens its details and
     // follows it (the map keeps it centered and draws its trail) until the popup closes or the map is dragged.
@@ -936,6 +1007,7 @@
             syncLeds(live.leds);
             strip = live.strip;
             followVisualizer(live.visualizer);
+            syncAreas(live.visualizer.areas);
             setView();
             const screen = live.display.screen;
             activeAirport = screen && screen.airport;
