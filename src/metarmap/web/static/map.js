@@ -621,6 +621,10 @@
     const KIND_LABELS = {light: 'Light (under 15,500 lb)', small: 'Small or fast (15,500–75,000 lb, or military)',
         large: 'Large (75,000–300,000 lb)', heavy: 'Heavy (over 300,000 lb)', super: 'Super heavy (A380, 747, An-124…)',
         helicopter: 'Helicopter', glider: 'Glider', balloon: 'Balloon or airship', drone: 'Drone', vehicle: 'Ground vehicle'};
+    // the live traffic note's key to the colors (style.css .ac.k-*)
+    const KEY_ORDER = ['light', 'small', 'large', 'heavy', 'super', 'helicopter', 'glider', 'balloon', 'drone', 'vehicle', 'unknown'];
+    const KEY_NAMES = {light: 'Light', small: 'Small', large: 'Large', heavy: 'Heavy', super: 'Super', helicopter: 'Helicopter',
+        glider: 'Glider', balloon: 'Balloon', drone: 'Drone', vehicle: 'Vehicle', unknown: 'Unknown'};
 
     function kindOf(a) {
         return SHAPES[a.kind] ? a.kind : 'unknown';
@@ -830,6 +834,17 @@
         }
         trafficNote.textContent = text;
         trafficNote.hidden = false;
+        // a key to the colors: the kinds on the map now, smallest first
+        const present = {};
+        t.aircraft.forEach(function (a) { present[kindOf(a)] = true; });
+        const kinds = KEY_ORDER.filter(function (k) { return present[k]; });
+        if (!kinds.length) return;
+        const key = document.createElement('div');
+        key.className = 'ac-key';
+        key.innerHTML = kinds.map(function (k) {
+            return '<span class="ac k-' + k + '">' + shapeSvg(k) + KEY_NAMES[k] + '</span>';
+        }).join('');
+        trafficNote.appendChild(key);
     }
 
     async function pollTraffic() {

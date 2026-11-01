@@ -334,28 +334,35 @@ body.map-full-open { overflow: hidden; }
 .pop-decoded dt { color: var(--muted); }
 .pop-decoded dd { margin: 0; color: var(--text); }
 /* live traffic: a plane pointing along its track; the dark halo keeps it visible on light charts */
-/* its size (--s) by its kind: a C172 is small, an A380 large */
-.ac { --s: 20px; position: relative; }
-.ac.k-light { --s: 18px; }
-.ac.k-small { --s: 22px; }
-.ac.k-large { --s: 26px; }
-.ac.k-heavy { --s: 32px; }
-.ac.k-super { --s: 38px; }
-.ac.k-helicopter, .ac.k-glider { --s: 22px; }
-.ac.k-balloon { --s: 18px; }
-.ac.k-drone { --s: 14px; }
-.ac.k-vehicle { --s: 12px; }
-.ac-plane { --track: 0deg; position: absolute; left: calc(var(--s) / -2); top: calc(var(--s) / -2); width: var(--s); height: var(--s); padding: 0; border: 0; background: transparent; cursor: pointer; color: #e8f3ff;
+/* its size (--s) and color (--ac) by its kind: a C172 is small, an A380 large. Different hues from the LEDs (pure
+   green, blue, red, magenta); red is kept for emergencies, and the most common kind (large) is white */
+.ac { --s: 20px; --ac: #d3dbe4; position: relative; }
+.ac.k-light { --s: 18px; --ac: #2ec4ff; }
+.ac.k-small { --s: 22px; --ac: #9be22d; }
+.ac.k-large { --s: 26px; --ac: #f4f8fc; }
+.ac.k-heavy { --s: 32px; --ac: #ff62b0; }
+.ac.k-super { --s: 38px; --ac: #a774ff; }
+.ac.k-helicopter { --s: 22px; --ac: #ffc414; }
+.ac.k-glider { --s: 22px; --ac: #d9a45a; }
+.ac.k-balloon { --s: 18px; --ac: #ff8a3d; }
+.ac.k-drone { --s: 14px; --ac: #a9b4c2; }
+.ac.k-vehicle { --s: 12px; --ac: #8b98a8; }
+.ac.emergency { --ac: #ff5a5a; }
+.ac-plane { --track: 0deg; position: absolute; left: calc(var(--s) / -2); top: calc(var(--s) / -2); width: var(--s); height: var(--s); padding: 0; border: 0; background: transparent; cursor: pointer; color: var(--ac);
     filter: drop-shadow(0 0 1px #000) drop-shadow(0 0 1.5px rgba(0, 0, 0, .8)); }
 .ac-plane svg { display: block; width: 100%; height: 100%; transform: rotate(var(--track)); }
 .ac.k-balloon .ac-plane svg { transform: none; }  /* drifts with the wind; it has no nose */
 .ac-plane:focus-visible { outline: 2px solid #ffd27d; outline-offset: 2px; border-radius: 50%; }
-.ac.ground .ac-plane { color: #9fb0c3; transform: scale(.75); }
-.ac.emergency .ac-plane { color: #ff5a5a; }
-.ac.followed .ac-plane { color: var(--accent); }
+.ac.ground .ac-plane { opacity: .7; transform: scale(.75); }
+/* the followed one keeps its color, in an amber glow */
+.ac.followed .ac-plane { filter: drop-shadow(0 0 1px #000) drop-shadow(0 0 2px var(--accent)) drop-shadow(0 0 3px var(--accent)); }
 .ac-code { display: none; position: absolute; left: calc(var(--s) / 2 + 2px); top: 0; transform: translateY(-50%); font: 600 10px var(--mono); color: var(--accent); background: rgba(11, 17, 23, .82); border-radius: 4px; padding: 1px 4px; white-space: nowrap; pointer-events: none; }
 .ac.followed .ac-code, .ac.emergency .ac-code { display: block; }
 .ac.emergency .ac-code { color: #ff8a8a; }
+/* the classes on the map, in the live traffic note */
+.ac-key { display: flex; flex-wrap: wrap; gap: 4px 12px; max-width: 260px; }
+.ac-key span { display: inline-flex; align-items: center; gap: 4px; color: var(--text-2); }
+.ac-key svg { width: 14px; height: 14px; color: var(--ac); filter: drop-shadow(0 0 1px #000); }
 .pill.ac-emergency { color: #fff; background: #b3261e; }
 .ac-link { display: inline-block; margin-top: 8px; font-size: 12px; }
 .leaflet-container .leaflet-control-attribution { background: rgba(11, 17, 23, .75); color: var(--text-2); }
