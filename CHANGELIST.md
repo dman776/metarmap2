@@ -1,4 +1,4 @@
-### dman776 3.0.4 (2026-10-31)
+### dman776 3.1.0 (2026-10-31)
 
 - Live traffic on the Map page, from [adsb.fi](https://adsb.fi/): tick **Live traffic** (under the background
   switcher; remembered in that browser) to show the aircraft around your airports, each pointing along its track and
@@ -15,7 +15,11 @@
   second) and **Ground traffic** (off by default). The map only asks adsb.fi while a page shows live traffic, and
   every open page shares one fetch. New `GET /api/traffic` (see API.md); `geo.map.traffic_seconds` and
   `geo.map.traffic_ground` settings
-
+- Wind barbs on the Map page while Wind, Wind Gusts or Wind Direction runs: each airport's staff points where the
+  wind blows from, with a pennant for 50 kt, a full feather for 10 and a half for 5 (sustained speed, rounded to
+  5 kt; gusts stay in the popup). White with a dark edge, so they read on every background. Calm, variable (`VRB`)
+  and no direction have none. An airport whose barb points east has its code on the left of the dot instead.
+  `wind` (`{"dir", "kt"}`) in `/api/live`'s `leds`, `null` otherwise
 - Precipitation legend: removed "Moderate (rain)", which repeated "Rain" (both solid blue). Moderate is solid, as
   each kind's own entry shows; the legend still lists Light (breathing), Heavy (fast blink) and In the vicinity (dim)
 
