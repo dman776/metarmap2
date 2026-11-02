@@ -1,4 +1,5 @@
 """Tests for switching an installed metarmap.service from controller.py to `python3 -m metarmap`."""
+
 import subprocess
 from pathlib import Path
 
@@ -11,15 +12,15 @@ REPO = Path(__file__).parent.parent
 # every metarmap.service this project shipped before it ran `python3 -m metarmap` (from git history)
 OLD = {
     "root": "[Unit]\nDescription=MetarMap\nAfter={after}\n\n[Service]\nWorkingDirectory={repo}\n"
-            "ExecStart={repo}/controller.py\nRestart=always\nUser=root\n\n[Install]\nWantedBy=multi-user.target\n",
+    "ExecStart={repo}/controller.py\nRestart=always\nUser=root\n\n[Install]\nWantedBy=multi-user.target\n",
     "sleep": "[Unit]\nDescription=MetarMap\nAfter=network-online.target\n\n[Service]\nWorkingDirectory={repo}\n"
-             "ExecStartPre=/bin/sleep 10\nExecStart=sudo {repo}/controller.py\nRestart=always\nUser=pi\n\n"
-             "[Install]\nWantedBy=multi-user.target\n",
+    "ExecStartPre=/bin/sleep 10\nExecStart=sudo {repo}/controller.py\nRestart=always\nUser=pi\n\n"
+    "[Install]\nWantedBy=multi-user.target\n",
     "ping": "[Unit]\nDescription=MetarMap\nAfter=network-online.target\n\n[Service]\nWorkingDirectory={repo}\n"
-            "ExecStartPre=/bin/sh -c 'until ping -c1 www.aviationweather.gov; do sleep 1; done;'\n"
-            "ExecStart=sudo {repo}/controller.py\nRestart=always\nUser=pi\n\n[Install]\nWantedBy=multi-user.target\n",
+    "ExecStartPre=/bin/sh -c 'until ping -c1 www.aviationweather.gov; do sleep 1; done;'\n"
+    "ExecStart=sudo {repo}/controller.py\nRestart=always\nUser=pi\n\n[Install]\nWantedBy=multi-user.target\n",
     "sudo": "[Unit]\nDescription=MetarMap\nAfter=network-online.target\n\n[Service]\nWorkingDirectory={repo}\n"
-            "ExecStart=sudo {repo}/controller.py\nRestart=always\nUser=pi\n\n[Install]\nWantedBy=multi-user.target\n",
+    "ExecStart=sudo {repo}/controller.py\nRestart=always\nUser=pi\n\n[Install]\nWantedBy=multi-user.target\n",
 }
 
 
@@ -93,13 +94,16 @@ def test_a_switched_file_is_left_alone(installed, repo):
     assert run.commands == []
 
 
-@pytest.mark.parametrize("text", [
-    OLD["sudo"].replace("Restart=always", "Restart=always\nEnvironment=FOO=1"),  # customized
-    OLD["sudo"].replace("{repo}/controller.py", "/home/someone/other/controller.py"),  # another checkout
-    OLD["sudo"].replace("WorkingDirectory={repo}", "WorkingDirectory=/tmp"),
-    OLD["sudo"].replace("controller.py", "controller.py --debug"),
-    OLD["sudo"] + "this is not a setting\n",
-])
+@pytest.mark.parametrize(
+    "text",
+    [
+        OLD["sudo"].replace("Restart=always", "Restart=always\nEnvironment=FOO=1"),  # customized
+        OLD["sudo"].replace("{repo}/controller.py", "/home/someone/other/controller.py"),  # another checkout
+        OLD["sudo"].replace("WorkingDirectory={repo}", "WorkingDirectory=/tmp"),
+        OLD["sudo"].replace("controller.py", "controller.py --debug"),
+        OLD["sudo"] + "this is not a setting\n",
+    ],
+)
 def test_customized_files_are_left_alone(installed, repo, text):
     installed.write_text(text.format(repo=repo, after=""))
     run = Run()

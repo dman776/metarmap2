@@ -6,14 +6,17 @@ from what it reports, with the FAA limits (the worse of the ceiling and the visi
 slowly instead of shining steadily, so an estimate can't be mistaken for a reported category. With only one of the
 two reported, the real category could be worse than the estimate, never better.
 """
+
 from metarmap.decode import estimate_category
 from metarmap.models import FlightCategory as Category, Look, Metar
 from metarmap.visualizers import style
 from metarmap.visualizers.visualizer import legend_item
 
 NAME = "Flight Category"
-DESCRIPTION = "Display the flight category (VFR, MVFR, IFR, LIFR). A station that doesn't report one gets an " \
-              "estimate from its visibility and ceiling, shown breathing."
+DESCRIPTION = (
+    "Display the flight category (VFR, MVFR, IFR, LIFR). A station that doesn't report one gets an "
+    "estimate from its visibility and ceiling, shown breathing."
+)
 EXCLUSIVE = False
 
 ESTIMATE_PERIOD = 4.0  # seconds per breath of an estimated category
@@ -34,10 +37,15 @@ def legend(settings):
         legend_item("MVFR", "Blue", COLORS[Category.MVFR]),
         legend_item("IFR", "Red", COLORS[Category.IFR]),
         legend_item("LIFR", "Purple", COLORS[Category.LIFR]),
-        legend_item("Estimated", "Slow breathing in the category's color: the station didn't report a category, so "
-                    "it's estimated from the visibility and ceiling it does report", COLORS[Category.VFR],
-                    effect="pulse",
-                    period=ESTIMATE_PERIOD, low=style.LIGHT_LOW),
+        legend_item(
+            "Estimated",
+            "Slow breathing in the category's color: the station didn't report a category, so "
+            "it's estimated from the visibility and ceiling it does report",
+            COLORS[Category.VFR],
+            effect="pulse",
+            period=ESTIMATE_PERIOD,
+            low=style.LIGHT_LOW,
+        ),
         style.missing_legend("flight category, visibility or sky condition"),
     ]
     items.append(style.no_report_legend())
@@ -47,7 +55,7 @@ def legend(settings):
 def look(metar: Metar, settings) -> Look:
     if not metar:
         return style.no_report()
-    category = metar.get('flightCategory')
+    category = metar.get("flightCategory")
     estimated = category is None
     if estimated:
         category = estimate_category(metar)

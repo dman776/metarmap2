@@ -5,6 +5,7 @@ The renderer only needs what NeoPixel and adafruit_led_animation use: indexing, 
 brightness. On the Pi that's a real neopixel.NeoPixel; anywhere else it's a FakeStrip that keeps the colors in
 memory, so the whole map (and its web UI) can run on a laptop.
 """
+
 from typing import List, Sequence
 
 from metarmap.lib.safe_logging import safe_log
@@ -43,6 +44,7 @@ def open_strip(led):
     try:
         import board
         import neopixel
+
         pin = getattr(board, f"D{led.pin}")
         order = getattr(neopixel, led.order)
     except (ImportError, NotImplementedError, AttributeError) as e:

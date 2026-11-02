@@ -41,6 +41,7 @@ def legend_item(label, detail, *colors, effect="solid", period=None, low=None):
 # Visualizers don't touch the LEDs; the renderer turns their looks into animations.
 # Lightning isn't a visualizer's job: looks() and legend() add it to every one with a look per airport.
 
+
 def strip_look(vis, settings) -> Optional[Look]:
     """The visualizer's look for the whole strip, or None if it has one look per airport."""
     return vis.strip_look(settings) if hasattr(vis, "strip_look") else None
@@ -79,11 +80,13 @@ def look(vis, metar, settings) -> Look:
     instead of a red blink with visualizer.missing_data_blink off.
     """
     from metarmap.visualizers import style  # style uses legend_item() from here
+
     base = vis.look(metar, settings)
     if not settings.visualizer.missing_data_blink and base == style.missing():
         base = Look.off()
-    return style.with_lightning(base, settings) if shows_lightning(vis, settings) and style.has_lightning(metar) \
-        else base
+    return (
+        style.with_lightning(base, settings) if shows_lightning(vis, settings) and style.has_lightning(metar) else base
+    )
 
 
 def legend(vis, settings) -> List[dict]:
@@ -92,6 +95,7 @@ def legend(vis, settings) -> List[dict]:
     missing data as off with visualizer.missing_data_blink off.
     """
     from metarmap.visualizers import style
+
     items = list(vis.legend(settings))
     if shows_lightning(vis, settings):
         at = next((n for n, item in enumerate(items) if item["effect"] == "off"), len(items))
@@ -103,5 +107,9 @@ def legend(vis, settings) -> List[dict]:
 
 def info(vis, settings) -> dict:
     """What the web UI and API show about a visualizer."""
-    return {"name": vis.NAME, "description": vis.DESCRIPTION, "exclusive": vis.EXCLUSIVE,
-            "legend": legend(vis, settings)}
+    return {
+        "name": vis.NAME,
+        "description": vis.DESCRIPTION,
+        "exclusive": vis.EXCLUSIVE,
+        "legend": legend(vis, settings),
+    }

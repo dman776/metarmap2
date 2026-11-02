@@ -1,6 +1,7 @@
 """
 Today's dawn, sunrise, sunset and dusk, and the LED brightness they set.
 """
+
 from metarmap.lib import utils
 
 # the brightness level (a led.brightness setting) that starts at each sun time
@@ -24,9 +25,9 @@ def level_at(now, times):
     times: today's sun times.
     """
     periods = [
-        (times['dawn'], times['sunrise'], "dimmed"),
-        (times['sunrise'], times['sunset'], "normal"),
-        (times['sunset'], times['dusk'], "dimmed"),
+        (times["dawn"], times["sunrise"], "dimmed"),
+        (times["sunrise"], times["sunset"], "normal"),
+        (times["sunset"], times["dusk"], "dimmed"),
     ]
     for start, end, level in periods:
         if start < now < end:

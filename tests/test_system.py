@@ -1,4 +1,5 @@
 """Tests for metarmap.system: the Pi's login password and Wi-Fi network, with stand-ins for the Pi's commands."""
+
 import os
 import subprocess
 
@@ -43,6 +44,7 @@ def tools(monkeypatch):
 
 # ---- checks -----------------------------------------------------------------------------------------------------
 
+
 @pytest.mark.parametrize("password", ["", "two\nlines", "tab\there"])
 def test_bad_passwords(password):
     with pytest.raises(ValueError):
@@ -53,8 +55,17 @@ def test_good_password():
     system.check_password("correct horse: battery staple!")  # spaces and colons are fine
 
 
-@pytest.mark.parametrize("ssid, password", [("", "longenough"), ("x" * 33, "longenough"), ('say "hi"', "longenough"),
-                                            ("Home", "short"), ("Home", "x" * 64), ("Home\n", "longenough")])
+@pytest.mark.parametrize(
+    "ssid, password",
+    [
+        ("", "longenough"),
+        ("x" * 33, "longenough"),
+        ('say "hi"', "longenough"),
+        ("Home", "short"),
+        ("Home", "x" * 64),
+        ("Home\n", "longenough"),
+    ],
+)
 def test_bad_wifi(ssid, password):
     with pytest.raises(ValueError):
         system.check_wifi(ssid, password)
@@ -67,10 +78,12 @@ def test_good_wifi():
 
 def test_login_user_is_the_folder_owner(tmp_path):
     import pwd
+
     assert system.login_user(tmp_path) == pwd.getpwuid(os.getuid()).pw_name
 
 
 # ---- the login password -----------------------------------------------------------------------------------------
+
 
 def test_password_goes_to_chpasswd_on_stdin(tools):
     run = Run()
@@ -92,14 +105,21 @@ def test_password_skipped_without_root(tools):
 def test_password_only_changes_on_a_raspberry_pi(tools):
     """Another Linux machine, a Mac or Windows: never, even as root."""
     run = Run()
-    assert system.set_login_password("n3w pass", user="pi", run=run, root=True, pi=False) == \
-        "skipped (not a Raspberry Pi)"
+    assert (
+        system.set_login_password("n3w pass", user="pi", run=run, root=True, pi=False) == "skipped (not a Raspberry Pi)"
+    )
     assert run.calls == []
 
 
-@pytest.mark.parametrize("model, pi", [(b"Raspberry Pi 4 Model B Rev 1.4\x00", True),
-                                       (b"Raspberry Pi Zero W Rev 1.1\x00", True),
-                                       (b"Pine64 RockPro64\x00", False), (None, False)])
+@pytest.mark.parametrize(
+    "model, pi",
+    [
+        (b"Raspberry Pi 4 Model B Rev 1.4\x00", True),
+        (b"Raspberry Pi Zero W Rev 1.1\x00", True),
+        (b"Pine64 RockPro64\x00", False),
+        (None, False),
+    ],
+)
 def test_is_raspberry_pi(tmp_path, model, pi):
     model_file = tmp_path / "model"
     if model is not None:
@@ -108,6 +128,7 @@ def test_is_raspberry_pi(tmp_path, model, pi):
 
 
 # ---- Wi-Fi: NetworkManager (Bookworm) ---------------------------------------------------------------------------
+
 
 def test_networkmanager_adds_a_preferred_connection(tools):
     run = Run()
@@ -129,8 +150,9 @@ def test_networkmanager_open_network(tools):
 
 def test_networkmanager_add_failure(tools):
     with pytest.raises(system.ChangeFailed):
-        system.set_wifi("Cabin", "pinecones", run=Run(fail=["nmcli connection add"]), root=True,
-                        backend="networkmanager")
+        system.set_wifi(
+            "Cabin", "pinecones", run=Run(fail=["nmcli connection add"]), root=True, backend="networkmanager"
+        )
 
 
 # ---- Wi-Fi: wpa_supplicant (Bullseye) ---------------------------------------------------------------------------
@@ -156,8 +178,14 @@ def test_wpa_supplicant_replaces_an_earlier_change(tools, tmp_path):
     conf = tmp_path / "wpa_supplicant.conf"
     conf.write_text(OLD_CONF)
     for _ in range(2):
-        system.set_wifi("Cabin", "pinecones", run=Run(outputs={"wpa_passphrase": PASSPHRASE}), root=True,
-                        backend="wpa_supplicant", wpa_conf=conf)
+        system.set_wifi(
+            "Cabin",
+            "pinecones",
+            run=Run(outputs={"wpa_passphrase": PASSPHRASE}),
+            root=True,
+            backend="wpa_supplicant",
+            wpa_conf=conf,
+        )
     assert conf.read_text().count('ssid="Cabin"') == 1
     assert conf.read_text().count('ssid="HomeNet"') == 1
 
@@ -173,8 +201,14 @@ def test_wpa_supplicant_failure(tools, tmp_path):
     conf = tmp_path / "wpa_supplicant.conf"
     conf.write_text(OLD_CONF)
     with pytest.raises(system.ChangeFailed):
-        system.set_wifi("Cabin", "pinecones", run=Run(fail=["wpa_cli"], outputs={"wpa_passphrase": PASSPHRASE}),
-                        root=True, backend="wpa_supplicant", wpa_conf=conf)
+        system.set_wifi(
+            "Cabin",
+            "pinecones",
+            run=Run(fail=["wpa_cli"], outputs={"wpa_passphrase": PASSPHRASE}),
+            root=True,
+            backend="wpa_supplicant",
+            wpa_conf=conf,
+        )
 
 
 def test_wifi_skipped_without_root():
@@ -182,6 +216,7 @@ def test_wifi_skipped_without_root():
 
 
 # ---- which network ----------------------------------------------------------------------------------------------
+
 
 def test_backend(tools):
     assert system.wifi_backend(Run(outputs={"nmcli -t -f RUNNING general": "running\n"})) == "networkmanager"

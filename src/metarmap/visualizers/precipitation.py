@@ -7,6 +7,7 @@ lightning flashes over it, as in every visualizer: see style.with_lightning), th
 clouds...), freezing precipitation and ice, snow, rain, drizzle, unknown precipitation, then fog, smoke, haze, mist
 and dust. Two kinds in one group (e.g. -RASN) alternate.
 """
+
 import metarmap.lib.colors as colors_lib
 import metarmap.lib.safe_logging as safe_logging
 from metarmap.decode import parse_weather
@@ -104,8 +105,9 @@ def legend(settings):
         legend_item("Drizzle", "Dim blue", style.dim(RAIN, 0.5)),
         legend_item("Snow", "White", SNOW),
         legend_item("Freezing rain or drizzle, ice pellets, hail", "Cyan", ICE),
-        legend_item("Thunderstorm", "With rain, snow...: their color. Without: yellow (dim if nearby)",
-                    style.LIGHTNING),
+        legend_item(
+            "Thunderstorm", "With rain, snow...: their color. Without: yellow (dim if nearby)", style.LIGHTNING
+        ),
         legend_item("Squalls, funnel cloud, sand or dust storm, volcanic ash", "Magenta", HAZARD),
         legend_item("Unknown precipitation", "Orange", UNKNOWN),
         legend_item("Fog", "Gray", FOG),
@@ -113,9 +115,20 @@ def legend(settings):
         legend_item("Haze, dust, sand", "Dark gray", HAZE),
         legend_item("Mist", "Dark blue", MIST),
         *style.intensity_legend(RAIN, "rain"),
-        legend_item("Two kinds at once (e.g. rain and snow)", "Alternating their colors", RAIN, SNOW,
-                    effect="alternate", period=MIXED_PERIOD),
+        legend_item(
+            "Two kinds at once (e.g. rain and snow)",
+            "Alternating their colors",
+            RAIN,
+            SNOW,
+            effect="alternate",
+            period=MIXED_PERIOD,
+        ),
         legend_item("No weather reported", "Off"),
-        legend_item("Weather codes the map doesn't know", "Slow red blink", colors_lib.get_colors()[colors_lib.RED],
-                    effect="blink", period=style.MISSING_PERIOD),
+        legend_item(
+            "Weather codes the map doesn't know",
+            "Slow red blink",
+            colors_lib.get_colors()[colors_lib.RED],
+            effect="blink",
+            period=style.MISSING_PERIOD,
+        ),
     ]

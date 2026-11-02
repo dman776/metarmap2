@@ -1,6 +1,7 @@
 """
 Turns a Look into an adafruit_led_animation animation. The only place visualizers meet the LED library.
 """
+
 import math
 
 from adafruit_led_animation.animation.blink import Blink

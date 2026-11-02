@@ -2,15 +2,30 @@
 Color rules for every visualizer: METAR in, Look out. No LEDs involved.
 Colors are in the strip's GRB order (see lib/colors.py).
 """
+
 import pytest
 
 import metarmap.lib.colors as colors_lib
 from metarmap.models import Look
 from metarmap.settings import LIGHTNING_COLORS, Settings
 from metarmap import decode, visualizers
-from metarmap.visualizers import (ceiling, chase, density_altitude, flightcategory, precipitation, pressure, rainbow,
-                                  spread, style, temperature, visibility, visualizer, wind, wind_direction,
-                                  windgusts)
+from metarmap.visualizers import (
+    ceiling,
+    chase,
+    density_altitude,
+    flightcategory,
+    precipitation,
+    pressure,
+    rainbow,
+    spread,
+    style,
+    temperature,
+    visibility,
+    visualizer,
+    wind,
+    wind_direction,
+    windgusts,
+)
 from metarmap.visualizers.density_altitude import calculate_density_altitude
 
 C = colors_lib.get_colors()
@@ -24,12 +39,25 @@ def settings():
 
 
 def metar(**fields):
-    base = {"flightCategory": "VFR", "lightning": False, "windSpeed": 0, "windGust": False, "windGustSpeed": 0,
-            "windDir": "100", "tempC": 20, "dewpointC": 10, "altimHg": 29.92, "vis": 10, "elevation_m": 100, "obs": ""}
+    base = {
+        "flightCategory": "VFR",
+        "lightning": False,
+        "windSpeed": 0,
+        "windGust": False,
+        "windGustSpeed": 0,
+        "windDir": "100",
+        "tempC": 20,
+        "dewpointC": 10,
+        "altimHg": 29.92,
+        "vis": 10,
+        "elevation_m": 100,
+        "obs": "",
+    }
     return {**base, **fields}
 
 
 # ---- every visualizer ---------------------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize("v", ALL)
 def test_metadata(v, settings):
@@ -54,11 +82,16 @@ def test_exclusive_visualizers():
 
 
 def test_info(settings):
-    assert visualizer.info(wind, settings) == {"name": "Wind", "description": wind.DESCRIPTION, "exclusive": False,
-                                               "legend": visualizer.legend(wind, settings)}
+    assert visualizer.info(wind, settings) == {
+        "name": "Wind",
+        "description": wind.DESCRIPTION,
+        "exclusive": False,
+        "legend": visualizer.legend(wind, settings),
+    }
 
 
 # ---- flight category ----------------------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize("category, attr", [("VFR", "vfr"), ("MVFR", "mvfr"), ("IFR", "ifr"), ("LIFR", "lifr")])
 def test_flight_category_colors(settings, category, attr):
@@ -117,26 +150,33 @@ def breathing(color):
     return Look.pulse(color, period=flightcategory.ESTIMATE_PERIOD, low=style.LIGHT_LOW)
 
 
-@pytest.mark.parametrize("fields, attr", [
-    # visibility only (an automated station without a ceilometer reading)
-    ({"visibilitySM": 10.0}, "vfr"), ({"visibilitySM": 6.0}, "vfr"), ({"visibilitySM": 5.0}, "mvfr"),
-    ({"visibilitySM": 3.0}, "mvfr"), ({"visibilitySM": 2.5}, "ifr"), ({"visibilitySM": 1.0}, "ifr"),
-    ({"visibilitySM": 0.75}, "lifr"),
-    # sky condition only
-    ({"skyConditions": [{"cover": "FEW", "cloudBaseFt": 3900}]}, "vfr"),
-    ({"skyConditions": [{"cover": "CLR", "cloudBaseFt": 0}]}, "vfr"),
-    ({"skyConditions": [{"cover": "BKN", "cloudBaseFt": 3100}]}, "vfr"),
-    ({"skyConditions": [{"cover": "BKN", "cloudBaseFt": 3000}]}, "mvfr"),
-    ({"skyConditions": [{"cover": "OVC", "cloudBaseFt": 1000}]}, "mvfr"),
-    ({"skyConditions": [{"cover": "BKN", "cloudBaseFt": 800}]}, "ifr"),
-    ({"skyConditions": [{"cover": "OVC", "cloudBaseFt": 500}]}, "ifr"),
-    ({"skyConditions": [{"cover": "OVC", "cloudBaseFt": 400}]}, "lifr"),
-    ({"skyConditions": [{"cover": "OVX", "cloudBaseFt": 0}], "vertVisFt": 200}, "lifr"),
-    # both: the worse decides
-    ({"visibilitySM": 10.0, "skyConditions": [{"cover": "OVC", "cloudBaseFt": 400}]}, "lifr"),
-    ({"visibilitySM": 2.0, "skyConditions": [{"cover": "CLR", "cloudBaseFt": 0}]}, "ifr"),
-    ({"visibilitySM": 4.0, "skyConditions": [{"cover": "BKN", "cloudBaseFt": 800}]}, "ifr"),
-])
+@pytest.mark.parametrize(
+    "fields, attr",
+    [
+        # visibility only (an automated station without a ceilometer reading)
+        ({"visibilitySM": 10.0}, "vfr"),
+        ({"visibilitySM": 6.0}, "vfr"),
+        ({"visibilitySM": 5.0}, "mvfr"),
+        ({"visibilitySM": 3.0}, "mvfr"),
+        ({"visibilitySM": 2.5}, "ifr"),
+        ({"visibilitySM": 1.0}, "ifr"),
+        ({"visibilitySM": 0.75}, "lifr"),
+        # sky condition only
+        ({"skyConditions": [{"cover": "FEW", "cloudBaseFt": 3900}]}, "vfr"),
+        ({"skyConditions": [{"cover": "CLR", "cloudBaseFt": 0}]}, "vfr"),
+        ({"skyConditions": [{"cover": "BKN", "cloudBaseFt": 3100}]}, "vfr"),
+        ({"skyConditions": [{"cover": "BKN", "cloudBaseFt": 3000}]}, "mvfr"),
+        ({"skyConditions": [{"cover": "OVC", "cloudBaseFt": 1000}]}, "mvfr"),
+        ({"skyConditions": [{"cover": "BKN", "cloudBaseFt": 800}]}, "ifr"),
+        ({"skyConditions": [{"cover": "OVC", "cloudBaseFt": 500}]}, "ifr"),
+        ({"skyConditions": [{"cover": "OVC", "cloudBaseFt": 400}]}, "lifr"),
+        ({"skyConditions": [{"cover": "OVX", "cloudBaseFt": 0}], "vertVisFt": 200}, "lifr"),
+        # both: the worse decides
+        ({"visibilitySM": 10.0, "skyConditions": [{"cover": "OVC", "cloudBaseFt": 400}]}, "lifr"),
+        ({"visibilitySM": 2.0, "skyConditions": [{"cover": "CLR", "cloudBaseFt": 0}]}, "ifr"),
+        ({"visibilitySM": 4.0, "skyConditions": [{"cover": "BKN", "cloudBaseFt": 800}]}, "ifr"),
+    ],
+)
 def test_a_missing_category_is_estimated_and_breathes(settings, fields, attr):
     assert estimated(fields, settings) == breathing(flightcategory.COLORS[attr.upper()])
 
@@ -160,10 +200,17 @@ def test_the_legend_explains_estimates(settings):
 def test_estimating_from_real_reports():
     """Reports like these come in without a category from aviationweather.gov (sampled 2026-10-26)."""
     from metarmap.metar import parse_report
-    vis_only = parse_report({"rawOb": "METAR KSOW 261735Z AUTO VRB04KT 10SM 14/04 A3028 RMK AO2", "visib": "10+",
-                             "fltCat": None})
-    sky_only = parse_report({"rawOb": "METAR K18H 261730Z AUTO 09011G18KT FEW039 31/17 A3013 RMK A01",
-                             "clouds": [{"cover": "FEW", "base": 3900}], "fltCat": None})
+
+    vis_only = parse_report(
+        {"rawOb": "METAR KSOW 261735Z AUTO VRB04KT 10SM 14/04 A3028 RMK AO2", "visib": "10+", "fltCat": None}
+    )
+    sky_only = parse_report(
+        {
+            "rawOb": "METAR K18H 261730Z AUTO 09011G18KT FEW039 31/17 A3013 RMK A01",
+            "clouds": [{"cover": "FEW", "base": 3900}],
+            "fltCat": None,
+        }
+    )
     neither = parse_report({"rawOb": "METAR CWEH 261700Z AUTO 12020KT M01/M01 RMK AO1", "fltCat": None})
     assert decode.estimate_category(vis_only) == "VFR"
     assert decode.estimate_category(sky_only) == "VFR"
@@ -171,6 +218,7 @@ def test_estimating_from_real_reports():
 
 
 # ---- lightning: the same double flicker over every weather visualizer ----------------------------------------
+
 
 def lit(v, settings, **fields):
     return visualizer.look(v, metar(**fields), settings)
@@ -204,9 +252,17 @@ def test_lightning_animation_off_is_honored_everywhere(v, settings):
     assert all(i["label"] != "Lightning or a thunderstorm" for i in visualizer.legend(v, settings))
 
 
-@pytest.mark.parametrize("fields, has", [({"lightning": True}, True), ({"obs": "TSRA"}, True),
-                                         ({"obs": "+TSRA BR"}, True), ({"obs": "VCTS"}, True),
-                                         ({"obs": "-RA"}, False), ({}, False)])
+@pytest.mark.parametrize(
+    "fields, has",
+    [
+        ({"lightning": True}, True),
+        ({"obs": "TSRA"}, True),
+        ({"obs": "+TSRA BR"}, True),
+        ({"obs": "VCTS"}, True),
+        ({"obs": "-RA"}, False),
+        ({}, False),
+    ],
+)
 def test_what_counts_as_lightning(fields, has):
     assert style.has_lightning(metar(**fields)) is has
     assert style.has_lightning({}) is False  # no report
@@ -277,9 +333,18 @@ def test_no_report_is_off_everywhere(v, settings):
     assert v.look({}, settings) == OFF
 
 
-@pytest.mark.parametrize("v, field", [(wind, "windSpeed"), (windgusts, "windSpeed"), (temperature, "tempC"),
-                                      (pressure, "altimHg"), (visibility, "visibilitySM"),
-                                      (density_altitude, "tempC"), (flightcategory, "flightCategory")])
+@pytest.mark.parametrize(
+    "v, field",
+    [
+        (wind, "windSpeed"),
+        (windgusts, "windSpeed"),
+        (temperature, "tempC"),
+        (pressure, "altimHg"),
+        (visibility, "visibilitySM"),
+        (density_altitude, "tempC"),
+        (flightcategory, "flightCategory"),
+    ],
+)
 def test_a_missing_value_is_a_slow_red_blink_everywhere(v, field, settings):
     data = metar(**{field: None})
     if field == "visibilitySM":
@@ -304,9 +369,21 @@ def test_legends_come_from_the_band_tables(v, settings):
 
 # ---- wind and gusts -----------------------------------------------------------------------------------------
 
-@pytest.mark.parametrize("speed, name", [(0, colors_lib.GRAY), (1, colors_lib.BLUE), (9, colors_lib.BLUE),
-                                         (10, colors_lib.YELLOW), (14, colors_lib.YELLOW), (15, colors_lib.ORANGE),
-                                         (24, colors_lib.ORANGE), (25, colors_lib.RED), (60, colors_lib.RED)])
+
+@pytest.mark.parametrize(
+    "speed, name",
+    [
+        (0, colors_lib.GRAY),
+        (1, colors_lib.BLUE),
+        (9, colors_lib.BLUE),
+        (10, colors_lib.YELLOW),
+        (14, colors_lib.YELLOW),
+        (15, colors_lib.ORANGE),
+        (24, colors_lib.ORANGE),
+        (25, colors_lib.RED),
+        (60, colors_lib.RED),
+    ],
+)
 def test_wind_bands(settings, speed, name):
     assert wind.look(metar(windSpeed=speed), settings) == Look.solid(C[name])
 
@@ -316,13 +393,20 @@ def test_calm_is_not_off(settings):
     assert wind.look(metar(windSpeed=0), settings) != OFF
 
 
-@pytest.mark.parametrize("speed, gust, name", [
-    (12, 0, colors_lib.GRAY),  # not gusting
-    (12, 13, colors_lib.BLUE), (12, 21, colors_lib.BLUE),  # 1 and 9 kt above
-    (12, 22, colors_lib.YELLOW), (12, 26, colors_lib.YELLOW),  # 10 and 14
-    (12, 27, colors_lib.ORANGE), (12, 31, colors_lib.ORANGE),  # 15 and 19
-    (12, 32, colors_lib.RED), (5, 45, colors_lib.RED),  # 20 and 40
-])
+@pytest.mark.parametrize(
+    "speed, gust, name",
+    [
+        (12, 0, colors_lib.GRAY),  # not gusting
+        (12, 13, colors_lib.BLUE),
+        (12, 21, colors_lib.BLUE),  # 1 and 9 kt above
+        (12, 22, colors_lib.YELLOW),
+        (12, 26, colors_lib.YELLOW),  # 10 and 14
+        (12, 27, colors_lib.ORANGE),
+        (12, 31, colors_lib.ORANGE),  # 15 and 19
+        (12, 32, colors_lib.RED),
+        (5, 45, colors_lib.RED),  # 20 and 40
+    ],
+)
 def test_gust_spread_bands(settings, speed, gust, name):
     data = metar(windSpeed=speed, windGust=gust > 0, windGustSpeed=gust)
     assert windgusts.look(data, settings) == Look.solid(C[name])
@@ -339,31 +423,62 @@ def test_gusts_are_about_the_spread_not_the_speed(settings):
 
 def test_a_gust_that_is_not_above_the_wind_is_no_gust(settings):
     assert windgusts.look(metar(windSpeed=12, windGust=True, windGustSpeed=12), settings) == Look.solid(
-        C[colors_lib.GRAY])
+        C[colors_lib.GRAY]
+    )
     assert windgusts.look(metar(windSpeed=12, windGust=True, windGustSpeed=0), settings) == Look.solid(
-        C[colors_lib.GRAY])
+        C[colors_lib.GRAY]
+    )
 
 
 # ---- temperature, pressure, visibility, density altitude ----------------------------------------------------
 
-@pytest.mark.parametrize("celsius, name", [(-10, colors_lib.WHITE), (-1, colors_lib.WHITE), (0, colors_lib.PURPLE),
-                                           (12, colors_lib.BLUE), (20, colors_lib.LIGHT_BLUE), (28, colors_lib.YELLOW),
-                                           (35, colors_lib.ORANGE), (40, colors_lib.RED)])
+
+@pytest.mark.parametrize(
+    "celsius, name",
+    [
+        (-10, colors_lib.WHITE),
+        (-1, colors_lib.WHITE),
+        (0, colors_lib.PURPLE),
+        (12, colors_lib.BLUE),
+        (20, colors_lib.LIGHT_BLUE),
+        (28, colors_lib.YELLOW),
+        (35, colors_lib.ORANGE),
+        (40, colors_lib.RED),
+    ],
+)
 def test_temperature_bands(settings, celsius, name):
     """In °F: below 32 (freezing) white, 32-49 purple, 50-64 blue, 65-79 cyan, 80-89 yellow, 90-99 orange."""
     assert temperature.look(metar(tempC=celsius), settings) == Look.solid(C[name])
 
 
-@pytest.mark.parametrize("inhg, name", [(29.5, colors_lib.RED), (29.85, colors_lib.LIGHT_RED),
-                                        (29.92, colors_lib.LIGHT_BLUE), (30.1, colors_lib.LIGHT_BLUE),
-                                        (30.2, colors_lib.BLUE), (30.6, colors_lib.BLUE)])
+@pytest.mark.parametrize(
+    "inhg, name",
+    [
+        (29.5, colors_lib.RED),
+        (29.85, colors_lib.LIGHT_RED),
+        (29.92, colors_lib.LIGHT_BLUE),
+        (30.1, colors_lib.LIGHT_BLUE),
+        (30.2, colors_lib.BLUE),
+        (30.6, colors_lib.BLUE),
+    ],
+)
 def test_pressure_bands(settings, inhg, name):
     assert pressure.look(metar(altimHg=inhg), settings) == Look.solid(C[name])
 
 
-@pytest.mark.parametrize("miles, name", [(0.25, colors_lib.RED), (0.75, colors_lib.RED), (1, colors_lib.ORANGE),
-                                         (2.5, colors_lib.ORANGE), (3, colors_lib.YELLOW), (5, colors_lib.YELLOW),
-                                         (5.5, colors_lib.WHITE), (10, colors_lib.WHITE)])
+@pytest.mark.parametrize(
+    "miles, name",
+    [
+        (0.25, colors_lib.RED),
+        (0.75, colors_lib.RED),
+        (1, colors_lib.ORANGE),
+        (2.5, colors_lib.ORANGE),
+        (3, colors_lib.YELLOW),
+        (5, colors_lib.YELLOW),
+        (5.5, colors_lib.WHITE),
+        (10, colors_lib.WHITE),
+    ],
+)
 def test_visibility_bands(settings, miles, name):
     """At the flight category limits: over 5 miles, 3-5, 1 to under 3, under 1."""
     assert visibility.look(metar(visibilitySM=miles), settings) == Look.solid(C[name])
@@ -379,13 +494,16 @@ def test_density_altitude_formula():
     assert calculate_density_altitude(29.92, 1000, 25) > 1000 * 3.28084
 
 
-@pytest.mark.parametrize("fields, name", [
-    ({"elevation_m": 0, "tempC": 15, "altimHg": 29.92}, colors_lib.LIGHT_BLUE),  # standard day
-    ({"elevation_m": 0, "tempC": 0, "altimHg": 29.92}, colors_lib.LIGHT_BLUE),  # 0°C at a sea-level field is real
-    ({"elevation_m": 0, "tempC": 28, "altimHg": 29.92}, colors_lib.YELLOW),
-    ({"elevation_m": 0, "tempC": 35, "altimHg": 29.92}, colors_lib.ORANGE),
-    ({"elevation_m": 1500, "tempC": 38, "altimHg": 29.7}, colors_lib.RED),
-])
+@pytest.mark.parametrize(
+    "fields, name",
+    [
+        ({"elevation_m": 0, "tempC": 15, "altimHg": 29.92}, colors_lib.LIGHT_BLUE),  # standard day
+        ({"elevation_m": 0, "tempC": 0, "altimHg": 29.92}, colors_lib.LIGHT_BLUE),  # 0°C at a sea-level field is real
+        ({"elevation_m": 0, "tempC": 28, "altimHg": 29.92}, colors_lib.YELLOW),
+        ({"elevation_m": 0, "tempC": 35, "altimHg": 29.92}, colors_lib.ORANGE),
+        ({"elevation_m": 1500, "tempC": 38, "altimHg": 29.7}, colors_lib.RED),
+    ],
+)
 def test_density_altitude_bands(settings, fields, name):
     assert density_altitude.look(metar(**fields), settings) == Look.solid(C[name])
 
@@ -397,6 +515,7 @@ def test_density_altitude_needs_all_inputs(settings, fields):
 
 # ---- precipitation ------------------------------------------------------------------------------------------
 
+
 def W(settings, name):
     return style.LIGHTNING if name == "lightning" else precipitation.COLOR[name]
 
@@ -405,11 +524,31 @@ def P(obs, settings):
     return precipitation.look(metar(obs=obs), settings)
 
 
-@pytest.mark.parametrize("obs, kind", [("RA", "rain"), ("SHRA", "rain"), ("SN", "snow"), ("SG", "snow"),
-                                       ("FZRA", "ice"), ("FZDZ", "ice"), ("PL", "ice"), ("GR", "ice"), ("GS", "ice"),
-                                       ("IC", "ice"), ("SQ", "hazard"), ("FC", "hazard"), ("VA", "hazard"),
-                                       ("UP", "unknown"), ("FG", "fog"), ("FZFG", "fog"), ("FU", "smoke"),
-                                       ("HZ", "haze"), ("DU", "haze"), ("BR", "mist")])
+@pytest.mark.parametrize(
+    "obs, kind",
+    [
+        ("RA", "rain"),
+        ("SHRA", "rain"),
+        ("SN", "snow"),
+        ("SG", "snow"),
+        ("FZRA", "ice"),
+        ("FZDZ", "ice"),
+        ("PL", "ice"),
+        ("GR", "ice"),
+        ("GS", "ice"),
+        ("IC", "ice"),
+        ("SQ", "hazard"),
+        ("FC", "hazard"),
+        ("VA", "hazard"),
+        ("UP", "unknown"),
+        ("FG", "fog"),
+        ("FZFG", "fog"),
+        ("FU", "smoke"),
+        ("HZ", "haze"),
+        ("DU", "haze"),
+        ("BR", "mist"),
+    ],
+)
 def test_precipitation_color_is_the_kind(settings, obs, kind):
     assert P(obs, settings) == Look.solid(W(settings, kind))
 
@@ -467,6 +606,7 @@ def test_unknown_codes_are_a_slow_red_blink(settings):
 
 # ---- whole-strip patterns -----------------------------------------------------------------------------------
 
+
 def test_rainbow(settings):
     assert rainbow.strip_look(settings) == Look.rainbow(period=5)
 
@@ -479,19 +619,23 @@ def test_chase_walks_every_led(settings):
 
 # ---- ceiling ------------------------------------------------------------------------------------------------
 
+
 def sky(*layers):
     return [{"cover": cover, "cloudBaseFt": base} for cover, base in layers]
 
 
-@pytest.mark.parametrize("layers, name", [
-    (sky(("BKN", 400)), colors_lib.RED),
-    (sky(("OVC", 500)), colors_lib.ORANGE),
-    (sky(("BKN", 999)), colors_lib.ORANGE),
-    (sky(("BKN", 1000)), colors_lib.YELLOW),
-    (sky(("OVC", 3000)), colors_lib.YELLOW),  # 3,000 ft is still MVFR
-    (sky(("BKN", 3100)), colors_lib.WHITE),
-    (sky(("FEW", 800), ("SCT", 1500), ("BKN", 2500), ("OVC", 400)), colors_lib.YELLOW),  # the lowest BKN/OVC
-])
+@pytest.mark.parametrize(
+    "layers, name",
+    [
+        (sky(("BKN", 400)), colors_lib.RED),
+        (sky(("OVC", 500)), colors_lib.ORANGE),
+        (sky(("BKN", 999)), colors_lib.ORANGE),
+        (sky(("BKN", 1000)), colors_lib.YELLOW),
+        (sky(("OVC", 3000)), colors_lib.YELLOW),  # 3,000 ft is still MVFR
+        (sky(("BKN", 3100)), colors_lib.WHITE),
+        (sky(("FEW", 800), ("SCT", 1500), ("BKN", 2500), ("OVC", 400)), colors_lib.YELLOW),  # the lowest BKN/OVC
+    ],
+)
 def test_ceiling_bands(settings, layers, name):
     assert ceiling.look(metar(skyConditions=layers), settings) == Look.solid(C[name])
 
@@ -502,10 +646,10 @@ def test_no_ceiling_is_dim_white(settings, layers):
 
 
 def test_an_obscured_sky_is_a_ceiling_at_the_vertical_visibility(settings):
-    assert ceiling.look(metar(skyConditions=sky(("OVX", 0)), vertVisFt=200), settings) == Look.solid(
-        C[colors_lib.RED])
+    assert ceiling.look(metar(skyConditions=sky(("OVX", 0)), vertVisFt=200), settings) == Look.solid(C[colors_lib.RED])
     assert ceiling.look(metar(skyConditions=sky(("OVX", 0)), vertVisFt=None), settings) == Look.solid(
-        C[colors_lib.RED])  # obscured, height unknown: as low as it gets
+        C[colors_lib.RED]
+    )  # obscured, height unknown: as low as it gets
 
 
 def test_ceiling_missing_and_no_report(settings):
@@ -516,10 +660,20 @@ def test_ceiling_missing_and_no_report(settings):
 
 # ---- dewpoint spread ----------------------------------------------------------------------------------------
 
-@pytest.mark.parametrize("temp, dewpoint, name", [
-    (10, 10, colors_lib.RED), (10, 9, colors_lib.RED), (10, 8, colors_lib.ORANGE), (10, 7, colors_lib.YELLOW),
-    (10, 6, colors_lib.YELLOW), (10, 5, colors_lib.WHITE), (-3, -4, colors_lib.RED), (30, 5, colors_lib.WHITE),
-])
+
+@pytest.mark.parametrize(
+    "temp, dewpoint, name",
+    [
+        (10, 10, colors_lib.RED),
+        (10, 9, colors_lib.RED),
+        (10, 8, colors_lib.ORANGE),
+        (10, 7, colors_lib.YELLOW),
+        (10, 6, colors_lib.YELLOW),
+        (10, 5, colors_lib.WHITE),
+        (-3, -4, colors_lib.RED),
+        (30, 5, colors_lib.WHITE),
+    ],
+)
 def test_spread_bands(settings, temp, dewpoint, name):
     assert spread.look(metar(tempC=temp, dewpointC=dewpoint), settings) == Look.solid(C[name])
 
@@ -532,12 +686,26 @@ def test_spread_missing_and_no_report(settings):
 
 # ---- wind direction -----------------------------------------------------------------------------------------
 
-@pytest.mark.parametrize("direction, name", [
-    ("360", colors_lib.RED), ("10", colors_lib.RED), ("22", colors_lib.RED), ("338", colors_lib.RED),
-    ("23", colors_lib.ORANGE), ("67", colors_lib.ORANGE), ("68", colors_lib.YELLOW), ("90", colors_lib.YELLOW),
-    ("135", colors_lib.GREEN), ("180", colors_lib.CYAN), ("225", colors_lib.BLUE), ("270", colors_lib.PURPLE),
-    ("315", colors_lib.MAGENTA), ("337", colors_lib.MAGENTA),
-])
+
+@pytest.mark.parametrize(
+    "direction, name",
+    [
+        ("360", colors_lib.RED),
+        ("10", colors_lib.RED),
+        ("22", colors_lib.RED),
+        ("338", colors_lib.RED),
+        ("23", colors_lib.ORANGE),
+        ("67", colors_lib.ORANGE),
+        ("68", colors_lib.YELLOW),
+        ("90", colors_lib.YELLOW),
+        ("135", colors_lib.GREEN),
+        ("180", colors_lib.CYAN),
+        ("225", colors_lib.BLUE),
+        ("270", colors_lib.PURPLE),
+        ("315", colors_lib.MAGENTA),
+        ("337", colors_lib.MAGENTA),
+    ],
+)
 def test_wind_direction_sectors(settings, direction, name):
     assert wind_direction.look(metar(windDir=direction, windSpeed=8), settings) == Look.solid(C[name])
 
@@ -547,8 +715,9 @@ def test_wind_direction_calm_variable_and_missing(settings):
     assert wind_direction.look(metar(windDir="0", windSpeed=0), settings) == calm
     assert wind_direction.look(metar(windDir="270", windSpeed=0), settings) == calm
     assert wind_direction.look(metar(windDir="0", windSpeed=None), settings) == calm
-    assert wind_direction.look(metar(windDir="VRB", windSpeed=3), settings) == \
-        Look.pulse(C[colors_lib.WHITE], period=style.LIGHT_PERIOD, low=style.LIGHT_LOW)
+    assert wind_direction.look(metar(windDir="VRB", windSpeed=3), settings) == Look.pulse(
+        C[colors_lib.WHITE], period=style.LIGHT_PERIOD, low=style.LIGHT_LOW
+    )
     assert wind_direction.look(metar(windDir="", windSpeed=None), settings) == style.missing()
     assert wind_direction.look(metar(windDir="", windSpeed=5), settings) == style.missing()
     assert wind_direction.look({}, settings) == OFF
@@ -563,14 +732,29 @@ def test_wind_direction_legend(settings):
 
 def test_wind_direction_flickers_with_lightning(settings):
     storm = metar(windDir="180", windSpeed=10, lightning=True)
-    assert visualizer.look(wind_direction, storm, settings) == style.with_lightning(Look.solid(C[colors_lib.CYAN]),
-                                                                                 settings)
+    assert visualizer.look(wind_direction, storm, settings) == style.with_lightning(
+        Look.solid(C[colors_lib.CYAN]), settings
+    )
 
 
 def test_the_patterns_are_last():
     """Rainbow and Chase (one look for the whole strip) always come after the weather visualizers."""
-    assert [v.NAME for v in ALL] == ["Flight Category", "Wind", "Wind Gusts", "Wind Direction", "Pressure",
-                                     "Precipitation", "Temperature", "Visibility", "Density Altitude", "Ceiling",
-                                     "Dewpoint Spread", "Advisories", "TFR", "Rainbow", "Chase"]
+    assert [v.NAME for v in ALL] == [
+        "Flight Category",
+        "Wind",
+        "Wind Gusts",
+        "Wind Direction",
+        "Pressure",
+        "Precipitation",
+        "Temperature",
+        "Visibility",
+        "Density Altitude",
+        "Ceiling",
+        "Dewpoint Spread",
+        "Advisories",
+        "TFR",
+        "Rainbow",
+        "Chase",
+    ]
     patterns = [visualizer.strip_look(v, Settings()) is not None for v in ALL]
     assert patterns == sorted(patterns), "a whole-strip visualizer comes before a weather one"

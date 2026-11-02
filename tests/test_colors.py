@@ -1,4 +1,5 @@
 """Tests for lib/colors.py."""
+
 import doctest
 
 import pytest
@@ -12,14 +13,17 @@ def test_doctests():
     assert result.attempted > 0
 
 
-@pytest.mark.parametrize("grb, css", [
-    ((255, 0, 0), "#00ff00"),  # GRB order: first channel is green
-    ((0, 255, 0), "#ff0000"),
-    ((0, 0, 255), "#0000ff"),
-    ((0, 0, 0), "#000000"),
-    ((0, 125, 125), "#7d007d"),  # LIFR purple from the default config
-    ((15, 15, 15), "#5a5a5a"),  # dim colors are lifted so they show on screen
-])
+@pytest.mark.parametrize(
+    "grb, css",
+    [
+        ((255, 0, 0), "#00ff00"),  # GRB order: first channel is green
+        ((0, 255, 0), "#ff0000"),
+        ((0, 0, 255), "#0000ff"),
+        ((0, 0, 0), "#000000"),
+        ((0, 125, 125), "#7d007d"),  # LIFR purple from the default config
+        ((15, 15, 15), "#5a5a5a"),  # dim colors are lifted so they show on screen
+    ],
+)
 def test_to_css(grb, css):
     assert colors.to_css(grb) == css
 

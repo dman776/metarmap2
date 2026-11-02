@@ -2,14 +2,17 @@
 Wind Direction: colors each airport by the compass direction its wind blows from (as the METAR reports it), in eight
 45° sectors. Wind and Wind Gusts show how strong it is.
 """
+
 import metarmap.lib.colors as colors_lib
 from metarmap.models import Look, Metar
 from metarmap.visualizers import style
 from metarmap.visualizers.visualizer import legend_item
 
 NAME = "Wind Direction"
-DESCRIPTION = "Display the direction the wind blows from: red from the north, then orange, yellow, green, cyan, " \
-              "blue, purple and magenta around the compass."
+DESCRIPTION = (
+    "Display the direction the wind blows from: red from the north, then orange, yellow, green, cyan, "
+    "blue, purple and magenta around the compass."
+)
 EXCLUSIVE = False
 BARBS = True  # the Map page draws each airport's wind barb
 
@@ -35,7 +38,7 @@ def sector(degrees: float) -> int:
 
 def heading(metar: Metar):
     """The direction in degrees, "VRB", or None when the report has none."""
-    direction = str(metar.get('windDir') or "").strip().upper()
+    direction = str(metar.get("windDir") or "").strip().upper()
     if direction == "VRB":
         return direction
     try:
@@ -48,7 +51,7 @@ def look(metar: Metar, settings) -> Look:
     if not metar:
         return style.no_report()
     direction = heading(metar)
-    if metar.get('windSpeed') == 0 or (direction == 0 and not metar.get('windSpeed')):
+    if metar.get("windSpeed") == 0 or (direction == 0 and not metar.get("windSpeed")):
         return Look.solid(style.named(CALM))
     if direction == "VRB":
         return Look.pulse(style.named(VARIABLE), period=style.LIGHT_PERIOD, low=style.LIGHT_LOW)
@@ -65,8 +68,14 @@ def legend(settings):
     return [
         *items,
         legend_item("Calm", "Dim white", style.named(CALM)),
-        legend_item("Variable", "Breathing white", style.named(VARIABLE), effect="pulse", period=style.LIGHT_PERIOD,
-                    low=style.LIGHT_LOW),
+        legend_item(
+            "Variable",
+            "Breathing white",
+            style.named(VARIABLE),
+            effect="pulse",
+            period=style.LIGHT_PERIOD,
+            low=style.LIGHT_LOW,
+        ),
         style.missing_legend("wind direction"),
         style.no_report_legend(),
     ]

@@ -4,6 +4,7 @@ The config.json schema: every setting with its type and default.
 Settings load from an existing config.json unchanged; missing keys get their defaults and unknown keys are kept,
 so older or hand-edited files keep working and round-trip on save.
 """
+
 import dataclasses
 import json
 import os
@@ -133,6 +134,7 @@ class UpdateSettings(_Section):
 @dataclass
 class Airport(_Section):
     """One LED of the strip (or a virtual airport, after them) and the airport it shows."""
+
     code: str = ""  # ICAO code; empty for an LED with no airport
     name: str = ""  # shown next to the code in the web UI
     display: bool = False  # show this airport on the OLED screen

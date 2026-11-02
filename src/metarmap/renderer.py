@@ -1,6 +1,7 @@
 """
 Drives the LED strip: turns the active visualizer's looks into animations and runs them.
 """
+
 import threading
 import time
 import traceback
@@ -42,6 +43,7 @@ class Renderer(object):
     config: settings, including the airport on each LED (config.data.airports)
     sun: today's sun times, for the scheduled brightness
     """
+
     def __init__(self, strip, metars, config, visualizers, sun: SunTimes, clock: Clock = None):
         self._pixels = strip
         # one addressable subset per LED, so each airport gets its own animation
@@ -76,7 +78,7 @@ class Renderer(object):
             looks = visualizer.looks(self._vis, [a.code for a in settings.airports], data, settings)
             # the virtual airports (after led.count) have no LED; their looks are for the web map. A strip still
             # longer than led.count (a NeoPixel strip until the restart) keeps its extra LEDs dark
-            animations = [animation_for(look, pixel) for look, pixel in zip(looks[:settings.led.count], self._pix)]
+            animations = [animation_for(look, pixel) for look, pixel in zip(looks[: settings.led.count], self._pix)]
         self._looks, self._strip_look, self._animations = looks, strip_look, animations
 
     @property
@@ -291,5 +293,5 @@ class Renderer(object):
         self.animate_once(RainbowComet(self._pixels, speed=0.05, tail_length=5, bounce=False))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     print("Renderer")

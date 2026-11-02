@@ -8,6 +8,7 @@ map never asks adsb.fi more often than that, however many pages are open. A fail
 adsb.fi's open data is free for personal, non-commercial use, at most one request a second, and the map must credit
 it (the Map page does). https://github.com/adsbfi/opendata
 """
+
 import math
 import threading
 import time
@@ -70,10 +71,56 @@ KINDS = {
 # ICAO type designators the category doesn't tell apart: the biggest heavies, and helicopters (many send A1, or none)
 SUPER = {"A388", "A124", "A225", "B741", "B742", "B743", "B744", "B748", "C5M", "BLCF"}
 HELICOPTERS = {
-    "R22", "R44", "R66", "H500", "MD52", "MD60", "H269", "G2CA", "EN28", "EN48", "B06", "B06T", "B407", "B427", "B429",
-    "B430", "B505", "B205", "B212", "B412", "UH1", "UH1Y", "H60", "S70", "S76", "S92", "H47", "H53", "H64", "AH1",
-    "AS50", "AS55", "AS65", "AS32", "AS3B", "EC20", "EC25", "EC30", "EC35", "EC45", "EC55", "EC75", "H160", "BK17",
-    "A109", "A119", "A139", "A169", "A189", "NH90",
+    "R22",
+    "R44",
+    "R66",
+    "H500",
+    "MD52",
+    "MD60",
+    "H269",
+    "G2CA",
+    "EN28",
+    "EN48",
+    "B06",
+    "B06T",
+    "B407",
+    "B427",
+    "B429",
+    "B430",
+    "B505",
+    "B205",
+    "B212",
+    "B412",
+    "UH1",
+    "UH1Y",
+    "H60",
+    "S70",
+    "S76",
+    "S92",
+    "H47",
+    "H53",
+    "H64",
+    "AH1",
+    "AS50",
+    "AS55",
+    "AS65",
+    "AS32",
+    "AS3B",
+    "EC20",
+    "EC25",
+    "EC30",
+    "EC35",
+    "EC45",
+    "EC55",
+    "EC75",
+    "H160",
+    "BK17",
+    "A109",
+    "A119",
+    "A139",
+    "A169",
+    "A189",
+    "NH90",
 }
 
 
@@ -110,26 +157,28 @@ def parse(data, fetched):
             continue
         ground = a.get("alt_baro") == "ground"
         emergency = a.get("emergency")
-        aircraft.append({
-            "hex": a["hex"],
-            "flight": (a.get("flight") or "").strip() or None,
-            "reg": a.get("r"),
-            "type": a.get("t"),
-            "desc": a.get("desc"),
-            "operator": a.get("ownOp"),
-            "lat": lat,
-            "lon": lon,
-            "ground": ground,
-            "alt": None if ground else first_number(a.get("alt_baro"), a.get("alt_geom")),
-            "gs": number(a.get("gs")),
-            "track": first_number(a.get("track"), a.get("true_heading")),
-            "vrate": first_number(a.get("baro_rate"), a.get("geom_rate")),
-            "squawk": a.get("squawk"),
-            "emergency": emergency if emergency and emergency != "none" else None,
-            "category": a.get("category"),
-            "kind": kind_of(a.get("category"), a.get("t")),
-            "at": round(fetched - seen, 2),
-        })
+        aircraft.append(
+            {
+                "hex": a["hex"],
+                "flight": (a.get("flight") or "").strip() or None,
+                "reg": a.get("r"),
+                "type": a.get("t"),
+                "desc": a.get("desc"),
+                "operator": a.get("ownOp"),
+                "lat": lat,
+                "lon": lon,
+                "ground": ground,
+                "alt": None if ground else first_number(a.get("alt_baro"), a.get("alt_geom")),
+                "gs": number(a.get("gs")),
+                "track": first_number(a.get("track"), a.get("true_heading")),
+                "vrate": first_number(a.get("baro_rate"), a.get("geom_rate")),
+                "squawk": a.get("squawk"),
+                "emergency": emergency if emergency and emergency != "none" else None,
+                "category": a.get("category"),
+                "kind": kind_of(a.get("category"), a.get("t")),
+                "at": round(fetched - seen, 2),
+            }
+        )
     return aircraft
 
 
@@ -185,8 +234,9 @@ class Traffic:
             return
         (lat, lon), radius = circle
         try:
-            response = self._get(API_URL.format(lat=lat, lon=lon, dist=radius), timeout=TIMEOUT,
-                                 headers={"User-Agent": USER_AGENT})
+            response = self._get(
+                API_URL.format(lat=lat, lon=lon, dist=radius), timeout=TIMEOUT, headers={"User-Agent": USER_AGENT}
+            )
             if response.status_code == 429:
                 self._failed("adsb.fi says too many requests", at_least=RATE_LIMITED)
                 return

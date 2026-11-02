@@ -6,6 +6,7 @@ Maps installed with an older metarmap.service start this file, and so does their
 so it stays here. New installs run `python3 -m metarmap` (see metarmap.service), and the map switches an older
 installed service file over when it starts (metarmap/service.py).
 """
+
 import os
 import sys
 

@@ -20,13 +20,15 @@ STATION_URL = "https://aviationweather.gov/api/data/stationinfo?format=json&ids=
 MAX_REPORT_AGE = timedelta(hours=5)
 ALTIMETER = re.compile(r"\bA(\d{4})\b")  # "A3023": 30.23 inHg, in a US report's body
 HPA_PER_INHG = 33.8639
-USER_AGENT = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
-              "Chrome/86.0.4240.198 Safari/537.36 Edg/86.0.622.69")
+USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/86.0.4240.198 Safari/537.36 Edg/86.0.622.69"
+)
 
 
 def parse_visibility(value):
     """Statute miles from the report: "10+", "6.0", "0.25", "1/2" or "1 1/2" (None if not reported)."""
-    text = str(value or '').replace('+', '').strip()
+    text = str(value or "").replace("+", "").strip()
     if not text:
         return None
     return float(sum(Fraction(part) for part in text.split()))
@@ -39,6 +41,7 @@ def airport_codes(airports):
 
 # ---- parsing (no state: the METAR class below fetches and keeps the results) ------------------------------------
 
+
 def latest_reports(content):
     """
     The newest report for each station in a JSON response, as {station: report}. Newest by its time rather than
@@ -48,10 +51,10 @@ def latest_reports(content):
     reports = json.loads(text) if text.strip() else []
     by_station = {}
     for m in reports if isinstance(reports, list) else []:
-        if isinstance(m, dict) and m.get('icaoId'):
-            current = by_station.get(m['icaoId'])
-            if current is None or (m.get('obsTime') or 0) > (current.get('obsTime') or 0):
-                by_station[m['icaoId']] = m
+        if isinstance(m, dict) and m.get("icaoId"):
+            current = by_station.get(m["icaoId"])
+            if current is None or (m.get("obsTime") or 0) > (current.get("obsTime") or 0):
+                by_station[m["icaoId"]] = m
     return by_station
 
 
@@ -72,8 +75,10 @@ def process(content, codes, now):
         try:
             parsed = parse_report(metar)
             if parsed["obsTime"] is not None and parsed["obsTime"] < oldest_allowed:
-                safe_logging.safe_log(f"{airport}: latest report is from {parsed['obsTime']:%Y-%m-%d %H:%MZ}; "
-                                      f"treating it as not reporting")
+                safe_logging.safe_log(
+                    f"{airport}: latest report is from {parsed['obsTime']:%Y-%m-%d %H:%MZ}; "
+                    f"treating it as not reporting"
+                )
                 data[airport] = {}
                 missing.append(airport)
                 continue
@@ -81,8 +86,9 @@ def process(content, codes, now):
             reporting.append(airport)
         except Exception as e:
             # one malformed report only affects its own airport
-            safe_logging.safe_log(f"Could not parse METAR for {airport}: {e} raw: {metar.get('raw_text')}\n"
-                                  f"{traceback.format_exc()}")
+            safe_logging.safe_log(
+                f"Could not parse METAR for {airport}: {e} raw: {metar.get('raw_text')}\n{traceback.format_exc()}"
+            )
             data[airport] = {}
             missing.append(airport)
     return data, reporting, missing
@@ -92,47 +98,52 @@ def parse_report(metar):
     """
     Converts one METAR from the JSON response into the dict used everywhere else.
     """
+
     def num(key, default=None):
         value = metar.get(key)
-        if value in (None, ''):
+        if value in (None, ""):
             return default
-        return float(str(value).replace('+', ''))
+        return float(str(value).replace("+", ""))
 
-    raw_metar = (metar.get('rawOb') or '').strip()  # the JSON can end it with a space
-    temp_c = num('temp')
-    dewpoint_c = num('dewp')
-    obs_time = metar.get('obsTime')
+    raw_metar = (metar.get("rawOb") or "").strip()  # the JSON can end it with a space
+    temp_c = num("temp")
+    dewpoint_c = num("dewp")
+    obs_time = metar.get("obsTime")
 
-    sky_conditions = [{"cover": sc.get('cover', ''), "cloudBaseFt": int(sc.get('base') or 0)}
-                      for sc in metar.get('clouds') or [] if isinstance(sc, dict)]
-    if not sky_conditions and metar.get('cover'):  # a clear sky has no layers, only "cover": "CLR"
-        sky_conditions = [{"cover": metar['cover'], "cloudBaseFt": 0}]
+    sky_conditions = [
+        {"cover": sc.get("cover", ""), "cloudBaseFt": int(sc.get("base") or 0)}
+        for sc in metar.get("clouds") or []
+        if isinstance(sc, dict)
+    ]
+    if not sky_conditions and metar.get("cover"):  # a clear sky has no layers, only "cover": "CLR"
+        sky_conditions = [{"cover": metar["cover"], "cloudBaseFt": 0}]
 
-    wind_dir = metar.get('wdir')
-    wind_gust_speed = int(num('wgst', 0))
-    visibility = parse_visibility(metar.get('visib'))
+    wind_dir = metar.get("wdir")
+    wind_gust_speed = int(num("wgst", 0))
+    visibility = parse_visibility(metar.get("visib"))
     return {
         "raw": raw_metar,
-        "name": metar.get('name') or '',  # e.g. "Houston/Hobby Arpt, TX, US"
-        "elevation_m": int(round(num('elev', 0))),
-        "flightCategory": metar.get('fltCat'),
-        "windDir": '' if wind_dir is None else str(wind_dir),  # degrees, or "VRB"
-        "windSpeed": int(num('wspd', 0)),
+        "name": metar.get("name") or "",  # e.g. "Houston/Hobby Arpt, TX, US"
+        "elevation_m": int(round(num("elev", 0))),
+        "flightCategory": metar.get("fltCat"),
+        "windDir": "" if wind_dir is None else str(wind_dir),  # degrees, or "VRB"
+        "windSpeed": int(num("wspd", 0)),
         "windGustSpeed": wind_gust_speed,
         "windGust": wind_gust_speed > 0,
         "vis": int(round(visibility or 0)),
         "visibilitySM": visibility,  # exact (e.g. 0.25), None if not reported
-        "visibilityMore": "+" in str(metar.get('visib') or ''),  # "10+": more than 10 miles
-        "vertVisFt": int(num('vertVis')) * 100 if num('vertVis') is not None else None,  # reported in hundreds of ft
-        "obs": metar.get('wxString') or '',
+        "visibilityMore": "+" in str(metar.get("visib") or ""),  # "10+": more than 10 miles
+        "vertVisFt": int(num("vertVis")) * 100 if num("vertVis") is not None else None,  # reported in hundreds of ft
+        "obs": metar.get("wxString") or "",
         "tempC": int(round(temp_c)) if temp_c is not None else None,
         "dewpointC": int(round(dewpoint_c)) if dewpoint_c is not None else None,
-        "altimHg": altimeter_inhg(raw_metar, num('altim')),
-        "lightning": 'LTG' in raw_metar,
+        "altimHg": altimeter_inhg(raw_metar, num("altim")),
+        "lightning": "LTG" in raw_metar,
         "skyConditions": sky_conditions,
         "obsTime": datetime.fromtimestamp(obs_time, timezone.utc) if obs_time else None,
-        "latitude": num('lat'),
-        "longitude": num('lon')}
+        "latitude": num("lat"),
+        "longitude": num("lon"),
+    }
 
 
 def altimeter_inhg(raw, hectopascals):
@@ -283,9 +294,13 @@ def with_mocks(real, airports, positions, now):
             continue
         known = real.get(airport.code) or {}
         station = positions.get(airport.code) or {}
-        mock.update(name=known.get("name") or station.get("name", ""), elevation_m=known.get("elevation_m", 0),
-                    latitude=known.get("latitude") or station.get("lat"),
-                    longitude=known.get("longitude") or station.get("lon"), mock=True)
+        mock.update(
+            name=known.get("name") or station.get("name", ""),
+            elevation_m=known.get("elevation_m", 0),
+            latitude=known.get("latitude") or station.get("lat"),
+            longitude=known.get("longitude") or station.get("lon"),
+            mock=True,
+        )
         data[airport.code] = mock
     return data
 
@@ -363,7 +378,7 @@ class METAR(object):
             self._is_fetching = True
             safe_logging.safe_log("Fetching...")
             url = API_URL + ",".join(airport_codes(self._config.airports))
-            response = requests.get(url, headers={'User-Agent': USER_AGENT}, timeout=30, verify=True)
+            response = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=30, verify=True)
             response.raise_for_status()
             content = response.content
             self._is_fetching = False
@@ -400,7 +415,7 @@ class METAR(object):
         if not codes:
             return True
         try:
-            response = requests.get(STATION_URL + ",".join(codes), headers={'User-Agent': USER_AGENT}, timeout=timeout)
+            response = requests.get(STATION_URL + ",".join(codes), headers={"User-Agent": USER_AGENT}, timeout=timeout)
             response.raise_for_status()
             stations = response.json()
         except (requests.exceptions.RequestException, ValueError) as e:
@@ -410,8 +425,11 @@ class METAR(object):
         for station in stations if isinstance(stations, list) else []:
             try:
                 code = station.get("icaoId") or station["id"]
-                found[code] = {"lat": float(station["lat"]), "lon": float(station["lon"]),
-                               "name": str(station.get("site") or "").strip()}
+                found[code] = {
+                    "lat": float(station["lat"]),
+                    "lon": float(station["lon"]),
+                    "name": str(station.get("site") or "").strip(),
+                }
             except (KeyError, TypeError, ValueError, AttributeError):
                 continue
         for code in codes:
@@ -446,7 +464,8 @@ class METAR(object):
         safe_logging.safe_log("Processing...")
         # built separately, then swapped in, so readers never see half-filled data
         self._real, self._stations, self._missing_stations = process(
-            content, airport_codes(self._config.airports), self._clock.now())
+            content, airport_codes(self._config.airports), self._clock.now()
+        )
         self.apply_mocks()
         safe_logging.safe_log(f"Missing stations: {self._missing_stations}")
         safe_logging.safe_log("Processing complete.")
@@ -475,4 +494,3 @@ class METAR(object):
         Returns a list of all stations from the fetch
         """
         return self._stations
-

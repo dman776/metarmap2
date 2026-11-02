@@ -2,6 +2,7 @@
 Density Altitude: colors each airport by how far its density altitude is above the field: how much higher the
 airport "feels" to an airplane on a hot day or with low pressure.
 """
+
 from typing import Union
 
 import metarmap.lib.colors as colors_lib
@@ -10,7 +11,7 @@ from metarmap.visualizers import style
 from metarmap.visualizers.style import Band
 
 NAME = "Density Altitude"
-DESCRIPTION = "Display the density altitude above the field elevation (how much higher the airport \"feels\")."
+DESCRIPTION = 'Display the density altitude above the field elevation (how much higher the airport "feels").'
 EXCLUSIVE = False
 
 STANDARD_PRESSURE = 29.92
@@ -48,16 +49,19 @@ def calculate_density_altitude(pressure: float, field_elevation_m: float, oat: f
 
 
 def legend(settings):
-    return [*style.band_legend(BANDS, settings), style.missing_legend("temperature or altimeter setting"),
-            style.no_report_legend()]
+    return [
+        *style.band_legend(BANDS, settings),
+        style.missing_legend("temperature or altimeter setting"),
+        style.no_report_legend(),
+    ]
 
 
 def look(metar: Metar, settings) -> Look:
     if not metar:
         return style.no_report()
     # a sea-level field (0 m) and 0°C are real values; a missing altimeter setting is read as 0
-    if not metar.get('altimHg') or metar.get('elevation_m') is None or metar.get('tempC') is None:
+    if not metar.get("altimHg") or metar.get("elevation_m") is None or metar.get("tempC") is None:
         return style.missing()
-    density_altitude = calculate_density_altitude(metar['altimHg'], metar['elevation_m'], metar['tempC'])
-    above = density_altitude - meters_to_feet(metar['elevation_m'])
+    density_altitude = calculate_density_altitude(metar["altimHg"], metar["elevation_m"], metar["tempC"])
+    above = density_altitude - meters_to_feet(metar["elevation_m"])
     return Look.solid(style.band_for(above, BANDS, settings))

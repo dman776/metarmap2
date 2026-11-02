@@ -1,6 +1,7 @@
 """
 Simple wrapper around a logger.
 """
+
 import logging
 import logging.handlers
 import threading
@@ -24,7 +25,7 @@ def _escape(text):
     ''
     """
 
-    return str(text).replace('\r', '\\r').replace('\n', '\\n').replace('\x1a', '\\x1a')
+    return str(text).replace("\r", "\\r").replace("\n", "\\n").replace("\x1a", "\\x1a")
 
 
 class Logger(object):
@@ -39,13 +40,12 @@ class Logger(object):
         self.log_warning_message(message_to_log)
 
     def log_info_message(self, message_to_log, print_to_screen=True):
-        """ Log and print at Info level """
+        """Log and print at Info level"""
         try:
             _lock.acquire()
 
             if print_to_screen:
-                text = "{} INFO: {}".format(
-                    datetime.utcnow(), _escape(message_to_log))
+                text = "{} INFO: {}".format(datetime.utcnow(), _escape(message_to_log))
                 print(text)
             self._logger.info(_escape(message_to_log))
         finally:
@@ -54,7 +54,7 @@ class Logger(object):
         return message_to_log
 
     def log_warning_message(self, message_to_log):
-        """ Log and print at Warning level """
+        """Log and print at Warning level"""
         try:
             _lock.acquire()
 
@@ -71,12 +71,8 @@ class Logger(object):
 
 _python_logger = logging.getLogger(LOG_NAME)
 _python_logger.setLevel(logging.DEBUG)
-_handler = logging.handlers.RotatingFileHandler(
-    "metarmap.log",
-    maxBytes=10485760,
-    backupCount=10)
-_handler.setFormatter(logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+_handler = logging.handlers.RotatingFileHandler("metarmap.log", maxBytes=10485760, backupCount=10)
+_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
 _python_logger.addHandler(_handler)
 
 LOGGER = Logger(_python_logger)
