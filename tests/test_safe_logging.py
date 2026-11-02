@@ -57,7 +57,8 @@ def test_a_classmethod_logs_its_class(capsys):
 
 def test_the_line_number_and_message_follow(capsys):
     function()
-    assert logged(capsys).endswith(":27: from a function")
+    line = function.__code__.co_firstlineno + 1  # safe_log() is its first line
+    assert logged(capsys).endswith(f":{line}: from a function")
 
 
 def test_a_message_from_a_thread_is_not_indented(capsys):
