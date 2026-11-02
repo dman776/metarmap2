@@ -31,7 +31,7 @@ pi = [
 ]
 dev = [
     "pytest>=7",
-    "ruff>=0.6",
+    "ruff==0.17.2",  # the same version as .pre-commit-config.yaml: the formatter's output can change between versions
 ]
 
 [project.urls]
@@ -60,3 +60,6 @@ line-length = 120
 
 [tool.ruff.lint]
 select = ["E", "F"]
+
+[tool.ruff.format]
+# ruff format's defaults (Black's style); the pre-commit hook and CI check it
