@@ -55,7 +55,7 @@
     },
     "lightning": {
         "animation": true,
-		"color": "yellow"
+        "color": "yellow"
     },
     "tfr": {
         "nearby_nm": 10
