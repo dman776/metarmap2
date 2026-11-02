@@ -95,9 +95,14 @@ class VisualizerSettings(_Section):
     auto_rotate: AutoRotate = field(default_factory=AutoRotate)
 
 
+# lightning.color: the colors the lightning flashes can be (style.LIGHTNING_COLORS has each one's LED color)
+LIGHTNING_COLORS = ("yellow", "white")
+
+
 @dataclass
 class Lightning(_Section):
     animation: bool = True
+    color: str = "yellow"  # one of LIGHTNING_COLORS
 
 
 # tfr.nearby_nm: the most a TFR can be from an airport and still show on its LED (0: inside only)

@@ -1,3 +1,9 @@
+### Unreleased
+
+- **Lightning color** (Config > Visualizers, `lightning.color`): the lightning flashes can be yellow (the default) or
+  white, on the LEDs, the Map page and the legends. Precipitation's thunderstorm with no precipitation stays yellow,
+  since its snow is white. Idea from Travis Cole (traviscole)
+
 ### dman776 3.1.2 (2026-11-01)
 
 - `python -m metarmap --port 8080` runs the web server on another port for that run, without editing `config.json`

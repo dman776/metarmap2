@@ -238,6 +238,19 @@ def test_led_pin_and_order(client):
     assert '<option value="RGB" selected>RGB</option>' in body
 
 
+def test_lightning_color(client):
+    def color():
+        return client.services.config.data.lightning.color
+    assert color() == "yellow"
+    assert client("/config/edit/lightning.color/white")[0] == 200
+    assert color() == "white"
+    assert client("/config/edit/lightning.color/purple")[0] == 400
+    assert client("/config/edit/lightning.color/%23ffffff")[0] == 400  # a name, not a hex color
+    assert color() == "white"
+    assert client.json("/api/status", auth=False)["config"]["lightning.color"] == "white"
+    assert '<option value="white" selected>White</option>' in client("/config")[1]
+
+
 def test_config_tabs(client):
     body = client("/config")[1]
     tabs = re.findall(r'<a class="tab" href="([^"]+)" data-tab="(\w+)"', body)

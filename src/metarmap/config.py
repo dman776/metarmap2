@@ -6,8 +6,8 @@ from datetime import datetime, timezone
 
 from metarmap.lib.safe_logging import safe_log
 from metarmap.metar import MOCK_KEY, parse_raw
-from metarmap.settings import (BRANCH_NAME, LED_ORDERS, LED_PINS, TFR_NEARBY_NM, TRAFFIC_SECONDS, UPDATE_CHANNELS,
-                               Airport, Settings, parse_value)
+from metarmap.settings import (BRANCH_NAME, LED_ORDERS, LED_PINS, LIGHTNING_COLORS, TFR_NEARBY_NM, TRAFFIC_SECONDS,
+                               UPDATE_CHANNELS, Airport, Settings, parse_value)
 
 MAX_LEDS = 1000
 ICAO = re.compile(r"^[A-Z0-9]{3,4}$")
@@ -94,6 +94,8 @@ class Config(object):
             raise ValueError(f"led.pin: {value!r} is not one of {', '.join(map(str, LED_PINS))}")
         if key == "led.order" and str(value).strip("\"'") not in LED_ORDERS:
             raise ValueError(f"led.order: {value!r} is not one of {', '.join(LED_ORDERS)}")
+        if key == "lightning.color" and str(value).strip("\"'") not in LIGHTNING_COLORS:
+            raise ValueError(f"lightning.color: {value!r} is not one of {', '.join(LIGHTNING_COLORS)}")
         if key == "tfr.nearby_nm":
             low, high = TFR_NEARBY_NM
             if not low <= parse_value(value, float, key) <= high:

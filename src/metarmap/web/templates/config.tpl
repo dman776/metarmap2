@@ -113,7 +113,21 @@
                 % end
             </select>
         </div>
-        % switch('lightning.animation', d.lightning.animation, 'Lightning animation', 'Two quick yellow flashes on airports with lightning or a thunderstorm, in every weather visualizer.')
+        % switch('lightning.animation', d.lightning.animation, 'Lightning animation', 'Two quick flashes on airports with lightning or a thunderstorm, in every weather visualizer.')
+        <div class="set">
+            <div>
+                <label class="t" for="lightning-color">Lightning color</label>
+                <div class="d">The color of the flashes, on the LEDs and the Map page.</div>
+            </div>
+            <select id="lightning-color" data-key="lightning.color">
+                % for color in lightning_colors:
+                <option value="{{color}}"{{!' selected' if color == d.lightning.color else ''}}>{{color.title()}}</option>
+                % end
+                % if d.lightning.color not in lightning_colors:
+                <option value="{{d.lightning.color}}" selected disabled>{{d.lightning.color}}</option>
+                % end
+            </select>
+        </div>
         <div class="set">
             <div>
                 <label class="t" for="tfr-nearby">TFR nearby distance</label>

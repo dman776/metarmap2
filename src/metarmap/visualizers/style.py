@@ -8,7 +8,8 @@ How the LEDs show things, shared by every visualizer so the same meaning always 
   heavy (+)                           fast blink between full and dim, so the LED never looks dead
   in the vicinity (VC)                solid, dim
   lightning or a thunderstorm         two quick flashes every 2 s over the airport's look, in every weather
-                                      visualizer (with lightning.animation on; with_lightning())
+                                      visualizer (with lightning.animation on; with_lightning()), in
+                                      lightning.color
 
 Ranges (wind, temperature, ...) are a few solid bands of clearly different colors, not blends: a Band table is the
 one place each visualizer's thresholds live, and its legend is built from the same table.
@@ -62,7 +63,9 @@ def by_intensity(color, intensity=MODERATE) -> Look:
 #
 # A double flicker, like real lightning: flash, the airport's look, flash, then its look until the next one.
 
-LIGHTNING = (255, 255, 0)  # yellow, in the strip's GRB order (see lib/colors.py)
+LIGHTNING = (255, 255, 0)  # yellow, in the strip's GRB order (see lib/colors.py); also Precipitation's thunderstorm
+# lightning.color: the flash's color by name (settings.LIGHTNING_COLORS)
+LIGHTNING_COLORS = {"yellow": LIGHTNING, "white": (255, 255, 255)}
 LIGHTNING_STEP = 0.05  # seconds per frame
 LIGHTNING_EVERY = 2.0  # seconds from one flicker to the next
 FLICKER = (True, True, True, False, False, True, True, True)  # 0.15 s flash, 0.1 s back, 0.15 s flash
@@ -75,6 +78,12 @@ def has_lightning(metar) -> bool:
     if not metar:
         return False
     return bool(metar.get("lightning")) or any(g.descriptor == "TS" for g in parse_weather(metar.get("obs")))
+
+
+def lightning_color(settings):
+    """lightning.color's name and LED color; yellow for a name the map doesn't know (a hand-edited config.json)."""
+    name = settings.lightning.color if settings.lightning.color in LIGHTNING_COLORS else "yellow"
+    return name, LIGHTNING_COLORS[name]
 
 
 def color_at(look: Look, t: float):
@@ -96,7 +105,7 @@ def with_lightning(look: Look, settings) -> Look:
     `look` with lightning flickering over it. Between flickers the LED does what `look` does; where that's the
     lightning color itself (a thunderstorm with nothing else to show), it's dimmed so the flashes stand out.
     """
-    flash = LIGHTNING
+    _, flash = lightning_color(settings)
     every = round(LIGHTNING_EVERY / LIGHTNING_STEP)
     frames = []
     for n in range(round(LIGHTNING_CYCLE / LIGHTNING_STEP)):
@@ -110,8 +119,9 @@ def with_lightning(look: Look, settings) -> Look:
 
 
 def lightning_legend(settings):
-    return legend_item("Lightning or a thunderstorm", "Two quick yellow flashes every 2 s over the airport's color",
-                       dim(named(colors_lib.WHITE)), LIGHTNING, effect="flash",
+    name, flash = lightning_color(settings)
+    return legend_item("Lightning or a thunderstorm", f"Two quick {name} flashes every 2 s over the airport's color",
+                       dim(named(colors_lib.WHITE)), flash, effect="flash",
                        period=LIGHTNING_EVERY)
 
 

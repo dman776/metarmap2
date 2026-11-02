@@ -6,7 +6,7 @@ import pytest
 
 import metarmap.lib.colors as colors_lib
 from metarmap.models import Look
-from metarmap.settings import Settings
+from metarmap.settings import LIGHTNING_COLORS, Settings
 from metarmap import decode, visualizers
 from metarmap.visualizers import (ceiling, chase, density_altitude, flightcategory, precipitation, pressure, rainbow,
                                   spread, style, temperature, visibility, visualizer, wind, wind_direction,
@@ -192,6 +192,40 @@ def test_lightning_on_yellow_is_dimmed_between_flashes(settings):
     yellow = style.LIGHTNING
     frames = lit(precipitation, settings, obs="TS").colors
     assert frames[:3] == (yellow,) * 3 and frames[3] == style.dim(yellow)
+
+
+def test_lightning_color_white(settings):
+    settings.lightning.color = "white"
+    white = C[colors_lib.WHITE]
+    look = lit(flightcategory, settings, flightCategory="IFR", lightning=True)
+    assert list(look.colors) == flicker(flightcategory.COLORS["IFR"], white) * 2
+    item = next(i for i in visualizer.legend(flightcategory, settings) if i["label"] == "Lightning or a thunderstorm")
+    assert "white flashes" in item["detail"] and item["colors"][1] == colors_lib.to_css(white)
+
+
+def test_lightning_color_white_on_white_is_dimmed_between_flashes(settings):
+    settings.lightning.color = "white"
+    white = C[colors_lib.WHITE]
+    frames = lit(precipitation, settings, obs="SN", lightning=True).colors  # snow is white
+    assert frames[:3] == (white,) * 3 and frames[3] == style.dim(white)
+
+
+def test_precipitation_thunderstorm_stays_yellow_with_white_lightning(settings):
+    """Snow is white in Precipitation, so a thunderstorm keeps its yellow; only the flashes are white."""
+    settings.lightning.color = "white"
+    assert precipitation.look(metar(obs="TS"), settings) == Look.solid(style.LIGHTNING)
+    frames = lit(precipitation, settings, obs="TS").colors
+    assert frames[:3] == (C[colors_lib.WHITE],) * 3 and frames[3] == style.LIGHTNING
+
+
+def test_unknown_lightning_color_is_yellow(settings):
+    settings.lightning.color = "purple"  # hand-edited config.json
+    assert lit(flightcategory, settings, flightCategory="VFR", lightning=True).colors[0] == style.LIGHTNING
+    assert "yellow flashes" in style.lightning_legend(settings)["detail"]
+
+
+def test_every_lightning_color_has_an_led_color():
+    assert set(style.LIGHTNING_COLORS) == set(LIGHTNING_COLORS)
 
 
 def test_lightning_isnt_added_to_whole_strip_patterns(settings):

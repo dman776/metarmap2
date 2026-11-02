@@ -47,6 +47,7 @@ Returns a read-only snapshot of the map's state as `application/json`. No authen
     "visualizer.auto_rotate.delay_seconds": 60,
     "visualizer.auto_rotate.skip": [],
     "lightning.animation": true,
+    "lightning.color": "yellow",
     "display_screen.enabled": true,
     "display_screen.locate_active": true,
     "display_screen.delay": 5.0,
@@ -382,7 +383,8 @@ Each value is checked against the setting's type: an unknown setting or a value 
 Settings that apply right away:
 - `display_screen.enabled`: turns the OLED screen on or off (blank)
 - `tfr.nearby_nm`: the TFR visualizer also shows a TFR this close to an airport (dim), 0 to 50 NM; 0 is inside only. 10 by default. Applies right away
-- `lightning.animation`: a double yellow flicker every 2 s on airports with lightning (`LTG` in the report) or a thunderstorm (`TS`, `TSRA`, `VCTS`...), over whatever every weather visualizer shows; Rainbow and Chase are unaffected. Off: no flashes anywhere (Precipitation still shows a thunderstorm: its precipitation, else yellow)
+- `lightning.animation`: a double flicker every 2 s on airports with lightning (`LTG` in the report) or a thunderstorm (`TS`, `TSRA`, `VCTS`...), over whatever every weather visualizer shows; Rainbow and Chase are unaffected. Off: no flashes anywhere (Precipitation still shows a thunderstorm: its precipitation, else yellow)
+- `lightning.color`: the flicker's color, `yellow` (the default) or `white`; anything else is a 400. Precipitation's thunderstorm stays yellow either way (its snow is white)
 - `display_screen.locate_active`
 - `display_screen.delay`
 - `update.channel`: what **Update** installs: `releases` (the newest release tag, never an older one; the default), `latest` (the newest commit on GitHub, released or not, for testing) or, only with `dev_mode`, `branch` (the newest commit of `update.branch`, even after a force push)

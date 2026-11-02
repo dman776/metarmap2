@@ -17,7 +17,7 @@ Written from the ground up with a web UI, an API and a Home Assistant integratio
   thunderstorms blinking on top) or TFRs (temporary flight restrictions in or near each airport, by type) on the
   LEDs, plus Rainbow and Chase patterns.
   Switch between them on the web UI, or let the map rotate through them.
-- **Lightning**: airports reporting lightning or a thunderstorm flicker yellow (a double flash every 2 s) in every weather visualizer, unless you turn the animation off in Config.
+- **Lightning**: airports reporting lightning or a thunderstorm flicker yellow or white (a double flash every 2 s) in every weather visualizer, unless you turn the animation off in Config.
 - **Estimated flight categories**: a station that doesn't report its flight category, but does report its visibility
   or clouds, gets an estimate from them. Its LED breathes slowly so you can tell, and the OLED shows it with a `*`
   (`VFR*`).
@@ -190,7 +190,7 @@ Changes save right away. To check the wiring order:
 
 **Config** has the rest of the settings:
 - the default visualizer and auto-rotate, including which visualizers it shows
-- lightning
+- lightning: the animation on or off, and its color (yellow or white)
 - the OLED screen
 - the map page's chart
 - the LED brightness for day, dawn and dusk, and night

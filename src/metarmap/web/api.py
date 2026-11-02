@@ -66,6 +66,7 @@ def status(services, ip):
             "visualizer.auto_rotate.delay_seconds": cfg.visualizer.auto_rotate.delay_seconds,
             "visualizer.auto_rotate.skip": cfg.visualizer.auto_rotate.skip,
             "lightning.animation": cfg.lightning.animation,
+            "lightning.color": cfg.lightning.color,
             "display_screen.enabled": cfg.display_screen.enabled,
             "display_screen.locate_active": cfg.display_screen.locate_active,
             "display_screen.delay": cfg.display_screen.delay,
