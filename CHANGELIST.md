@@ -1,3 +1,10 @@
+### Unreleased
+
+- **Estimated flight category breathing** (Config > Visualizers, `visualizer.estimated_category_breathing`,
+  on by default): off shows an estimated flight category in a steady color instead of breathing. The estimate and
+  its color are unchanged, the OLED still marks it (`VFR*`), and the Map page's popup says *No category*; the
+  legend follows the setting. From Travis Cole (traviscole)
+
 ### dman776 3.1.3 (2026-11-01)
 
 - Faster LEDs on a long strip: the animations draw into the strip first and the renderer sends it once per frame.
