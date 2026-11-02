@@ -18,16 +18,25 @@ EXCLUSIVE = False
 
 ESTIMATE_PERIOD = 4.0  # seconds per breath of an estimated category
 
+# in the strip's GRB order (see lib/colors.py)
+COLORS = {
+    Category.VFR: (255, 0, 0),  # green
+    Category.MVFR: (0, 0, 255),  # blue
+    Category.IFR: (0, 255, 0),  # red
+    Category.LIFR: (0, 125, 125),  # purple
+}
+OFF = (0, 0, 0)
+
 
 def legend(settings):
-    cat = settings.color.cat
     items = [
-        legend_item("VFR", "Green", cat.vfr),
-        legend_item("MVFR", "Blue", cat.mvfr),
-        legend_item("IFR", "Red", cat.ifr),
-        legend_item("LIFR", "Purple", cat.lifr),
+        legend_item("VFR", "Green", COLORS[Category.VFR]),
+        legend_item("MVFR", "Blue", COLORS[Category.MVFR]),
+        legend_item("IFR", "Red", COLORS[Category.IFR]),
+        legend_item("LIFR", "Purple", COLORS[Category.LIFR]),
         legend_item("Estimated", "Slow breathing in the category's color: the station didn't report a category, so "
-                    "it's estimated from the visibility and ceiling it does report", cat.vfr, effect="pulse",
+                    "it's estimated from the visibility and ceiling it does report", COLORS[Category.VFR],
+                    effect="pulse",
                     period=ESTIMATE_PERIOD, low=style.LIGHT_LOW),
         style.missing_legend("flight category, visibility or sky condition"),
     ]
@@ -42,7 +51,7 @@ def look(metar: Metar, settings) -> Look:
     estimated = category is None
     if estimated:
         category = estimate_category(metar)
-    color = color_for(category, settings)
+    color = color_for(category)
     if category is None:  # other data is reported, but nothing to tell the flight category from
         return style.missing()
     if estimated:
@@ -50,12 +59,5 @@ def look(metar: Metar, settings) -> Look:
     return Look.solid(color)
 
 
-def color_for(category, settings):
-    cat = settings.color.cat
-    color_map = {
-        Category.VFR: cat.vfr,
-        Category.MVFR: cat.mvfr,
-        Category.IFR: cat.ifr,
-        Category.LIFR: cat.lifr,
-    }
-    return color_map.get(category, settings.color.clear)
+def color_for(category):
+    return COLORS.get(category, OFF)

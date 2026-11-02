@@ -18,7 +18,6 @@ def test_repo_config_round_trips():
 def test_attribute_access_matches_config_json():
     s = Settings.load(REPO / "config.json")
     assert s.led.brightness.normal == 0.5
-    assert s.color.cat.vfr == [255, 0, 0]
     assert s.geo.map.center == [30.603, -93.581]
     assert s.visualizer.auto_rotate.delay_seconds == 60
 
@@ -29,7 +28,14 @@ def test_missing_keys_get_defaults():
     assert s.geo.map.view == "airports"
     assert s.geo.map.chart == ""
     assert s.display_screen.delay == 5.0
-    assert s.color.weather.lightning == [255, 255, 0]
+
+
+def test_an_older_files_colors_are_dropped():
+    """The LED colors live in the code now; a color section from before isn't kept."""
+    s = Settings.from_dict({"color": {"cat": {"vfr": [255, 0, 0]}}, "led": {"count": 3}})
+    assert "color" not in s.to_dict() and s.led.count == 3
+    with pytest.raises(KeyError):
+        s.set("color.cat.vfr", "[0, 255, 0]")
 
 
 def test_unknown_keys_are_kept():
@@ -61,7 +67,6 @@ def test_save_and_load(tmp_path):
     ("geo.map.chart", "Dallas-Ft Worth", "Dallas-Ft Worth"),
     ("geo.map.chart", '"Dallas"', "Dallas"),  # the old quoted form
     ("geo.map.center", "[32.9, -97.0]", [32.9, -97.0]),
-    ("color.cat.vfr", "[0, 255, 0]", [0, 255, 0]),
 ])
 def test_set_converts_text(key, value, expected):
     s = Settings()
@@ -85,7 +90,6 @@ def test_set_unknown_setting(key):
     ("visualizer.active", "1.5"),
     ("display_screen.delay", "soon"),
     ("geo.map.center", "not a list"),
-    ("color.cat.vfr", '{"g": 1}'),
 ])
 def test_set_rejects_bad_values(key, value):
     s = Settings()

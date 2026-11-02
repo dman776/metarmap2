@@ -63,12 +63,7 @@ def test_info(settings):
 @pytest.mark.parametrize("category, attr", [("VFR", "vfr"), ("MVFR", "mvfr"), ("IFR", "ifr"), ("LIFR", "lifr")])
 def test_flight_category_colors(settings, category, attr):
     look = flightcategory.look(metar(flightCategory=category), settings)
-    assert look == Look.solid(getattr(settings.color.cat, attr))
-
-
-def test_flight_category_uses_configured_colors(settings):
-    settings.color.cat.vfr = [10, 20, 30]
-    assert flightcategory.look(metar(flightCategory="VFR"), settings) == Look.solid([10, 20, 30])
+    assert look == Look.solid(flightcategory.COLORS[attr.upper()])
 
 
 def test_flight_category_missing_blinks_red(settings):
@@ -110,7 +105,7 @@ def breathing(color):
     ({"visibilitySM": 4.0, "skyConditions": [{"cover": "BKN", "cloudBaseFt": 800}]}, "ifr"),
 ])
 def test_a_missing_category_is_estimated_and_breathes(settings, fields, attr):
-    assert estimated(fields, settings) == breathing(getattr(settings.color.cat, attr))
+    assert estimated(fields, settings) == breathing(flightcategory.COLORS[attr.upper()])
 
 
 def test_nothing_to_estimate_from_blinks_red(settings):
@@ -121,7 +116,7 @@ def test_nothing_to_estimate_from_blinks_red(settings):
 def test_a_reported_category_is_never_estimated(settings):
     """aviationweather.gov's category wins, even if the visibility and ceiling would say otherwise."""
     look = flightcategory.look(metar(flightCategory="VFR", visibilitySM=0.5), settings)
-    assert look == Look.solid(settings.color.cat.vfr)
+    assert look == Look.solid(flightcategory.COLORS["VFR"])
 
 
 def test_the_legend_explains_estimates(settings):
@@ -155,7 +150,7 @@ def flicker(base, flash):
 
 def test_lightning_flickers_over_the_category(settings):
     look = lit(flightcategory, settings, flightCategory="IFR", lightning=True)
-    ifr, yellow = tuple(settings.color.cat.ifr), tuple(settings.color.weather.lightning)
+    ifr, yellow = flightcategory.COLORS["IFR"], style.LIGHTNING
     assert look.effect == "cycle" and look.step == style.LIGHTNING_STEP
     assert list(look.colors) == flicker(ifr, yellow) * 2  # every 2 s, for 4 s
 
@@ -163,7 +158,7 @@ def test_lightning_flickers_over_the_category(settings):
 @pytest.mark.parametrize("v", visualizers.WEATHER)
 def test_every_weather_visualizer_shows_lightning(v, settings):
     look = lit(v, settings, lightning=True)
-    yellow = tuple(settings.color.weather.lightning)
+    yellow = style.LIGHTNING
     assert look.effect == "cycle" and look.colors[:3] == (yellow,) * 3 and look.colors[40:43] == (yellow,) * 3
     assert any(i["label"] == "Lightning or a thunderstorm" for i in visualizer.legend(v, settings))
 
@@ -194,7 +189,7 @@ def test_lightning_keeps_the_look_moving_between_flashes(settings):
 
 
 def test_lightning_on_yellow_is_dimmed_between_flashes(settings):
-    yellow = tuple(settings.color.weather.lightning)
+    yellow = style.LIGHTNING
     frames = lit(precipitation, settings, obs="TS").colors
     assert frames[:3] == (yellow,) * 3 and frames[3] == style.dim(yellow)
 
@@ -336,7 +331,7 @@ def test_density_altitude_needs_all_inputs(settings, fields):
 # ---- precipitation ------------------------------------------------------------------------------------------
 
 def W(settings, name):
-    return tuple(getattr(settings.color.weather, name))
+    return style.LIGHTNING if name == "lightning" else precipitation.COLOR[name]
 
 
 def P(obs, settings):

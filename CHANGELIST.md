@@ -1,8 +1,12 @@
-### dman776 3.1.2 (unreleased)
+### dman776 3.1.2 (2026-11-01)
 
 - `python -m metarmap --port 8080` runs the web server on another port for that run, without editing `config.json`
   (which keeps its port): for trying the map on a computer, where port 80 needs `sudo`. `--version` prints the
   version, and `--help` lists both
+- The LED colors live in the code now, not in `config.json`: its `color` section is gone, and an older file's is
+  dropped when the map starts. Only Flight Category, Precipitation and the lightning flash used it (every other
+  visualizer already had its colors in code), and the web UI couldn't change it. The colors are the same as before;
+  a color changed by hand in `config.json` goes back to the default
 
 ### dman776 3.1.1 (2026-11-01)
 

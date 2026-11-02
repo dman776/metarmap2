@@ -81,37 +81,6 @@ class DisplayScreen(_Section):
 
 
 @dataclass
-class CategoryColors(_Section):
-    vfr: List[int] = field(default_factory=lambda: [255, 0, 0])
-    mvfr: List[int] = field(default_factory=lambda: [0, 0, 255])
-    ifr: List[int] = field(default_factory=lambda: [0, 255, 0])
-    lifr: List[int] = field(default_factory=lambda: [0, 125, 125])
-
-
-@dataclass
-class WeatherColors(_Section):
-    lightning: List[int] = field(default_factory=lambda: [255, 255, 0])
-    fog: List[int] = field(default_factory=lambda: [15, 15, 15])
-    haze: List[int] = field(default_factory=lambda: [5, 5, 5])
-    smoke: List[int] = field(default_factory=lambda: [75, 75, 75])
-    rain: List[int] = field(default_factory=lambda: [0, 0, 255])
-    mist: List[int] = field(default_factory=lambda: [0, 0, 15])
-    drizzle: List[int] = field(default_factory=lambda: [255, 0, 0])  # no longer used: drizzle is a dimmer rain
-    snow: List[int] = field(default_factory=lambda: [255, 255, 255])  # white
-    ice: List[int] = field(default_factory=lambda: [255, 0, 255])  # cyan: freezing rain and drizzle, ice pellets, hail
-    hazard: List[int] = field(default_factory=lambda: [0, 255, 255])  # magenta: squalls, funnel clouds, ash, storms
-    unknown: List[int] = field(default_factory=lambda: [126, 255, 0])  # orange: unknown precipitation (UP)
-
-
-@dataclass
-class Colors(_Section):
-    """LED colors, in the strip's GRB order."""
-    cat: CategoryColors = field(default_factory=CategoryColors)
-    clear: List[int] = field(default_factory=lambda: [0, 0, 0])
-    weather: WeatherColors = field(default_factory=WeatherColors)
-
-
-@dataclass
 class AutoRotate(_Section):
     enabled: bool = False
     delay_seconds: int = 60
@@ -168,7 +137,6 @@ class Settings(_Section):
     led: Led = field(default_factory=Led)
     geo: Geo = field(default_factory=Geo)
     display_screen: DisplayScreen = field(default_factory=DisplayScreen)
-    color: Colors = field(default_factory=Colors)
     visualizer: VisualizerSettings = field(default_factory=VisualizerSettings)
     lightning: Lightning = field(default_factory=Lightning)
     tfr: TfrSettings = field(default_factory=TfrSettings)
@@ -185,6 +153,7 @@ class Settings(_Section):
     def from_dict(cls, data: Dict[str, Any]) -> "Settings":
         settings = _from_dict(cls, data)
         renumber_visualizers(settings, data)
+        settings._extra.pop("color", None)  # the LED colors live in the code now (3.1.2); an older file's are dropped
         return settings
 
     @classmethod

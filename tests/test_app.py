@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from metarmap import app as app_module, visualizers
+from metarmap.visualizers import flightcategory
 
 REPO = Path(__file__).parent.parent
 
@@ -70,7 +71,7 @@ def test_update_data_fetches_and_redraws(make_app, monkeypatch):
     monkeypatch.setattr(app.metars, "fetch", fetch)
     normal = app.renderer.pixels().brightness
     app_module.update_data(app)
-    assert app.renderer.looks[0].colors[0] == tuple(app.config.data.color.cat.vfr)
+    assert app.renderer.looks[0].colors[0] == flightcategory.COLORS["VFR"]
     assert brightness == [normal / 2] and app.renderer.pixels().brightness == normal  # dimmed while fetching
 
 
@@ -143,7 +144,7 @@ def test_run_cleans_up_when_stopped(make_app, monkeypatch, error):
     assert web.closed
     assert app.scheduler.jobs == []
     assert app.display.screen is None  # stopped and cleared
-    clear = tuple(app.config.data.color.clear)
+    clear = (0, 0, 0)
     assert all(c == clear for c in app.renderer.pixels())
 
 

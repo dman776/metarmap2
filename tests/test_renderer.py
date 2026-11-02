@@ -63,19 +63,18 @@ def test_looks_come_from_the_active_visualizer(config, clock):
 def test_first_frame_lights_the_leds(config, clock):
     r, strip = make(config, clock)
     draw_frame(r)
-    cat = config.data.color.cat
-    assert strip[0] == tuple(cat.vfr)
-    assert strip[1] == tuple(cat.ifr)
+    assert strip[0] == flightcategory.COLORS["VFR"]
+    assert strip[1] == flightcategory.COLORS["IFR"]
     assert strip[2] == (0, 0, 0)  # no airport
     assert strip[3] == (0, 0, 0)  # no report
-    assert strip[4] == tuple(cat.lifr)
+    assert strip[4] == flightcategory.COLORS["LIFR"]
 
 
 def test_led_states_for_the_web_ui(config, clock):
     r, _ = make(config, clock)
     leds, strip = r.led_states()
     assert strip is None
-    assert leds[0] == Look.solid(config.data.color.cat.vfr).to_dict()
+    assert leds[0] == Look.solid(flightcategory.COLORS["VFR"]).to_dict()
     assert leds[2] == {"effect": "off", "colors": []}
     assert set(leds) == {0, 1, 2, 3, 4}
 
@@ -93,7 +92,7 @@ def test_whole_strip_visualizer(config, clock):
 def test_update_data_rebuilds_looks(config, clock):
     r, _ = make(config, clock)
     r.update_data(SimpleNamespace(data={**DATA, "KHOU": metar("MVFR")}))
-    assert r.looks[0] == Look.solid(config.data.color.cat.mvfr)
+    assert r.looks[0] == Look.solid(flightcategory.COLORS["MVFR"])
 
 
 def test_refresh_picks_up_airport_changes(config, clock):
@@ -101,8 +100,8 @@ def test_refresh_picks_up_airport_changes(config, clock):
     config.data.airports[2].code = "KHOU"
     config.data.airports.insert(0, config.data.airports.pop(4))  # KGLS to the first LED
     r.refresh()
-    assert r.looks[0] == Look.solid(config.data.color.cat.lifr)
-    assert r.looks[3] == r.looks[1] == Look.solid(config.data.color.cat.vfr)
+    assert r.looks[0] == Look.solid(flightcategory.COLORS["LIFR"])
+    assert r.looks[3] == r.looks[1] == Look.solid(flightcategory.COLORS["VFR"])
 
 
 def test_more_airports_than_leds(config, clock):
@@ -118,7 +117,7 @@ def test_resize(config, clock):
     assert r.resize(5) is True
     assert len(strip) == 5 and len(r.animations) == 5
     draw_frame(r)
-    assert strip[4] == tuple(config.data.color.cat.lifr)
+    assert strip[4] == flightcategory.COLORS["LIFR"]
     assert r.resize(2) is True and len(r.animations) == 2
     draw_frame(r)  # no IndexError
 
@@ -290,14 +289,14 @@ def test_clear(config, clock):
     r, strip = make(config, clock)
     draw_frame(r)
     r.clear()
-    assert all(c == tuple(config.data.color.clear) for c in strip)
+    assert all(c == (0, 0, 0) for c in strip)
 
 
 def test_render_runs_one_cycle(config, clock):
     r, strip = make(config, clock, data={"KHOU": metar("VFR")}, leds=1)
     shows = strip.shows
     r.render()
-    assert strip[0] == tuple(config.data.color.cat.vfr)
+    assert strip[0] == flightcategory.COLORS["VFR"]
     assert strip.shows > shows
 
 
@@ -377,7 +376,7 @@ def virtual(config):
 def test_virtual_airports_get_looks_but_no_leds(virtual, clock):
     r, strip = make(virtual, clock, leds=3)
     assert len(r.looks) == 5 and len(r.animations) == 3
-    assert r.looks[4] == Look.solid(virtual.data.color.cat.lifr)  # for the web map
+    assert r.looks[4] == Look.solid(flightcategory.COLORS["LIFR"])  # for the web map
     assert set(r.led_states()[0]) == {0, 1, 2, 3, 4}
 
 

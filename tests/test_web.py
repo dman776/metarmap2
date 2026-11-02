@@ -409,7 +409,7 @@ def test_led_changes_show_right_away(client):
     app = client.services
     app.metars.data = {"KDWH": metar("LIFR")}
     client("/config/airports/2/code/KDWH")
-    assert app.renderer.looks[2] == Look.solid(app.config.data.color.cat.lifr)
+    assert app.renderer.looks[2] == Look.solid(flightcategory.COLORS["LIFR"])
 
 
 def test_fetch(client, monkeypatch):
@@ -417,7 +417,7 @@ def test_fetch(client, monkeypatch):
     code = app.config.airports[0].code
     monkeypatch.setattr(app.metars, "fetch", lambda: setattr(app.metars, "data", {code: metar("IFR")}))
     assert client("/fetch")[0] == 200
-    assert app.renderer.looks[0] == Look.solid(app.config.data.color.cat.ifr)
+    assert app.renderer.looks[0] == Look.solid(flightcategory.COLORS["IFR"])
 
 
 # ---- the API, against fake services with known data ----------------------------------------------------------
@@ -459,7 +459,7 @@ def test_live(services):
     live = api.live(services, now=123.0)
     assert live["now"] == 123.0
     assert [(led["code"], led["pixel"]) for led in live["leds"]] == [("KHOU", 0), ("KIAH", 2), ("KDKR", 3)]
-    assert live["leds"][1]["look"] == Look.solid(services.config.data.color.cat.ifr).to_dict()
+    assert live["leds"][1]["look"] == Look.solid(flightcategory.COLORS["IFR"]).to_dict()
     assert live["leds"][1]["lat"] == 29.6
     assert live["leds"][2]["look"]["effect"] == "off"  # no report
     assert live["strip"] is None
@@ -1191,7 +1191,7 @@ def test_a_mock_metar_replaces_the_real_one_at_once(dev_map):
     assert status == 200 and json.loads(body)["flightCategory"] == "LIFR"
     assert c.services.config.airports[0]._extra["mock_metar"] == MOCK.replace("KHOU", code)  # saved in config.json
     assert c.services.metars.data[code]["mock"] is True
-    assert c.services.renderer.looks[0] == Look.solid(c.services.config.data.color.cat.lifr)  # on the LED now
+    assert c.services.renderer.looks[0] == Look.solid(flightcategory.COLORS["LIFR"])  # on the LED now
     assert 'class="tag mock-tag">mock</span>' in c("/config/airports")[1]
     assert 'class="badge-mock"' in c("/metars")[1]
     live = c.json("/api/live")["leds"][0]

@@ -62,6 +62,7 @@ def by_intensity(color, intensity=MODERATE) -> Look:
 #
 # A double flicker, like real lightning: flash, the airport's look, flash, then its look until the next one.
 
+LIGHTNING = (255, 255, 0)  # yellow, in the strip's GRB order (see lib/colors.py)
 LIGHTNING_STEP = 0.05  # seconds per frame
 LIGHTNING_EVERY = 2.0  # seconds from one flicker to the next
 FLICKER = (True, True, True, False, False, True, True, True)  # 0.15 s flash, 0.1 s back, 0.15 s flash
@@ -95,7 +96,7 @@ def with_lightning(look: Look, settings) -> Look:
     `look` with lightning flickering over it. Between flickers the LED does what `look` does; where that's the
     lightning color itself (a thunderstorm with nothing else to show), it's dimmed so the flashes stand out.
     """
-    flash = tuple(settings.color.weather.lightning)
+    flash = LIGHTNING
     every = round(LIGHTNING_EVERY / LIGHTNING_STEP)
     frames = []
     for n in range(round(LIGHTNING_CYCLE / LIGHTNING_STEP)):
@@ -110,7 +111,7 @@ def with_lightning(look: Look, settings) -> Look:
 
 def lightning_legend(settings):
     return legend_item("Lightning or a thunderstorm", "Two quick yellow flashes every 2 s over the airport's color",
-                       dim(named(colors_lib.WHITE)), settings.color.weather.lightning, effect="flash",
+                       dim(named(colors_lib.WHITE)), LIGHTNING, effect="flash",
                        period=LIGHTNING_EVERY)
 
 
