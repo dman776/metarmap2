@@ -1,5 +1,9 @@
-### Unreleased
+### dman776 3.1.3 (2026-11-01)
 
+- Faster LEDs on a long strip: the animations draw into the strip first and the renderer sends it once per frame.
+  Each LED's animation used to send the whole strip itself, so a 252-LED map made 252 transfers a frame and the LEDs
+  updated one after the other. Found and fixed by Travis Cole (traviscole), who tested it on a Raspberry Pi Zero W
+  with 252 LEDs
 - **Missing data blink** (Config > Visualizers, `visualizer.missing_data_blink`, on by default): off leaves an airport
   dark instead of blinking slow red when its report lacks what the visualizer shows, such as no flight category,
   visibility or sky condition. It applies in every visualizer, on the LEDs, the Map page and the legends (which say
