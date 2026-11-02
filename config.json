@@ -8,11 +8,11 @@
         "count": 50,
         "virtual_count": 0,
         "pin": 18,
-        "order": "RGB",
+        "order": "GRB",
         "brightness": {
             "normal": 0.5,
             "dimmed": 0.1,
-            "off": 0.1
+            "off": 0.01
         },
         "night_off": {
             "enabled": false,
