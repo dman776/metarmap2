@@ -37,7 +37,7 @@ def legend_item(label, detail, *colors, effect="solid", period=None, low=None):
 #   strip_look(settings) -> Look         one look for the whole strip (rainbow, chase)
 #   COVERS_VIRTUAL      with strip_look: True if the virtual airports show it too (default: they stay dark)
 #   BARBS               True: the Map page draws a wind barb on each airport (default: none)
-#   AREAS               True: the Map page draws the G-AIRMET areas (default: none)
+#   AREAS               the areas the Map page draws, from /api/<AREAS>: "advisories" or "tfrs" (default: none)
 # Visualizers don't touch the LEDs; the renderer turns their looks into animations.
 # Lightning isn't a visualizer's job: looks() and legend() add it to every one with a look per airport.
 
@@ -56,9 +56,9 @@ def shows_barbs(vis) -> bool:
     return getattr(vis, "BARBS", False)
 
 
-def shows_areas(vis) -> bool:
-    """Whether the Map page draws the G-AIRMET areas while the visualizer runs."""
-    return getattr(vis, "AREAS", False)
+def shows_areas(vis):
+    """The areas the Map page draws while the visualizer runs ("advisories", "tfrs"), or None."""
+    return getattr(vis, "AREAS", None)
 
 
 def looks(vis, codes, data, settings) -> List[Look]:

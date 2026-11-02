@@ -164,7 +164,7 @@ What the physical map is doing right now. The Map page polls it every second. No
 | `leds[].look` | The LED's current effect: `solid`, `off`, `blink` (`period` seconds per on/off cycle; with two `colors` it alternates between them instead of turning off), `pulse` (`period`; `low`, if present, is its dimmest point, e.g. `0.3`, otherwise it fades to off), or `cycle` (steps through `colors`, `step` seconds each). Colors are CSS hex colors. |
 | `leds[].wind` | While a wind visualizer runs (Wind, Wind Gusts, Wind Direction): the airport's wind for its barb on the Map page, `{"dir": 270.0, "kt": 12}` (the direction it blows from, and the sustained speed). `null` when it's calm, variable (`VRB`), has no direction or no report, and for every other visualizer. |
 | `leds[].virtual` | A virtual airport: no LED on the strip, so the Map page draws it in a dashed circle. |
-| `visualizer.areas` | `true` while a visualizer runs whose areas the Map page draws (Advisories: the areas from `/api/advisories`) |
+| `visualizer.areas` | Which areas the Map page draws while the visualizer runs: `advisories` (Advisories, from `/api/advisories`), `tfrs` (TFR, from `/api/tfrs`), else `null` |
 | `strip` | Set when one effect drives the whole strip instead: `rainbow` (`period`) or `chase` (`step`, `size`, `spacing`). The virtual airports keep their own `look` meanwhile: the same rainbow, or `off` for a chase (a wiring check). |
 | `locate` | The last white locate pulse: LED `pixel` and Unix time `at`. `null` until the first one. A virtual airport's pulse is only shown on the Map page. |
 | `display.on` | Whether the screen is showing; `false` after `/display/off` (then `screen` is `null`) |
@@ -246,6 +246,39 @@ included (no high-level turbulence, and no freezing level lines), and only those
 | `areas[].coords` | The area's outline, `[lat, lon]` pairs |
 | `areas[].color` | The hazard's color in the Advisories visualizer (CSS hex) |
 
+### `GET /api/tfrs`
+
+The TFRs (temporary flight restrictions) the TFR visualizer shows, for the Map page's outlines. No authentication.
+From the FAA's [tfr.faa.gov](https://tfr.faa.gov/): its list, fetched in the background with the METARs (every 10
+minutes), and each new TFR's detail for its areas. Only areas in effect now or starting within 24 hours, with a floor
+below 18,000 ft, are included. TFRs without an outline (some long-running security areas) are left out.
+
+```json
+{
+  "fetched": 1793578000.5,
+  "error": null,
+  "nearby_nm": 10,
+  "areas": [
+    { "notam": "6/3889", "type": "HAZARDS", "description": "BAYOU GAUCHE, LA, Thursday, October 29, 2026 through ...",
+      "upcoming": false, "name": "Hazard Area1", "floor": 0, "floor_ref": "AGL", "ceiling": 2500, "ceiling_ref": "AGL",
+      "from": 1793299080, "until": 1794010500, "coords": [[29.79, -90.42], [29.8, -90.39], [29.77, -90.38]],
+      "url": "https://tfr.faa.gov/tfr3/?page=detail_6_3889", "color": "#ff7e00" }
+  ]
+}
+```
+
+| Field | Description |
+|---|---|
+| `fetched`, `error` | When the list was last fetched (Unix time; `null` before the first) and why the last fetch failed. The TFRs from the last list that came are kept |
+| `nearby_nm` | `tfr.nearby_nm`: the TFR visualizer also shows TFRs this close to an airport |
+| `areas[].type` | `VIP`, `HAZARDS`, `SECURITY`, `SPECIAL`, `AIR SHOWS/SPORTS` or `UAS PUBLIC GATHERING` |
+| `areas[].upcoming` | `true` for one starting within 24 hours, `false` for one in effect now |
+| `areas[].floor`, `ceiling` | In feet, `AGL` or `MSL` (`floor_ref`, `ceiling_ref`); `ceiling` is `null` when none is given |
+| `areas[].from`, `until` | When the area is in effect (Unix time): `from` is `null` when no start is given (in effect), `until` when no end is given (until further notice) |
+| `areas[].coords` | The area's outline, `[lat, lon]` pairs |
+| `areas[].url` | The TFR's page on tfr.faa.gov |
+| `areas[].color` | The type's color in the TFR visualizer (CSS hex) |
+
 ### `GET /api/traffic`
 
 The aircraft around the map's airports, from [adsb.fi](https://adsb.fi/)'s open data. The Map page asks for it while its
@@ -320,10 +353,11 @@ Visualizer indexes:
 | 9 | Ceiling | |
 | 10 | Dewpoint Spread | |
 | 11 | Advisories | |
-| 12 | Rainbow | yes |
-| 13 | Chase | yes |
+| 12 | TFR | |
+| 13 | Rainbow | yes |
+| 14 | Chase | yes |
 
-Wind Direction (3) was added after 3.0.1, and Advisories (11) after 3.1.0, each moving the visualizers after it up by one.
+Wind Direction (3) was added after 3.0.1, and Advisories (11) and TFR (12) after 3.1.0, each moving the visualizers after it up by one.
 A `config.json` from before then (`visualizer.numbering` missing or older) has its `visualizer.active` moved with
 them when the map starts, so it keeps the same visualizer; scripts and automations that pick a visualizer by number
 need the new numbers.
@@ -347,6 +381,7 @@ Each value is checked against the setting's type: an unknown setting or a value 
 
 Settings that apply right away:
 - `display_screen.enabled`: turns the OLED screen on or off (blank)
+- `tfr.nearby_nm`: the TFR visualizer also shows a TFR this close to an airport (dim), 0 to 50 NM; 0 is inside only. 10 by default. Applies right away
 - `lightning.animation`: a double yellow flicker every 2 s on airports with lightning (`LTG` in the report) or a thunderstorm (`TS`, `TSRA`, `VCTS`...), over whatever every weather visualizer shows; Rainbow and Chase are unaffected. Off: no flashes anywhere (Precipitation still shows a thunderstorm: its precipitation, else yellow)
 - `display_screen.locate_active`
 - `display_screen.delay`

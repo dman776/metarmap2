@@ -18,6 +18,7 @@ import schedule
 
 from metarmap import __version__, service, visualizers
 from metarmap.advisories import Advisories
+from metarmap.tfr import Tfrs
 from metarmap.clock import Clock
 from metarmap.config import Config
 from metarmap.display import Display
@@ -49,6 +50,7 @@ class App:
     releases: Optional[ReleaseCheck] = None  # what's newest on GitHub, for "Update available"
     traffic: Optional[Traffic] = None  # live traffic for the Map page, fetched while a page asks for it
     advisories: Optional[Advisories] = None  # G-AIRMETs and SIGMETs, for Advisories (fetched with the METARs)
+    tfrs: Optional[Tfrs] = None  # TFRs, for the TFR visualizer (fetched in the background with the METARs)
 
     def schedule_rotation(self):
         schedule_rotation(self)
@@ -69,7 +71,8 @@ def build(config_file=CONFIG_FILE, strip=None, screen=None, clock: Clock = None,
     advisories = Advisories()
     if fetch:
         advisories.fetch()
-    metars = METAR(config, fetch=fetch, clock=clock, advisories=advisories)
+    tfrs = Tfrs(nearby=lambda: config.data.tfr.nearby_nm)
+    metars = METAR(config, fetch=fetch, clock=clock, advisories=advisories, tfrs=tfrs)
 
     if strip is None:
         strip = open_strip(config.data.led)  # the NeoPixel strip on the Pi; an in-memory strip anywhere else
@@ -85,9 +88,11 @@ def build(config_file=CONFIG_FILE, strip=None, screen=None, clock: Clock = None,
                             dev_mode=lambda: config.data.dev_mode)
     traffic = Traffic(lambda: config.data.geo.map,
                       lambda: [p for p in (metars.position(a.code) for a in config.airports if a.code) if p])
-    app = App(config, sun, metars, renderer, display, schedule.Scheduler(), releases, traffic, advisories)
+    app = App(config, sun, metars, renderer, display, schedule.Scheduler(), releases, traffic, advisories, tfrs)
     fill_names(app)
     schedule_jobs(app)
+    if fetch:
+        fetch_tfrs(app)  # in the background: the first list has a few dozen details to fetch
     return app
 
 
@@ -115,6 +120,7 @@ def schedule_rotation(app: App):
 
 def update_data(app: App):
     fetch_advisories(app)
+    fetch_tfrs(app)
     with app.renderer.dimmed():
         app.metars.fetch()  # adds the G-AIRMET hazards to each report
     app.renderer.update_data(app.metars)
@@ -127,6 +133,17 @@ def fetch_advisories(app: App):
     """New G-AIRMETs and SIGMETs; the METARs pick them up when next processed. Keeps the old ones if it fails."""
     if app.advisories is not None and app.advisories.fetch():
         app.metars.apply_mocks()  # reapplied now, in case the METAR fetch after this fails
+
+
+def fetch_tfrs(app: App):
+    """Fetches the TFRs in the background; the LEDs show them when it's done."""
+    if app.tfrs is not None:
+        app.tfrs.fetch_soon(then=lambda: show_tfrs(app))
+
+
+def show_tfrs(app: App):
+    app.metars.apply_mocks()  # adds them to each report
+    app.renderer.update_data(app.metars)
 
 
 def fill_names(app: App):

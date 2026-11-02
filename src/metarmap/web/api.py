@@ -1,6 +1,6 @@
 """
 The JSON API: /api/status (used by the Home Assistant integration), /api/live (polled by the Map page) and
-/api/traffic (the Map page's live traffic) and /api/advisories (the G-AIRMET and SIGMET areas).
+/api/traffic (the Map page's live traffic), /api/advisories (the G-AIRMET and SIGMET areas) and /api/tfrs (TFRs).
 See API.md; the field names are part of the API.
 """
 import json
@@ -10,7 +10,7 @@ import bottle
 
 from metarmap import __version__
 from metarmap.decode import decode, summary
-from metarmap.visualizers import advisories as advisories_vis, visualizer, wind_direction
+from metarmap.visualizers import advisories as advisories_vis, tfr as tfr_vis, visualizer, wind_direction
 from metarmap.web import views
 
 
@@ -185,6 +185,16 @@ def advisories(services):
     return state
 
 
+def tfrs(services):
+    """The TFRs in effect or starting within 24 hours (metarmap.tfr), each with its type's color, for the Map page."""
+    found = getattr(services, "tfrs", None)
+    if found is None:
+        return None
+    state = found.state()
+    state["areas"] = [{**area, "color": tfr_vis.css(area["type"])} for area in state["areas"]]
+    return state
+
+
 def as_json(data):
     bottle.response.content_type = "application/json"
     return json.dumps(data)
@@ -195,6 +205,7 @@ def add_routes(app, services, site):
     app.route("/api/live", "GET", lambda: as_json(live(services)))
     app.route("/api/advisories", "GET",
               lambda: as_json(advisories(services) or bottle.abort(404, "No G-AIRMETs or SIGMETs")))
+    app.route("/api/tfrs", "GET", lambda: as_json(tfrs(services) or bottle.abort(404, "No TFRs")))
     app.route("/api/traffic", "GET", lambda: as_json(traffic(services) or bottle.abort(404, "No live traffic")))
     app.route("/api/metar/<code>", "GET", lambda code: as_json(metar(services, code.upper())
                                                              or bottle.abort(404, f"{code} isn't on the map")))

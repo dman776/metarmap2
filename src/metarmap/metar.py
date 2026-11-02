@@ -310,19 +310,38 @@ def with_advisories(data, advisories):
     return result
 
 
+def with_tfrs(data, tfrs):
+    """
+    The METARs, each with "tfrs": the TFRs at or near the airport (metarmap.tfr.Tfrs.at), most important first, or None
+    while there's no TFR list to go by or the airport has no position. Airports with no report stay empty.
+    """
+    result = {}
+    for code, m in data.items():
+        if not m:
+            result[code] = m
+            continue
+        try:
+            found = tfrs.at(float(m["latitude"]), float(m["longitude"]))
+        except (KeyError, TypeError, ValueError):
+            found = None
+        result[code] = {**m, "tfrs": found}
+    return result
+
+
 class METAR(object):
     """
     Object to control and handle METARs.
     """
 
-    def __init__(self, cfg, fetch=False, clock: Clock = None, advisories=None):
+    def __init__(self, cfg, fetch=False, clock: Clock = None, advisories=None, tfrs=None):
         """
         Creates a new METAR class. advisories: metarmap.advisories.Advisories, whose hazards are added to each report
-        (with_advisories); None for none.
+        (with_advisories); None for none. tfrs: metarmap.tfr.Tfrs, the same for TFRs (with_tfrs).
         """
 
         self._config = cfg
         self.advisories = advisories
+        self.tfrs = tfrs
         self._clock = clock or Clock()
         self._is_fetching = False
         self._missing_stations = []
@@ -435,13 +454,15 @@ class METAR(object):
     def apply_mocks(self):
         """
         Puts the mock METARs typed on the Airports page in place of the fetched ones (dev_mode only), or takes them
-        away, and adds each airport's G-AIRMET and SIGMET hazards. Called after each fetch (METARs or advisories), and
-        when a mock changes.
+        away, and adds each airport's G-AIRMET and SIGMET hazards and TFRs. Called after each fetch (METARs, advisories
+        or TFRs), and when a mock or the TFR nearby distance changes.
         """
         dev_mode = getattr(getattr(self._config, "data", None), "dev_mode", False)
         airports = self._config.airports if dev_mode is True else []
         data = with_mocks(self._real, airports, self.positions, self._clock.now())
-        self.data = with_advisories(data, self.advisories) if self.advisories is not None else data
+        if self.advisories is not None:
+            data = with_advisories(data, self.advisories)
+        self.data = with_tfrs(data, self.tfrs) if self.tfrs is not None else data
 
     def missing_stations(self):
         """

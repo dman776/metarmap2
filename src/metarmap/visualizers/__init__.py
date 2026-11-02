@@ -2,12 +2,12 @@
 The visualizers: ways of showing METAR data on the LEDs. Each is a module of functions; see visualizer.py.
 """
 from metarmap.visualizers import (advisories, ceiling, chase, density_altitude, flightcategory, precipitation, pressure,
-                                  rainbow, spread, temperature, visibility, wind, wind_direction, windgusts)
+                                  rainbow, spread, temperature, tfr, visibility, wind, wind_direction, windgusts)
 
 # one look per airport, from its METAR. visualizer.active is a number in ALL: a new one anywhere but the end of these
 # renumbers the ones after it, so bump VisualizerSettings.numbering (settings.py) and shift older files there
 WEATHER = (flightcategory, wind, windgusts, wind_direction, pressure, precipitation, temperature, visibility,
-           density_altitude, ceiling, spread, advisories)
+           density_altitude, ceiling, spread, advisories, tfr)
 # one look for the whole strip; always last
 PATTERNS = (rainbow, chase)
 

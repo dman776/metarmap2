@@ -613,10 +613,11 @@
         e.dot.classList.add('locate');
     }
 
-    // ---- advisory areas (the Advisories visualizer), from /api/advisories: translucent, in each hazard's color;
-    // a SIGMET has a heavier, dashed outline and is drawn on top
+    // ---- areas: the Advisories visualizer's G-AIRMETs and SIGMETs (/api/advisories), translucent in each hazard's
+    // color, a SIGMET with a heavier dashed outline and on top; the TFR visualizer's TFRs (/api/tfrs) in each type's
+    // color, an upcoming one dashed and fainter
     const AREAS_MS = 60 * 1000;  // how often to look for new ones while they're shown (the map fetches every 10 min)
-    let areasWanted = false;
+    let areasWanted = null;  // which areas the visualizer draws: 'advisories', 'tfrs' or none
     let areasLayer = null;
     let areasAt = 0;
     let areasFetched;
@@ -626,14 +627,51 @@
         return ft === 0 ? 'the surface' : ft >= 18000 ? 'FL' + Math.round(ft / 100) : ft.toLocaleString() + ' ft';
     }
 
+    // with the date: advisories and TFRs can run for days
     function when(epoch) {
-        return new Date(epoch * 1000).toLocaleString([], {weekday: 'short', hour: '2-digit', minute: '2-digit'});
+        return new Date(epoch * 1000).toLocaleString([], {weekday: 'short', month: 'short', day: 'numeric',
+            hour: '2-digit', minute: '2-digit'});
     }
 
     const QUALIFIERS = {SEV: 'Severe', 'OCNL SEV': 'Occasional severe', FRQ: 'Frequent', OCNL: 'Occasional',
         EMBD: 'Embedded', SQL: 'Squall line', ISOL: 'Isolated', HVY: 'Heavy', OBSC: 'Obscured', MOD: 'Moderate'};
 
+    const TFR_TYPES = {VIP: 'VIP', HAZARDS: 'Hazards', SECURITY: 'Security', SPECIAL: 'Special',
+        'AIR SHOWS/SPORTS': 'Air show or sports', 'UAS PUBLIC GATHERING': 'Drones (UAS)'};
+
+    function tfrAltitude(ft, ref) {
+        return ft === 0 && ref === 'AGL' ? 'the surface' : ft.toLocaleString() + ' ft ' + ref;
+    }
+
+    function tfrPopup(a) {
+        const box = document.createElement('div');
+        box.innerHTML = '<div class="pop-head"><b></b><span class="pill"></span></div><dl class="pop-decoded"></dl>' +
+            '<a class="ac-link" target="_blank" rel="noopener">Details on tfr.faa.gov</a>';
+        box.querySelector('b').textContent = a.description.split(',').slice(0, 2).join(',') || 'TFR ' + a.notam;
+        box.querySelector('.pill').textContent = TFR_TYPES[a.type] || a.type;
+        const rows = [
+            ['NOTAM', a.notam + (a.name ? ' · ' + a.name : '')],
+            ['Altitude', 'From ' + tfrAltitude(a.floor, a.floor_ref) + (a.ceiling !== null ? ' to ' + tfrAltitude(a.ceiling, a.ceiling_ref) : '')],
+            [a.upcoming ? 'Starts' : 'In effect since', a.from ? when(a.from) : null],
+            ['Until', a.until ? when(a.until) : 'Further notice'],
+            ['Where', a.description]
+        ];
+        const dl = box.querySelector('dl');
+        rows.forEach(function (r) {
+            if (!r[1]) return;
+            const dt = document.createElement('dt');
+            dt.textContent = r[0];
+            const dd = document.createElement('dd');
+            dd.textContent = r[1];
+            dl.appendChild(dt);
+            dl.appendChild(dd);
+        });
+        box.querySelector('a').href = a.url;
+        return box;
+    }
+
     function areaPopup(a) {
+        if (a.kind === undefined) return tfrPopup(a);
         const box = document.createElement('div');
         box.innerHTML = '<div class="pop-head"><b></b><span class="pill"></span></div><dl class="pop-decoded"></dl>';
         box.querySelector('b').textContent = a.name;
@@ -647,7 +685,7 @@
             ['Severity', sigmet ? (QUALIFIERS[a.qualifier] || a.qualifier) : (QUALIFIERS[a.severity] || a.severity)],
             ['Reported', sigmet ? (a.observed ? 'Observed' : 'Forecast') : null],
             ['Moving', a.moving],
-            ['Forecast for', a.valid ? new Date(a.valid).toLocaleString([], {weekday: 'short', hour: '2-digit', minute: '2-digit'}) : null],
+            ['Forecast for', a.valid ? when(Date.parse(a.valid) / 1000) : null],
             ['Valid from', sigmet && a.from ? when(a.from) : null],
             [sigmet ? 'Valid until' : 'Expires', a.expires ? when(a.expires) : null]
         ];
@@ -676,35 +714,39 @@
         areasFetched = undefined;
     }
 
-    // called with each /api/live poll: show is whether the visualizer draws the areas
-    async function syncAreas(show) {
-        areasWanted = !!show;
-        if (!areasWanted) {
-            clearAreas();
-            return;
-        }
+    function areaStyle(a) {
+        if (a.kind === 'SIGMET') return {weight: 3, dashArray: '8 5', fillOpacity: 0.22};
+        if (a.kind === 'AIRMET') return {weight: 1.5, dashArray: null, fillOpacity: 0.15};
+        return a.upcoming ? {weight: 1.5, dashArray: '4 4', fillOpacity: 0.06} : {weight: 2, dashArray: null, fillOpacity: 0.2};
+    }
+
+    // called with each /api/live poll: kind is which areas the visualizer draws ('advisories', 'tfrs' or none)
+    async function syncAreas(kind) {
+        if ((kind || null) !== areasWanted) clearAreas();  // another visualizer: its own areas
+        areasWanted = kind || null;
+        if (!areasWanted) return;
         if (areasLoading || (areasLayer && Date.now() - areasAt < AREAS_MS)) return;
         areasLoading = true;
         areasAt = Date.now();
         try {
-            const res = await fetch('/api/advisories', {cache: 'no-store'});
+            const res = await fetch('/api/' + kind, {cache: 'no-store'});
             if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
             const state = await res.json();
-            const fetched = state.airmet.fetched + '/' + state.sigmet.fetched;
-            if (!areasWanted || (areasLayer && fetched === areasFetched)) return;  // switched away, or unchanged
-            // AIRMETs first, so SIGMETs are drawn (and clicked) on top
-            const order = state.areas.slice().sort(function (x, y) { return (x.kind === 'SIGMET') - (y.kind === 'SIGMET'); });
+            const fetched = JSON.stringify([kind, state.fetched, state.airmet && state.airmet.fetched,
+                state.sigmet && state.sigmet.fetched, state.nearby_nm]);
+            if (areasWanted !== kind || (areasLayer && fetched === areasFetched)) return;  // switched away, or unchanged
+            // what matters most is drawn (and clicked) on top: SIGMETs over AIRMETs, TFRs in effect over upcoming
+            const rank = function (a) { return a.kind === 'SIGMET' || (a.kind === undefined && !a.upcoming) ? 1 : 0; };
+            const order = state.areas.slice().sort(function (x, y) { return rank(x) - rank(y); });
             const layer = L.layerGroup(order.map(function (a) {
-                const sigmet = a.kind === 'SIGMET';
-                return L.polygon(a.coords, {color: a.color, weight: sigmet ? 3 : 1.5, dashArray: sigmet ? '8 5' : null,
-                    opacity: 0.9, fillColor: a.color, fillOpacity: sigmet ? 0.22 : 0.15})
+                return L.polygon(a.coords, Object.assign({color: a.color, opacity: 0.9, fillColor: a.color}, areaStyle(a)))
                     .bindPopup(function () { return areaPopup(a); }, {className: 'led-popup', autoPanPaddingTopLeft: [10, 64]});
             }));
             clearAreas();
             areasLayer = layer.addTo(map);
             areasFetched = fetched;
         } catch (err) {
-            console.error('[map] advisory areas failed', err);
+            console.error('[map] ' + kind + ' areas failed', err);
         } finally {
             areasLoading = false;
         }

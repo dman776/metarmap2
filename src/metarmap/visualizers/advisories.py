@@ -14,7 +14,7 @@ DESCRIPTION = "Display the advisory over each airport, below 18,000 ft. G-AIRMET
               "mountain obscuration magenta, turbulence yellow, wind shear red, strong surface wind blue, icing " \
               "cyan; two at once alternate, none is dim white. A SIGMET takes over, blinking in its hazard's color."
 EXCLUSIVE = False
-AREAS = True  # the Map page draws the G-AIRMET and SIGMET areas
+AREAS = "advisories"  # the Map page draws the G-AIRMET and SIGMET areas (/api/advisories)
 
 MIXED_PERIOD = 2.0  # seconds per alternation of two AIRMET hazards
 SIGMET_PERIOD = style.HEAVY_PERIOD  # a SIGMET blinks like heavy weather: fast, bright and dim, never dark

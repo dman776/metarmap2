@@ -120,22 +120,26 @@ def test_config_edit_writes_file(tmp_path):
 
 # ---- visualizer numbering -----------------------------------------------------------------------------------------
 
-# numbering 1: before Wind Direction (in at 3); 2: before AIRMET (in at 11, so Rainbow 10 -> 11 -> 12)
-@pytest.mark.parametrize("active, now", [(0, 0), (2, 2), (3, 4), (9, 10), (10, 12), (11, 13)])
+# numbering 1: before Wind Direction (in at 3); 2: before Advisories (in at 11); 3: before TFR (in at 12). So Rainbow
+# went 10 -> 11 -> 12 -> 13
+@pytest.mark.parametrize("active, now", [(0, 0), (2, 2), (3, 4), (9, 10), (10, 13), (11, 14)])
 def test_an_older_file_keeps_its_visualizer(active, now):
-    """A file from before Wind Direction and AIRMET keeps showing the same visualizer."""
+    """A file from before Wind Direction, Advisories and TFR keeps showing the same visualizer."""
     settings = Settings.from_dict({"visualizer": {"active": active}})
-    assert (settings.visualizer.active, settings.visualizer.numbering) == (now, 3)
+    assert (settings.visualizer.active, settings.visualizer.numbering) == (now, 4)
     assert Settings.from_dict(settings.to_dict()).visualizer.active == now  # once only
 
 
-@pytest.mark.parametrize("active, now", [(3, 3), (10, 10), (11, 12), (12, 13)])
-def test_a_file_from_before_airmet_keeps_its_visualizer(active, now):
-    """AIRMET went in at 11, after Dewpoint Spread: Rainbow (11) and Chase (12) move up by one."""
-    settings = Settings.from_dict({"visualizer": {"active": active, "numbering": 2}})
-    assert (settings.visualizer.active, settings.visualizer.numbering) == (now, 3)
+@pytest.mark.parametrize("numbering, active, now", [
+    (2, 3, 3), (2, 10, 10), (2, 11, 13), (2, 12, 14),  # before Advisories: Rainbow 11, Chase 12
+    (3, 10, 10), (3, 11, 11), (3, 12, 13), (3, 13, 14),  # before TFR: Advisories 11, Rainbow 12, Chase 13
+])
+def test_a_file_from_before_advisories_or_tfr_keeps_its_visualizer(numbering, active, now):
+    """Advisories went in at 11 and TFR at 12, after Dewpoint Spread: Rainbow and Chase moved up each time."""
+    settings = Settings.from_dict({"visualizer": {"active": active, "numbering": numbering}})
+    assert (settings.visualizer.active, settings.visualizer.numbering) == (now, 4)
 
 
 def test_a_current_file_is_not_renumbered():
-    assert Settings.from_dict({"visualizer": {"active": 11, "numbering": 3}}).visualizer.active == 11
+    assert Settings.from_dict({"visualizer": {"active": 12, "numbering": 4}}).visualizer.active == 12
     assert Settings.from_dict({}).visualizer.active == 0

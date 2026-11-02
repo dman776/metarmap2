@@ -12,9 +12,10 @@ Written from the ground up with a web UI, an API and a Home Assistant integratio
 ## Features
 
 - **Visualizers**: show the flight category, wind, wind gusts, wind direction, temperature, pressure, precipitation,
-  visibility, density altitude, ceiling, dewpoint spread (fog risk) or AIRMETs and SIGMETs (the advisory over each
+  visibility, density altitude, ceiling, dewpoint spread (fog risk), AIRMETs and SIGMETs (the advisory over each
   airport: IFR, mountain obscuration, turbulence, wind shear, strong wind or icing, and SIGMETs such as
-  thunderstorms blinking on top) on the LEDs, plus Rainbow and Chase patterns.
+  thunderstorms blinking on top) or TFRs (temporary flight restrictions in or near each airport, by type) on the
+  LEDs, plus Rainbow and Chase patterns.
   Switch between them on the web UI, or let the map rotate through them.
 - **Lightning**: airports reporting lightning or a thunderstorm flicker yellow (a double flash every 2 s) in every weather visualizer, unless you turn the animation off in Config.
 - **Estimated flight categories**: a station that doesn't report its flight category, but does report its visibility

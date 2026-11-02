@@ -114,6 +114,21 @@
             </select>
         </div>
         % switch('lightning.animation', d.lightning.animation, 'Lightning animation', 'Two quick yellow flashes on airports with lightning or a thunderstorm, in every weather visualizer.')
+        <div class="set">
+            <div>
+                <label class="t" for="tfr-nearby">TFR nearby distance</label>
+                <div class="d">The TFR visualizer also shows a TFR this close to an airport, dimmed.</div>
+            </div>
+            <select id="tfr-nearby" data-key="tfr.nearby_nm">
+                % choices = [(0, 'Inside only'), (5, '5 NM'), (10, '10 NM'), (15, '15 NM'), (20, '20 NM'), (30, '30 NM'), (50, '50 NM')]
+                % for value, label in choices:
+                <option value="{{value}}"{{!' selected' if value == d.tfr.nearby_nm else ''}}>{{label}}</option>
+                % end
+                % if d.tfr.nearby_nm not in [c[0] for c in choices]:
+                <option value="{{d.tfr.nearby_nm}}" selected>{{'%g NM' % d.tfr.nearby_nm}}</option>
+                % end
+            </select>
+        </div>
         % switch('visualizer.auto_rotate.enabled', d.visualizer.auto_rotate.enabled, 'Auto-rotate visualizers', 'Cycle through the visualizers on a timer.')
         % slider('visualizer.auto_rotate.delay_seconds', d.visualizer.auto_rotate.delay_seconds, 'Auto-rotate delay', 'Time on each visualizer.', lo=10, hi=600, step=10, fmt='sec')
         <div class="set">

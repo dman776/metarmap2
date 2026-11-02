@@ -122,13 +122,22 @@ class AutoRotate(_Section):
 class VisualizerSettings(_Section):
     active: int = 0  # a number in visualizers.ALL
     # which list `active` counts in; a file without it is from before Wind Direction (see renumber_visualizers)
-    numbering: int = 3
+    numbering: int = 4
     auto_rotate: AutoRotate = field(default_factory=AutoRotate)
 
 
 @dataclass
 class Lightning(_Section):
     animation: bool = True
+
+
+# tfr.nearby_nm: the most a TFR can be from an airport and still show on its LED (0: inside only)
+TFR_NEARBY_NM = (0, 50)
+
+
+@dataclass
+class TfrSettings(_Section):
+    nearby_nm: float = 10  # the TFR visualizer shows TFRs this close to an airport too (dim); 0: inside only
 
 
 UPDATE_CHANNELS = ("releases", "latest", "branch")
@@ -162,6 +171,7 @@ class Settings(_Section):
     color: Colors = field(default_factory=Colors)
     visualizer: VisualizerSettings = field(default_factory=VisualizerSettings)
     lightning: Lightning = field(default_factory=Lightning)
+    tfr: TfrSettings = field(default_factory=TfrSettings)
     update: UpdateSettings = field(default_factory=UpdateSettings)
     # for developing the map: Config > Software can update from any branch on GitHub. Edited in config.json by
     # hand only; the web UI can't change it
@@ -272,8 +282,8 @@ def _to_dict(obj):
 
 
 # numbering 1 -> 2: Wind Direction went in at 3, after Wind Gusts, moving the visualizers from Pressure on by one;
-# 2 -> 3: AIRMET went in at 11, after Dewpoint Spread, moving Rainbow and Chase by one
-INSERTED_AT = {2: 3, 3: 11}
+# 2 -> 3: AIRMET went in at 11, after Dewpoint Spread, moving Rainbow and Chase by one; 3 -> 4: TFR at 12, after it
+INSERTED_AT = {2: 3, 3: 11, 4: 12}
 
 
 def renumber_visualizers(settings, data):

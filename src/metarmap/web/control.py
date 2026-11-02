@@ -133,6 +133,8 @@ def add_routes(app, services, site, auth, updates=None):
             bottle.abort(400, str(e))
         if key == "led.count":  # the in-memory strip changes now; a NeoPixel strip after a restart
             renderer.resize(config.data.led.count)
+        if key == "tfr.nearby_nm":  # the TFRs near each airport, measured again with the new distance
+            services.metars.apply_mocks()
         renderer.refresh()
         if key.startswith("visualizer.auto_rotate."):  # the new timer starts now, no restart needed
             services.schedule_rotation()

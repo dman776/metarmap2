@@ -126,7 +126,7 @@
     },
     "visualizer": {
         "active": 0,
-        "numbering": 3,
+        "numbering": 4,
         "auto_rotate": {
             "enabled": false,
             "delay_seconds": 60,
@@ -135,6 +135,9 @@
     },
     "lightning": {
         "animation": true
+    },
+    "tfr": {
+        "nearby_nm": 10
     },
     "update": {
         "channel": "releases",

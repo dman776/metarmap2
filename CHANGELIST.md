@@ -12,7 +12,17 @@
   drawn in their hazard's color while Advisories is showing, SIGMETs with a heavier dashed outline; click one for its
   altitudes, cause, movement and times, and a SIGMET's text. New `GET /api/advisories`; `visualizer.areas` in
   `/api/live`
-- Rainbow and Chase move up by one (now 12 and 13). A `config.json` from before (`visualizer.numbering` 2) keeps
+- TFR visualizer, after Advisories: each airport in the color of the TFR (temporary flight restriction) it's in or
+  near, by type: VIP red, hazards (wildfires, disasters, launches) orange, security magenta, special blue, air shows
+  and sports yellow, drone restrictions over public gatherings cyan. Solid inside a TFR, dim within the new **TFR
+  nearby distance** (Config > Visualizers, `tfr.nearby_nm`, 10 NM by default, 0 for inside only), breathing for one
+  that starts within 24 hours; none is dim white. Only TFRs with a floor below 18,000 ft count. The map fetches the
+  FAA's TFR list from tfr.faa.gov with the METARs (every 10 minutes, in the background), and each new TFR's detail
+  once, for its areas' outlines, altitudes and times. On the Map page, the TFRs are drawn in their type's color while
+  TFR is showing (upcoming ones dashed); click one for its NOTAM, altitudes and times, with a link to its page on
+  tfr.faa.gov. New `GET /api/tfrs`; `visualizer.areas` in `/api/live` is now which areas the Map page draws
+  (`advisories` or `tfrs`), or `null`
+- Rainbow and Chase move up by two (now 13 and 14). A `config.json` from before (`visualizer.numbering` 2 or 3) keeps
   showing the same visualizer; scripts that call `/visualizer/<n>` need the new numbers. Home Assistant picks
   visualizers by name, so it's unaffected
 

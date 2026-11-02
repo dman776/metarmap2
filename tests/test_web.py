@@ -17,13 +17,16 @@ import pytest
 from metarmap import __version__
 from metarmap import app as app_module
 from metarmap.advisories import Advisories
+from metarmap.tfr import Tfrs
 from metarmap.leds.strip import FakeStrip
 from metarmap.models import Look
 from metarmap.renderer import Renderer
 from metarmap.settings import Airport, Settings
 from metarmap.sun import SunTimes
 from metarmap.traffic import Traffic
-from metarmap.visualizers import advisories as advisories_vis, flightcategory, rainbow, wind, wind_direction, windgusts
+from metarmap.visualizers import advisories as advisories_vis
+from metarmap.visualizers import flightcategory, rainbow, wind, wind_direction, windgusts
+from metarmap.visualizers import tfr as tfr_vis
 from metarmap.web import api, control, create_app, views
 
 AUTH = "Basic " + base64.b64encode(b"metar:map").decode()
@@ -172,15 +175,53 @@ def test_api_advisories(client):
     assert state["airmet"]["error"] is None and state["sigmet"]["fetched"] is not None
 
 
+def test_api_tfrs(client):
+    detail = ("<XNOTAM-Update><TFRAreaGroup><aseTFRArea><txtName>Area A</txtName>"
+              "<codeDistVerLower>HEI</codeDistVerLower><valDistVerLower>0</valDistVerLower>"
+              "<uomDistVerLower>FT</uomDistVerLower><codeDistVerUpper>ALT</codeDistVerUpper>"
+              "<valDistVerUpper>3000</valDistVerUpper><uomDistVerUpper>FT</uomDistVerUpper></aseTFRArea>"
+              "<abdMergedArea><Avx><geoLat>29.90000000N</geoLat><geoLong>095.40000000W</geoLong></Avx>"
+              "<Avx><geoLat>29.90000000N</geoLat><geoLong>095.30000000W</geoLong></Avx>"
+              "<Avx><geoLat>30.00000000N</geoLat><geoLong>095.30000000W</geoLong></Avx></abdMergedArea>"
+              "</TFRAreaGroup></XNOTAM-Update>")
+
+    def get(url, **kwargs):
+        if url.endswith("exportTfrList"):
+            return SimpleNamespace(raise_for_status=lambda: None, json=lambda: [
+                {"notam_id": "6/4313", "type": "VIP", "description": "HOUSTON, TX"}])
+        return SimpleNamespace(raise_for_status=lambda: None, text=detail)
+    client.services.tfrs = Tfrs(get=get, sleep=lambda s: None)
+    assert client.json("/api/tfrs")["areas"] == []  # before the first fetch
+    client.services.tfrs.fetch()
+    (area,) = client.json("/api/tfrs")["areas"]
+    assert (area["notam"], area["type"], area["color"]) == ("6/4313", "VIP", tfr_vis.css("VIP"))
+    assert area["ceiling"] == 3000 and area["until"] is None and area["upcoming"] is False
+
+
+def test_api_tfrs_without_them(services):
+    assert api.tfrs(services) is None
+
+
+def test_tfr_nearby_setting(client):
+    assert 'data-key="tfr.nearby_nm"' in client("/config")[1]
+    assert client("/config/edit/tfr.nearby_nm/20")[0] == 200
+    assert client.services.config.data.tfr.nearby_nm == 20
+    for bad in ("-1", "51", "far"):
+        assert client(f"/config/edit/tfr.nearby_nm/{bad}")[0] == 400
+    assert client.services.config.data.tfr.nearby_nm == 20
+
+
 def test_api_advisories_without_them(services):
     assert api.advisories(services) is None
 
 
 def test_live_says_when_the_map_draws_the_advisory_areas(client):
     renderer = client.services.renderer
-    assert client.json("/api/live")["visualizer"]["areas"] is False
+    assert client.json("/api/live")["visualizer"]["areas"] is None
     renderer.visualizer = [v.NAME for v in renderer.visualizers].index("Advisories")
-    assert client.json("/api/live")["visualizer"]["areas"] is True
+    assert client.json("/api/live")["visualizer"]["areas"] == "advisories"
+    renderer.visualizer = [v.NAME for v in renderer.visualizers].index("TFR")
+    assert client.json("/api/live")["visualizer"]["areas"] == "tfrs"
 
 
 def test_led_pin_and_order(client):
@@ -451,7 +492,7 @@ def test_live_whole_strip_visualizer(services):
     services.renderer.visualizer = 1  # rainbow
     live = api.live(services)
     assert live["strip"]["effect"] == "rainbow"
-    assert live["visualizer"] == {"active": 1, "name": "Rainbow", "exclusive": True, "areas": False}
+    assert live["visualizer"] == {"active": 1, "name": "Rainbow", "exclusive": True, "areas": None}
 
 
 def test_live_wind_barbs(services):
@@ -1081,7 +1122,7 @@ def test_remote_page_follows_the_map(client):
     app = client.services
     app.display.start()
     assert 'id="oled-on" class="switch" type="checkbox" checked' in client("/remote")[1]
-    client("/visualizer/12")  # Rainbow: locate is paused
+    client("/visualizer/13")  # Rainbow: locate is paused
     client("/config/edit/led.virtual_count/1")
     client("/config/airports/50/code/KDWH")
     body = client("/remote")[1]
