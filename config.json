@@ -41,6 +41,7 @@
     "visualizer": {
         "active": 0,
         "numbering": 4,
+		"estimated_category_breathing": true,
         "auto_rotate": {
             "enabled": false,
             "delay_seconds": 60,
