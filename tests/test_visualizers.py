@@ -71,6 +71,19 @@ def test_flight_category_missing_blinks_red(settings):
     assert look == Look.blink(C[colors_lib.RED], period=2)
 
 
+def test_no_flight_category_blink_can_be_disabled(settings):
+    settings.visualizer.no_flight_category_blink = False
+    assert flightcategory.look(metar(flightCategory=None), settings) == Look.off()
+    assert estimated({"visibilitySM": None, "skyConditions": []}, settings) == Look.off()
+    item = next(i for i in flightcategory.legend(settings) if i["label"].startswith("No flight category"))
+    assert item["effect"] == "off"
+
+
+def test_no_flight_category_blink_does_not_disable_estimates(settings):
+    settings.visualizer.no_flight_category_blink = False
+    assert estimated({"visibilitySM": 10.0}, settings) == breathing(flightcategory.COLORS["VFR"])
+
+
 def test_flight_category_no_report_is_off(settings):
     assert flightcategory.look({}, settings) == OFF
 

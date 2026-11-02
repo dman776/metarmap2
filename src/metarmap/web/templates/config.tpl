@@ -113,7 +113,18 @@
                 % end
             </select>
         </div>
-        % switch('lightning.animation', d.lightning.animation, 'Lightning animation', 'Two quick yellow flashes on airports with lightning or a thunderstorm, in every weather visualizer.')
+        % switch('visualizer.no_flight_category_blink', d.visualizer.no_flight_category_blink, 'No Flight Category Blink', 'Slow red blink when a METAR has no flight category, visibility or sky condition. Off leaves the airport LED dark.')
+        % switch('lightning.animation', d.lightning.animation, 'Lightning animation', 'Two quick flashes on airports with lightning or a thunderstorm, in every weather visualizer.')
+        <div class="set">
+            <div>
+                <label class="t" for="lightning-color">Lightning color</label>
+                <div class="d">Color of lightning flashes on the LEDs and web map.</div>
+            </div>
+            <select id="lightning-color" data-key="lightning.color">
+                <option value="#ffff00"{{!' selected' if d.lightning.color == '#ffff00' else ''}}>Yellow</option>
+                <option value="#ffffff"{{!' selected' if d.lightning.color == '#ffffff' else ''}}>White</option>
+            </select>
+        </div>
         <div class="set">
             <div>
                 <label class="t" for="tfr-nearby">TFR nearby distance</label>

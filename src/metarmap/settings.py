@@ -89,6 +89,7 @@ class AutoRotate(_Section):
 
 @dataclass
 class VisualizerSettings(_Section):
+    no_flight_category_blink: bool = True  # show a slow red blink when flight category cannot be determined
     active: int = 0  # a number in visualizers.ALL
     # which list `active` counts in; a file without it is from before Wind Direction (see renumber_visualizers)
     numbering: int = 4
@@ -98,6 +99,7 @@ class VisualizerSettings(_Section):
 @dataclass
 class Lightning(_Section):
     animation: bool = True
+    color: str = "#ffff00"  # CSS RGB hex; converted to internal GRB for LEDs
 
 
 # tfr.nearby_nm: the most a TFR can be from an airport and still show on its LED (0: inside only)
