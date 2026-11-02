@@ -1,3 +1,9 @@
+### Unreleased
+
+- **Estimated flight category breathing** (Config > Visualizers, `visualizer.estimated_category_breathing`,
+  on by default): off displays inferred VFR/MVFR/IFR/LIFR categories as solid colors rather than slowly breathing.
+  The inferred category and color remain unchanged; the Map page legend reflects the selected behavior.
+
 ### dman776 3.1.3 (2026-11-01)
 
 - Faster LEDs on a long strip: the animations draw into the strip first and the renderer sends it once per frame.

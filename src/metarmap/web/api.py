@@ -3,6 +3,7 @@ The JSON API: /api/status (used by the Home Assistant integration), /api/live (p
 /api/traffic (the Map page's live traffic), /api/advisories (the G-AIRMET and SIGMET areas) and /api/tfrs (TFRs).
 See API.md; the field names are part of the API.
 """
+
 import json
 import time
 
@@ -18,6 +19,7 @@ def status(services, ip):
     """
     Read-only snapshot of the map state.
     """
+
     def iso(dt):
         return dt.isoformat() if dt is not None else None
 
@@ -31,41 +33,50 @@ def status(services, ip):
         if not airport.code:
             continue
         m = metars.data.get(airport.code, {})
-        airports.append({
-            "code": airport.code,
-            "pixel": index,
-            "text": airport.name,
-            "display": airport.display,
-            "virtual": index >= cfg.led.count,  # on the web map and here only, no LED
-            "mock": bool(m.get("mock")),  # a mock METAR (dev_mode) in place of the real one
-            "flightCategory": m.get("flightCategory"),
-            "raw": m.get("raw"),
-            "windDir": m.get("windDir"),
-            "windSpeed": m.get("windSpeed"),
-            "windGustSpeed": m.get("windGustSpeed"),
-            "vis": m.get("vis"),
-            "obs": m.get("obs"),
-            "tempC": m.get("tempC"),
-            "dewpointC": m.get("dewpointC"),
-            "altimHg": m.get("altimHg"),
-            "lightning": m.get("lightning"),
-            "obsTime": iso(m.get("obsTime")),
-        })
+        airports.append(
+            {
+                "code": airport.code,
+                "pixel": index,
+                "text": airport.name,
+                "display": airport.display,
+                "virtual": index >= cfg.led.count,  # on the web map and here only, no LED
+                "mock": bool(m.get("mock")),  # a mock METAR (dev_mode) in place of the real one
+                "flightCategory": m.get("flightCategory"),
+                "raw": m.get("raw"),
+                "windDir": m.get("windDir"),
+                "windSpeed": m.get("windSpeed"),
+                "windGustSpeed": m.get("windGustSpeed"),
+                "vis": m.get("vis"),
+                "obs": m.get("obs"),
+                "tempC": m.get("tempC"),
+                "dewpointC": m.get("dewpointC"),
+                "altimHg": m.get("altimHg"),
+                "lightning": m.get("lightning"),
+                "obsTime": iso(m.get("obsTime")),
+            }
+        )
 
     return {
         "version": __version__,
         "ip": ip,
         "brightness": services.renderer.pixels().brightness,
-        "visualizer": {"active": active_num, "name": active_vis.NAME, "exclusive": active_vis.EXCLUSIVE,
-                       "description": active_vis.DESCRIPTION, "legend": visualizer.legend(active_vis, cfg)},
-        "visualizers": [{"index": i, "name": v.NAME, "exclusive": v.EXCLUSIVE}
-                        for i, v in enumerate(services.renderer.visualizers)],
+        "visualizer": {
+            "active": active_num,
+            "name": active_vis.NAME,
+            "exclusive": active_vis.EXCLUSIVE,
+            "description": active_vis.DESCRIPTION,
+            "legend": visualizer.legend(active_vis, cfg),
+        },
+        "visualizers": [
+            {"index": i, "name": v.NAME, "exclusive": v.EXCLUSIVE} for i, v in enumerate(services.renderer.visualizers)
+        ],
         "config": {
             "visualizer.active": cfg.visualizer.active,
             "visualizer.auto_rotate.enabled": cfg.visualizer.auto_rotate.enabled,
             "visualizer.auto_rotate.delay_seconds": cfg.visualizer.auto_rotate.delay_seconds,
             "visualizer.auto_rotate.skip": cfg.visualizer.auto_rotate.skip,
             "visualizer.missing_data_blink": cfg.visualizer.missing_data_blink,
+            "visualizer.estimated_category_breathing": cfg.visualizer.estimated_category_breathing,
             "lightning.animation": cfg.lightning.animation,
             "lightning.color": cfg.lightning.color,
             "display_screen.enabled": cfg.display_screen.enabled,
@@ -93,8 +104,10 @@ def update_state(services):
     if releases is None:
         return None
     state = releases.state()
-    return {**{k: v for k, v in state.items() if k not in ("badge", "releases", "build")},
-            "releases": [r["tag"] for r in state["releases"]]}
+    return {
+        **{k: v for k, v in state.items() if k not in ("badge", "releases", "build")},
+        "releases": [r["tag"] for r in state["releases"]],
+    }
 
 
 def wind_barb(metar):
@@ -110,6 +123,7 @@ def live(services, now=None):
     """
     What the physical map is doing right now: every LED's effect, the OLED screen and the last locate pulse.
     """
+
     def num(v):
         try:
             return float(v)
@@ -122,33 +136,46 @@ def live(services, now=None):
     display = services.display if services.config.data.display_screen.enabled else None
     barbs = visualizer.shows_barbs(active_vis)
     leds = []
-    for s in views.stations(services.config.airports, services.metars.data, getattr(services.metars, "position", None),
-                            services.config.data.led.count):
+    for s in views.stations(
+        services.config.airports,
+        services.metars.data,
+        getattr(services.metars, "position", None),
+        services.config.data.led.count,
+    ):
         m = services.metars.data.get(s["code"]) or {}
-        leds.append({
-            "code": s["code"],
-            "pixel": s["pixel"],
-            "name": s["name"],
-            "virtual": s["virtual"],
-            "mock": s["mock"],
-            "lat": num(s["lat"]),
-            "lon": num(s["lon"]),
-            "flightCategory": s["cat"],
-            "raw": s["raw"],
-            "lightning": m.get("lightning", False),
-            "look": led_looks.get(s["pixel"], {"effect": "off", "colors": []}),
-            "wind": wind_barb(m) if barbs else None,
-        })
+        leds.append(
+            {
+                "code": s["code"],
+                "pixel": s["pixel"],
+                "name": s["name"],
+                "virtual": s["virtual"],
+                "mock": s["mock"],
+                "lat": num(s["lat"]),
+                "lon": num(s["lon"]),
+                "flightCategory": s["cat"],
+                "raw": s["raw"],
+                "lightning": m.get("lightning", False),
+                "look": led_looks.get(s["pixel"], {"effect": "off", "colors": []}),
+                "wind": wind_barb(m) if barbs else None,
+            }
+        )
     return {
         "now": now if now is not None else time.time(),
         "brightness": renderer.pixels().brightness,
-        "visualizer": {"active": active_num, "name": active_vis.NAME, "exclusive": active_vis.EXCLUSIVE,
-                       "areas": visualizer.shows_areas(active_vis)},
+        "visualizer": {
+            "active": active_num,
+            "name": active_vis.NAME,
+            "exclusive": active_vis.EXCLUSIVE,
+            "areas": visualizer.shows_areas(active_vis),
+        },
         "strip": strip,
         "leds": leds,
         "locate": renderer.last_locate,
-        "display": {"enabled": display is not None, "on": bool(display and display.on),
-                    "screen": display.screen if display else None},
+        "display": {
+            "enabled": display is not None,
+            "on": bool(display and display.on),
+            "screen": display.screen if display else None,
+        },
     }
 
 
@@ -205,9 +232,13 @@ def as_json(data):
 def add_routes(app, services, site):
     app.route("/api/status", "GET", lambda: as_json(status(services, site.ip)))
     app.route("/api/live", "GET", lambda: as_json(live(services)))
-    app.route("/api/advisories", "GET",
-              lambda: as_json(advisories(services) or bottle.abort(404, "No G-AIRMETs or SIGMETs")))
+    app.route(
+        "/api/advisories", "GET", lambda: as_json(advisories(services) or bottle.abort(404, "No G-AIRMETs or SIGMETs"))
+    )
     app.route("/api/tfrs", "GET", lambda: as_json(tfrs(services) or bottle.abort(404, "No TFRs")))
     app.route("/api/traffic", "GET", lambda: as_json(traffic(services) or bottle.abort(404, "No live traffic")))
-    app.route("/api/metar/<code>", "GET", lambda code: as_json(metar(services, code.upper())
-                                                             or bottle.abort(404, f"{code} isn't on the map")))
+    app.route(
+        "/api/metar/<code>",
+        "GET",
+        lambda code: as_json(metar(services, code.upper()) or bottle.abort(404, f"{code} isn't on the map")),
+    )
