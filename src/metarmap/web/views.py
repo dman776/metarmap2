@@ -1,13 +1,12 @@
 """
 What the pages and API responses show, as plain data built from the map's parts. No bottle here.
 """
-
 import json
 import os
 from datetime import datetime
 
 from metarmap.metar import mock_text
-from metarmap.sun import LEVEL_AT
+from metarmap.sun import LEVEL_AT, brightness_for, night_off_active
 from metarmap.visualizers.visualizer import info as visualizer_info
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
@@ -34,7 +33,6 @@ def is_login(web_server, user, password):
 
 # ---- airports ------------------------------------------------------------------------------------------------
 
-
 def stations(airports, data, position=None, count=None):
     """
     One entry per airport (in LED order, skipping LEDs with no airport) for the templates.
@@ -50,22 +48,20 @@ def stations(airports, data, position=None, count=None):
         lat, lon = m.get("latitude"), m.get("longitude")
         if not (lat and lon) and position:
             lat, lon = position(airport.code) or (None, None)
-        result.append(
-            {
-                "code": airport.code,
-                "pixel": pixel,
-                "mock": bool(m.get("mock")),  # a mock METAR (dev_mode) in place of the real one
-                "name": airport.name,
-                "display": airport.display,
-                "virtual": count is not None and pixel >= count,
-                "has_data": bool(m),
-                "cat": m.get("flightCategory") or None,
-                "raw": m.get("raw"),
-                "obsTime": m.get("obsTime"),
-                "lat": lat,
-                "lon": lon,
-            }
-        )
+        result.append({
+            "code": airport.code,
+            "pixel": pixel,
+            "mock": bool(m.get("mock")),  # a mock METAR (dev_mode) in place of the real one
+            "name": airport.name,
+            "display": airport.display,
+            "virtual": count is not None and pixel >= count,
+            "has_data": bool(m),
+            "cat": m.get("flightCategory") or None,
+            "raw": m.get("raw"),
+            "obsTime": m.get("obsTime"),
+            "lat": lat,
+            "lon": lon,
+        })
     return result
 
 
@@ -73,17 +69,8 @@ def leds(airports, count):
     """
     Every LED for the Airports page, with its airport (code "" for none), then the virtual airports after led.count.
     """
-    return [
-        {
-            "pixel": pixel,
-            "code": a.code,
-            "name": a.name,
-            "display": a.display,
-            "virtual": pixel >= count,
-            "mock": mock_text(a),
-        }
-        for pixel, a in enumerate(airports)
-    ]
+    return [{"pixel": pixel, "code": a.code, "name": a.name, "display": a.display, "virtual": pixel >= count,
+             "mock": mock_text(a)} for pixel, a in enumerate(airports)]
 
 
 def summary(stations):
@@ -96,7 +83,6 @@ def summary(stations):
 
 
 # ---- visualizers ---------------------------------------------------------------------------------------------
-
 
 def visualizer(renderer):
     """The active visualizer."""
@@ -120,7 +106,6 @@ def rotation(renderer, skip):
 
 # ---- brightness schedule -------------------------------------------------------------------------------------
 
-
 def sun_schedule(times, levels, now=None):
     """
     Today's brightness schedule, with the next change flagged.
@@ -128,10 +113,8 @@ def sun_schedule(times, levels, now=None):
     """
     if not times:
         return []
-    schedule = [
-        {"name": name.capitalize(), "time": times[name], "level": getattr(levels, level), "next": False}
-        for name, level in LEVEL_AT.items()
-    ]
+    schedule = [{"name": name.capitalize(), "time": times[name], "level": getattr(levels, level), "next": False}
+                for name, level in LEVEL_AT.items()]
     now = now or datetime.now(schedule[0]["time"].tzinfo)
     upcoming = [s for s in schedule if s["time"] > now]
     if upcoming:
@@ -141,6 +124,56 @@ def sun_schedule(times, levels, now=None):
 
 # ---- map page ------------------------------------------------------------------------------------------------
 
+def brightness_schedule(times, levels, night_off, now=None):
+    """Today's brightness events with the CURRENT scheduled mode highlighted.
+
+    A sun event during a blackout is displayed at 0%, but doesn't become
+    the current mode: the Night off row remains highlighted until resume.
+    """
+    if not times:
+        return []
+    tz = next(iter(times.values())).tzinfo
+    now = now.astimezone(tz) if now is not None else datetime.now(tz)
+    schedule = [{"name": name.capitalize(), "time": times[name], "level": getattr(levels, level), "next": False}
+                for name, level in LEVEL_AT.items()]
+    elapsed_sun = [event for event in schedule if event["time"] <= now]
+    current_sun = max(elapsed_sun, key=lambda event: event["time"]) if elapsed_sun else schedule[-1]
+    current_sun["next"] = True
+    if not night_off.enabled or night_off.start == night_off.end:
+        return schedule
+
+    midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    start_h, start_m = map(int, night_off.start.split(":"))
+    end_h, end_m = map(int, night_off.end.split(":"))
+
+    for event in schedule:
+        if night_off_active(event["time"], night_off):
+            event["level"] = 0.0
+        event["next"] = False
+
+    begins = midnight.replace(hour=start_h, minute=start_m)
+    ends = midnight.replace(hour=end_h, minute=end_m)
+    schedule.append({"name": "Night off", "time": begins, "level": 0.0,
+                     "next": False, "night_event": True})
+    schedule.append({"name": "Resume schedule", "time": ends,
+                     "level": brightness_for(ends, times, levels),
+                     "next": False, "night_event": True})
+
+    if night_off_active(now, night_off):
+        current = next(event for event in schedule if event["name"] == "Night off")
+    else:
+        # Ignore blackout-suppressed sun events and Night off itself when
+        # choosing the currently active non-blackout brightness mode.
+        elapsed = [event for event in schedule
+                   if event["time"] <= now and event["name"] != "Night off"
+                   and (event["name"] == "Resume schedule"
+                        or not night_off_active(event["time"], night_off))]
+        current = max(elapsed, key=lambda event: event["time"]) if elapsed else schedule[3]
+    current["next"] = True
+    return sorted(schedule, key=lambda event: event["time"])
+
+
+# ---- map page ------------------------------------------------------------------------------------------------
 
 def map_settings(m, sectionals, stations):
     """
@@ -174,6 +207,5 @@ def chart_for_airports(sectionals, stations):
 
     def covered(c):
         return sum(1 for lat, lon in points if c["south"] <= lat <= c["north"] and c["west"] <= lon <= c["east"])
-
     best = max(sectionals, key=covered)
     return best["name"] if covered(best) else None
