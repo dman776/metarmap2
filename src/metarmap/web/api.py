@@ -33,8 +33,7 @@ def status(services, ip):
         if not airport.code:
             continue
         m = metars.data.get(airport.code, {})
-        airports.append(
-            {
+        airports.append({
                 "code": airport.code,
                 "pixel": index,
                 "text": airport.name,
@@ -53,8 +52,7 @@ def status(services, ip):
                 "altimHg": m.get("altimHg"),
                 "lightning": m.get("lightning"),
                 "obsTime": iso(m.get("obsTime")),
-            }
-        )
+            })
 
     return {
         "version": __version__,
@@ -143,8 +141,7 @@ def live(services, now=None):
         services.config.data.led.count,
     ):
         m = services.metars.data.get(s["code"]) or {}
-        leds.append(
-            {
+        leds.append({
                 "code": s["code"],
                 "pixel": s["pixel"],
                 "name": s["name"],
@@ -157,8 +154,7 @@ def live(services, now=None):
                 "lightning": m.get("lightning", False),
                 "look": led_looks.get(s["pixel"], {"effect": "off", "colors": []}),
                 "wind": wind_barb(m) if barbs else None,
-            }
-        )
+            })
     return {
         "now": now if now is not None else time.time(),
         "brightness": renderer.pixels().brightness,
