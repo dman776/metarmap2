@@ -15,7 +15,7 @@ from metarmap.visualizers.visualizer import legend_item
 NAME = "Flight Category"
 DESCRIPTION = (
     "Display the flight category (VFR, MVFR, IFR, LIFR). A station that doesn't report one gets an "
-    "estimate from its visibility and ceiling; the estimated color can breathe or stay solid."
+    "estimate from its visibility and ceiling, shown breathing (or solid, if that's turned off in Config)."
 )
 EXCLUSIVE = False
 
@@ -32,6 +32,7 @@ OFF = (0, 0, 0)
 
 
 def legend(settings):
+    breathing = settings.visualizer.estimated_category_breathing
     items = [
         legend_item("VFR", "Green", COLORS[Category.VFR]),
         legend_item("MVFR", "Blue", COLORS[Category.MVFR]),
@@ -39,13 +40,12 @@ def legend(settings):
         legend_item("LIFR", "Purple", COLORS[Category.LIFR]),
         legend_item(
             "Estimated",
-            "Slow breathing in the inferred category's color"
-            if settings.visualizer.estimated_category_breathing
-            else "Solid inferred category color",
+            f"{'Slow breathing' if breathing else 'Solid'} in the category's color: the station didn't report a "
+            "category, so it's estimated from the visibility and ceiling it does report",
             COLORS[Category.VFR],
-            effect="pulse" if settings.visualizer.estimated_category_breathing else "solid",
-            period=ESTIMATE_PERIOD if settings.visualizer.estimated_category_breathing else None,
-            low=style.LIGHT_LOW if settings.visualizer.estimated_category_breathing else None,
+            effect="pulse" if breathing else "solid",
+            period=ESTIMATE_PERIOD if breathing else None,
+            low=style.LIGHT_LOW if breathing else None,
         ),
         style.missing_legend("flight category, visibility or sky condition"),
     ]

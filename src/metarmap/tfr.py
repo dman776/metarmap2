@@ -13,6 +13,7 @@ The details are XML because tfr.faa.gov has no JSON with them: its JSON list has
 the description's words), its GeoJSON outlines (geoserver V_TFR_LOC) have neither and can't be matched to a TFR's
 areas, and getWebText is an HTML table in JSON. JSON is preferred everywhere else (checked 2026-11-01).
 """
+
 import math
 import threading
 import time
@@ -104,16 +105,18 @@ def parse_detail(xml_text):
         starts = [utc(e.text) for e in area.iter("dateEffective") if e.text]
         ends = [utc(e.text) for e in area.iter("dateExpire") if e.text]
         starts, ends = [s for s in starts if s is not None], [e for e in ends if e is not None]
-        areas.append({
-            "name": find(area, "txtName"),
-            "floor": feet(find(area, "valDistVerLower"), find(area, "uomDistVerLower")) or 0,
-            "floor_ref": "AGL" if find(area, "codeDistVerLower") == "HEI" else "MSL",
-            "ceiling": feet(find(area, "valDistVerUpper"), find(area, "uomDistVerUpper")),
-            "ceiling_ref": "AGL" if find(area, "codeDistVerUpper") == "HEI" else "MSL",
-            "from": min(starts) if starts else None,
-            "until": max(ends) if ends else FOREVER,
-            "coords": coords,
-        })
+        areas.append(
+            {
+                "name": find(area, "txtName"),
+                "floor": feet(find(area, "valDistVerLower"), find(area, "uomDistVerLower")) or 0,
+                "floor_ref": "AGL" if find(area, "codeDistVerLower") == "HEI" else "MSL",
+                "ceiling": feet(find(area, "valDistVerUpper"), find(area, "uomDistVerUpper")),
+                "ceiling_ref": "AGL" if find(area, "codeDistVerUpper") == "HEI" else "MSL",
+                "from": min(starts) if starts else None,
+                "until": max(ends) if ends else FOREVER,
+                "coords": coords,
+            }
+        )
     return areas
 
 
@@ -168,9 +171,11 @@ class Tfrs:
 
     def fetch_soon(self, then=None):
         """fetch() in the background; then() afterwards (e.g. to show the new TFRs on the LEDs) if it worked."""
+
         def run():
             if self.fetch() and then is not None:
                 then()
+
         threading.Thread(target=run, name="tfr-fetch", daemon=True).start()
 
     def _fetch(self):
@@ -196,8 +201,12 @@ class Tfrs:
                         failed += 1
                 if notam not in self._details:
                     continue
-            tfrs[notam] = {"notam": notam, "type": item["type"], "description": item.get("description") or "",
-                           "areas": self._details[notam]}
+            tfrs[notam] = {
+                "notam": notam,
+                "type": item["type"],
+                "description": item.get("description") or "",
+                "areas": self._details[notam],
+            }
         self._details = {n: self._details[n] for n in tfrs}  # forget the TFRs that are gone
         with self._lock:
             self._tfrs, self.fetched, self.error = tfrs, self._clock(), None
@@ -237,8 +246,15 @@ class Tfrs:
                 starts = area["from"] if area["from"] is not None else now
                 if area["until"] <= now or starts > now + SOON_SECONDS or area["floor"] >= MAX_FLOOR_FT:
                     continue
-                found.append({"notam": tfr["notam"], "type": tfr["type"], "description": tfr["description"],
-                              "upcoming": starts > now, **area})
+                found.append(
+                    {
+                        "notam": tfr["notam"],
+                        "type": tfr["type"],
+                        "description": tfr["description"],
+                        "upcoming": starts > now,
+                        **area,
+                    }
+                )
         return found
 
     def nearby_nm(self):
@@ -265,11 +281,23 @@ class Tfrs:
             key = (area["type"], area["upcoming"])
             found[key] = found.get(key, False) or distance == 0
         order = list(TYPES)
-        return sorted(({"type": t, "upcoming": upcoming, "inside": found[(t, upcoming)]} for t, upcoming in found),
-                      key=lambda f: (f["upcoming"], not f["inside"], order.index(f["type"])))
+        return sorted(
+            ({"type": t, "upcoming": upcoming, "inside": found[(t, upcoming)]} for t, upcoming in found),
+            key=lambda f: (f["upcoming"], not f["inside"], order.index(f["type"])),
+        )
 
     def state(self):
         """For /api/tfrs: the areas (for the Map page), and when the list was fetched."""
-        return {"fetched": self.fetched, "error": self.error, "nearby_nm": self.nearby_nm(),
-                "areas": [{**a, "until": None if a["until"] == FOREVER else a["until"],
-                           "url": PAGE_URL.format(a["notam"].replace("/", "_"))} for a in self.areas() or []]}
+        return {
+            "fetched": self.fetched,
+            "error": self.error,
+            "nearby_nm": self.nearby_nm(),
+            "areas": [
+                {
+                    **a,
+                    "until": None if a["until"] == FOREVER else a["until"],
+                    "url": PAGE_URL.format(a["notam"].replace("/", "_")),
+                }
+                for a in self.areas() or []
+            ],
+        }

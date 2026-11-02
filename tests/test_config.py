@@ -2,6 +2,7 @@
 Tests for config.Config: airports in config.json (moved there once from an older airports.json), the number of
 LEDs, and editing and re-ordering airports.
 """
+
 import json
 from pathlib import Path
 
@@ -41,13 +42,15 @@ def old_map(tmp_path, monkeypatch):
 def config(tmp_path):
     settings = Settings()
     settings.led.count = 4
-    settings.airports = airports_from_json({"KHOU": {"text": "Hobby", "display": True}, "KIAH": {}, "NULL1": {},
-                                            "KGLS": {"display": True}})
+    settings.airports = airports_from_json(
+        {"KHOU": {"text": "Hobby", "display": True}, "KIAH": {}, "NULL1": {}, "KGLS": {"display": True}}
+    )
     settings.save(tmp_path / "config.json")
     return Config(str(tmp_path / "config.json"))
 
 
 # ---- moving airports.json into config.json --------------------------------------------------------------------
+
 
 def test_airports_move_into_config_json(old_map):
     before = json.loads((old_map / "config.json").read_text())
@@ -62,8 +65,9 @@ def test_airports_move_into_config_json(old_map):
         {"code": "KGLS", "name": "Galveston", "display": True, "visits": 3},  # other keys are kept
     ]
     # every other setting is unchanged
-    assert {k: v for k, v in saved.items() if k != "airports"} == {k: v for k, v in before.items()
-                                                                   if k != "airports_file"}
+    assert {k: v for k, v in saved.items() if k != "airports"} == {
+        k: v for k, v in before.items() if k != "airports_file"
+    }
     assert json.loads((old_map / "airports.json").read_text()) == OLD_AIRPORTS  # kept as a backup
     assert codes(config) == ["KHOU", "", "KIAH", "KGLS", "", ""]  # padded to led.count (6)
 
@@ -100,6 +104,7 @@ def test_airports_are_not_a_single_setting(config):
 
 # ---- the number of LEDs ---------------------------------------------------------------------------------------
 
+
 def test_more_leds_get_no_airport(config):
     config.set_led_count("6")
     assert config.data.led.count == 6
@@ -131,6 +136,7 @@ def test_airports_past_the_strip_are_kept(tmp_path):
 
 
 # ---- virtual airports -----------------------------------------------------------------------------------------
+
 
 def test_virtual_airports_come_after_the_leds(config):
     config.edit("led.virtual_count", "2")
@@ -179,6 +185,7 @@ def test_virtual_count_limits(config, count):
 
 # ---- editing --------------------------------------------------------------------------------------------------
 
+
 def test_set_code(config):
     config.set_airport(2, "code", " kdwh ")
     assert codes(config)[2] == "KDWH"
@@ -218,6 +225,7 @@ def test_the_same_airport_on_two_leds(config):
 
 # ---- re-ordering ----------------------------------------------------------------------------------------------
 
+
 def test_move_up_and_down(config):
     config.move_airport(3, 0)
     assert codes(config) == ["KGLS", "KHOU", "KIAH", ""]
@@ -228,8 +236,12 @@ def test_move_up_and_down(config):
 
 def test_move_saves(config, tmp_path):
     config.move_airport(0, 3)
-    assert [a["code"] for a in json.loads((tmp_path / "config.json").read_text())["airports"]] == \
-        ["KIAH", "", "KGLS", "KHOU"]
+    assert [a["code"] for a in json.loads((tmp_path / "config.json").read_text())["airports"]] == [
+        "KIAH",
+        "",
+        "KGLS",
+        "KHOU",
+    ]
 
 
 def test_move_out_of_range(config):
@@ -241,6 +253,7 @@ def test_move_out_of_range(config):
 
 
 # ---- the older by-code edits ----------------------------------------------------------------------------------
+
 
 def test_rename_by_code(config):
     config.edit_airport("KIAH", "KDWH")
@@ -265,8 +278,10 @@ def test_parse_code():
 
 # ---- changes from parallel web requests -----------------------------------------------------------------------
 
+
 def test_parallel_changes_all_land(config, tmp_path):
     import threading
+
     config.set_led_count(40)
     threads = [threading.Thread(target=config.set_airport, args=(i, "code", f"K{i:03d}")) for i in range(40)]
     threads += [threading.Thread(target=config.set_airport, args=(i, "name", f"Airport {i}")) for i in range(40)]
@@ -289,6 +304,7 @@ def test_save_keeps_the_file_mode_and_leaves_no_temp_file(config, tmp_path):
 
 
 # ---- names ------------------------------------------------------------------------------------------------------
+
 
 def test_fill_names_only_fills_empty_ones(config, tmp_path):
     assert config.fill_names({"KHOU": "Houston/Hobby Arpt", "KIAH": "Houston/Bush Intcntl", "KGLS": "Galveston"}) == 2

@@ -2,6 +2,7 @@
 Tests for the web UI and API (metarmap.web): every page renders, the API's fields, the routes that change the map,
 and the view data behind the pages.
 """
+
 import base64
 import io
 import json
@@ -32,14 +33,29 @@ from metarmap.web import api, control, create_app, views
 AUTH = "Basic " + base64.b64encode(b"metar:map").decode()
 OBS = datetime(2026, 10, 24, 17, 53, tzinfo=timezone.utc)
 NOON = datetime(2026, 10, 24, 17, 0, tzinfo=timezone.utc)
-SUN = {"dawn": NOON.replace(hour=11), "sunrise": NOON.replace(hour=12), "sunset": NOON.replace(hour=23),
-       "dusk": NOON.replace(hour=23, minute=30)}
+SUN = {
+    "dawn": NOON.replace(hour=11),
+    "sunrise": NOON.replace(hour=12),
+    "sunset": NOON.replace(hour=23),
+    "dusk": NOON.replace(hour=23, minute=30),
+}
 
 
 def metar(category, **extra):
-    return {"flightCategory": category, "raw": f"METAR {category}", "obsTime": OBS, "windSpeed": 5, "windDir": "100",
-            "windGust": False, "windGustSpeed": 0, "lightning": False, "obs": "", "latitude": "29.6",
-            "longitude": "-95.3", **extra}
+    return {
+        "flightCategory": category,
+        "raw": f"METAR {category}",
+        "obsTime": OBS,
+        "windSpeed": 5,
+        "windDir": "100",
+        "windGust": False,
+        "windGustSpeed": 0,
+        "lightning": False,
+        "obs": "",
+        "latitude": "29.6",
+        "longitude": "-95.3",
+        **extra,
+    }
 
 
 class Client:
@@ -50,10 +66,19 @@ class Client:
 
     def __call__(self, path, method="GET", auth=True, body=None):
         data = json.dumps(body).encode() if body is not None else b""
-        environ = {"REQUEST_METHOD": method, "PATH_INFO": path, "QUERY_STRING": "", "SERVER_NAME": "test",
-                   "SERVER_PORT": "80", "SERVER_PROTOCOL": "HTTP/1.1", "wsgi.url_scheme": "http",
-                   "wsgi.input": io.BytesIO(data), "wsgi.errors": io.StringIO(), "CONTENT_LENGTH": str(len(data)),
-                   "CONTENT_TYPE": "application/json"}
+        environ = {
+            "REQUEST_METHOD": method,
+            "PATH_INFO": path,
+            "QUERY_STRING": "",
+            "SERVER_NAME": "test",
+            "SERVER_PORT": "80",
+            "SERVER_PROTOCOL": "HTTP/1.1",
+            "wsgi.url_scheme": "http",
+            "wsgi.input": io.BytesIO(data),
+            "wsgi.errors": io.StringIO(),
+            "CONTENT_LENGTH": str(len(data)),
+            "CONTENT_TYPE": "application/json",
+        }
         if auth is True:
             environ["HTTP_AUTHORIZATION"] = AUTH
         elif auth:
@@ -63,6 +88,7 @@ class Client:
         def start_response(s, h, exc_info=None):
             status.append(s)
             headers.extend(h)
+
         body = b"".join(self.app(environ, start_response)).decode()
         self.headers = dict(headers)
         return int(status[0].split()[0]), body
@@ -76,6 +102,7 @@ class Client:
 
 # ---- a whole map on fake hardware -------------------------------------------------------------------------------
 
+
 @pytest.fixture
 def client(make_app):
     app = make_app()
@@ -86,8 +113,22 @@ def client(make_app):
         app.display.stop()
 
 
-@pytest.mark.parametrize("path", ["/", "/metars", "/raw", "/map", "/debug", "/config", "/config/airports", "/remote",
-                                  "/static/app.js", "/static/remote.js", "/update/progress"])
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/",
+        "/metars",
+        "/raw",
+        "/map",
+        "/debug",
+        "/config",
+        "/config/airports",
+        "/remote",
+        "/static/app.js",
+        "/static/remote.js",
+        "/update/progress",
+    ],
+)
 def test_pages(client, path):
     status, body = client(path)
     assert status == 200, body
@@ -140,8 +181,16 @@ def test_api_traffic(client):
 
     def get(url, **kwargs):
         calls.append(url)
-        return SimpleNamespace(status_code=200, raise_for_status=lambda: None, json=lambda: {"ac": [
-            {"hex": "a0822c", "flight": "UCA4878 ", "alt_baro": 2450, "lat": 30.0, "lon": -95.5, "seen_pos": 1}]})
+        return SimpleNamespace(
+            status_code=200,
+            raise_for_status=lambda: None,
+            json=lambda: {
+                "ac": [
+                    {"hex": "a0822c", "flight": "UCA4878 ", "alt_baro": 2450, "lat": 30.0, "lon": -95.5, "seen_pos": 1}
+                ]
+            },
+        )
+
     # the fake map fetched no METARs, so it doesn't know where its airports are
     client.services.traffic = Traffic(lambda: client.services.config.data.geo.map, lambda: [(29.65, -95.28)], get=get)
     traffic = client.json("/api/traffic")
@@ -158,38 +207,64 @@ def test_api_traffic_without_it(services):
 def test_api_advisories(client):
     def get(url, **kwargs):
         if "gairmet" in url:
-            data = [{"hazard": "IFR", "geometryType": "AREA", "product": "SIERRA", "base": None, "top": None,
-                     "validTime": "2026-11-02T00:00:00.000Z", "expireTime": None, "due_to": "CIG BLW 010",
-                     "coords": [{"lat": "29", "lon": "-96"}, {"lat": "29", "lon": "-94"}, {"lat": "31", "lon": "-95"}]}]
+            data = [
+                {
+                    "hazard": "IFR",
+                    "geometryType": "AREA",
+                    "product": "SIERRA",
+                    "base": None,
+                    "top": None,
+                    "validTime": "2026-11-02T00:00:00.000Z",
+                    "expireTime": None,
+                    "due_to": "CIG BLW 010",
+                    "coords": [{"lat": "29", "lon": "-96"}, {"lat": "29", "lon": "-94"}, {"lat": "31", "lon": "-95"}],
+                }
+            ]
         else:
-            data = [{"hazard": "CONV", "base": None, "top": 45000, "validTimeFrom": None, "validTimeTo": None,
-                     "coords": [{"lat": 29, "lon": -96}, {"lat": 29, "lon": -94}, {"lat": 31, "lon": -95}]}]
+            data = [
+                {
+                    "hazard": "CONV",
+                    "base": None,
+                    "top": 45000,
+                    "validTimeFrom": None,
+                    "validTimeTo": None,
+                    "coords": [{"lat": 29, "lon": -96}, {"lat": 29, "lon": -94}, {"lat": 31, "lon": -95}],
+                }
+            ]
         return SimpleNamespace(status_code=200, raise_for_status=lambda: None, json=lambda: data)
+
     client.services.advisories = Advisories(get=get)
     assert client.json("/api/advisories")["areas"] == []  # before the first fetch
     client.services.advisories.fetch()
     state = client.json("/api/advisories")
     assert [(a["kind"], a["hazard"], a["color"]) for a in state["areas"]] == [
-        ("SIGMET", "CONV", advisories_vis.css("CONV", "SIGMET")), ("AIRMET", "IFR", advisories_vis.css("IFR"))]
+        ("SIGMET", "CONV", advisories_vis.css("CONV", "SIGMET")),
+        ("AIRMET", "IFR", advisories_vis.css("IFR")),
+    ]
     assert state["areas"][1]["coords"][0] == [29.0, -96.0]
     assert state["airmet"]["error"] is None and state["sigmet"]["fetched"] is not None
 
 
 def test_api_tfrs(client):
-    detail = ("<XNOTAM-Update><TFRAreaGroup><aseTFRArea><txtName>Area A</txtName>"
-              "<codeDistVerLower>HEI</codeDistVerLower><valDistVerLower>0</valDistVerLower>"
-              "<uomDistVerLower>FT</uomDistVerLower><codeDistVerUpper>ALT</codeDistVerUpper>"
-              "<valDistVerUpper>3000</valDistVerUpper><uomDistVerUpper>FT</uomDistVerUpper></aseTFRArea>"
-              "<abdMergedArea><Avx><geoLat>29.90000000N</geoLat><geoLong>095.40000000W</geoLong></Avx>"
-              "<Avx><geoLat>29.90000000N</geoLat><geoLong>095.30000000W</geoLong></Avx>"
-              "<Avx><geoLat>30.00000000N</geoLat><geoLong>095.30000000W</geoLong></Avx></abdMergedArea>"
-              "</TFRAreaGroup></XNOTAM-Update>")
+    detail = (
+        "<XNOTAM-Update><TFRAreaGroup><aseTFRArea><txtName>Area A</txtName>"
+        "<codeDistVerLower>HEI</codeDistVerLower><valDistVerLower>0</valDistVerLower>"
+        "<uomDistVerLower>FT</uomDistVerLower><codeDistVerUpper>ALT</codeDistVerUpper>"
+        "<valDistVerUpper>3000</valDistVerUpper><uomDistVerUpper>FT</uomDistVerUpper></aseTFRArea>"
+        "<abdMergedArea><Avx><geoLat>29.90000000N</geoLat><geoLong>095.40000000W</geoLong></Avx>"
+        "<Avx><geoLat>29.90000000N</geoLat><geoLong>095.30000000W</geoLong></Avx>"
+        "<Avx><geoLat>30.00000000N</geoLat><geoLong>095.30000000W</geoLong></Avx></abdMergedArea>"
+        "</TFRAreaGroup></XNOTAM-Update>"
+    )
 
     def get(url, **kwargs):
         if url.endswith("exportTfrList"):
-            return SimpleNamespace(raise_for_status=lambda: None, json=lambda: [
-                {"notam_id": "6/4313", "type": "VIP", "description": "HOUSTON, TX"}])
+            return SimpleNamespace(
+                raise_for_status=lambda: None,
+                json=lambda: [{"notam_id": "6/4313", "type": "VIP", "description": "HOUSTON, TX"}],
+            )
         return SimpleNamespace(raise_for_status=lambda: None, text=detail)
+
     client.services.tfrs = Tfrs(get=get, sleep=lambda s: None)
     assert client.json("/api/tfrs")["areas"] == []  # before the first fetch
     client.services.tfrs.fetch()
@@ -227,6 +302,7 @@ def test_live_says_when_the_map_draws_the_advisory_areas(client):
 def test_led_pin_and_order(client):
     def led():
         return client.services.config.data.led  # a save reads config.json back, so look it up each time
+
     assert client("/config/edit/led.pin/12")[0] == 200
     assert client("/config/edit/led.order/RGB")[0] == 200
     assert (led().pin, led().order) == (12, "RGB")
@@ -241,6 +317,7 @@ def test_led_pin_and_order(client):
 def test_missing_data_blink(client):
     def blink():
         return client.services.config.data.visualizer.missing_data_blink
+
     assert blink() is True
     assert client.json("/api/status", auth=False)["config"]["visualizer.missing_data_blink"] is True
     assert client("/config/edit/visualizer.missing_data_blink/false")[0] == 200
@@ -252,6 +329,7 @@ def test_missing_data_blink(client):
 def test_lightning_color(client):
     def color():
         return client.services.config.data.lightning.color
+
     assert color() == "yellow"
     assert client("/config/edit/lightning.color/white")[0] == 200
     assert color() == "white"
@@ -265,18 +343,30 @@ def test_lightning_color(client):
 def test_config_tabs(client):
     body = client("/config")[1]
     tabs = re.findall(r'<a class="tab" href="([^"]+)" data-tab="(\w+)"', body)
-    assert tabs == [("#physical", "physical"), ("#visualizers", "visualizers"), ("/config/airports", "airports"),
-                    ("#map", "map"), ("#system", "system")]
-    assert re.findall(r'data-panel="(\w+)"( hidden)?>', body) == [("physical", ""), ("visualizers", " hidden"),
-                                                                 ("map", " hidden"), ("system", " hidden")]
-    panel = body[body.index('data-panel="physical"'):body.index('data-panel="visualizers"')]
+    assert tabs == [
+        ("#physical", "physical"),
+        ("#visualizers", "visualizers"),
+        ("/config/airports", "airports"),
+        ("#map", "map"),
+        ("#system", "system"),
+    ]
+    assert re.findall(r'data-panel="(\w+)"( hidden)?>', body) == [
+        ("physical", ""),
+        ("visualizers", " hidden"),
+        ("map", " hidden"),
+        ("system", " hidden"),
+    ]
+    panel = body[body.index('data-panel="physical"') : body.index('data-panel="visualizers"')]
     assert "<h2>LED pixels</h2>" in panel and "<h2>OLED screen</h2>" in panel
     assert "<h2>Virtual map</h2>" in body and 'class="subnav"' not in body
 
     airports = client("/config/airports")[1]
     tabs = re.findall(r'<a class="tab" href="([^"]+)" data-tab="(\w+)"( aria-current="page")?', airports)
-    assert tabs[0] == ("/config#physical", "physical", "") and tabs[2] == ("/config/airports", "airports",
-                                                                          ' aria-current="page"')
+    assert tabs[0] == ("/config#physical", "physical", "") and tabs[2] == (
+        "/config/airports",
+        "airports",
+        ' aria-current="page"',
+    )
 
 
 def test_airport_edit_restarts_the_display(client):
@@ -313,7 +403,7 @@ def test_auto_rotate_changes_without_a_restart(client):
     assert not scheduler.get_jobs("rotate_visualizer")
     body = client("/config")[1]
     assert 'data-key="visualizer.auto_rotate.enabled"' in body
-    assert 'data-key="visualizer.auto_rotate.enabled" data-restart' not in body.replace(' checked', '')
+    assert 'data-key="visualizer.auto_rotate.enabled" data-restart' not in body.replace(" checked", "")
 
 
 def test_brightness_levels_apply_without_a_restart(client, monkeypatch):
@@ -406,6 +496,7 @@ def test_virtual_airports_page(client):
 def test_led_count_on_a_strip_that_cant_resize(client):
     """A NeoPixel strip's length is fixed when it opens: the new count waits for a restart."""
     app = client.services
+
     class FixedStrip(FakeStrip):
         resize = None
 
@@ -415,14 +506,17 @@ def test_led_count_on_a_strip_that_cant_resize(client):
     assert "the new number takes effect after the map restarts" in client("/config/airports")[1]
 
 
-@pytest.mark.parametrize("path, status", [
-    ("/config/airports/0/code/NOT-AN-AIRPORT", 400),
-    ("/config/airports/0/colour/red", 400),
-    ("/config/airports/999/code/KDWH", 404),
-    ("/config/airports/move/0/999", 404),
-    ("/config/airports/edit/KXXX/KDWH", 404),
-    ("/config/edit/led.count/0", 400),
-])
+@pytest.mark.parametrize(
+    "path, status",
+    [
+        ("/config/airports/0/code/NOT-AN-AIRPORT", 400),
+        ("/config/airports/0/colour/red", 400),
+        ("/config/airports/999/code/KDWH", 404),
+        ("/config/airports/move/0/999", 404),
+        ("/config/airports/edit/KXXX/KDWH", 404),
+        ("/config/edit/led.count/0", 400),
+    ],
+)
 def test_bad_airport_edits(client, path, status):
     before = list(client.services.config.airports)
     assert client(path)[0] == status
@@ -446,11 +540,16 @@ def test_fetch(client, monkeypatch):
 
 # ---- the API, against fake services with known data ----------------------------------------------------------
 
+
 @pytest.fixture
 def services():
     settings = Settings()
-    settings.airports = [Airport(code="KHOU", name="Hobby", display=True), Airport(), Airport(code="KIAH"),
-                         Airport(code="KDKR", name="Crockett")]
+    settings.airports = [
+        Airport(code="KHOU", name="Hobby", display=True),
+        Airport(),
+        Airport(code="KIAH"),
+        Airport(code="KDKR", name="Crockett"),
+    ]
     config = SimpleNamespace(data=settings, airports=settings.airports)
     data = {"KHOU": metar("VFR", lightning=True), "KIAH": metar("IFR"), "KDKR": {}}
     metars = SimpleNamespace(data=data, lastFetchTime=datetime(2026, 10, 24, 12, 55), missing_stations=lambda: ["KDKR"])
@@ -576,6 +675,7 @@ def test_api_routes(services):
 
 # ---- update ---------------------------------------------------------------------------------------------------
 
+
 def test_update_runs_in_the_background(services):
     release = threading.Event()
 
@@ -583,6 +683,7 @@ def test_update_runs_in_the_background(services):
         progress(0.5, "Downloading the update")
         release.wait(5)
         return SimpleNamespace(ok=True, changed=True, target="v9.0.0", message="Installed v9.0.0", errors=[])
+
     c = Client(create_app(services, ip="", updates=control.Updates(run_update)))
     assert c.json("/update/progress") == control.NO_UPDATE
 
@@ -594,14 +695,22 @@ def test_update_runs_in_the_background(services):
         if c.json("/update/progress")["done"]:
             break
         threading.Event().wait(0.01)
-    assert c.json("/update/progress") == {"fraction": 0.5, "label": "Downloading the update", "done": True,
-                                          "ok": True, "changed": True, "target": "v9.0.0",
-                                          "message": "Installed v9.0.0", "errors": []}
+    assert c.json("/update/progress") == {
+        "fraction": 0.5,
+        "label": "Downloading the update",
+        "done": True,
+        "ok": True,
+        "changed": True,
+        "target": "v9.0.0",
+        "message": "Installed v9.0.0",
+        "errors": [],
+    }
 
 
 def test_update_failure_is_reported():
     def run_update(progress, **kwargs):
         raise RuntimeError("no network")
+
     updates = control.Updates(run_update)
     job = updates.start()
     for _ in range(100):
@@ -616,13 +725,19 @@ def test_update_failure_is_reported():
 SHA = "1234567" + "0" * 33
 
 
-def fake_git(tags=("v2.8.4", "v2.8.5", "v2.7.0", "v2.9.0-rc1"), newest="abcdef1234", described="v2.8.4-0-g1234567",
-             modified=False, branches=None):
+def fake_git(
+    tags=("v2.8.4", "v2.8.5", "v2.7.0", "v2.9.0-rc1"),
+    newest="abcdef1234",
+    described="v2.8.4-0-g1234567",
+    modified=False,
+    branches=None,
+):
     """
     git for a ReleaseCheck: GitHub has these tags (and branches: {name: newest commit}); this copy is on commit
     1234567, `described` by git describe (on the v2.8.4 release by default), from github.com/dman776/metarmap2.
     """
     branches = branches or {"master": newest, "feature/radar": "fedcba9876"}
+
     def run(*args):
         if args[0] == "describe":
             return subprocess.CompletedProcess(args, 0, described + "\n", "")
@@ -643,12 +758,14 @@ def fake_git(tags=("v2.8.4", "v2.8.5", "v2.7.0", "v2.9.0-rc1"), newest="abcdef12
         else:  # merge-base --is-ancestor: GitHub's newest commit isn't in this copy
             return subprocess.CompletedProcess(args, 1, "", "")
         return subprocess.CompletedProcess(args, 0, out, "")
+
     return run
 
 
 @pytest.fixture
 def release_client(make_app):
     from metarmap.releases import ReleaseCheck
+
     app = make_app()
     app.releases = ReleaseCheck(channel=lambda: app.config.data.update.channel, current="2.8.4", git=fake_git())
     app.releases.load_build()
@@ -656,8 +773,10 @@ def release_client(make_app):
 
     def run_update(progress, **kwargs):
         started.append(kwargs)
-        return SimpleNamespace(ok=True, changed=True, target=kwargs["version"] or "v2.8.5", message="Installed",
-                               errors=[])
+        return SimpleNamespace(
+            ok=True, changed=True, target=kwargs["version"] or "v2.8.5", message="Installed", errors=[]
+        )
+
     c = Client(create_app(app, ip="10.0.0.2", updates=control.Updates(run_update)))
     c.services, c.started = app, started
     yield c
@@ -716,9 +835,14 @@ def test_update_follows_the_channel(release_client):
     assert c.services.releases.badge() == "Restart to use v2.8.5"  # installed: it runs after a restart
 
 
-@pytest.mark.parametrize("path, body", [("/update/start", {"version": "latest"}),
-                                        ("/update/start", {"version": "v2.9.0-rc1"}),
-                                        ("/update/start", ["v2.7.0"])])
+@pytest.mark.parametrize(
+    "path, body",
+    [
+        ("/update/start", {"version": "latest"}),
+        ("/update/start", {"version": "v2.9.0-rc1"}),
+        ("/update/start", ["v2.7.0"]),
+    ],
+)
 def test_bad_release_picks_are_400s(release_client, path, body):
     assert release_client(path, method="POST", body=body)[0] == 400
 
@@ -729,11 +853,21 @@ def test_update_start_without_a_content_length(release_client):
 
     def post_without_length(path):
         status = []
-        environ = {"REQUEST_METHOD": "POST", "PATH_INFO": path, "QUERY_STRING": "", "SERVER_NAME": "test",
-                   "SERVER_PORT": "80", "SERVER_PROTOCOL": "HTTP/1.1", "wsgi.url_scheme": "http",
-                   "wsgi.input": io.BytesIO(b""), "wsgi.errors": io.StringIO(), "HTTP_AUTHORIZATION": AUTH}
+        environ = {
+            "REQUEST_METHOD": "POST",
+            "PATH_INFO": path,
+            "QUERY_STRING": "",
+            "SERVER_NAME": "test",
+            "SERVER_PORT": "80",
+            "SERVER_PROTOCOL": "HTTP/1.1",
+            "wsgi.url_scheme": "http",
+            "wsgi.input": io.BytesIO(b""),
+            "wsgi.errors": io.StringIO(),
+            "HTTP_AUTHORIZATION": AUTH,
+        }
         b"".join(c.app(environ, lambda s, h, exc_info=None: status.append(s)))
         return int(status[0].split()[0])
+
     assert post_without_length("/update/start") == 202
     wait_for_update(c)
     assert c.started == [{"channel": "releases", "version": None, "branch": ""}]
@@ -746,21 +880,29 @@ def test_unknown_update_channel_is_a_400(release_client):
 
 # ---- dev_mode: updating from a branch --------------------------------------------------------------------------
 
+
 @pytest.fixture
 def dev_client(make_app):
     """A map with dev_mode on, set in config.json by hand."""
     from metarmap.releases import ReleaseCheck
+
     app = make_app()
     app.config.data.dev_mode = True
     data = lambda: app.config.data  # noqa: E731 (saving replaces it)
-    app.releases = ReleaseCheck(channel=lambda: data().update_channel(), branch=lambda: data().update.branch,
-                                dev_mode=lambda: data().dev_mode, current="2.8.4", git=fake_git())
+    app.releases = ReleaseCheck(
+        channel=lambda: data().update_channel(),
+        branch=lambda: data().update.branch,
+        dev_mode=lambda: data().dev_mode,
+        current="2.8.4",
+        git=fake_git(),
+    )
     app.releases.load_build()
     started = []
 
     def run_update(progress, **kwargs):
         started.append(kwargs)
         return SimpleNamespace(ok=True, changed=True, target="fedcba9", message="Installed", errors=[])
+
     c = Client(create_app(app, ip="10.0.0.2", updates=control.Updates(run_update)))
     c.services, c.started = app, started
     yield c
@@ -859,6 +1001,7 @@ def test_check_now_and_status(release_client):
 
 def unreleased_client(make_app, **git):
     from metarmap.releases import ReleaseCheck
+
     app = make_app()
     app.releases = ReleaseCheck(channel=lambda: "releases", current="2.8.4", git=fake_git(**git))
     app.releases.load_build()
@@ -877,8 +1020,10 @@ def test_header_on_unreleased_commits(make_app):
     c = unreleased_client(make_app, described="v2.8.4-3-g1234567")
     for path in ("/", "/map", "/config"):
         body = c(path)[1]
-        assert (f'<a class="build-pill" href="https://github.com/dman776/metarmap2/commit/{SHA}" target="_blank" '
-                'rel="noopener" title="This commit on GitHub">Unreleased: 3 commits after v2.8.4</a>') in body
+        assert (
+            f'<a class="build-pill" href="https://github.com/dman776/metarmap2/commit/{SHA}" target="_blank" '
+            'rel="noopener" title="This commit on GitHub">Unreleased: 3 commits after v2.8.4</a>'
+        ) in body
         assert '<span class="host unreleased">10.0.0.2 · v2.8.4 +3 · 1234567</span>' in body
     assert f"Version {__version__}" in c("/")[1] and "(v2.8.4+3, commit 1234567)" in c("/")[1]  # the footer
     assert c.json("/api/status", auth=False)["build"]["pill"] == "Unreleased: 3 commits after v2.8.4"
@@ -899,11 +1044,15 @@ def test_status_without_the_check(services):
 
 # ---- view data ------------------------------------------------------------------------------------------------
 
+
 def test_stations_and_summary(services):
     s = views.stations(services.config.airports, services.metars.data)
     assert [x["code"] for x in s] == ["KHOU", "KIAH", "KDKR"]
-    assert views.summary(s) == {"counts": {"VFR": 1, "MVFR": 0, "IFR": 1, "LIFR": 0}, "no_data": ["KDKR"],
-                                "below_vfr": [s[1]]}
+    assert views.summary(s) == {
+        "counts": {"VFR": 1, "MVFR": 0, "IFR": 1, "LIFR": 0},
+        "no_data": ["KDKR"],
+        "below_vfr": [s[1]],
+    }
 
 
 def test_below_vfr_is_worst_first():
@@ -915,8 +1064,11 @@ def test_sun_schedule_flags_the_next_change():
     levels = Settings().led.brightness
     schedule = views.sun_schedule(SUN, levels, now=SUN["sunrise"] + timedelta(minutes=1))
     assert [(s["name"], s["level"], s["next"]) for s in schedule] == [
-        ("Dawn", levels.dimmed, False), ("Sunrise", levels.normal, False), ("Sunset", levels.dimmed, True),
-        ("Dusk", levels.off, False)]
+        ("Dawn", levels.dimmed, False),
+        ("Sunrise", levels.normal, False),
+        ("Sunset", levels.dimmed, True),
+        ("Dusk", levels.off, False),
+    ]
     assert not any(s["next"] for s in views.sun_schedule(SUN, levels, now=SUN["dusk"] + timedelta(hours=1)))
     assert views.sun_schedule({}, levels) == []
 
@@ -940,6 +1092,7 @@ def test_is_login():
 
 # ---- the server answers requests in parallel ------------------------------------------------------------------
 
+
 def test_a_slow_fetch_does_not_hold_up_other_requests(services):
     import urllib.request
     from metarmap.web import serve
@@ -949,6 +1102,7 @@ def test_a_slow_fetch_does_not_hold_up_other_requests(services):
     def slow_fetch():
         started.set()
         release.wait(10)  # like aviationweather.gov taking its time
+
     services.metars.fetch = slow_fetch
     server = serve(create_app(services, ip="10.0.0.2"), "127.0.0.1", 0)
     base = f"http://127.0.0.1:{server.server_port}"
@@ -970,6 +1124,7 @@ def test_a_slow_fetch_does_not_hold_up_other_requests(services):
 
 # ---- Config > Access: the login and Wi-Fi -----------------------------------------------------------------------
 
+
 @pytest.fixture
 def linux(monkeypatch):
     """Records Linux password changes instead of making them; fail=True makes chpasswd fail."""
@@ -980,6 +1135,7 @@ def linux(monkeypatch):
             raise control.system.ChangeFailed("chpasswd failed: simulated")
         calls.passwords.append(password)
         return "changed for pi"
+
     monkeypatch.setattr(control.system, "set_login_password", set_login_password)
     return calls
 
@@ -1008,8 +1164,15 @@ def test_nothing_changes_if_the_linux_password_fails(client, linux):
     assert (web.user, web.password) == ("metar", "map")
 
 
-@pytest.mark.parametrize("body", [{"user": "two words", "password": "n3w pass"}, {"user": "a:b"},
-                                  {"user": "pilot", "password": "line\nbreak"}, ["not", "an", "object"]])
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"user": "two words", "password": "n3w pass"},
+        {"user": "a:b"},
+        {"user": "pilot", "password": "line\nbreak"},
+        ["not", "an", "object"],
+    ],
+)
 def test_bad_logins_change_nothing(client, linux, body):
     assert client("/config/login", method="POST", body=body)[0] == 400
     assert linux.passwords == []  # checked before the Linux password is touched
@@ -1027,8 +1190,11 @@ def test_switch_wifi(client, monkeypatch):
     calls = []
     monkeypatch.setattr(control, "WIFI_DELAY", 0)
     monkeypatch.setattr(control.system, "current_wifi", lambda: "HomeNet")
-    monkeypatch.setattr(control.system, "set_wifi",
-                        lambda ssid, password: calls.append((ssid, password)) or switched.set() or "switching")
+    monkeypatch.setattr(
+        control.system,
+        "set_wifi",
+        lambda ssid, password: calls.append((ssid, password)) or switched.set() or "switching",
+    )
     status, body = client("/config/wifi", method="POST", body={"ssid": " Cabin ", "password": "pinecones"})
     assert status == 202 and json.loads(body) == {"ssid": "Cabin", "current": "HomeNet", "delay": 0}
     assert switched.wait(5)  # after answering, in the background
@@ -1059,6 +1225,7 @@ def test_config_page_shows_access(client, monkeypatch):
 
 # ---- the OLED on and off, live ----------------------------------------------------------------------------------
 
+
 def test_turn_the_oled_off_and_on(client):
     app = client.services
     app.display.start()
@@ -1081,6 +1248,7 @@ def test_turning_off_an_airports_oled_switch(client):
 
 
 # ---- the Home page's OLED switch (not saved, like the brightness) -----------------------------------------------
+
 
 def test_home_page_oled_switch(client):
     app = client.services
@@ -1112,6 +1280,7 @@ def test_no_oled_switch_when_turned_off_in_config(client):
 
 # ---- the Remote page ---------------------------------------------------------------------------------------------
 
+
 def test_remote_page(client):
     app = client.services
     status, body = client("/remote", auth=False)  # it changes nothing that's saved: no login
@@ -1137,8 +1306,15 @@ def test_remote_page(client):
 
 
 def test_remote_controls_need_no_login(client):
-    for path in ("/visualizer/1", "/visualizer/next", "/brightness/0.4", "/display/on", "/locate/0", "/map/legend",
-                 "/api/live"):
+    for path in (
+        "/visualizer/1",
+        "/visualizer/next",
+        "/brightness/0.4",
+        "/display/on",
+        "/locate/0",
+        "/map/legend",
+        "/api/live",
+    ):
         assert client(path, auth=False)[0] == 200, path
 
 
@@ -1160,6 +1336,7 @@ def test_remote_page_follows_the_map(client):
 
 # ---- airport names ----------------------------------------------------------------------------------------------
 
+
 def test_a_new_code_gets_its_name(client, monkeypatch):
     app = client.services
     monkeypatch.setattr(app.metars, "fetch", lambda: None)
@@ -1174,6 +1351,7 @@ def test_a_new_code_gets_its_name(client, monkeypatch):
 def test_script_links_change_with_the_static_files(client, monkeypatch, tmp_path):
     """The version alone stays the same between releases: browsers would keep running a cached, older app.js."""
     from metarmap.web import site
+
     (tmp_path / "app.js").write_text("")
     monkeypatch.setattr(site, "STATIC_DIR", str(tmp_path))
     first = site.assets_version()

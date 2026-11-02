@@ -3,6 +3,7 @@ Tests for the self-update (lib/utils.run_update): installs the newest release ta
 newest commit), or a release picked by hand, keeps the config files, and runs git as the owner of the folder rather
 than root. Also the check behind "Update available" (metarmap.releases) and release versions (lib/versions).
 """
+
 import json
 import subprocess
 from types import SimpleNamespace
@@ -14,8 +15,12 @@ from metarmap.releases import ReleaseCheck, github_url, read_build
 
 
 def git(cwd, *args):
-    subprocess.run(["git", "-c", "user.email=test@example.com", "-c", "user.name=Test", *args], cwd=cwd,
-                   check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-c", "user.email=test@example.com", "-c", "user.name=Test", *args],
+        cwd=cwd,
+        check=True,
+        capture_output=True,
+    )
 
 
 def head(repo):
@@ -65,6 +70,7 @@ def code(repos):
 
 
 # ---- the releases channel ---------------------------------------------------------------------------------------
+
 
 def test_installs_the_newest_release_and_keeps_config(repos):
     # the user's own settings on the map
@@ -141,8 +147,9 @@ def test_no_releases_yet(tmp_path):
 def test_progress_and_result(repos):
     release(repos, "v1.1.0", code="1.1")
     steps = []
-    result = utils.run_update(str(repos.pi), progress=lambda fraction, label: steps.append((fraction, label)),
-                              current="1.0.0")
+    result = utils.run_update(
+        str(repos.pi), progress=lambda fraction, label: steps.append((fraction, label)), current="1.0.0"
+    )
     assert result.ok and result.changed
     assert result.errors == []
     fractions = [f for f, _ in steps]
@@ -167,6 +174,7 @@ def test_failed_download_is_reported_and_config_kept(repos):
 
 
 # ---- picking a release ------------------------------------------------------------------------------------------
+
 
 def test_pick_an_older_release(repos):
     release(repos, "v1.1.0", code="1.1")
@@ -205,14 +213,17 @@ def test_pick_a_release_that_isnt_on_github(repos):
 
 # ---- the latest channel -----------------------------------------------------------------------------------------
 
+
 def test_latest_installs_the_newest_commit(repos):
     commit(repos, "unreleased")
     result = utils.run_update(str(repos.pi), channel="latest")
     assert result.ok and result.changed and code(repos) == "VERSION = 'unreleased'\n"
     assert result.target == head(repos.pi)[:7]
     assert result.message == f"Installed the newest commit ({head(repos.pi)[:7]})"
-    assert utils.run_update(str(repos.pi), channel="latest").message == \
-        f"Already on the newest commit ({head(repos.pi)[:7]})"
+    assert (
+        utils.run_update(str(repos.pi), channel="latest").message
+        == f"Already on the newest commit ({head(repos.pi)[:7]})"
+    )
 
 
 def test_latest_after_a_release_was_installed(repos):
@@ -227,6 +238,7 @@ def test_latest_after_a_release_was_installed(repos):
 
 
 # ---- the branch channel (dev_mode) -------------------------------------------------------------------------------
+
 
 def push_branch(repos, name, code):
     git(repos.dev, "checkout", "-B", name)
@@ -252,8 +264,10 @@ def test_branch_installs_its_newest_commit(repos):
     assert current_branch(repos.pi) == "feature/radar"
     assert result.message == f"Installed the newest commit of feature/radar ({head(repos.pi)[:7]})"
     assert json.loads((repos.pi / "config.json").read_text()) == {"from": "user"}
-    assert utils.run_update(str(repos.pi), channel="branch", branch="feature/radar").message == \
-        f"Already on the newest commit of feature/radar ({head(repos.pi)[:7]})"
+    assert (
+        utils.run_update(str(repos.pi), channel="branch", branch="feature/radar").message
+        == f"Already on the newest commit of feature/radar ({head(repos.pi)[:7]})"
+    )
 
 
 def test_branch_follows_a_force_push(repos):
@@ -267,9 +281,14 @@ def test_branch_follows_a_force_push(repos):
     assert code(repos) == "VERSION = 'second try'\n"
 
 
-@pytest.mark.parametrize("branch, error", [("", "Pick a branch to update from"),
-                                           ("nope", "There's no branch nope on GitHub"),
-                                           ("-x", "'-x' isn't a branch name")])
+@pytest.mark.parametrize(
+    "branch, error",
+    [
+        ("", "Pick a branch to update from"),
+        ("nope", "There's no branch nope on GitHub"),
+        ("-x", "'-x' isn't a branch name"),
+    ],
+)
 def test_branch_errors(repos, branch, error):
     before = head(repos.pi)
     result = utils.run_update(str(repos.pi), channel="branch", branch=branch)
@@ -278,12 +297,24 @@ def test_branch_errors(repos, branch, error):
 
 def test_check_branch_channel(repos):
     push_branch(repos, "work", "branch work")
-    state = ReleaseCheck(str(repos.pi), channel=lambda: "branch", branch=lambda: "work", dev_mode=lambda: True,
-                         current="1.0.0", clock=lambda: 0).check()
+    state = ReleaseCheck(
+        str(repos.pi),
+        channel=lambda: "branch",
+        branch=lambda: "work",
+        dev_mode=lambda: True,
+        current="1.0.0",
+        clock=lambda: 0,
+    ).check()
     assert state["branches"] == ["main", "work"] and state["badge"] == "New commit on work"
     utils.run_update(str(repos.pi), channel="branch", branch="work")
-    state = ReleaseCheck(str(repos.pi), channel=lambda: "branch", branch=lambda: "work", dev_mode=lambda: True,
-                         current="1.0.0", clock=lambda: 0).check()
+    state = ReleaseCheck(
+        str(repos.pi),
+        channel=lambda: "branch",
+        branch=lambda: "work",
+        dev_mode=lambda: True,
+        current="1.0.0",
+        clock=lambda: 0,
+    ).check()
     assert state["available"] is None
 
 
@@ -298,6 +329,7 @@ def test_unknown_channel(repos):
 
 # ---- install.sh: a fresh clone goes to the newest release --------------------------------------------------------
 
+
 def test_a_fresh_clone_goes_to_the_newest_release(repos):
     release(repos, "v1.1.0", code="1.1")
     commit(repos, "unfinished work")
@@ -308,8 +340,12 @@ def test_a_fresh_clone_goes_to_the_newest_release(repos):
 
     assert (ok, message, changed) == (True, "Installed v1.1.0", True)
     assert code(repos) == "VERSION = '1.1'\n"
-    assert subprocess.run(["git", "describe", "--tags", "--exact-match"], cwd=repos.pi, capture_output=True,
-                          text=True).stdout.strip() == "v1.1.0"
+    assert (
+        subprocess.run(
+            ["git", "describe", "--tags", "--exact-match"], cwd=repos.pi, capture_output=True, text=True
+        ).stdout.strip()
+        == "v1.1.0"
+    )
 
 
 def test_a_clone_that_is_already_at_the_newest_release(repos):
@@ -392,6 +428,7 @@ def test_github_cant_be_reached_is_not_ok(repos):
 
 def test_install_sh_is_valid_bash():
     from pathlib import Path
+
     script = Path(__file__).parent.parent / "install.sh"
     assert subprocess.run(["bash", "-n", str(script)]).returncode == 0
     helped = subprocess.run(["bash", str(script), "--help"], capture_output=True, text=True)
@@ -402,16 +439,26 @@ def test_install_sh_is_valid_bash():
 
 # ---- versions ---------------------------------------------------------------------------------------------------
 
-@pytest.mark.parametrize("text, version", [("v2.8.4", (2, 8, 4)), ("2.8.4", (2, 8, 4)), ("v10.0.12", (10, 0, 12)),
-                                           ("v2.9.0-rc1", None), ("nightly", None), ("v2.8", None), ("", None),
-                                           (None, None)])
+
+@pytest.mark.parametrize(
+    "text, version",
+    [
+        ("v2.8.4", (2, 8, 4)),
+        ("2.8.4", (2, 8, 4)),
+        ("v10.0.12", (10, 0, 12)),
+        ("v2.9.0-rc1", None),
+        ("nightly", None),
+        ("v2.8", None),
+        ("", None),
+        (None, None),
+    ],
+)
 def test_parse_version(text, version):
     assert versions.parse(text) == version
 
 
 def test_releases_newest_first():
-    assert versions.releases(["v1.9.0", "nightly", "v1.10.0", "2.0.0", "v2.1.0-rc1"]) == ["2.0.0", "v1.10.0",
-                                                                                       "v1.9.0"]
+    assert versions.releases(["v1.9.0", "nightly", "v1.10.0", "2.0.0", "v2.1.0-rc1"]) == ["2.0.0", "v1.10.0", "v1.9.0"]
 
 
 def test_is_newer():
@@ -420,6 +467,7 @@ def test_is_newer():
 
 
 # ---- the "update available" check -----------------------------------------------------------------------------
+
 
 def check(repos, channel="releases", current="1.0.0"):
     return ReleaseCheck(str(repos.pi), channel=lambda: channel, current=current, clock=lambda: 0).check()
@@ -448,8 +496,10 @@ def test_check_lists_older_releases(repos):
     release(repos, "v1.1.0", code="1.1")
     state = check(repos, current="1.1.0")
     assert state["available"] is None
-    assert state["releases"] == [{"tag": "v1.1.0", "running": True, "older": False},
-                                 {"tag": "v1.0.0", "running": False, "older": True}]
+    assert state["releases"] == [
+        {"tag": "v1.1.0", "running": True, "older": False},
+        {"tag": "v1.0.0", "running": False, "older": True},
+    ]
 
 
 def test_check_latest_channel(repos):
@@ -480,6 +530,7 @@ def test_after_an_update_the_badge_says_restart():
 
 # ---- running as root (the map's service) ------------------------------------------------------------------------
 
+
 @pytest.fixture
 def as_root(monkeypatch, tmp_path):
     """Pretend the map runs as root in a folder owned by pi (uid 1000); record what would be run and chown'd."""
@@ -487,6 +538,7 @@ def as_root(monkeypatch, tmp_path):
     monkeypatch.setattr(utils.os, "geteuid", lambda: 0)
     monkeypatch.setattr(utils, "_repo_owner", lambda repo: (1000, 1000))
     import pwd
+
     monkeypatch.setattr(pwd, "getpwuid", lambda uid: SimpleNamespace(pw_dir="/home/pi", pw_name="pi"))
     monkeypatch.setattr(utils.os, "lchown", lambda path, uid, gid: calls.lchown.append((path, uid, gid)))
     monkeypatch.setattr(utils.os, "chown", lambda path, uid, gid: calls.chown.append((path, uid, gid)))
@@ -494,6 +546,7 @@ def as_root(monkeypatch, tmp_path):
     def fake_run(cmd, **kwargs):
         calls.run.append((cmd, kwargs))
         return subprocess.CompletedProcess(cmd, 0, stdout="origin/main" if "symbolic-ref" in cmd else "ok", stderr="")
+
     monkeypatch.setattr(utils.subprocess, "run", fake_run)
 
     repo = tmp_path / "map"
@@ -509,8 +562,11 @@ def test_git_runs_as_the_folder_owner(as_root):
     log = utils.update(str(as_root.repo), channel="latest")
     commands = [cmd[3:] for cmd, _ in as_root.run]
     assert [c for c in commands if c[0] != "rev-parse"] == [
-        ["fetch", "origin"], ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"], ["reset", "--hard"],
-        ["checkout", "-B", "main", "origin/main"]]
+        ["fetch", "origin"],
+        ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"],
+        ["reset", "--hard"],
+        ["checkout", "-B", "main", "origin/main"],
+    ]
     for cmd, kwargs in as_root.run:
         assert kwargs["user"] == 1000 and kwargs["group"] == 1000
         assert kwargs["env"]["HOME"] == "/home/pi"
@@ -530,13 +586,15 @@ def test_root_owned_files_are_given_back(as_root):
 
 def test_no_user_switch_when_not_root(monkeypatch, tmp_path):
     runs = []
-    monkeypatch.setattr(utils.subprocess, "run",
-                        lambda cmd, **kw: runs.append(kw) or subprocess.CompletedProcess(cmd, 0, "", ""))
+    monkeypatch.setattr(
+        utils.subprocess, "run", lambda cmd, **kw: runs.append(kw) or subprocess.CompletedProcess(cmd, 0, "", "")
+    )
     utils.update(str(tmp_path))
     assert runs and all("user" not in kw for kw in runs)
 
 
 # ---- what's running (the header's version and "Unreleased" pill) -------------------------------------------------
+
 
 def build(repos, version="1.0.0"):
     git(repos.pi, "fetch", "--tags")  # the map's clone was made before the fixture tagged v1.0.0
@@ -618,12 +676,17 @@ def test_the_build_is_whats_running_not_whats_on_disk(repos):
     assert head(repos.pi)[:7] != running
 
 
-@pytest.mark.parametrize("remote, url", [
-    ("https://github.com/dman776/metarmap2", "https://github.com/dman776/metarmap2"),
-    ("https://github.com/dman776/metarmap2.git", "https://github.com/dman776/metarmap2"),
-    ("git@github.com:dman776/metarmap2.git", "https://github.com/dman776/metarmap2"),
-    ("ssh://git@github.com/dman776/metarmap2.git", "https://github.com/dman776/metarmap2"),
-    ("/srv/git/metarmap2.git", None), ("https://gitlab.com/x/y.git", None), (None, None),
-])
+@pytest.mark.parametrize(
+    "remote, url",
+    [
+        ("https://github.com/dman776/metarmap2", "https://github.com/dman776/metarmap2"),
+        ("https://github.com/dman776/metarmap2.git", "https://github.com/dman776/metarmap2"),
+        ("git@github.com:dman776/metarmap2.git", "https://github.com/dman776/metarmap2"),
+        ("ssh://git@github.com/dman776/metarmap2.git", "https://github.com/dman776/metarmap2"),
+        ("/srv/git/metarmap2.git", None),
+        ("https://gitlab.com/x/y.git", None),
+        (None, None),
+    ],
+)
 def test_github_url(remote, url):
     assert github_url(remote) == url

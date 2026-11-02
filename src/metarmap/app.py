@@ -43,6 +43,7 @@ WATCHDOG_SECONDS = 15  # how often the OLED loop is checked
 @dataclass
 class App:
     """Every part of a map. The web server and the scheduled jobs reach the others through this."""
+
     config: Config
     sun: SunTimes
     metars: METAR
@@ -59,6 +60,7 @@ class App:
 
 
 # ---- building ------------------------------------------------------------------------------------------------
+
 
 def build(config_file=CONFIG_FILE, strip=None, screen=None, clock: Clock = None, fetch=True) -> App:
     """
@@ -86,10 +88,15 @@ def build(config_file=CONFIG_FILE, strip=None, screen=None, clock: Clock = None,
         screen = open_screen()  # the OLED on the Pi; an in-memory screen anywhere else (the web UI mirrors it)
     display = Display(config, metars, screen, renderer=renderer, clock=clock)
 
-    releases = ReleaseCheck(channel=lambda: config.data.update_channel(),branch=lambda: config.data.update.branch,
-                            dev_mode=lambda: config.data.dev_mode)
-    traffic = Traffic(lambda: config.data.geo.map,
-                      lambda: [p for p in (metars.position(a.code) for a in config.airports if a.code) if p])
+    releases = ReleaseCheck(
+        channel=lambda: config.data.update_channel(),
+        branch=lambda: config.data.update.branch,
+        dev_mode=lambda: config.data.dev_mode,
+    )
+    traffic = Traffic(
+        lambda: config.data.geo.map,
+        lambda: [p for p in (metars.position(a.code) for a in config.airports if a.code) if p],
+    )
     app = App(config, sun, metars, renderer, display, schedule.Scheduler(), releases, traffic, advisories, tfrs)
     fill_names(app)
     schedule_jobs(app)
@@ -119,6 +126,7 @@ def schedule_rotation(app: App):
 
 
 # ---- scheduled jobs ------------------------------------------------------------------------------------------
+
 
 def update_data(app: App):
     fetch_advisories(app)
@@ -236,6 +244,7 @@ def watch_display(app: App):
 
 # ---- running -------------------------------------------------------------------------------------------------
 
+
 def run(app: App, port=None):
     """
     Starts the web server and the OLED loop, then drives the LEDs until Ctrl-C, SIGTERM or an error.
@@ -297,13 +306,16 @@ def wait_for_internet():
 
 # ---- process setup -------------------------------------------------------------------------------------------
 
+
 def log_thread_exception(args):
     """
     Uncaught exceptions in background threads only go to stderr by default; put them in the log too.
     """
     name = args.thread.name if args.thread else "?"
-    safe_logging.safe_log(f"uncaught exception in thread {name}: "
-                          + "".join(traceback.format_exception(args.exc_type, args.exc_value, args.exc_traceback)))
+    safe_logging.safe_log(
+        f"uncaught exception in thread {name}: "
+        + "".join(traceback.format_exception(args.exc_type, args.exc_value, args.exc_traceback))
+    )
 
 
 def log_uncaught_exception(exc_type, exc_value, exc_traceback):
@@ -311,8 +323,9 @@ def log_uncaught_exception(exc_type, exc_value, exc_traceback):
     A crash in the main thread only goes to stderr (the systemd journal); put it in the log too.
     """
     if not issubclass(exc_type, KeyboardInterrupt):
-        safe_logging.safe_log("uncaught exception: "
-                              + "".join(traceback.format_exception(exc_type, exc_value, exc_traceback)))
+        safe_logging.safe_log(
+            "uncaught exception: " + "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+        )
     sys.__excepthook__(exc_type, exc_value, exc_traceback)
 
 
@@ -333,9 +346,12 @@ def port_number(text):
 def parse_args(argv=None):
     """The command line: python -m metarmap [--port PORT]. argv: without the program name (sys.argv[1:] if None)."""
     parser = argparse.ArgumentParser(prog="python -m metarmap", description="Runs the METAR map.")
-    parser.add_argument("--port", type=port_number,
-                        help="the web server's port for this run, instead of web_server.port in config.json "
-                             "(which it doesn't change), e.g. 8080 on a computer, where port 80 needs sudo")
+    parser.add_argument(
+        "--port",
+        type=port_number,
+        help="the web server's port for this run, instead of web_server.port in config.json "
+        "(which it doesn't change), e.g. 8080 on a computer, where port 80 needs sudo",
+    )
     parser.add_argument("--version", action="version", version=f"metarmap {__version__}")
     return parser.parse_args(argv)
 
@@ -347,7 +363,7 @@ def main(config_file=CONFIG_FILE, argv=None):
     threading.excepthook = log_thread_exception
     sys.excepthook = log_uncaught_exception
 
-    safe_logging.safe_log(f"Starting metarmap {__version__} at " + datetime.now().strftime('%d/%m/%Y %H:%M'))
+    safe_logging.safe_log(f"Starting metarmap {__version__} at " + datetime.now().strftime("%d/%m/%Y %H:%M"))
     try:
         service.migrate()  # an installed metarmap.service that still runs controller.py
     except Exception as e:

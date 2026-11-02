@@ -4,6 +4,7 @@ The OLED loop: rotates through the airports set to show on the screen, two pages
 What each page says comes from metarmap.oled.screens; drawing is done by a screen driver
 (metarmap.oled.screen.SSD1306Screen on the Pi, FakeScreen elsewhere).
 """
+
 import threading
 import traceback
 from typing import Optional
@@ -137,9 +138,13 @@ class Display(object):
                         # a failed LED pulse shouldn't cost the airport its pages
                         safe_log(f"locate {airport}: {e}")
                 try:
-                    self.show_airport(airport, self._data.data.get(airport) or {},
-                                      self._config.data.display_screen.delay, event,
-                                      virtual=pixel >= self._config.data.led.count)
+                    self.show_airport(
+                        airport,
+                        self._data.data.get(airport) or {},
+                        self._config.data.display_screen.delay,
+                        event,
+                        virtual=pixel >= self._config.data.led.count,
+                    )
                 except Exception as e:
                     # never let one airport stop the loop
                     safe_log(f"loop: {airport}: {e}\n{traceback.format_exc()}")

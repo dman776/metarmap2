@@ -1,6 +1,7 @@
 """
 Tests for live traffic (metarmap.traffic): the area asked about, reading adsb.fi's answer, and how often it's asked.
 """
+
 from types import SimpleNamespace
 
 import pytest
@@ -13,12 +14,36 @@ from metarmap.traffic import Traffic
 HOUSTON = [(29.6454, -95.2789), (29.9844, -95.3414), (31.3069, -95.4038)]  # KHOU, KIAH, KDKR
 
 # one aircraft as adsb.fi sends it (trimmed), and one on the ground
-FLYING = {"hex": "a0822c", "flight": "UCA4878 ", "r": "N13161", "t": "E45X", "desc": "EMBRAER ERJ-145XR",
-          "ownOp": "UNITED AIRLINES INC", "alt_baro": 2450, "alt_geom": 2625, "gs": 211.0, "track": 90.54,
-          "baro_rate": -1152, "squawk": "4561", "emergency": "none", "category": "A2", "lat": 30.006683,
-          "lon": -95.498765, "seen_pos": 0.5, "seen": 0.1}
-PARKED = {"hex": "a1b2c3", "r": "N12345", "t": "C172", "alt_baro": "ground", "gs": 0, "lat": 29.65, "lon": -95.28,
-          "seen_pos": 2}
+FLYING = {
+    "hex": "a0822c",
+    "flight": "UCA4878 ",
+    "r": "N13161",
+    "t": "E45X",
+    "desc": "EMBRAER ERJ-145XR",
+    "ownOp": "UNITED AIRLINES INC",
+    "alt_baro": 2450,
+    "alt_geom": 2625,
+    "gs": 211.0,
+    "track": 90.54,
+    "baro_rate": -1152,
+    "squawk": "4561",
+    "emergency": "none",
+    "category": "A2",
+    "lat": 30.006683,
+    "lon": -95.498765,
+    "seen_pos": 0.5,
+    "seen": 0.1,
+}
+PARKED = {
+    "hex": "a1b2c3",
+    "r": "N12345",
+    "t": "C172",
+    "alt_baro": "ground",
+    "gs": 0,
+    "lat": 29.65,
+    "lon": -95.28,
+    "seen_pos": 2,
+}
 
 
 class FakeResponse:
@@ -66,6 +91,7 @@ def make(get=None, seconds=5, ground=False, points=HOUSTON, clock=None):
 
 # ---- the area -------------------------------------------------------------------------------------------------
 
+
 def test_area_covers_every_airport_with_a_margin():
     (lat, lon), radius = traffic.area(HOUSTON)
     assert lat == pytest.approx((29.6454 + 31.3069) / 2) and lon == pytest.approx((-95.2789 + -95.4038) / 2)
@@ -87,12 +113,29 @@ def test_distance():
 
 # ---- reading adsb.fi's answer ---------------------------------------------------------------------------------
 
+
 def test_parse():
     flying, parked = traffic.parse({"ac": [FLYING, PARKED]}, fetched=1000.0)
-    assert flying == {"hex": "a0822c", "flight": "UCA4878", "reg": "N13161", "type": "E45X",
-                      "desc": "EMBRAER ERJ-145XR", "operator": "UNITED AIRLINES INC", "lat": 30.006683,
-                      "lon": -95.498765, "ground": False, "alt": 2450, "gs": 211.0, "track": 90.54, "vrate": -1152,
-                      "squawk": "4561", "emergency": None, "category": "A2", "kind": "small", "at": 999.5}
+    assert flying == {
+        "hex": "a0822c",
+        "flight": "UCA4878",
+        "reg": "N13161",
+        "type": "E45X",
+        "desc": "EMBRAER ERJ-145XR",
+        "operator": "UNITED AIRLINES INC",
+        "lat": 30.006683,
+        "lon": -95.498765,
+        "ground": False,
+        "alt": 2450,
+        "gs": 211.0,
+        "track": 90.54,
+        "vrate": -1152,
+        "squawk": "4561",
+        "emergency": None,
+        "category": "A2",
+        "kind": "small",
+        "at": 999.5,
+    }
     assert parked["ground"] is True and parked["alt"] is None and parked["flight"] is None
 
 
@@ -102,29 +145,47 @@ def test_parse_skips_aircraft_without_a_usable_position(change):
 
 
 def test_parse_falls_back_to_other_fields():
-    (a,) = traffic.parse({"ac": [{**FLYING, "alt_baro": None, "track": None, "true_heading": 45, "baro_rate": None,
-                                  "geom_rate": 300, "seen_pos": None, "emergency": "general"}]}, fetched=1000.0)
+    (a,) = traffic.parse(
+        {
+            "ac": [
+                {
+                    **FLYING,
+                    "alt_baro": None,
+                    "track": None,
+                    "true_heading": 45,
+                    "baro_rate": None,
+                    "geom_rate": 300,
+                    "seen_pos": None,
+                    "emergency": "general",
+                }
+            ]
+        },
+        fetched=1000.0,
+    )
     assert (a["alt"], a["track"], a["vrate"], a["at"], a["emergency"]) == (2625, 45, 300, 999.9, "general")
 
 
-@pytest.mark.parametrize("category, type_code, kind", [
-    ("A1", "C172", "light"),
-    ("A2", "E145", "small"),
-    ("A3", "B738", "large"),
-    ("A4", "B752", "large"),
-    ("A5", "B77W", "heavy"),
-    ("A5", "A388", "super"),  # the category can't tell an A380 from a 777
-    (None, "B748", "super"),
-    ("A7", "B407", "helicopter"),
-    ("A1", "R44", "helicopter"),  # many helicopters send A1
-    (None, "EC35", "helicopter"),
-    ("B1", "DG1T", "glider"),
-    ("B2", None, "balloon"),
-    ("B6", None, "drone"),
-    ("C1", None, "vehicle"),
-    (None, None, "unknown"),
-    ("A0", "ZZZZ", "unknown"),  # no category information
-])
+@pytest.mark.parametrize(
+    "category, type_code, kind",
+    [
+        ("A1", "C172", "light"),
+        ("A2", "E145", "small"),
+        ("A3", "B738", "large"),
+        ("A4", "B752", "large"),
+        ("A5", "B77W", "heavy"),
+        ("A5", "A388", "super"),  # the category can't tell an A380 from a 777
+        (None, "B748", "super"),
+        ("A7", "B407", "helicopter"),
+        ("A1", "R44", "helicopter"),  # many helicopters send A1
+        (None, "EC35", "helicopter"),
+        ("B1", "DG1T", "glider"),
+        ("B2", None, "balloon"),
+        ("B6", None, "drone"),
+        ("C1", None, "vehicle"),
+        (None, None, "unknown"),
+        ("A0", "ZZZZ", "unknown"),  # no category information
+    ],
+)
 def test_kind(category, type_code, kind):
     assert traffic.kind_of(category, type_code) == kind
 
@@ -140,6 +201,7 @@ def test_parse_empty(data):
 
 
 # ---- how often adsb.fi is asked -------------------------------------------------------------------------------
+
 
 def test_snapshot():
     adsb = FakeAdsbFi()
@@ -193,8 +255,12 @@ def test_ground_traffic_follows_the_setting_without_a_new_fetch():
 
 
 def test_failures_wait_longer_each_time_and_keep_the_last_aircraft():
-    adsb = FakeAdsbFi(FakeResponse(), requests.exceptions.ConnectionError("down"),
-                      requests.exceptions.ConnectionError("down"), FakeResponse())
+    adsb = FakeAdsbFi(
+        FakeResponse(),
+        requests.exceptions.ConnectionError("down"),
+        requests.exceptions.ConnectionError("down"),
+        FakeResponse(),
+    )
     t, _, clock = make(get=adsb, seconds=5)
     t.snapshot()
     clock.t += 5
@@ -236,8 +302,9 @@ def test_too_many_requests_waits_at_least_a_minute():
     assert t.snapshot()["error"] is None
 
 
-@pytest.mark.parametrize("answer", [FakeResponse(status=500), FakeResponse(data="not json"),
-                                    requests.exceptions.Timeout("slow")])
+@pytest.mark.parametrize(
+    "answer", [FakeResponse(status=500), FakeResponse(data="not json"), requests.exceptions.Timeout("slow")]
+)
 def test_bad_answers_are_errors(answer):
     if isinstance(answer, FakeResponse) and answer.data == "not json":
         answer.json = lambda: (_ for _ in ()).throw(ValueError("not json"))
@@ -269,5 +336,6 @@ def test_sends_its_own_user_agent():
     def get(url, **kwargs):
         seen.headers = kwargs["headers"]
         return FakeResponse()
+
     make(get=get)[0].snapshot()
     assert seen.headers["User-Agent"].startswith("metarmap/")

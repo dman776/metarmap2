@@ -1,4 +1,5 @@
 """Tests for what the OLED shows (metarmap/oled/screens.py). No hardware needed."""
+
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
@@ -11,23 +12,35 @@ from metarmap.oled.screen import GLYPHS
 
 CENTRAL = pytz.timezone("America/Chicago")
 
-KHOU = {"flightCategory": "VFR", "windDir": "100", "windSpeed": 13, "windGustSpeed": 19, "windGust": True,
-        "vis": 10, "altimHg": 30.2, "tempC": 28, "dewpointC": 16,
-        "obsTime": datetime(2026, 10, 24, 17, 53, tzinfo=timezone.utc)}
+KHOU = {
+    "flightCategory": "VFR",
+    "windDir": "100",
+    "windSpeed": 13,
+    "windGustSpeed": 19,
+    "windGust": True,
+    "vis": 10,
+    "altimHg": 30.2,
+    "tempC": 28,
+    "dewpointC": 16,
+    "obsTime": datetime(2026, 10, 24, 17, 53, tzinfo=timezone.utc),
+}
 
 
 def texts(screen):
     return [line["text"] for line in screen["lines"]]
 
 
-@pytest.mark.parametrize("data, expected", [
-    ({"windSpeed": 0, "windDir": "100"}, "CALM"),
-    ({"windSpeed": 7, "windDir": "90"}, "090@07"),
-    ({"windSpeed": 13, "windDir": "100", "windGustSpeed": 19, "windGust": True}, "100@13G19"),
-    ({"windSpeed": 6, "windDir": "VRB"}, "VRB@06"),
-    ({"windSpeed": 6, "windDir": "vrb"}, "VRB@06"),
-    ({"windSpeed": 5, "windDir": ""}, "VRB@05"),  # speed but no direction reported
-])
+@pytest.mark.parametrize(
+    "data, expected",
+    [
+        ({"windSpeed": 0, "windDir": "100"}, "CALM"),
+        ({"windSpeed": 7, "windDir": "90"}, "090@07"),
+        ({"windSpeed": 13, "windDir": "100", "windGustSpeed": 19, "windGust": True}, "100@13G19"),
+        ({"windSpeed": 6, "windDir": "VRB"}, "VRB@06"),
+        ({"windSpeed": 6, "windDir": "vrb"}, "VRB@06"),
+        ({"windSpeed": 5, "windDir": ""}, "VRB@05"),  # speed but no direction reported
+    ],
+)
 def test_wind_text(data, expected):
     assert screens.wind_text(data) == expected
 
@@ -59,13 +72,16 @@ def test_page1_missing_values_show_dashes():
     assert texts(screen) == [screens.MISSING] * 3
 
 
-@pytest.mark.parametrize("data, badge", [
-    ({"flightCategory": "IFR", "visibilitySM": 10.0}, "IFR"),  # reported: shown as it is
-    ({"flightCategory": None, "visibilitySM": 10.0}, "VFR*"),  # estimated from the visibility
-    ({"flightCategory": None, "visibilitySM": 4.0}, "MVFR*"),
-    ({"flightCategory": None, "skyConditions": [{"cover": "OVC", "cloudBaseFt": 400}]}, "LIFR*"),
-    ({"flightCategory": None, "visibilitySM": None, "skyConditions": []}, ""),  # nothing to estimate from
-])
+@pytest.mark.parametrize(
+    "data, badge",
+    [
+        ({"flightCategory": "IFR", "visibilitySM": 10.0}, "IFR"),  # reported: shown as it is
+        ({"flightCategory": None, "visibilitySM": 10.0}, "VFR*"),  # estimated from the visibility
+        ({"flightCategory": None, "visibilitySM": 4.0}, "MVFR*"),
+        ({"flightCategory": None, "skyConditions": [{"cover": "OVC", "cloudBaseFt": 400}]}, "LIFR*"),
+        ({"flightCategory": None, "visibilitySM": None, "skyConditions": []}, ""),  # nothing to estimate from
+    ],
+)
 def test_badge_marks_an_estimated_category(data, badge):
     for page in (1, 2):
         assert screens.screen_for("KTST", data, page, CENTRAL)["badge"] == badge
@@ -118,6 +134,7 @@ def test_a_virtual_airport_is_marked():
 def test_dashed_box_fits_between_the_code_the_badge_and_the_first_line():
     """KWWW is the widest code; the 16 px code at (2, -1) has its letters at 2-57 across and 2-13 down."""
     from metarmap.oled.screen import dashed_box
+
     font = SimpleNamespace(getbbox=lambda text: (0, 3, 56, 15))  # FreeSans 16 px
     box = dashed_box(SimpleNamespace(x=2, y=-1, font=font), "KWWW")
     assert box == (0, 0, 59, 15)  # at the top of the screen
@@ -126,6 +143,7 @@ def test_dashed_box_fits_between_the_code_the_badge_and_the_first_line():
 
 def test_dashed_rectangle():
     from metarmap.oled.screen import dashed_rectangle
+
     lines = []
     dashed_rectangle(SimpleNamespace(line=lambda xy, fill: lines.append(xy)), (0, 0, 6, 3))
     assert (0, 0, 1, 0) in lines and (4, 0, 5, 0) in lines and (4, 3, 5, 3) in lines  # top and bottom: 2 on, 2 off

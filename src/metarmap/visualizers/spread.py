@@ -2,6 +2,7 @@
 Dewpoint Spread: colors each airport by how far apart its temperature and dewpoint are. The closer they are, the
 more humid the air: at 2°C or less, fog or low clouds can form (especially as it cools overnight).
 """
+
 import metarmap.lib.colors as colors_lib
 from metarmap.models import Look, Metar
 from metarmap.visualizers import style
@@ -21,13 +22,16 @@ BANDS = [
 
 
 def legend(settings):
-    return [*style.band_legend(BANDS, settings), style.missing_legend("temperature or dewpoint"),
-            style.no_report_legend()]
+    return [
+        *style.band_legend(BANDS, settings),
+        style.missing_legend("temperature or dewpoint"),
+        style.no_report_legend(),
+    ]
 
 
 def look(metar: Metar, settings) -> Look:
     if not metar:
         return style.no_report()
-    if metar.get('tempC') is None or metar.get('dewpointC') is None:
+    if metar.get("tempC") is None or metar.get("dewpointC") is None:
         return style.missing()
-    return Look.solid(style.band_for(metar['tempC'] - metar['dewpointC'], BANDS, settings))
+    return Look.solid(style.band_for(metar["tempC"] - metar["dewpointC"], BANDS, settings))

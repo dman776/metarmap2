@@ -3,6 +3,7 @@ Screen drivers: the real 128x64 SSD1306 OLED and an in-memory FakeScreen.
 
 A driver only needs show(screen) and clear(); `screen` is a dict from metarmap.oled.screens.
 """
+
 from typing import Callable, List, Optional
 
 from metarmap.lib.safe_logging import safe_log
@@ -40,6 +41,7 @@ class FakeScreen:
 
 class SSD1306Screen:
     """The 128x64 I2C OLED, drawn with oled_text."""
+
     WIDTH, HEIGHT = 128, 64
     OFFSET = -3
 
@@ -78,9 +80,15 @@ class SSD1306Screen:
                 7: BigLine(20, 52 + o),  # line 3
                 8: BigLine(last_icon_x, 52 + o, **icon),
             }
+
         # page 1's pressure icon sits a little to the right; page 0 (no data) uses page 1's layout
-        return {"message": message, 1: airport(6), 2: airport(0),
-                (1, "virtual"): airport(6, virtual=True), (2, "virtual"): airport(0, virtual=True)}
+        return {
+            "message": message,
+            1: airport(6),
+            2: airport(0),
+            (1, "virtual"): airport(6, virtual=True),
+            (2, "virtual"): airport(0, virtual=True),
+        }
 
     def show(self, screen: dict) -> None:
         oled = self._oled
@@ -100,8 +108,11 @@ class SSD1306Screen:
                 oled.text(GLYPHS[line["icon"]], 4 + n * 2)
         # drawn before the text, each time the screen is
         title = oled.layout[1]
-        oled.on_draw = ((lambda draw: dashed_rectangle(draw, dashed_box(title, screen["title"])))
-                        if screen["kind"] == "airport" and screen.get("virtual") else None)
+        oled.on_draw = (
+            (lambda draw: dashed_rectangle(draw, dashed_box(title, screen["title"])))
+            if screen["kind"] == "airport" and screen.get("virtual")
+            else None
+        )
         oled.show()
 
     def clear(self) -> None:
@@ -115,8 +126,12 @@ def dashed_box(line, text, pad=2):
     letters.
     """
     left, top, right, bottom = line.font.getbbox(text)
-    return (max(0, line.x + left - pad), max(0, line.y + top - pad),
-            line.x + right + pad - 1, line.y + bottom + pad - 1)
+    return (
+        max(0, line.x + left - pad),
+        max(0, line.y + top - pad),
+        line.x + right + pad - 1,
+        line.y + bottom + pad - 1,
+    )
 
 
 def dashed_rectangle(draw, box, dash=2, gap=2):

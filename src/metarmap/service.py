@@ -10,6 +10,7 @@ copy with the repo's metarmap.service, but only if:
 The old file is kept next to it as metarmap.service.controller-py.bak. The new service is used from the next
 start of the service (or reboot); the running map isn't restarted.
 """
+
 import os
 import shlex
 import shutil
@@ -24,8 +25,7 @@ INSTALLED = (Path("/etc/systemd/system/metarmap.service"), Path("/lib/systemd/sy
 TEMPLATE_REPO = "/home/pi/metarmap2"  # the repo folder as written in metarmap.service
 BACKUP_SUFFIX = ".controller-py.bak"
 # every setting the shipped service files have had; a file with any other setting was customized and is left alone
-SHIPPED_KEYS = {"Description", "After", "WorkingDirectory", "ExecStartPre", "ExecStart", "Restart", "User",
-                "WantedBy"}
+SHIPPED_KEYS = {"Description", "After", "WorkingDirectory", "ExecStartPre", "ExecStart", "Restart", "User", "WantedBy"}
 
 
 def parse(text) -> Dict[str, List[str]]:
@@ -75,8 +75,14 @@ def starts(text, repo, run) -> bool:
         key, _, value = item.partition("=")
         env[key] = value
     try:
-        done = run([command[0], "-c", "import metarmap.app"], cwd=str(repo), env=env, capture_output=True,
-                   text=True, timeout=120)
+        done = run(
+            [command[0], "-c", "import metarmap.app"],
+            cwd=str(repo),
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
     except (OSError, subprocess.SubprocessError) as e:
         safe_log(f"{command[0]} can't run: {e}")
         return False
@@ -123,6 +129,8 @@ def migrate(paths=INSTALLED, repo=REPO, run=subprocess.run, root=None) -> List[P
                 shutil.copy2(path.with_name(path.name + BACKUP_SUFFIX), path)
             safe_log(f"systemctl daemon-reload failed ({done.stderr.strip()}); put the old service file back")
             return []
-        safe_log(f"switched {', '.join(map(str, replaced))} to `python3 -m metarmap`; "
-                 f"the old file is saved as *{BACKUP_SUFFIX}")
+        safe_log(
+            f"switched {', '.join(map(str, replaced))} to `python3 -m metarmap`; "
+            f"the old file is saved as *{BACKUP_SUFFIX}"
+        )
     return replaced

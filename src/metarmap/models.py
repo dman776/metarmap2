@@ -1,6 +1,7 @@
 """
 Data models shared across the map: METAR data, flight categories and LED looks.
 """
+
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -14,6 +15,7 @@ Color = Tuple[int, int, int]
 
 class FlightCategory(str, Enum):
     """Flight rules reported by aviationweather.gov. Compares equal to the plain strings."""
+
     VFR = "VFR"
     MVFR = "MVFR"
     IFR = "IFR"
@@ -30,6 +32,7 @@ class Metar(TypedDict, total=False):
     One airport's parsed METAR, as produced by metar.METAR.
     An airport with no report is an empty dict.
     """
+
     raw: str
     elevation_m: int
     flightCategory: Optional[str]
@@ -68,6 +71,7 @@ class Look:
       rainbow  - whole strip, period = seconds per full rainbow
       chase    - whole strip, colors[0] moving size LEDs at a time, spacing apart, step seconds per move
     """
+
     effect: str
     colors: Tuple[Color, ...] = ()
     period: Optional[float] = None

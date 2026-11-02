@@ -1,16 +1,16 @@
-RED = 'RED'
-LIGHT_RED = 'LIGHT RED'
-DARK_RED = 'DARK RED'
-GREEN = 'GREEN'
-DARK_GREEN = 'DARK GREEN'
-BLUE = 'BLUE'
+RED = "RED"
+LIGHT_RED = "LIGHT RED"
+DARK_RED = "DARK RED"
+GREEN = "GREEN"
+DARK_GREEN = "DARK GREEN"
+BLUE = "BLUE"
 LIGHT_BLUE = "LIGHT BLUE"
-DARK_GRAY = 'DARK GRAY'
-GRAY = 'GRAY'
-LIGHT_GRAY = 'LIGHT GRAY'
-YELLOW = 'YELLOW'
-DARK_YELLOW = 'DARK YELLOW'
-WHITE = 'WHITE'
+DARK_GRAY = "DARK GRAY"
+GRAY = "GRAY"
+LIGHT_GRAY = "LIGHT GRAY"
+YELLOW = "YELLOW"
+DARK_YELLOW = "DARK YELLOW"
+WHITE = "WHITE"
 MAGENTA = "MAGENTA"
 CYAN = "CYAN"
 PURPLE = "PURPLE"
@@ -41,15 +41,11 @@ def get_colors() -> dict:
         DARK_YELLOW: (20, 20, 0),
         WHITE: (255, 255, 255),
         PURPLE: (0, 148, 211),
-        ORANGE: (126, 255, 0)
+        ORANGE: (126, 255, 0),
     }
 
 
-def clamp(
-    minimum,
-    value,
-    maximum
-):
+def clamp(minimum, value, maximum):
     """
     Makes sure the given value (middle param) is always between the maximum and minimum.
 
@@ -71,11 +67,7 @@ def clamp(
     return value
 
 
-def interpolate(
-    left_value,
-    right_value,
-    proportion
-):
+def interpolate(left_value, right_value, proportion):
     """
     Finds the spot between the two values.
 
@@ -129,18 +121,10 @@ def interpolate(
     right_value = clamp(0.0, right_value, 255.0)
     proportion = clamp(0.0, proportion, 1.0)
 
-    return clamp(
-        0,
-        int(float(left_value) + (float(right_value -
-                                       float(left_value)) * float(proportion))),
-        255)
+    return clamp(0, int(float(left_value) + (float(right_value - float(left_value)) * float(proportion))), 255)
 
 
-def get_color_mix(
-    left_color: list,
-    right_color: list,
-    proportion
-) -> list:
+def get_color_mix(left_color: list, right_color: list, proportion) -> list:
     """
     Returns a color that is a mix between the two given colors.
     A given proportion of 0 would return the left color.
@@ -181,18 +165,12 @@ def get_color_mix(
         return left_color
 
     indices = range(0, array_length)
-    new_color = [int(interpolate(
-        left_color[index],
-        right_color[index],
-        proportion)) for index in indices]
+    new_color = [int(interpolate(left_color[index], right_color[index], proportion)) for index in indices]
 
     return new_color
 
 
-def get_brightness_adjusted_color(
-    color_to_render: list,
-    brightness_adjustment: float
-) -> list:
+def get_brightness_adjusted_color(color_to_render: list, brightness_adjustment: float) -> list:
     if brightness_adjustment < 0.0:
         brightness_adjustment = 0.0
 
@@ -209,7 +187,6 @@ def get_brightness_adjusted_color(
         final_color.append(reduced_color)
 
     return final_color
-
 
 
 def to_css(color) -> str:
