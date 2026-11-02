@@ -11,8 +11,8 @@
         "order": "RGB",
         "brightness": {
             "normal": 0.5,
-            "dimmed": 0.15,
-            "off": 0.05
+            "dimmed": 0.1,
+            "off": 0.1
         },
         "night_off": {
             "enabled": false,
