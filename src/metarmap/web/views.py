@@ -141,6 +141,7 @@ def sun_schedule(times, levels, now=None):
 
 # ---- map page ------------------------------------------------------------------------------------------------
 
+
 def brightness_schedule(times, levels, night_off, now=None):
     """Today's brightness events with the CURRENT scheduled mode highlighted.
 
@@ -151,8 +152,10 @@ def brightness_schedule(times, levels, night_off, now=None):
         return []
     tz = next(iter(times.values())).tzinfo
     now = now.astimezone(tz) if now is not None else datetime.now(tz)
-    schedule = [{"name": name.capitalize(), "time": times[name], "level": getattr(levels, level), "next": False}
-                for name, level in LEVEL_AT.items()]
+    schedule = [
+        {"name": name.capitalize(), "time": times[name], "level": getattr(levels, level), "next": False}
+        for name, level in LEVEL_AT.items()
+    ]
     elapsed_sun = [event for event in schedule if event["time"] <= now]
     current_sun = max(elapsed_sun, key=lambda event: event["time"]) if elapsed_sun else schedule[-1]
     current_sun["next"] = True
@@ -170,27 +173,36 @@ def brightness_schedule(times, levels, night_off, now=None):
 
     begins = midnight.replace(hour=start_h, minute=start_m)
     ends = midnight.replace(hour=end_h, minute=end_m)
-    schedule.append({"name": "Night off", "time": begins, "level": 0.0,
-                     "next": False, "night_event": True})
-    schedule.append({"name": "Resume schedule", "time": ends,
-                     "level": brightness_for(ends, times, levels),
-                     "next": False, "night_event": True})
+    schedule.append({"name": "Night off", "time": begins, "level": 0.0, "next": False, "night_event": True})
+    schedule.append(
+        {
+            "name": "Resume schedule",
+            "time": ends,
+            "level": brightness_for(ends, times, levels),
+            "next": False,
+            "night_event": True,
+        }
+    )
 
     if night_off_active(now, night_off):
         current = next(event for event in schedule if event["name"] == "Night off")
     else:
         # Ignore blackout-suppressed sun events and Night off itself when
         # choosing the currently active non-blackout brightness mode.
-        elapsed = [event for event in schedule
-                   if event["time"] <= now and event["name"] != "Night off"
-                   and (event["name"] == "Resume schedule"
-                        or not night_off_active(event["time"], night_off))]
+        elapsed = [
+            event
+            for event in schedule
+            if event["time"] <= now
+            and event["name"] != "Night off"
+            and (event["name"] == "Resume schedule" or not night_off_active(event["time"], night_off))
+        ]
         current = max(elapsed, key=lambda event: event["time"]) if elapsed else schedule[3]
     current["next"] = True
     return sorted(schedule, key=lambda event: event["time"])
 
 
 # ---- map page ------------------------------------------------------------------------------------------------
+
 
 def map_settings(m, sectionals, stations):
     """

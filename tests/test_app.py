@@ -29,6 +29,7 @@ def test_build_wires_the_parts_together(make_app):
     assert set(app.sun.times) >= {"dawn", "sunrise", "sunset", "dusk"}
     assert len(app.renderer.pixels()) == app.config.data.led.count
 
+
 def test_night_off_jobs(make_app):
     app = make_app(
         **{
@@ -43,6 +44,7 @@ def test_night_off_jobs(make_app):
         "22:00",
         "07:00",
     }
+
 
 def test_jobs(make_app):
     app = make_app()

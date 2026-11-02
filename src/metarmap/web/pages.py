@@ -45,7 +45,6 @@ def index(services, site):
     )
 
 
-
 def metars(services, site):
     s = stations(services)
     return render(
