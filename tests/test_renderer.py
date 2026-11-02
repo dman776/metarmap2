@@ -1,4 +1,5 @@
 """Tests for the renderer, on an in-memory LED strip with a controllable clock."""
+
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
@@ -14,13 +15,23 @@ from metarmap.renderer import Renderer
 from metarmap.visualizers import chase, flightcategory, precipitation, rainbow, visualizer, wind
 
 NOON = datetime(2026, 10, 24, 17, 0, tzinfo=timezone.utc)
-SUN = {"dawn": NOON.replace(hour=11, minute=58), "sunrise": NOON.replace(hour=12, minute=23),
-       "sunset": NOON.replace(hour=23, minute=41), "dusk": NOON.replace(hour=23, minute=59, second=59)}
+SUN = {
+    "dawn": NOON.replace(hour=11, minute=58),
+    "sunrise": NOON.replace(hour=12, minute=23),
+    "sunset": NOON.replace(hour=23, minute=41),
+    "dusk": NOON.replace(hour=23, minute=59, second=59),
+}
 
 
 def metar(category, wind=5, obs=""):
-    return {"flightCategory": category, "lightning": False, "windSpeed": wind, "windGust": False, "windGustSpeed": 0,
-            "obs": obs}
+    return {
+        "flightCategory": category,
+        "lightning": False,
+        "windSpeed": wind,
+        "windGust": False,
+        "windGustSpeed": 0,
+        "obs": obs,
+    }
 
 
 CODES = ["KHOU", "KIAH", "", "KDKR", "KGLS"]  # LED 2 has no airport
@@ -52,6 +63,7 @@ def draw_frame(renderer):
 
 
 # ---- looks and what reaches the LEDs --------------------------------------------------------------------------
+
 
 def test_looks_come_from_the_active_visualizer(config, clock):
     r, _ = make(config, clock)
@@ -134,6 +146,7 @@ def test_render_rests_between_frames(config, clock, monkeypatch):
 
     class Frames:
         """An animation loop that has three frames to draw."""
+
         def __init__(self, *args, **kwargs):
             self.left = 3
 
@@ -207,6 +220,7 @@ def test_render_stops_when_the_animations_are_rebuilt(config, clock):
         frames.append(1)
         r.refresh()
         return animate(*args, **kwargs)
+
     animation.animate = animate_then_rebuild
     r.render()
     assert len(frames) == 1
@@ -220,12 +234,14 @@ def watch_brightness(strip):
     def recording_show():
         seen.append(round(strip.brightness, 6))
         show()
+
     strip.show = recording_show
     return seen
 
 
 def test_dimmed_while_fetching_fades(config, clock, monkeypatch):
     from metarmap import renderer
+
     monkeypatch.setattr(renderer, "DIM_SECONDS", 1)
     monkeypatch.setattr(renderer, "FADE_SECONDS", 0.6)
     r, strip = make(config, clock)
@@ -236,7 +252,7 @@ def test_dimmed_while_fetching_fades(config, clock, monkeypatch):
         down = list(seen)
         assert strip.brightness == 0.2  # faded all the way before the fetch
         faded_at = clock.time()
-    up = seen[len(down):]
+    up = seen[len(down) :]
     assert len(down) == renderer.FADE_STEPS and down == sorted(down, reverse=True) and down[-1] == 0.2
     assert len(up) == renderer.FADE_STEPS and up == sorted(up) and up[-1] == 0.4
     assert strip.brightness == 0.4
@@ -278,6 +294,7 @@ def test_a_change_during_the_fade_down_wins(config, clock, monkeypatch):
         waits.append(seconds)
         if len(waits) == 3:
             r.brightness(0.9)  # the Home page slider, mid-fade
+
     monkeypatch.setattr(clock, "wait", slider_moves)
     with r.dimmed():
         pass
@@ -326,6 +343,7 @@ def test_render_runs_one_cycle(config, clock):
 
 # ---- switching visualizers ------------------------------------------------------------------------------------
 
+
 def test_next_and_previous_wrap(config, clock):
     r, _ = make(config, clock)
     r.visualizer_previous()
@@ -363,6 +381,7 @@ def test_nothing_to_rotate_to_stays_put(config, clock):
 
 # ---- locate -------------------------------------------------------------------------------------------------
 
+
 def test_locate_pulses_and_records(config, clock):
     r, strip = make(config, clock)
     shows = strip.shows
@@ -388,6 +407,7 @@ def test_locate_errors_are_logged_not_raised(config, clock):
 
 
 # ---- virtual airports -----------------------------------------------------------------------------------------
+
 
 @pytest.fixture
 def virtual(config):
@@ -431,14 +451,18 @@ def test_locate_a_virtual_airport_only_on_the_web_map(virtual, clock):
 
 # ---- brightness by sun time -----------------------------------------------------------------------------------
 
-@pytest.mark.parametrize("when, level", [
-    (SUN["dawn"] + timedelta(minutes=1), "dimmed"),
-    (SUN["sunrise"] + timedelta(minutes=1), "normal"),
-    (NOON, "normal"),
-    (SUN["sunset"] + timedelta(minutes=1), "dimmed"),
-    (SUN["dawn"] - timedelta(hours=2), "off"),
-    (SUN["dusk"] + timedelta(seconds=0.5), "off"),
-])
+
+@pytest.mark.parametrize(
+    "when, level",
+    [
+        (SUN["dawn"] + timedelta(minutes=1), "dimmed"),
+        (SUN["sunrise"] + timedelta(minutes=1), "normal"),
+        (NOON, "normal"),
+        (SUN["sunset"] + timedelta(minutes=1), "dimmed"),
+        (SUN["dawn"] - timedelta(hours=2), "off"),
+        (SUN["dusk"] + timedelta(seconds=0.5), "off"),
+    ],
+)
 def test_brightness_for(config, clock, when, level):
     r, _ = make(config, clock)
     assert r.brightness_for(when) == getattr(config.data.led.brightness, level)
@@ -453,6 +477,7 @@ def test_scheduled_level(config, clock):
 
 def test_test_pattern_runs_once(config, clock, monkeypatch):
     from metarmap import renderer
+
     monkeypatch.setattr(renderer, "FRAME_SECONDS", 0)
     r, strip = make(config, clock)
     shows = strip.shows

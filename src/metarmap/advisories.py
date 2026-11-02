@@ -14,6 +14,7 @@ a few hours; only those valid now count.
 Both are fetched with the METARs (every 10 minutes). Only advisories starting below MAX_BASE_FT count: high-level
 turbulence doesn't affect flying from the airport.
 """
+
 import threading
 import time
 
@@ -91,20 +92,22 @@ def parse_airmets(data):
         coords = outline(a)
         if coords is None or base_ft(a) >= MAX_BASE_FT:
             continue
-        areas.append({
-            "kind": "AIRMET",
-            "hazard": a["hazard"],
-            "product": a.get("product"),
-            "name": AIRMETS[a["hazard"]],
-            "base": base_ft(a),
-            "top": feet(a.get("top")),
-            "due_to": a.get("due_to"),
-            "severity": a.get("severity"),
-            "valid": a.get("validTime"),
-            "from": None,
-            "expires": a.get("expireTime"),
-            "coords": coords,
-        })
+        areas.append(
+            {
+                "kind": "AIRMET",
+                "hazard": a["hazard"],
+                "product": a.get("product"),
+                "name": AIRMETS[a["hazard"]],
+                "base": base_ft(a),
+                "top": feet(a.get("top")),
+                "due_to": a.get("due_to"),
+                "severity": a.get("severity"),
+                "valid": a.get("validTime"),
+                "from": None,
+                "expires": a.get("expireTime"),
+                "coords": coords,
+            }
+        )
     return areas
 
 
@@ -134,21 +137,23 @@ def parse_sigmets(data):
         if coords is None or base >= MAX_BASE_FT:
             continue
         moving = movement(a.get("dir"), a.get("spd"))
-        areas.append({
-            "kind": "SIGMET",
-            "hazard": a["hazard"],
-            "name": SIGMETS[a["hazard"]],
-            "series": a.get("seriesId"),
-            "qualifier": a.get("qualifier"),  # e.g. SEV, OCNL SEV, FRQ, EMBD
-            "observed": a.get("sigmetType") == "OBS",
-            "base": base,
-            "top": number(a.get("top")),
-            "moving": moving or None,
-            "from": a.get("validTimeFrom"),
-            "expires": a.get("validTimeTo"),
-            "text": a.get("rawSigmet"),
-            "coords": coords,
-        })
+        areas.append(
+            {
+                "kind": "SIGMET",
+                "hazard": a["hazard"],
+                "name": SIGMETS[a["hazard"]],
+                "series": a.get("seriesId"),
+                "qualifier": a.get("qualifier"),  # e.g. SEV, OCNL SEV, FRQ, EMBD
+                "observed": a.get("sigmetType") == "OBS",
+                "base": base,
+                "top": number(a.get("top")),
+                "moving": moving or None,
+                "from": a.get("validTimeFrom"),
+                "expires": a.get("validTimeTo"),
+                "text": a.get("rawSigmet"),
+                "coords": coords,
+            }
+        )
     return areas
 
 
@@ -183,8 +188,10 @@ class Advisories:
         self._get = get or requests.get
         self._clock = clock
         self._lock = threading.Lock()
-        self._feeds = {"airmet": Feed("G-AIRMET", AIRMET_URL, parse_airmets),
-                       "sigmet": Feed("SIGMET", SIGMET_URL, parse_sigmets)}
+        self._feeds = {
+            "airmet": Feed("G-AIRMET", AIRMET_URL, parse_airmets),
+            "sigmet": Feed("SIGMET", SIGMET_URL, parse_sigmets),
+        }
 
     def fetch(self):
         """

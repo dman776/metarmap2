@@ -3,6 +3,7 @@ Ceiling: colors each airport by its ceiling (the lowest broken or overcast layer
 sky is obscured), at the flight category limits: white when it's high, then yellow, orange and red as it gets lower.
 Flight Category shows the worse of ceiling and visibility; this shows the ceiling on its own.
 """
+
 import metarmap.lib.colors as colors_lib
 from metarmap.decode import ceiling_ft
 from metarmap.models import Look, Metar
@@ -26,18 +27,21 @@ def no_ceiling(settings):
 
 
 def legend(settings):
-    return [*style.band_legend(BANDS, settings),
-            style.legend_item("No ceiling (clear, few or scattered clouds)", "Dim white", no_ceiling(settings)),
-            style.missing_legend("sky condition"), style.no_report_legend()]
+    return [
+        *style.band_legend(BANDS, settings),
+        style.legend_item("No ceiling (clear, few or scattered clouds)", "Dim white", no_ceiling(settings)),
+        style.missing_legend("sky condition"),
+        style.no_report_legend(),
+    ]
 
 
 def look(metar: Metar, settings) -> Look:
     if not metar:
         return style.no_report()
-    layers = metar.get('skyConditions')
+    layers = metar.get("skyConditions")
     if not layers:
         return style.missing()
-    feet = ceiling_ft(layers, metar.get('vertVisFt'))
+    feet = ceiling_ft(layers, metar.get("vertVisFt"))
     if feet is None:
         return Look.solid(no_ceiling(settings))
     return Look.solid(style.band_for(feet, BANDS, settings))

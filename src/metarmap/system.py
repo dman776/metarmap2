@@ -4,6 +4,7 @@ Changing the Pi itself from the web UI: the login user's password and the Wi-Fi 
 Every command goes through `run` (subprocess.run by default), so tests can stand in for the Pi. The map runs as
 root, which these need; off a Pi (or not as root) they report that they were skipped.
 """
+
 import os
 import pwd
 import re
@@ -75,6 +76,7 @@ def set_login_password(password, user=None, run=subprocess.run, root=None, pi=No
 
 # ---- Wi-Fi ----------------------------------------------------------------------------------------------------
 
+
 def check_wifi(ssid, password):
     """Raises ValueError for a network name or password Wi-Fi can't use."""
     if not 1 <= len(ssid.encode()) <= 32:
@@ -106,8 +108,9 @@ def current_wifi(run=subprocess.run):
             if done.returncode == 0 and done.stdout.strip():
                 return done.stdout.strip()
         if shutil.which("nmcli"):
-            done = run(["nmcli", "-t", "-f", "ACTIVE,SSID", "device", "wifi"], capture_output=True, text=True,
-                       timeout=15)
+            done = run(
+                ["nmcli", "-t", "-f", "ACTIVE,SSID", "device", "wifi"], capture_output=True, text=True, timeout=15
+            )
             for line in done.stdout.splitlines():
                 if line.startswith("yes:"):
                     return line[4:].replace("\\:", ":")
@@ -136,8 +139,23 @@ def set_wifi(ssid, password, run=subprocess.run, root=None, backend=None, wpa_co
 def _set_wifi_networkmanager(ssid, password, run):
     name = f"metarmap-{ssid}"
     run(["nmcli", "connection", "delete", name], capture_output=True, text=True, timeout=30)  # from an earlier change
-    add = ["nmcli", "connection", "add", "type", "wifi", "con-name", name, "ifname", "wlan0", "ssid", ssid,
-           "connection.autoconnect", "yes", "connection.autoconnect-priority", str(WIFI_PRIORITY)]
+    add = [
+        "nmcli",
+        "connection",
+        "add",
+        "type",
+        "wifi",
+        "con-name",
+        name,
+        "ifname",
+        "wlan0",
+        "ssid",
+        ssid,
+        "connection.autoconnect",
+        "yes",
+        "connection.autoconnect-priority",
+        str(WIFI_PRIORITY),
+    ]
     if password:
         add += ["wifi-sec.key-mgmt", "wpa-psk", "wifi-sec.psk", password]
     done = run(add, capture_output=True, text=True, timeout=30)

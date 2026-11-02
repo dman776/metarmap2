@@ -2,6 +2,7 @@
 Tests for the OLED loop (display.py) with a fake screen and clock: page order, timing, locate pulses,
 recovering from errors, and the watchdog.
 """
+
 import threading
 import time
 from datetime import datetime, timezone
@@ -15,9 +16,18 @@ from metarmap.clock import FakeClock
 from metarmap.oled.screen import FakeScreen
 from metarmap.settings import Settings
 
-GOOD = {"flightCategory": "VFR", "windDir": "100", "windSpeed": 13, "windGustSpeed": 0, "windGust": False,
-        "vis": 10, "altimHg": 30.2, "tempC": 28, "dewpointC": 16,
-        "obsTime": datetime(2026, 10, 24, 17, 53, tzinfo=timezone.utc)}
+GOOD = {
+    "flightCategory": "VFR",
+    "windDir": "100",
+    "windSpeed": 13,
+    "windGustSpeed": 0,
+    "windGust": False,
+    "vis": 10,
+    "altimHg": 30.2,
+    "tempC": 28,
+    "dewpointC": 16,
+    "obsTime": datetime(2026, 10, 24, 17, 53, tzinfo=timezone.utc),
+}
 AIRPORTS = airports("KHOU", "KIAH", "KDKR", "KGLS", display=("KHOU", "KDKR", "KGLS"))
 DATA = {"KHOU": GOOD, "KIAH": GOOD, "KDKR": {}, "KGLS": {**GOOD, "flightCategory": "LIFR"}}
 
@@ -33,20 +43,27 @@ class FakeRenderer:
             raise RuntimeError("simulated LED error")
 
 
-def make(airports=AIRPORTS, data=DATA, delay=5.0, locate_active=True, renderer=None, stop_after=None,
-         screen=None):
+def make(airports=AIRPORTS, data=DATA, delay=5.0, locate_active=True, renderer=None, stop_after=None, screen=None):
     settings = Settings()
     settings.display_screen.delay = delay
     settings.display_screen.locate_active = locate_active
     config = SimpleNamespace(airports=list(airports), data=settings)
     screen = screen or FakeScreen()
     clock = FakeClock()
-    d = Display(config, SimpleNamespace(data=dict(data)), screen, renderer=renderer or FakeRenderer(),
-                clock=clock, tz=timezone.utc)
+    d = Display(
+        config,
+        SimpleNamespace(data=dict(data)),
+        screen,
+        renderer=renderer or FakeRenderer(),
+        clock=clock,
+        tz=timezone.utc,
+    )
     if stop_after:
+
         def stop(_):
             if len(screen.shown) >= stop_after:
                 d.event.set()
+
         screen.on_show = stop
     return d, screen, clock, config
 
@@ -62,6 +79,7 @@ def run(d):
 
 # ---- what gets shown --------------------------------------------------------------------------------------------
 
+
 def test_rotates_through_display_airports():
     d, screen, _, _ = make(stop_after=6)
     run(d)
@@ -75,7 +93,12 @@ def test_virtual_airports_are_shown_marked():
     config.data.led.count = 3
     run(d)
     assert [(s["title"], s["virtual"]) for s in screen.shown] == [
-        ("KHOU", False), ("KHOU", False), ("KDKR", False), ("KGLS", True), ("KGLS", True)]
+        ("KHOU", False),
+        ("KHOU", False),
+        ("KDKR", False),
+        ("KGLS", True),
+        ("KGLS", True),
+    ]
     assert d._renderer.located == [0, 2, 3]  # the renderer pulses KGLS on the web map only
 
 
@@ -116,6 +139,7 @@ def test_message():
 
 # ---- recovering from problems -----------------------------------------------------------------------------------
 
+
 def test_failed_locate_still_shows_the_airport():
     d, screen, _, _ = make(renderer=FakeRenderer(fail=True), stop_after=5)
     run(d)
@@ -151,6 +175,7 @@ def test_airport_edits_are_picked_up_on_the_next_pass():
             config.airports = airports("KNEW", display=("KNEW",))  # replaced, like Config.read() does
         if len(screen.shown) >= 7:
             d.event.set()
+
     screen.on_show = on_show
     run(d)
     assert pages(screen)[-1] == ("KNEW", 0)
@@ -167,6 +192,7 @@ def test_nothing_to_show_waits_instead_of_spinning():
         if calls["n"] >= 3:
             event.set()
         return real_wait(event, seconds)
+
     clock.wait = wait
     run(d)
     assert screen.shown == []
@@ -174,6 +200,7 @@ def test_nothing_to_show_waits_instead_of_spinning():
 
 
 # ---- watchdog ---------------------------------------------------------------------------------------------------
+
 
 def test_watchdog_limit():
     assert watchdog_limit(5) == 60
@@ -251,6 +278,7 @@ def test_parallel_restarts_leave_one_loop():
 
 
 # ---- turning the screen on and off (display_screen.enabled, no restart) -----------------------------------------
+
 
 def test_turn_on_and_off():
     d, screen, _, config = make()

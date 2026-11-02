@@ -2,6 +2,7 @@
 The routes that change the map: visualizer, brightness, locate, fetch, settings and airport edits, update and restart.
 Most answer with the page the web UI shows next.
 """
+
 import json
 import subprocess
 import threading
@@ -17,8 +18,16 @@ from metarmap.web import pages
 
 WIFI_DELAY = 3  # seconds between answering a Wi-Fi change and making it
 
-NO_UPDATE = {"fraction": 0.0, "label": "", "done": True, "ok": None, "changed": None, "target": None, "message": "",
-             "errors": []}
+NO_UPDATE = {
+    "fraction": 0.0,
+    "label": "",
+    "done": True,
+    "ok": None,
+    "changed": None,
+    "target": None,
+    "message": "",
+    "errors": [],
+}
 
 
 class Updates:
@@ -39,8 +48,16 @@ class Updates:
         """
         with self._lock:
             if self.job is None or self.job["done"]:
-                job = {"fraction": 0.0, "label": "Starting", "done": False, "ok": None, "changed": None,
-                       "target": version, "message": "", "errors": []}
+                job = {
+                    "fraction": 0.0,
+                    "label": "Starting",
+                    "done": False,
+                    "ok": None,
+                    "changed": None,
+                    "target": version,
+                    "message": "",
+                    "errors": [],
+                }
                 self.job = job
 
                 def progress(fraction, label):
@@ -48,10 +65,16 @@ class Updates:
 
                 def run():
                     try:
-                        result = self._run_update(progress=progress, channel=self.channel(), version=version,
-                                                  branch=self.branch())
-                        job.update(ok=result.ok, changed=result.changed, target=result.target,
-                                   message=result.message, errors=result.errors)
+                        result = self._run_update(
+                            progress=progress, channel=self.channel(), version=version, branch=self.branch()
+                        )
+                        job.update(
+                            ok=result.ok,
+                            changed=result.changed,
+                            target=result.target,
+                            message=result.message,
+                            errors=result.errors,
+                        )
                         if result.ok and self.on_done:
                             self.on_done(result)
                     except Exception as e:
@@ -86,6 +109,7 @@ def add_routes(app, services, site, auth, updates=None):
             if result.changed:
                 releases.installed = result.target
             releases.check_soon()
+
     updates.on_done = installed
 
     def visualizer(visnum):
@@ -185,6 +209,7 @@ def add_routes(app, services, site, auth, updates=None):
             new_code = config.airports[int(pixel)].code
             if key == "code" and new_code:
                 name_new_code(new_code)
+
         return edit_airports(change, fetch=key == "code")
 
     def move_airport(src, dst):
@@ -194,6 +219,7 @@ def add_routes(app, services, site, auth, updates=None):
         def change():
             config.edit_airport(oldkey, newkey)
             name_new_code(parse_code(newkey))
+
         return edit_airports(change, fetch=True)
 
     def edit_airport_property(airport, key, value):
@@ -228,8 +254,13 @@ def add_routes(app, services, site, auth, updates=None):
             services.display.restart(timeout=15)
         code = config.airports[pixel].code
         shown = services.metars.data.get(code) or {}
-        return as_json({"code": code, "mock": shown.get("raw") if shown.get("mock") else None,
-                        "flightCategory": shown.get("flightCategory")})
+        return as_json(
+            {
+                "code": code,
+                "mock": shown.get("raw") if shown.get("mock") else None,
+                "flightCategory": shown.get("flightCategory"),
+            }
+        )
 
     def set_login():
         """
@@ -268,6 +299,7 @@ def add_routes(app, services, site, auth, updates=None):
                 safe_log(f"Wi-Fi: {system.set_wifi(ssid, password)}")
             except (system.ChangeFailed, OSError, subprocess.SubprocessError) as e:
                 safe_log(f"Wi-Fi change to {ssid} failed: {e}")
+
         threading.Thread(target=switch, name="wifi", daemon=True).start()
         return as_json({"ssid": ssid, "current": system.current_wifi(), "delay": WIFI_DELAY}, status=202)
 

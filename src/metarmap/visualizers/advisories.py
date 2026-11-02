@@ -4,15 +4,18 @@ hazard is a steady color (IFR, mountain obscuration, turbulence, low-level wind 
 an airport in two at once alternates between their colors, and in none it's dim white. A SIGMET (thunderstorms,
 severe turbulence or icing...) is more serious and takes over: a fast bright-and-dim blink in its hazard's color.
 """
+
 import metarmap.lib.colors as colors_lib
 from metarmap.models import Look, Metar
 from metarmap.visualizers import style
 from metarmap.visualizers.visualizer import legend_item
 
 NAME = "Advisories"
-DESCRIPTION = "Display the advisory over each airport, below 18,000 ft. G-AIRMETs in steady colors: IFR orange, " \
-              "mountain obscuration magenta, turbulence yellow, wind shear red, strong surface wind blue, icing " \
-              "cyan; two at once alternate, none is dim white. A SIGMET takes over, blinking in its hazard's color."
+DESCRIPTION = (
+    "Display the advisory over each airport, below 18,000 ft. G-AIRMETs in steady colors: IFR orange, "
+    "mountain obscuration magenta, turbulence yellow, wind shear red, strong surface wind blue, icing "
+    "cyan; two at once alternate, none is dim white. A SIGMET takes over, blinking in its hazard's color."
+)
 EXCLUSIVE = False
 AREAS = "advisories"  # the Map page draws the G-AIRMET and SIGMET areas (/api/advisories)
 
@@ -75,19 +78,38 @@ def legend(settings):
         if label not in shown:
             shown.add(label)
             c = style.named(name)
-            items.append(legend_item(label, f"{COLOR_NAMES[name]}, fast blink, bright and dim", c, style.dim(c),
-                                     effect="alternate", period=SIGMET_PERIOD))
+            items.append(
+                legend_item(
+                    label,
+                    f"{COLOR_NAMES[name]}, fast blink, bright and dim",
+                    c,
+                    style.dim(c),
+                    effect="alternate",
+                    period=SIGMET_PERIOD,
+                )
+            )
     for name, label, detail in COLORS.values():
         if label not in shown:
             shown.add(label)
             items.append(legend_item(label, detail, style.named(name)))
     return [
         *items,
-        legend_item("Two G-AIRMETs at once (e.g. IFR and icing)", "Alternating their colors", color("IFR"),
-                    color("ICE"), effect="alternate", period=MIXED_PERIOD),
+        legend_item(
+            "Two G-AIRMETs at once (e.g. IFR and icing)",
+            "Alternating their colors",
+            color("IFR"),
+            color("ICE"),
+            effect="alternate",
+            period=MIXED_PERIOD,
+        ),
         legend_item("No advisory below 18,000 ft", "Dim white", style.named(NONE)),
-        legend_item("No G-AIRMETs yet, or the airport's position isn't known", "Slow red blink",
-                    style.named(colors_lib.RED), effect="blink", period=style.MISSING_PERIOD),
+        legend_item(
+            "No G-AIRMETs yet, or the airport's position isn't known",
+            "Slow red blink",
+            style.named(colors_lib.RED),
+            effect="blink",
+            period=style.MISSING_PERIOD,
+        ),
         style.no_report_legend(),
     ]
 

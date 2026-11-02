@@ -2,6 +2,7 @@
 Release versions: a release is a git tag like v2.8.4 (or 2.8.4). Anything else, such as a pre-release (v2.9.0-rc1)
 or a tag that isn't a version, isn't a release.
 """
+
 import re
 from typing import Iterable, List, Optional, Tuple
 

@@ -1,4 +1,5 @@
 """Tests for turning Looks into LED animations (metarmap/leds/animations.py) and for the Look model."""
+
 import pytest
 from adafruit_led_animation.helper import PixelSubset
 
@@ -59,8 +60,13 @@ def test_rainbow_and_chase_use_the_whole_strip():
 
 def test_animations_actually_draw(pixel):
     """Run one frame to make sure the arguments are ones the library accepts."""
-    for look in (Look.solid([255, 0, 0]), Look.blink([255, 0, 0]), Look.pulse([255, 0, 0], 1),
-                 Look.cycle([[255, 0, 0], [0, 0, 0]], 0.1), Look.off()):
+    for look in (
+        Look.solid([255, 0, 0]),
+        Look.blink([255, 0, 0]),
+        Look.pulse([255, 0, 0], 1),
+        Look.cycle([[255, 0, 0], [0, 0, 0]], 0.1),
+        Look.off(),
+    ):
         animation_for(look, pixel).animate()
 
 
@@ -88,6 +94,7 @@ def test_flight_category_compares_to_strings():
 
 # ---- effects built from ColorCycle, so they work with older versions of the LED library -------------------------
 
+
 def test_two_color_blink_alternates(pixel):
     a = animation_for(Look.blink((0, 0, 255), period=1, background=(255, 255, 0)), pixel)
     assert isinstance(a, ColorCycle) and not isinstance(a, Blink)
@@ -111,6 +118,10 @@ def test_plain_pulse_is_unchanged(pixel):
 
 
 def test_web_ui_gets_the_floor():
-    assert Look.pulse((0, 0, 255), period=4, low=0.3).to_dict() == {"effect": "pulse", "colors": ["#0000ff"],
-                                                                       "period": 4, "low": 0.3}
+    assert Look.pulse((0, 0, 255), period=4, low=0.3).to_dict() == {
+        "effect": "pulse",
+        "colors": ["#0000ff"],
+        "period": 4,
+        "low": 0.3,
+    }
     assert len(Look.blink((0, 0, 255), period=1, background=(0, 0, 76)).to_dict()["colors"]) == 2

@@ -12,6 +12,7 @@ A screen is a dict:
   icon     message icon name (messages only)
   lines    three {"icon": name, "text": str} lines
 """
+
 import metarmap.lib.utils as utils
 from metarmap.decode import estimate_category
 
@@ -33,7 +34,7 @@ def safe_text(fn, data):
 
 
 def wind_text(data):
-    speed = data.get('windSpeed')
+    speed = data.get("windSpeed")
     if not isinstance(speed, int):
         return speed
     if speed <= 0:
@@ -68,27 +69,53 @@ def screen_for(station, data, page, tz=None, virtual=False):
     page 2 (temperature, dewpoint, time) or page 0 (no data). A virtual airport (no LED) has its code in a dashed box.
     """
     if page == 0:
-        return {"kind": "airport", "airport": station, "title": station, "virtual": virtual, "badge": "", "page": 0,
-                "lines": [{"icon": "", "text": "Data"}, {"icon": "", "text": "Unavailable"}, {"icon": "", "text": ""}]}
+        return {
+            "kind": "airport",
+            "airport": station,
+            "title": station,
+            "virtual": virtual,
+            "badge": "",
+            "page": 0,
+            "lines": [{"icon": "", "text": "Data"}, {"icon": "", "text": "Unavailable"}, {"icon": "", "text": ""}],
+        }
     if page == 1:
-        lines = [{"icon": "wind", "text": safe_text(wind_text, data)},
-                 {"icon": "visibility", "text": safe_text(lambda d: "{0}SM".format(d['vis']), data)},
-                 {"icon": "pressure", "text": safe_text(lambda d: "{0:2.2f}".format(d['altimHg']), data)}]
+        lines = [
+            {"icon": "wind", "text": safe_text(wind_text, data)},
+            {"icon": "visibility", "text": safe_text(lambda d: "{0}SM".format(d["vis"]), data)},
+            {"icon": "pressure", "text": safe_text(lambda d: "{0:2.2f}".format(d["altimHg"]), data)},
+        ]
     else:
-        lines = [{"icon": "temp", "text": safe_text(lambda d: temp_text(d['tempC']), data)},
-                 {"icon": "dewpoint", "text": safe_text(lambda d: temp_text(d['dewpointC']), data)},
-                 {"icon": "date", "text": safe_text(lambda d: time_text(d['obsTime'], tz), data)}]
-    return {"kind": "airport", "airport": station, "title": station, "virtual": virtual, "badge": badge_text(data),
-            "page": page, "lines": lines}
+        lines = [
+            {"icon": "temp", "text": safe_text(lambda d: temp_text(d["tempC"]), data)},
+            {"icon": "dewpoint", "text": safe_text(lambda d: temp_text(d["dewpointC"]), data)},
+            {"icon": "date", "text": safe_text(lambda d: time_text(d["obsTime"], tz), data)},
+        ]
+    return {
+        "kind": "airport",
+        "airport": station,
+        "title": station,
+        "virtual": virtual,
+        "badge": badge_text(data),
+        "page": page,
+        "lines": lines,
+    }
 
 
 def message_screen(title, icon="", line1="", line2="", line3=""):
     """A message such as "MAP / Starting.."."""
-    return {"kind": "message", "airport": None, "title": title, "badge": "", "page": 0, "icon": icon,
-            "lines": [{"icon": "", "text": t} for t in (line1, line2, line3)]}
+    return {
+        "kind": "message",
+        "airport": None,
+        "title": title,
+        "badge": "",
+        "page": 0,
+        "icon": icon,
+        "lines": [{"icon": "", "text": t} for t in (line1, line2, line3)],
+    }
 
 
 # ---- which airports, which pages -------------------------------------------------------------------------------
+
 
 def airports_to_show(airports):
     """

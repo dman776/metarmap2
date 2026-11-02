@@ -1,4 +1,5 @@
 """Tests for building and running the whole map (metarmap.app) on an in-memory strip and screen."""
+
 from collections import Counter
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -18,6 +19,7 @@ def jobs(app):
 
 # ---- building -------------------------------------------------------------------------------------------------
 
+
 def test_build_wires_the_parts_together(make_app):
     app = make_app(**{"visualizer.active": 2})
     assert app.renderer.visualizer[0] == 2
@@ -30,10 +32,16 @@ def test_build_wires_the_parts_together(make_app):
 
 def test_jobs(make_app):
     app = make_app()
-    assert jobs(app) == {"update_data": 1, "load_suntimes": 1, "set_brightness": 4, "watch_display": 1,
-                         "check_releases": 1}
-    assert {job.at_time.strftime("%H:%M") for job in app.scheduler.get_jobs("suntimes")} == \
-        {app.sun.times[name].strftime("%H:%M") for name in ("dawn", "sunrise", "sunset", "dusk")}
+    assert jobs(app) == {
+        "update_data": 1,
+        "load_suntimes": 1,
+        "set_brightness": 4,
+        "watch_display": 1,
+        "check_releases": 1,
+    }
+    assert {job.at_time.strftime("%H:%M") for job in app.scheduler.get_jobs("suntimes")} == {
+        app.sun.times[name].strftime("%H:%M") for name in ("dawn", "sunrise", "sunset", "dusk")
+    }
 
 
 def test_display_turned_off_at_startup(make_app):
@@ -60,6 +68,7 @@ def test_auto_rotate_leaves_out_the_skipped(make_app):
 
 # ---- scheduled jobs -------------------------------------------------------------------------------------------
 
+
 def test_update_data_fetches_and_redraws(make_app, monkeypatch):
     app = make_app()
     code = app.config.airports[0].code
@@ -68,6 +77,7 @@ def test_update_data_fetches_and_redraws(make_app, monkeypatch):
     def fetch():
         brightness.append(app.renderer.pixels().brightness)
         app.metars.data = {code: {"flightCategory": "VFR"}}
+
     monkeypatch.setattr(app.metars, "fetch", fetch)
     normal = app.renderer.pixels().brightness
     app_module.update_data(app)
@@ -113,6 +123,7 @@ def test_watchdog_restarts_a_dead_display(make_app):
 
 # ---- running --------------------------------------------------------------------------------------------------
 
+
 class FakeWebApp:
     def __init__(self, services):
         self.services = services
@@ -135,6 +146,7 @@ def test_run_cleans_up_when_stopped(make_app, monkeypatch, error):
         frames.append(1)
         if len(frames) == 3:
             raise error("stop")
+
     monkeypatch.setattr(app.renderer, "render", render)
 
     app_module.run(app)
@@ -185,6 +197,7 @@ def test_the_leds_run_when_the_web_port_is_taken(make_app, monkeypatch):
 
     def taken(web, host, port):
         raise OSError(48, "Address already in use")
+
     monkeypatch.setattr(app_module, "serve", taken)
     frames = []
 
@@ -192,12 +205,14 @@ def test_the_leds_run_when_the_web_port_is_taken(make_app, monkeypatch):
         frames.append(1)
         if len(frames) == 3:
             raise KeyboardInterrupt
+
     monkeypatch.setattr(app.renderer, "render", render)
     app_module.run(app)  # no error
     assert len(frames) == 3  # the main loop ran
 
 
 # ---- retrying a failed fetch ----------------------------------------------------------------------------------
+
 
 def test_a_failed_fetch_is_retried_every_minute_until_it_works(make_app, monkeypatch):
     app = make_app()
@@ -206,6 +221,7 @@ def test_a_failed_fetch_is_retried_every_minute_until_it_works(make_app, monkeyp
     def fetch():
         app.metars.last_fetch_ok = results.pop(0)
         return app.metars.last_fetch_ok
+
     monkeypatch.setattr(app.metars, "fetch", fetch)
 
     app_module.update_data(app)  # e.g. aviationweather.gov answers 502
@@ -228,6 +244,7 @@ def test_a_failed_fetch_at_startup_is_retried(tmp_path, monkeypatch):
 
     def bad_gateway(url, **kwargs):
         raise requests.exceptions.HTTPError("502 Server Error: Bad Gateway")
+
     monkeypatch.setattr(metar.requests, "get", bad_gateway)
     (tmp_path / "config.json").write_text((REPO / "config.json").read_text())
     app = app_module.build(str(tmp_path / "config.json"), strip=FakeStrip(50), screen=FakeScreen())
@@ -249,6 +266,7 @@ def test_a_failed_position_lookup_is_retried_on_its_own(make_app, monkeypatch):
         calls.append("locate")
         app.metars.locate_failed = len(calls) < 3  # fails once more, then works
         return not app.metars.locate_failed
+
     monkeypatch.setattr(app.metars, "fetch", fetch)
     monkeypatch.setattr(app.metars, "locate", locate)
 

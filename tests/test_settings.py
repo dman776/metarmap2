@@ -1,4 +1,5 @@
 """Tests for the config.json schema (metarmap/settings.py) and Config.edit."""
+
 import json
 import shutil
 from pathlib import Path
@@ -54,20 +55,23 @@ def test_save_and_load(tmp_path):
     assert Settings.load(path).geo.map.chart == "Dallas-Ft Worth"
 
 
-@pytest.mark.parametrize("key, value, expected", [
-    ("lightning.animation", "false", False),
-    ("lightning.animation", "True", True),
-    ("lightning.animation", True, True),
-    ("display_screen.delay", "7.5", 7.5),
-    ("display_screen.delay", "5", 5),
-    ("visualizer.active", "3", 3),
-    ("visualizer.auto_rotate.delay_seconds", "120", 120),
-    ("geo.map.zoom", "7", 7),
-    ("geo.map.zoom", "7.25", 7.25),
-    ("geo.map.chart", "Dallas-Ft Worth", "Dallas-Ft Worth"),
-    ("geo.map.chart", '"Dallas"', "Dallas"),  # the old quoted form
-    ("geo.map.center", "[32.9, -97.0]", [32.9, -97.0]),
-])
+@pytest.mark.parametrize(
+    "key, value, expected",
+    [
+        ("lightning.animation", "false", False),
+        ("lightning.animation", "True", True),
+        ("lightning.animation", True, True),
+        ("display_screen.delay", "7.5", 7.5),
+        ("display_screen.delay", "5", 5),
+        ("visualizer.active", "3", 3),
+        ("visualizer.auto_rotate.delay_seconds", "120", 120),
+        ("geo.map.zoom", "7", 7),
+        ("geo.map.zoom", "7.25", 7.25),
+        ("geo.map.chart", "Dallas-Ft Worth", "Dallas-Ft Worth"),
+        ("geo.map.chart", '"Dallas"', "Dallas"),  # the old quoted form
+        ("geo.map.center", "[32.9, -97.0]", [32.9, -97.0]),
+    ],
+)
 def test_set_converts_text(key, value, expected):
     s = Settings()
     assert s.set(key, value) == expected
@@ -84,13 +88,16 @@ def test_set_unknown_setting(key):
         Settings().set(key, "1")
 
 
-@pytest.mark.parametrize("key, value", [
-    ("lightning.animation", "maybe"),
-    ("visualizer.active", "two"),
-    ("visualizer.active", "1.5"),
-    ("display_screen.delay", "soon"),
-    ("geo.map.center", "not a list"),
-])
+@pytest.mark.parametrize(
+    "key, value",
+    [
+        ("lightning.animation", "maybe"),
+        ("visualizer.active", "two"),
+        ("visualizer.active", "1.5"),
+        ("display_screen.delay", "soon"),
+        ("geo.map.center", "not a list"),
+    ],
+)
 def test_set_rejects_bad_values(key, value):
     s = Settings()
     before = s.to_dict()
@@ -108,6 +115,7 @@ def test_set_cannot_run_code():
 
 def test_config_edit_writes_file(tmp_path):
     from metarmap.config import Config
+
     shutil.copy(REPO / "config.json", tmp_path / "config.json")
 
     config = Config(str(tmp_path / "config.json"))
@@ -124,6 +132,7 @@ def test_config_edit_writes_file(tmp_path):
 
 # ---- visualizer numbering -----------------------------------------------------------------------------------------
 
+
 # numbering 1: before Wind Direction (in at 3); 2: before Advisories (in at 11); 3: before TFR (in at 12). So Rainbow
 # went 10 -> 11 -> 12 -> 13
 @pytest.mark.parametrize("active, now", [(0, 0), (2, 2), (3, 4), (9, 10), (10, 13), (11, 14)])
@@ -134,10 +143,19 @@ def test_an_older_file_keeps_its_visualizer(active, now):
     assert Settings.from_dict(settings.to_dict()).visualizer.active == now  # once only
 
 
-@pytest.mark.parametrize("numbering, active, now", [
-    (2, 3, 3), (2, 10, 10), (2, 11, 13), (2, 12, 14),  # before Advisories: Rainbow 11, Chase 12
-    (3, 10, 10), (3, 11, 11), (3, 12, 13), (3, 13, 14),  # before TFR: Advisories 11, Rainbow 12, Chase 13
-])
+@pytest.mark.parametrize(
+    "numbering, active, now",
+    [
+        (2, 3, 3),
+        (2, 10, 10),
+        (2, 11, 13),
+        (2, 12, 14),  # before Advisories: Rainbow 11, Chase 12
+        (3, 10, 10),
+        (3, 11, 11),
+        (3, 12, 13),
+        (3, 13, 14),  # before TFR: Advisories 11, Rainbow 12, Chase 13
+    ],
+)
 def test_a_file_from_before_advisories_or_tfr_keeps_its_visualizer(numbering, active, now):
     """Advisories went in at 11 and TFR at 12, after Dewpoint Spread: Rainbow and Chase moved up each time."""
     settings = Settings.from_dict({"visualizer": {"active": active, "numbering": numbering}})

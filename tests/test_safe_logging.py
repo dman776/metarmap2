@@ -1,4 +1,5 @@
 """Tests for the caller's module, class and function at the start of every safe_log message."""
+
 import sys
 import threading
 from types import SimpleNamespace
@@ -16,6 +17,7 @@ class Thing:
     def nested(self):
         def inner():
             safe_log("from a nested function")
+
         inner()
 
     @classmethod
@@ -69,8 +71,7 @@ def test_a_message_from_a_thread_is_not_indented(capsys):
 
 
 def fake_frame(name, module="metarmap.metar", **local_vars):
-    return SimpleNamespace(f_code=SimpleNamespace(co_name=name), f_globals={"__name__": module},
-                           f_locals=local_vars)
+    return SimpleNamespace(f_code=SimpleNamespace(co_name=name), f_globals={"__name__": module}, f_locals=local_vars)
 
 
 def test_the_metarmap_package_prefix_is_left_off():
