@@ -137,7 +137,7 @@ def test_render_rests_between_frames(config, clock, monkeypatch):
         def __init__(self, *args, **kwargs):
             self.left = 3
 
-        def animate(self):
+        def animate(self, show=True):
             self.left -= 1
             return self.left > 0
 
@@ -156,6 +156,30 @@ def test_render_rests_between_frames(config, clock, monkeypatch):
     rests.clear()
     r.animate_once(object())
     assert rests == [renderer.FRAME_SECONDS] * 2
+
+
+def test_render_sends_the_strip_once_per_frame(config, clock, monkeypatch):
+    """Every LED has its own animation, and each one's show() would send the whole strip: 252 sends a frame."""
+    from metarmap import renderer
+
+    drawn = []
+
+    class Frames:
+        def __init__(self, *args, **kwargs):
+            self.left = 3
+
+        def animate(self, show=True):
+            drawn.append(show)
+            self.left -= 1
+            return self.left > 0
+
+    monkeypatch.setattr(renderer, "AnimateOnce", Frames)
+    monkeypatch.setattr(renderer.time, "sleep", lambda seconds: None)
+    r, strip = make(config, clock)
+    shows = strip.shows
+    r.render()
+    assert drawn == [False] * 3  # the animations only draw into the strip's buffer
+    assert strip.shows - shows == 3  # and the renderer sends it, once a frame
 
 
 def test_render_rests_after_an_error(config, clock, monkeypatch):
