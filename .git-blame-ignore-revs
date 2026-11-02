@@ -1,0 +1,5 @@
+# formatting-only commits, skipped by git blame (git config blame.ignoreRevsFile .git-blame-ignore-revs);
+# GitHub's blame view reads this file on its own
+
+# ruff format: whole codebase
+154916921f27d6a5909e88c425b2a1ada00a7210
