@@ -192,6 +192,8 @@ Changes save right away. To check the wiring order:
 - the default visualizer and auto-rotate, including which visualizers it shows
 - whether an airport blinks red when its report lacks what the visualizer shows (**Missing data blink**, on by
   default), or stays dark
+- whether an estimated flight category breathes or shows a steady color (**Estimated flight category breathing**, on
+  by default)
 - lightning: the animation on or off, and its color (yellow or white)
 - the OLED screen
 - the map page's chart

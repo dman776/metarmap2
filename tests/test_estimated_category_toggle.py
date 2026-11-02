@@ -1,4 +1,4 @@
-"""Estimated flight category breathing is optional without changing inferred colors."""
+"""Estimated flight category breathing is optional, without changing the estimated colors."""
 
 import pytest
 
@@ -36,7 +36,7 @@ def test_estimated_legend_matches_setting(enabled):
     item = next(i for i in flightcategory.legend(settings) if i["label"] == "Estimated")
     assert item["effect"] == ("pulse" if enabled else "solid")
     assert ("breathing" in item["detail"].lower()) == enabled
-    assert item["colors"]  # inferred category is still colored
+    assert item["colors"]  # the estimated category is still colored
 
 
 def test_reported_category_is_solid_regardless_of_toggle():

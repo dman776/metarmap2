@@ -96,7 +96,8 @@ class VisualizerSettings(_Section):
     auto_rotate: AutoRotate = field(default_factory=AutoRotate)
     # the slow red blink of an airport whose report lacks what the visualizer shows; off: its LED stays dark
     missing_data_blink: bool = True
-    estimated_category_breathing: bool = True  # off: solid inferred category instead of breathing
+    # an estimated flight category breathes slowly; off: it shows in a steady color
+    estimated_category_breathing: bool = True
 
 
 # lightning.color: the colors the lightning flashes can be (style.LIGHTNING_COLORS has each one's LED color)

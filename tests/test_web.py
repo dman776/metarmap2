@@ -326,6 +326,18 @@ def test_missing_data_blink(client):
     assert 'data-key="visualizer.missing_data_blink"' in client("/config")[1]
 
 
+def test_estimated_category_breathing(client):
+    def breathing():
+        return client.services.config.data.visualizer.estimated_category_breathing
+
+    assert breathing() is True
+    assert client.json("/api/status", auth=False)["config"]["visualizer.estimated_category_breathing"] is True
+    assert client("/config/edit/visualizer.estimated_category_breathing/false")[0] == 200
+    assert breathing() is False
+    assert client.json("/api/status", auth=False)["config"]["visualizer.estimated_category_breathing"] is False
+    assert 'data-key="visualizer.estimated_category_breathing"' in client("/config")[1]
+
+
 def test_lightning_color(client):
     def color():
         return client.services.config.data.lightning.color
