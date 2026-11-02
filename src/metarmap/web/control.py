@@ -281,7 +281,7 @@ def add_routes(app, services, site, auth, updates=None):
             bottle.abort(400, str(e))
         except system.ChangeFailed as e:
             bottle.abort(500, f"The Pi's password couldn't be changed, so nothing was changed: {e}")
-        safe_log(f"web UI login changed (user {config.data.web_server.user}); Linux password: {linux}")
+        safe_log(f"web UI login changed (user {config.data.web_server.user})")
         return as_json({"user": config.data.web_server.user, "linux_password": linux})
 
     def set_wifi():
