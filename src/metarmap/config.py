@@ -6,8 +6,18 @@ from datetime import datetime, timezone
 
 from metarmap.lib.safe_logging import safe_log
 from metarmap.metar import MOCK_KEY, parse_raw
-from metarmap.settings import (BRANCH_NAME, LED_ORDERS, LED_PINS, LIGHTNING_COLORS, TFR_NEARBY_NM, TRAFFIC_SECONDS,
-                               UPDATE_CHANNELS, Airport, Settings, parse_value)
+from metarmap.settings import (
+    BRANCH_NAME,
+    LED_ORDERS,
+    LED_PINS,
+    LIGHTNING_COLORS,
+    TFR_NEARBY_NM,
+    TRAFFIC_SECONDS,
+    UPDATE_CHANNELS,
+    Airport,
+    Settings,
+    parse_value,
+)
 
 MAX_LEDS = 1000
 ICAO = re.compile(r"^[A-Z0-9]{3,4}$")
@@ -16,10 +26,12 @@ NO_AIRPORT = "-"  # in a URL, stands for an empty code or name
 
 def locked(method):
     """Runs a change under the config's lock: web requests arrive in parallel, and each change saves config.json."""
+
     @functools.wraps(method)
     def run(self, *args, **kwargs):
         with self._lock:
             return method(self, *args, **kwargs)
+
     return run
 
 
@@ -31,6 +43,7 @@ class Config(object):
     Older maps kept the airports in a separate airports.json; read() moves them into config.json once and leaves
     airports.json as a backup.
     """
+
     def __init__(self, file):
         self._file = file
         self._lock = threading.RLock()
@@ -60,8 +73,7 @@ class Config(object):
         self._data.airports = airports_from_json(old)
         self._data._extra.pop("airports_file", None)
         self._data.save(self._file)
-        safe_log(f"moved {len(self._data.airports)} airports from {path} into {self._file}; "
-                 f"{path} is kept as a backup")
+        safe_log(f"moved {len(self._data.airports)} airports from {path} into {self._file}; {path} is kept as a backup")
 
     @locked
     def write(self):
@@ -90,6 +102,9 @@ class Config(object):
                 raise ValueError("update.channel: branch needs dev_mode in config.json")
         if key == "update.branch" and not BRANCH_NAME.match(str(value)):
             raise ValueError(f"update.branch: {value!r} isn't a branch name")
+        if key in ("led.night_off.start", "led.night_off.end"):
+            if not re.fullmatch(r"(?:[01][0-9]|2[0-3]):[0-5][0-9]", str(value)):
+                raise ValueError(f"{key}: expected local time in 24-hour HH:MM format")
         if key == "led.pin" and str(value).strip("\"'") not in {str(pin) for pin in LED_PINS}:
             raise ValueError(f"led.pin: {value!r} is not one of {', '.join(map(str, LED_PINS))}")
         if key == "led.order" and str(value).strip("\"'") not in LED_ORDERS:
@@ -144,8 +159,10 @@ class Config(object):
         """
         count = parse_value(count, int, "led.count")
         if not 1 <= count <= MAX_LEDS - self._data.led.virtual_count:
-            raise ValueError(f"led.count: {count} is not between 1 and {MAX_LEDS - self._data.led.virtual_count} "
-                             f"({MAX_LEDS} airports in all, with the virtual ones)")
+            raise ValueError(
+                f"led.count: {count} is not between 1 and {MAX_LEDS - self._data.led.virtual_count} "
+                f"({MAX_LEDS} airports in all, with the virtual ones)"
+            )
         old, airports = self._data.led.count, self._data.airports
         if count < old:
             del airports[count:old]
@@ -163,10 +180,12 @@ class Config(object):
         """
         count = parse_value(count, int, "led.virtual_count")
         if not 0 <= count <= MAX_LEDS - self._data.led.count:
-            raise ValueError(f"led.virtual_count: {count} is not between 0 and {MAX_LEDS - self._data.led.count} "
-                             f"({MAX_LEDS} airports in all, with the LEDs)")
+            raise ValueError(
+                f"led.virtual_count: {count} is not between 0 and {MAX_LEDS - self._data.led.count} "
+                f"({MAX_LEDS} airports in all, with the LEDs)"
+            )
         self._data.led.virtual_count = count
-        del self._data.airports[self._data.led.count + count:]
+        del self._data.airports[self._data.led.count + count :]
         self.write()  # read() adds the new ones
 
     @locked
@@ -291,11 +310,14 @@ def airports_from_json(old):
     becomes no name. Other keys are kept.
     """
     airports = []
-    for code, props in (old.items() if isinstance(old, dict) else []):
+    for code, props in old.items() if isinstance(old, dict) else []:
         props = props if isinstance(props, dict) else {}
         text = props.get("text")
-        airport = Airport(code="" if "NULL" in code.upper() else code, name=text if isinstance(text, str) else "",
-                          display=bool(props.get("display", False)))
+        airport = Airport(
+            code="" if "NULL" in code.upper() else code,
+            name=text if isinstance(text, str) else "",
+            display=bool(props.get("display", False)),
+        )
         airport._extra = {k: v for k, v in props.items() if k not in ("text", "display")}
         airports.append(airport)
     return airports

@@ -1,6 +1,7 @@
 """
 Drives the LED strip: turns the active visualizer's looks into animations and runs them.
 """
+
 import threading
 import time
 import traceback
@@ -10,7 +11,7 @@ import metarmap.lib.safe_logging as safe_logging
 from metarmap.clock import Clock
 from metarmap.leds.animations import animation_for
 from metarmap.models import Look
-from metarmap.sun import SunTimes, brightness_for, level_at
+from metarmap.sun import SunTimes, brightness_for, level_at, night_off_active
 from metarmap.visualizers import visualizer
 
 from adafruit_led_animation.sequence import AnimateOnce
@@ -42,6 +43,7 @@ class Renderer(object):
     config: settings, including the airport on each LED (config.data.airports)
     sun: today's sun times, for the scheduled brightness
     """
+
     def __init__(self, strip, metars, config, visualizers, sun: SunTimes, clock: Clock = None):
         self._pixels = strip
         # one addressable subset per LED, so each airport gets its own animation
@@ -76,7 +78,7 @@ class Renderer(object):
             looks = visualizer.looks(self._vis, [a.code for a in settings.airports], data, settings)
             # the virtual airports (after led.count) have no LED; their looks are for the web map. A strip still
             # longer than led.count (a NeoPixel strip until the restart) keeps its extra LEDs dark
-            animations = [animation_for(look, pixel) for look, pixel in zip(looks[:settings.led.count], self._pix)]
+            animations = [animation_for(look, pixel) for look, pixel in zip(looks[: settings.led.count], self._pix)]
         self._looks, self._strip_look, self._animations = looks, strip_look, animations
 
     @property
@@ -276,6 +278,8 @@ class Renderer(object):
 
     def brightness_for(self, now):
         """The scheduled LED brightness at `now` (timezone-aware), from today's sun times."""
+        if night_off_active(now, self._config.data.led.night_off):
+            return 0.0
         return brightness_for(now, self._sun.times, self._config.data.led.brightness)
 
     def scheduled_level(self):
@@ -291,5 +295,5 @@ class Renderer(object):
         self.animate_once(RainbowComet(self._pixels, speed=0.05, tail_length=5, bounce=False))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     print("Renderer")

@@ -85,13 +85,17 @@
             <label class="lbl" for="brightness">LED brightness</label>
             <div class="big" id="brt_label">{{int(round(brightness * 100))}}%</div>
             <input id="brightness" type="range" min="0" max="1" step="0.01" value="{{brightness}}" data-label="brt_label" data-format="pct">
-            <p class="muted" style="margin: 0; font-size: 13px">Temporary. The schedule below sets it again at the next sun event.</p>
+            % if night_off.enabled and night_off.start != night_off.end:
+            <p class="muted" style="margin: 0; font-size: 13px">Nighttime display off: {{night_off.start}}–{{night_off.end}} (0%). Temporary brightness override. The schedule below sets it again at the next sun event.</p>
+            % else:
+            <p class="muted" style="margin: 0; font-size: 13px">Temporary brightness override. The schedule below sets it again at the next sun event.</p>
+            % end
             % if schedule:
             <dl class="sched">
                 % for s in schedule:
                 <div{{!' class="next"' if s['next'] else ''}}>
-                    <dt>{{s['name']}}{{' · next' if s['next'] else ''}}</dt>
-                    <dd>{{s['time'].strftime("%H:%M")}} <span>→ {{int(round(s['level'] * 100))}}%</span></dd>
+                    <dt>{{s['name']}}{{' · current' if s['next'] else ''}}</dt>
+                    <dd><span class="sched-time">{{s['time'].strftime("%H:%M")}}</span><span class="sched-arrow">→</span><span class="sched-level">{{int(round(s['level'] * 100))}}%</span></dd>
                 </div>
                 % end
             </dl>

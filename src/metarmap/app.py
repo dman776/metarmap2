@@ -30,7 +30,7 @@ from metarmap.metar import METAR
 from metarmap.oled.screen import open_screen
 from metarmap.releases import CHECK_HOURS, ReleaseCheck
 from metarmap.renderer import Renderer
-from metarmap.sun import LEVEL_AT, SunTimes
+from metarmap.sun import LEVEL_AT, SunTimes, night_off_active
 from metarmap.traffic import Traffic
 from metarmap.web import create_app, serve
 
@@ -43,6 +43,7 @@ WATCHDOG_SECONDS = 15  # how often the OLED loop is checked
 @dataclass
 class App:
     """Every part of a map. The web server and the scheduled jobs reach the others through this."""
+
     config: Config
     sun: SunTimes
     metars: METAR
@@ -57,8 +58,12 @@ class App:
     def schedule_rotation(self):
         schedule_rotation(self)
 
+    def schedule_night_off(self):
+        schedule_night_off(self)
+
 
 # ---- building ------------------------------------------------------------------------------------------------
+
 
 def build(config_file=CONFIG_FILE, strip=None, screen=None, clock: Clock = None, fetch=True) -> App:
     """
@@ -86,10 +91,15 @@ def build(config_file=CONFIG_FILE, strip=None, screen=None, clock: Clock = None,
         screen = open_screen()  # the OLED on the Pi; an in-memory screen anywhere else (the web UI mirrors it)
     display = Display(config, metars, screen, renderer=renderer, clock=clock)
 
-    releases = ReleaseCheck(channel=lambda: config.data.update_channel(),branch=lambda: config.data.update.branch,
-                            dev_mode=lambda: config.data.dev_mode)
-    traffic = Traffic(lambda: config.data.geo.map,
-                      lambda: [p for p in (metars.position(a.code) for a in config.airports if a.code) if p])
+    releases = ReleaseCheck(
+        channel=lambda: config.data.update_channel(),
+        branch=lambda: config.data.update.branch,
+        dev_mode=lambda: config.data.dev_mode,
+    )
+    traffic = Traffic(
+        lambda: config.data.geo.map,
+        lambda: [p for p in (metars.position(a.code) for a in config.airports if a.code) if p],
+    )
     app = App(config, sun, metars, renderer, display, schedule.Scheduler(), releases, traffic, advisories, tfrs)
     fill_names(app)
     schedule_jobs(app)
@@ -105,6 +115,7 @@ def schedule_jobs(app: App):
         retry_soon(app)
     s.every().day.at("00:00").do(load_suntimes, app)  # new sun times every day, to dim the map at the right times
     schedule_brightness(app)
+    schedule_night_off(app)
     s.every(WATCHDOG_SECONDS).seconds.do(watch_display, app)
     s.every(CHECK_HOURS).hours.do(check_releases, app)
     schedule_rotation(app)
@@ -119,6 +130,7 @@ def schedule_rotation(app: App):
 
 
 # ---- scheduled jobs ------------------------------------------------------------------------------------------
+
 
 def update_data(app: App):
     fetch_advisories(app)
@@ -196,6 +208,15 @@ def schedule_brightness(app: App):
         app.scheduler.every().day.at(at).do(set_brightness, app, level=level).tag("suntimes")
 
 
+def schedule_night_off(app: App):
+    """Recreate the two local-time blackout boundary jobs after a configuration change."""
+    app.scheduler.clear("night_off")
+    night = app.config.data.led.night_off
+    if night.enabled and night.start != night.end:
+        for at in (night.start, night.end):
+            app.scheduler.every().day.at(at).do(app.renderer.adjust_brightness_for_time).tag("night_off")
+
+
 def set_brightness(app: App, level):
     """
     level: a led.brightness setting's name ("dimmed"), read when the job runs so a changed level needs no restart;
@@ -203,6 +224,8 @@ def set_brightness(app: App, level):
     """
     if isinstance(level, str):
         level = getattr(app.config.data.led.brightness, level)
+    if night_off_active(app.renderer._clock.now(), app.config.data.led.night_off):
+        level = 0.0
     safe_logging.safe_log("set brightness: " + str(level))
     app.renderer.brightness(level)
 
@@ -235,6 +258,7 @@ def watch_display(app: App):
 
 
 # ---- running -------------------------------------------------------------------------------------------------
+
 
 def run(app: App, port=None):
     """
@@ -297,13 +321,16 @@ def wait_for_internet():
 
 # ---- process setup -------------------------------------------------------------------------------------------
 
+
 def log_thread_exception(args):
     """
     Uncaught exceptions in background threads only go to stderr by default; put them in the log too.
     """
     name = args.thread.name if args.thread else "?"
-    safe_logging.safe_log(f"uncaught exception in thread {name}: "
-                          + "".join(traceback.format_exception(args.exc_type, args.exc_value, args.exc_traceback)))
+    safe_logging.safe_log(
+        f"uncaught exception in thread {name}: "
+        + "".join(traceback.format_exception(args.exc_type, args.exc_value, args.exc_traceback))
+    )
 
 
 def log_uncaught_exception(exc_type, exc_value, exc_traceback):
@@ -311,8 +338,9 @@ def log_uncaught_exception(exc_type, exc_value, exc_traceback):
     A crash in the main thread only goes to stderr (the systemd journal); put it in the log too.
     """
     if not issubclass(exc_type, KeyboardInterrupt):
-        safe_logging.safe_log("uncaught exception: "
-                              + "".join(traceback.format_exception(exc_type, exc_value, exc_traceback)))
+        safe_logging.safe_log(
+            "uncaught exception: " + "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+        )
     sys.__excepthook__(exc_type, exc_value, exc_traceback)
 
 
@@ -333,9 +361,12 @@ def port_number(text):
 def parse_args(argv=None):
     """The command line: python -m metarmap [--port PORT]. argv: without the program name (sys.argv[1:] if None)."""
     parser = argparse.ArgumentParser(prog="python -m metarmap", description="Runs the METAR map.")
-    parser.add_argument("--port", type=port_number,
-                        help="the web server's port for this run, instead of web_server.port in config.json "
-                             "(which it doesn't change), e.g. 8080 on a computer, where port 80 needs sudo")
+    parser.add_argument(
+        "--port",
+        type=port_number,
+        help="the web server's port for this run, instead of web_server.port in config.json "
+        "(which it doesn't change), e.g. 8080 on a computer, where port 80 needs sudo",
+    )
     parser.add_argument("--version", action="version", version=f"metarmap {__version__}")
     return parser.parse_args(argv)
 
@@ -347,7 +378,7 @@ def main(config_file=CONFIG_FILE, argv=None):
     threading.excepthook = log_thread_exception
     sys.excepthook = log_uncaught_exception
 
-    safe_logging.safe_log(f"Starting metarmap {__version__} at " + datetime.now().strftime('%d/%m/%Y %H:%M'))
+    safe_logging.safe_log(f"Starting metarmap {__version__} at " + datetime.now().strftime("%d/%m/%Y %H:%M"))
     try:
         service.migrate()  # an installed metarmap.service that still runs controller.py
     except Exception as e:

@@ -8,11 +8,16 @@
         "count": 50,
         "virtual_count": 0,
         "pin": 18,
-        "order": "GRB",
+        "order": "RGB",
         "brightness": {
             "normal": 0.5,
-            "dimmed": 0.1,
-            "off": 0.01
+            "dimmed": 0.15,
+            "off": 0.05
+        },
+        "night_off": {
+            "enabled": false,
+            "start": "23:00",
+            "end": "05:00"
         },
         "inittest": true,
         "dim_on_refresh": true
@@ -41,16 +46,16 @@
     "visualizer": {
         "active": 0,
         "numbering": 4,
+		"missing_data_blink": true,
         "auto_rotate": {
             "enabled": false,
             "delay_seconds": 60,
             "skip": []
-        },
-        "missing_data_blink": true
+        }
     },
     "lightning": {
         "animation": true,
-        "color": "yellow"
+		"color": "yellow"
     },
     "tfr": {
         "nearby_nm": 10
