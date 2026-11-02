@@ -30,7 +30,7 @@ from metarmap.metar import METAR
 from metarmap.oled.screen import open_screen
 from metarmap.releases import CHECK_HOURS, ReleaseCheck
 from metarmap.renderer import Renderer
-from metarmap.sun import LEVEL_AT, SunTimes
+from metarmap.sun import LEVEL_AT, SunTimes, night_off_active
 from metarmap.traffic import Traffic
 from metarmap.web import create_app, serve
 
@@ -57,6 +57,9 @@ class App:
 
     def schedule_rotation(self):
         schedule_rotation(self)
+
+    def schedule_night_off(self):
+        schedule_night_off(self)
 
 
 # ---- building ------------------------------------------------------------------------------------------------
@@ -112,6 +115,7 @@ def schedule_jobs(app: App):
         retry_soon(app)
     s.every().day.at("00:00").do(load_suntimes, app)  # new sun times every day, to dim the map at the right times
     schedule_brightness(app)
+    schedule_night_off(app)
     s.every(WATCHDOG_SECONDS).seconds.do(watch_display, app)
     s.every(CHECK_HOURS).hours.do(check_releases, app)
     schedule_rotation(app)
@@ -204,6 +208,15 @@ def schedule_brightness(app: App):
         app.scheduler.every().day.at(at).do(set_brightness, app, level=level).tag("suntimes")
 
 
+def schedule_night_off(app: App):
+    """Recreate the two local-time blackout boundary jobs after a configuration change."""
+    app.scheduler.clear("night_off")
+    night = app.config.data.led.night_off
+    if night.enabled and night.start != night.end:
+        for at in (night.start, night.end):
+            app.scheduler.every().day.at(at).do(app.renderer.adjust_brightness_for_time).tag("night_off")
+
+
 def set_brightness(app: App, level):
     """
     level: a led.brightness setting's name ("dimmed"), read when the job runs so a changed level needs no restart;
@@ -211,6 +224,8 @@ def set_brightness(app: App, level):
     """
     if isinstance(level, str):
         level = getattr(app.config.data.led.brightness, level)
+    if night_off_active(app.renderer._clock.now(), app.config.data.led.night_off):
+        level = 0.0
     safe_logging.safe_log("set brightness: " + str(level))
     app.renderer.brightness(level)
 

@@ -198,6 +198,8 @@ Changes save right away. To check the wiring order:
 - the OLED screen
 - the map page's chart
 - the LED brightness for day, dawn and dusk, and night
+- optional **Nighttime display off** with local start/end times (0% LED brightness during the interval);
+  the Home page shows the current scheduled mode and night off/on boundaries
 - whether the LEDs fade down for a moment while new METARs download (**Dim while updating**, on by default)
 
 Every setting takes effect right away; none needs a restart.

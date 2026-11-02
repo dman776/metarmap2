@@ -102,6 +102,9 @@ class Config(object):
                 raise ValueError("update.channel: branch needs dev_mode in config.json")
         if key == "update.branch" and not BRANCH_NAME.match(str(value)):
             raise ValueError(f"update.branch: {value!r} isn't a branch name")
+        if key in ("led.night_off.start", "led.night_off.end"):
+            if not re.fullmatch(r"(?:[01][0-9]|2[0-3]):[0-5][0-9]", str(value)):
+                raise ValueError(f"{key}: expected local time in 24-hour HH:MM format")
         if key == "led.pin" and str(value).strip("\"'") not in {str(pin) for pin in LED_PINS}:
             raise ValueError(f"led.pin: {value!r} is not one of {', '.join(map(str, LED_PINS))}")
         if key == "led.order" and str(value).strip("\"'") not in LED_ORDERS:

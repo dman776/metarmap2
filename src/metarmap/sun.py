@@ -38,3 +38,16 @@ def level_at(now, times):
 def brightness_for(now, times, levels):
     """The scheduled LED brightness at `now`. levels: the led.brightness settings."""
     return getattr(levels, level_at(now, times))
+
+
+def night_off_active(now, night_off):
+    """Whether local wall-clock time falls in the configured blackout interval (start inclusive, end exclusive)."""
+    if not night_off.enabled:
+        return False
+    start, end = night_off.start, night_off.end
+    if start == end:
+        return False  # equal endpoints are an empty interval, never an all-day blackout
+    # Clock.now() is UTC; configured shutdown times use the Pi's local clock.
+    # Convert before comparing, including on daylight-saving transitions.
+    current = now.astimezone().strftime("%H:%M")
+    return start <= current < end if start < end else current >= start or current < end

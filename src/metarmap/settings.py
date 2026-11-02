@@ -44,12 +44,20 @@ TRAFFIC_SECONDS = (2, 60)
 
 
 @dataclass
+class NightOff(_Section):
+    enabled: bool = False
+    start: str = "22:00"  # local time, 24-hour HH:MM
+    end: str = "07:00"
+
+
+@dataclass
 class Led(_Section):
     count: int = 50  # LEDs on the strip
     virtual_count: int = 0  # airports after the strip's: on the web map and in Home Assistant only, no LED
     pin: int = 18
     order: str = "GRB"
     brightness: Brightness = field(default_factory=Brightness)
+    night_off: NightOff = field(default_factory=NightOff)
     inittest: bool = True
     dim_on_refresh: bool = True  # the LEDs dim while METARs are fetched, a sign of an update
 

@@ -89,6 +89,15 @@
         % slider('led.brightness.dimmed', d.led.brightness.dimmed, 'Dawn / dusk brightness', 'Dawn to sunrise, sunset to dusk.')
         % slider('led.brightness.off', d.led.brightness.off, 'Night brightness', 'Dusk to dawn.')
         <p class="muted" style="margin: 0; padding: 0 24px 18px; font-size: 13px">The level in use now changes right away; the others take over at their time of day.</p>
+        % switch('led.night_off.enabled', d.led.night_off.enabled, 'Nighttime display off', 'Force physical LED brightness to 0% between the times below, regardless of sunrise or sunset.')
+        <div class="set">
+            <div><label class="t" for="night-off-start">Turn LEDs off at</label><div class="d">Local Raspberry Pi time.</div></div>
+            <input id="night-off-start" type="time" value="{{d.led.night_off.start}}" data-key="led.night_off.start" step="60">
+        </div>
+        <div class="set">
+            <div><label class="t" for="night-off-end">Turn LEDs back on at</label><div class="d">Local Raspberry Pi time. Returns to the scheduled brightness. The interval can cross midnight.</div></div>
+            <input id="night-off-end" type="time" value="{{d.led.night_off.end}}" data-key="led.night_off.end" step="60">
+        </div>
     </section>
 
     <section class="card settings">

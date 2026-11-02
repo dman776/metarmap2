@@ -151,10 +151,12 @@ select:focus, input[type=text]:focus, input[type=search]:focus, input[type=passw
 /* brightness */
 .big { font-size: 44px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
 .sched { display: flex; flex-direction: column; gap: 2px; border-top: 1px solid var(--line); padding-top: 14px; margin: 0; }
-.sched div { display: flex; justify-content: space-between; padding: 8px 10px; margin: 0 -10px; font-size: 14px; border-radius: 8px; }
-.sched dt { color: var(--muted); }
-.sched dd { margin: 0; font-family: var(--mono); }
-.sched dd span { color: var(--muted); }
+.sched div { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 10px; align-items: start; padding: 8px 10px; margin: 0 -10px; font-size: 14px; border-radius: 8px; }
+.sched dt { color: var(--muted); min-width: 0; }
+.sched dd { margin: 0; font-family: var(--mono); display: grid; grid-template-columns: 5ch 1.5ch 4ch; column-gap: .5ch; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sched dd .sched-time { color: inherit; text-align: right; }
+.sched dd .sched-arrow { color: var(--muted); text-align: center; }
+.sched dd .sched-level { color: var(--muted); text-align: right; }
 .sched .next { background: var(--accent-soft); }
 .sched .next dt, .sched .next dd, .sched .next dd span { color: var(--accent); font-weight: 600; }
 

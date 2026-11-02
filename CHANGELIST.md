@@ -5,6 +5,12 @@
   its color are unchanged, the OLED still marks it (`VFR*`), and the Map page's popup says *No category*; the
   legend follows the setting. From Travis Cole (traviscole)
 
+- **Nighttime display off** (Config > Physical LEDs): optional local-time start/end interval sets the physical
+  LEDs to 0% brightness and restores the appropriate sunrise/sunset scheduled level at the end. Disabled by default;
+  intervals can cross midnight, and invalid HH:MM values are rejected.
+- Home LED Brightness schedule includes Night off / Resume schedule, uses fixed-width time/percentage columns,
+  and highlights the currently active brightness mode (not the next event).
+
 ### dman776 3.1.3 (2026-11-01)
 
 - Faster LEDs on a long strip: the animations draw into the strip first and the renderer sends it once per frame.

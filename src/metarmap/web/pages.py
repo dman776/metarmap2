@@ -23,6 +23,7 @@ def stations(services):
 
 def index(services, site):
     s = stations(services)
+
     return render(
         site,
         "index.tpl",
@@ -33,10 +34,16 @@ def index(services, site):
         active=views.visualizer(services.renderer),
         visualizers=views.visualizer_names(services.renderer),
         brightness=services.renderer.pixels().brightness,
-        schedule=views.sun_schedule(services.sun.times, services.config.data.led.brightness),
+        schedule=views.brightness_schedule(
+            services.sun.times,
+            services.config.data.led.brightness,
+            services.config.data.led.night_off,
+        ),
+        night_off=services.config.data.led.night_off,
         # the OLED switch only shows when the screen is turned on in Config
         oled_on=services.display.on if services.config.data.display_screen.enabled else None,
     )
+
 
 
 def metars(services, site):
