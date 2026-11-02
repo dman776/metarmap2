@@ -29,6 +29,20 @@ def test_build_wires_the_parts_together(make_app):
     assert set(app.sun.times) >= {"dawn", "sunrise", "sunset", "dusk"}
     assert len(app.renderer.pixels()) == app.config.data.led.count
 
+def test_night_off_jobs(make_app):
+    app = make_app(
+        **{
+            "led.night_off.enabled": True,
+            "led.night_off.start": "22:00",
+            "led.night_off.end": "07:00",
+        }
+    )
+
+    assert jobs(app)["adjust_brightness_for_time"] == 2
+    assert {job.at_time.strftime("%H:%M") for job in app.scheduler.get_jobs("night_off")} == {
+        "22:00",
+        "07:00",
+    }
 
 def test_jobs(make_app):
     app = make_app()
@@ -36,7 +50,6 @@ def test_jobs(make_app):
         "update_data": 1,
         "load_suntimes": 1,
         "set_brightness": 4,
-        "adjust_brightness_for_time": 2,
         "watch_display": 1,
         "check_releases": 1,
     }
