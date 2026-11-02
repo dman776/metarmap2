@@ -120,7 +120,6 @@ class Renderer(object):
                     if self._animations is not built:
                         break
                     # Render all pixel-subset animations into the shared buffer first.
-                    # A PixelSubset.show() transmits the ENTIRE strip, so letting each animation call show() makes updates unnecessarily slow.
                     running = animations.animate(show=False)
                     self._pixels.show()  # one physical transfer per frame
                     if not running:
