@@ -118,7 +118,7 @@
         <div class="set">
             <div>
                 <label class="t" for="lightning-color">Lightning color</label>
-                <div class="d">Color of lightning flashes on the LEDs and web map (default: yellow).</div>
+                <div class="d">Color of lightning flashes on the LEDs and web map.</div>
             </div>
             <select id="lightning-color" data-key="lightning.color">
                 <option value="#ffff00"{{!' selected' if d.lightning.color == '#ffff00' else ''}}>Yellow</option>
