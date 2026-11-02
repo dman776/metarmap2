@@ -2,6 +2,7 @@
 Tests for G-AIRMETs and SIGMETs (metarmap.advisories), the hazards added to each METAR, and the Advisories
 visualizer.
 """
+
 import pytest
 import requests
 
@@ -21,22 +22,55 @@ NOW = 1000.0
 def square(lat, lon, size=1.0, text=True):
     """A polygon around (lat, lon), as aviationweather.gov sends it: strings for G-AIRMETs, numbers for SIGMETs."""
     kind = str if text else float
-    return [{"lat": kind(lat - size), "lon": kind(lon - size)}, {"lat": kind(lat - size), "lon": kind(lon + size)},
-            {"lat": kind(lat + size), "lon": kind(lon + size)}, {"lat": kind(lat + size), "lon": kind(lon - size)}]
+    return [
+        {"lat": kind(lat - size), "lon": kind(lon - size)},
+        {"lat": kind(lat - size), "lon": kind(lon + size)},
+        {"lat": kind(lat + size), "lon": kind(lon + size)},
+        {"lat": kind(lat + size), "lon": kind(lon - size)},
+    ]
 
 
 def gairmet(hazard, lat=30.0, lon=-95.0, base=None, top=None, geometry="AREA", expires=2000, **more):
     product = {"IFR": "SIERRA", "MT_OBSC": "SIERRA", "ICE": "ZULU", "FZLVL": "ZULU"}.get(hazard, "TANGO")
-    return {"tag": "1C", "forecastHour": 3, "validTime": "2026-11-02T00:00:00.000Z", "hazard": hazard,
-            "geometryType": geometry, "base": base, "top": top, "fzlbase": None, "fzltop": None, "due_to": None,
-            "severity": None, "product": product, "expireTime": expires, "coords": square(lat, lon), **more}
+    return {
+        "tag": "1C",
+        "forecastHour": 3,
+        "validTime": "2026-11-02T00:00:00.000Z",
+        "hazard": hazard,
+        "geometryType": geometry,
+        "base": base,
+        "top": top,
+        "fzlbase": None,
+        "fzltop": None,
+        "due_to": None,
+        "severity": None,
+        "product": product,
+        "expireTime": expires,
+        "coords": square(lat, lon),
+        **more,
+    }
 
 
 def sigmet(hazard, lat=30.0, lon=-95.0, base=None, top=45000, start=500, end=2000, **more):
-    return {"icaoId": "KKCI", "firId": "KZHU", "seriesId": "61C", "hazard": hazard, "qualifier": "EMBD",
-            "sigmetType": "OBS", "geom": "AREA", "base": base, "top": top, "dir": "E", "spd": "20", "chng": None,
-            "validTimeFrom": start, "validTimeTo": end, "rawSigmet": "CONVECTIVE SIGMET 61C\nVALID UNTIL 0055Z",
-            "coords": square(lat, lon, text=False), **more}
+    return {
+        "icaoId": "KKCI",
+        "firId": "KZHU",
+        "seriesId": "61C",
+        "hazard": hazard,
+        "qualifier": "EMBD",
+        "sigmetType": "OBS",
+        "geom": "AREA",
+        "base": base,
+        "top": top,
+        "dir": "E",
+        "spd": "20",
+        "chng": None,
+        "validTimeFrom": start,
+        "validTimeTo": end,
+        "rawSigmet": "CONVECTIVE SIGMET 61C\nVALID UNTIL 0055Z",
+        "coords": square(lat, lon, text=False),
+        **more,
+    }
 
 
 class FakeResponse:
@@ -77,6 +111,7 @@ def make(airmets=None, sigmets=None):
         if isinstance(answer, Exception):
             raise answer
         return answer
+
     clock = Clock()
     return Advisories(get=get, clock=clock), asked, clock
 
@@ -91,19 +126,26 @@ def as_answers(given):
 
 # ---- reading aviationweather.gov's answers --------------------------------------------------------------------
 
+
 def test_parse_airmets_keeps_hazard_areas_below_18000_ft():
-    areas = advisories.parse_airmets([
-        gairmet("IFR", due_to="CIG BLW 010 VIS BLW 3SM PCPN BR"),
-        gairmet("TURB-LO", base="SFC", top="140", severity="MOD"),
-        gairmet("TURB-HI", base="180", top="390"),  # high-level: doesn't affect the airport
-        gairmet("ICE", base="FZL", top="200", fzlbase="070"),
-        gairmet("ICE", base="FZL", top="300", fzlbase="190"),  # freezing level too high
-        gairmet("FZLVL", geometry="LINE", level="040"),  # a freezing level line, not a hazard
-        gairmet("M_FZLVL", base="SFC", top="040"),
-        gairmet("SFC_WND"),
-    ])
+    areas = advisories.parse_airmets(
+        [
+            gairmet("IFR", due_to="CIG BLW 010 VIS BLW 3SM PCPN BR"),
+            gairmet("TURB-LO", base="SFC", top="140", severity="MOD"),
+            gairmet("TURB-HI", base="180", top="390"),  # high-level: doesn't affect the airport
+            gairmet("ICE", base="FZL", top="200", fzlbase="070"),
+            gairmet("ICE", base="FZL", top="300", fzlbase="190"),  # freezing level too high
+            gairmet("FZLVL", geometry="LINE", level="040"),  # a freezing level line, not a hazard
+            gairmet("M_FZLVL", base="SFC", top="040"),
+            gairmet("SFC_WND"),
+        ]
+    )
     assert [(a["hazard"], a["base"], a["top"]) for a in areas] == [
-        ("IFR", 0, None), ("TURB-LO", 0, 14000), ("ICE", 7000, 20000), ("SFC_WND", 0, None)]
+        ("IFR", 0, None),
+        ("TURB-LO", 0, 14000),
+        ("ICE", 7000, 20000),
+        ("SFC_WND", 0, None),
+    ]
     ifr = areas[0]
     assert ifr["kind"] == "AIRMET" and ifr["product"] == "SIERRA" and ifr["name"] == "IFR"
     assert ifr["due_to"] == "CIG BLW 010 VIS BLW 3SM PCPN BR"
@@ -111,37 +153,66 @@ def test_parse_airmets_keeps_hazard_areas_below_18000_ft():
 
 
 def test_parse_sigmets_keeps_areas_below_18000_ft():
-    areas = advisories.parse_sigmets([
-        sigmet("CONV"),
-        sigmet("TURB", base=30000, top=41000),  # jet-level turbulence
-        sigmet("ICE", base=8000, top=16000, qualifier="SEV", sigmetType="FCST", dir=None, spd=None),
-        sigmet("XX"),  # not a hazard it knows
-    ])
+    areas = advisories.parse_sigmets(
+        [
+            sigmet("CONV"),
+            sigmet("TURB", base=30000, top=41000),  # jet-level turbulence
+            sigmet("ICE", base=8000, top=16000, qualifier="SEV", sigmetType="FCST", dir=None, spd=None),
+            sigmet("XX"),  # not a hazard it knows
+        ]
+    )
     assert [(a["hazard"], a["base"], a["top"]) for a in areas] == [("CONV", 0, 45000), ("ICE", 8000, 16000)]
     conv, ice = areas
-    assert conv == {"kind": "SIGMET", "hazard": "CONV", "name": "Convective SIGMET", "series": "61C",
-                    "qualifier": "EMBD", "observed": True, "base": 0, "top": 45000, "moving": "Toward E at 20 kt",
-                    "from": 500, "expires": 2000, "text": "CONVECTIVE SIGMET 61C\nVALID UNTIL 0055Z",
-                    "coords": [(29.0, -96.0), (29.0, -94.0), (31.0, -94.0), (31.0, -96.0)]}
+    assert conv == {
+        "kind": "SIGMET",
+        "hazard": "CONV",
+        "name": "Convective SIGMET",
+        "series": "61C",
+        "qualifier": "EMBD",
+        "observed": True,
+        "base": 0,
+        "top": 45000,
+        "moving": "Toward E at 20 kt",
+        "from": 500,
+        "expires": 2000,
+        "text": "CONVECTIVE SIGMET 61C\nVALID UNTIL 0055Z",
+        "coords": [(29.0, -96.0), (29.0, -94.0), (31.0, -94.0), (31.0, -96.0)],
+    }
     assert ice["observed"] is False and ice["moving"] is None and ice["qualifier"] == "SEV"
 
 
-@pytest.mark.parametrize("direction, speed, text", [
-    (320, 5, "Toward 320° at 5 kt"), ("45", "0", "Toward 045°"), ("E", "20", "Toward E at 20 kt"), (None, "10", None),
-    ("", None, None)])
+@pytest.mark.parametrize(
+    "direction, speed, text",
+    [
+        (320, 5, "Toward 320° at 5 kt"),
+        ("45", "0", "Toward 045°"),
+        ("E", "20", "Toward E at 20 kt"),
+        (None, "10", None),
+        ("", None, None),
+    ],
+)
 def test_movement(direction, speed, text):
     assert advisories.movement(direction, speed) == text
 
 
-@pytest.mark.parametrize("data", [None, {}, [None], [{"hazard": "IFR", "geometryType": "AREA", "coords": "x"}],
-                                  [{**gairmet("IFR"), "coords": [{"lat": "30", "lon": "-95"}]}]])
+@pytest.mark.parametrize(
+    "data",
+    [
+        None,
+        {},
+        [None],
+        [{"hazard": "IFR", "geometryType": "AREA", "coords": "x"}],
+        [{**gairmet("IFR"), "coords": [{"lat": "30", "lon": "-95"}]}],
+    ],
+)
 def test_parse_skips_what_it_cant_use(data):
     assert advisories.parse_airmets(data) == []
     assert advisories.parse_sigmets(data) == []
 
 
-@pytest.mark.parametrize("point, expected", [((30.0, -95.0), True), ((30.9, -94.1), True), ((31.1, -95.0), False),
-                                             ((30.0, -96.5), False)])
+@pytest.mark.parametrize(
+    "point, expected", [((30.0, -95.0), True), ((30.9, -94.1), True), ((31.1, -95.0), False), ((30.0, -96.5), False)]
+)
 def test_inside(point, expected):
     polygon = [(float(c["lat"]), float(c["lon"])) for c in square(30.0, -95.0)]
     assert advisories.inside(*point, polygon) is expected
@@ -156,11 +227,18 @@ def test_inside_a_concave_area():
 
 # ---- fetching, and the hazards over a place -------------------------------------------------------------------
 
+
 def test_hazards_at():
     found, asked, _ = make(
-        airmets=[gairmet("TURB-LO", *HOUSTON, base="SFC", top="100"), gairmet("ICE", *HOUSTON),
-                 gairmet("IFR", *HOUSTON), gairmet("IFR", *HOUSTON), gairmet("MT_OBSC", 40.0, -105.0)],
-        sigmets=[sigmet("TURB", *HOUSTON, base=0, top=12000), sigmet("CONV", *HOUSTON)])
+        airmets=[
+            gairmet("TURB-LO", *HOUSTON, base="SFC", top="100"),
+            gairmet("ICE", *HOUSTON),
+            gairmet("IFR", *HOUSTON),
+            gairmet("IFR", *HOUSTON),
+            gairmet("MT_OBSC", 40.0, -105.0),
+        ],
+        sigmets=[sigmet("TURB", *HOUSTON, base=0, top=12000), sigmet("CONV", *HOUSTON)],
+    )
     assert found.hazards_at(*HOUSTON) == {"airmets": None, "sigmets": None}  # nothing fetched yet
     assert found.fetch() is True
     assert asked == [(advisories.AIRMET_URL, advisories.USER_AGENT), (advisories.SIGMET_URL, advisories.USER_AGENT)]
@@ -171,8 +249,9 @@ def test_hazards_at():
 
 
 def test_only_advisories_in_effect_count():
-    found, _, clock = make(airmets=[gairmet("IFR", *HOUSTON, expires=2000)],
-                           sigmets=[sigmet("CONV", *HOUSTON, start=1500, end=3000)])
+    found, _, clock = make(
+        airmets=[gairmet("IFR", *HOUSTON, expires=2000)], sigmets=[sigmet("CONV", *HOUSTON, start=1500, end=3000)]
+    )
     found.fetch()
     assert found.hazards_at(*HOUSTON) == {"airmets": ["IFR"], "sigmets": []}  # the SIGMET isn't valid yet
     clock.t = 2000
@@ -187,11 +266,15 @@ def test_nothing_in_effect():
     assert found.hazards_at(*HOUSTON) == {"airmets": [], "sigmets": []}
 
 
-@pytest.mark.parametrize("failure", [requests.exceptions.ConnectionError("down"), FakeResponse(status=502),
-                                     FakeResponse(ValueError("not json"))])
+@pytest.mark.parametrize(
+    "failure",
+    [requests.exceptions.ConnectionError("down"), FakeResponse(status=502), FakeResponse(ValueError("not json"))],
+)
 def test_a_failed_fetch_keeps_the_last_areas(failure):
-    found, _, _ = make(airmets=[FakeResponse([gairmet("IFR", *HOUSTON)]), failure],
-                       sigmets=[FakeResponse([sigmet("CONV", *HOUSTON)]), failure])
+    found, _, _ = make(
+        airmets=[FakeResponse([gairmet("IFR", *HOUSTON)]), failure],
+        sigmets=[FakeResponse([sigmet("CONV", *HOUSTON)]), failure],
+    )
     found.fetch()
     assert found.fetch() is False
     state = found.state()
@@ -218,12 +301,15 @@ def test_both_failing():
 
 # ---- each METAR gets its hazards ------------------------------------------------------------------------------
 
+
 def test_with_advisories():
     found, _, _ = make(airmets=[gairmet("IFR", *HOUSTON)], sigmets=[sigmet("CONV", *HOUSTON)])
     found.fetch()
-    data = {"KIAH": {"raw": "...", "latitude": 29.98, "longitude": -95.34},
-            "KDFW": {"raw": "...", "latitude": "32.9", "longitude": "-97.04"},
-            "KXXX": {"raw": "..."}}
+    data = {
+        "KIAH": {"raw": "...", "latitude": 29.98, "longitude": -95.34},
+        "KDFW": {"raw": "...", "latitude": "32.9", "longitude": "-97.04"},
+        "KXXX": {"raw": "..."},
+    }
     result = with_advisories(data, found)
     assert (result["KIAH"]["airmets"], result["KIAH"]["sigmets"]) == (["IFR"], ["CONV"])
     assert (result["KDFW"]["airmets"], result["KDFW"]["sigmets"]) == ([], [])
@@ -240,6 +326,7 @@ def test_an_airport_without_a_report_stays_empty():
 
 # ---- the visualizer -------------------------------------------------------------------------------------------
 
+
 @pytest.fixture
 def settings():
     return Settings()
@@ -253,22 +340,31 @@ def severe(name):
     return Look.blink(color(name), period=vis.SIGMET_PERIOD, background=style.dim(color(name)))
 
 
-@pytest.mark.parametrize("airmets, sigmets, expected", [
-    ([], [], Look.solid(color(colors_lib.GRAY))),
-    (["IFR"], [], Look.solid(color(colors_lib.ORANGE))),
-    (["ICE"], None, Look.solid(color(colors_lib.CYAN))),  # the SIGMETs didn't come: the AIRMETs still show
-    (["TURB-LO", "TURB-HI"], [], Look.solid(color(colors_lib.YELLOW))),  # one color for both turbulences
-    (["ICE", "IFR"], [], Look.blink(color(colors_lib.CYAN), period=vis.MIXED_PERIOD,
-                                    background=color(colors_lib.ORANGE))),
-    (["ICE", "IFR", "SFC_WND"], [], Look.blink(color(colors_lib.CYAN), period=vis.MIXED_PERIOD,
-                                               background=color(colors_lib.ORANGE))),
-    # a SIGMET takes over, the most serious one
-    (["IFR"], ["CONV"], severe(colors_lib.RED)),
-    ([], ["ICE", "TURB"], severe(colors_lib.CYAN)),
-    ([], ["MTW"], severe(colors_lib.YELLOW)),
-    ([], ["VA"], severe(colors_lib.ORANGE)),
-    (None, ["TS"], severe(colors_lib.RED)),  # the G-AIRMETs didn't come, but a SIGMET is enough
-])
+@pytest.mark.parametrize(
+    "airmets, sigmets, expected",
+    [
+        ([], [], Look.solid(color(colors_lib.GRAY))),
+        (["IFR"], [], Look.solid(color(colors_lib.ORANGE))),
+        (["ICE"], None, Look.solid(color(colors_lib.CYAN))),  # the SIGMETs didn't come: the AIRMETs still show
+        (["TURB-LO", "TURB-HI"], [], Look.solid(color(colors_lib.YELLOW))),  # one color for both turbulences
+        (
+            ["ICE", "IFR"],
+            [],
+            Look.blink(color(colors_lib.CYAN), period=vis.MIXED_PERIOD, background=color(colors_lib.ORANGE)),
+        ),
+        (
+            ["ICE", "IFR", "SFC_WND"],
+            [],
+            Look.blink(color(colors_lib.CYAN), period=vis.MIXED_PERIOD, background=color(colors_lib.ORANGE)),
+        ),
+        # a SIGMET takes over, the most serious one
+        (["IFR"], ["CONV"], severe(colors_lib.RED)),
+        ([], ["ICE", "TURB"], severe(colors_lib.CYAN)),
+        ([], ["MTW"], severe(colors_lib.YELLOW)),
+        ([], ["VA"], severe(colors_lib.ORANGE)),
+        (None, ["TS"], severe(colors_lib.RED)),  # the G-AIRMETs didn't come, but a SIGMET is enough
+    ],
+)
 def test_look(settings, airmets, sigmets, expected):
     assert vis.look({"raw": "...", "airmets": airmets, "sigmets": sigmets}, settings) == expected
 
@@ -284,11 +380,17 @@ def test_legend(settings):
     items = vis.legend(settings)
     labels = [item["label"] for item in items]
     assert labels[:10] == [
-        "SIGMET: thunderstorms (convective) or tropical cyclone", "SIGMET: severe icing",
-        "SIGMET: severe turbulence or mountain wave", "SIGMET: volcanic ash, dust or sand storm",
-        "Sierra: IFR, ceiling below 1,000 ft or visibility below 3 mi", "Sierra: mountain obscuration",
-        "Tango: turbulence (moderate)", "Tango: low-level wind shear",
-        "Tango: strong surface wind, sustained 30 kt or more", "Zulu: icing (moderate)"]
+        "SIGMET: thunderstorms (convective) or tropical cyclone",
+        "SIGMET: severe icing",
+        "SIGMET: severe turbulence or mountain wave",
+        "SIGMET: volcanic ash, dust or sand storm",
+        "Sierra: IFR, ceiling below 1,000 ft or visibility below 3 mi",
+        "Sierra: mountain obscuration",
+        "Tango: turbulence (moderate)",
+        "Tango: low-level wind shear",
+        "Tango: strong surface wind, sustained 30 kt or more",
+        "Zulu: icing (moderate)",
+    ]
     assert items[0]["effect"] == "alternate" and items[0]["detail"] == "Red, fast blink, bright and dim"
     assert "No advisory below 18,000 ft" in labels and labels[-1] == "METAR not available"
 

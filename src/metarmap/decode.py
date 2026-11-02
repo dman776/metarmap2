@@ -4,6 +4,7 @@ A METAR in plain English, for the Map page's Decoded tab: one {"label", "text"} 
 Works on the dict metar.METAR builds for each airport. Weather codes follow the FAA's METAR key (FMH-1, chapter 12:
 intensity, descriptor, then precipitation, obscuration or other phenomena).
 """
+
 from dataclasses import dataclass
 from fractions import Fraction
 from typing import Optional, Tuple
@@ -12,18 +13,41 @@ from metarmap.lib import utils
 
 INTENSITY = {"-": "light", "+": "heavy"}
 DESCRIPTORS = {
-    "MI": "shallow", "PR": "partial", "BC": "patches of", "DR": "low drifting", "BL": "blowing",
-    "SH": "showers", "TS": "thunderstorm", "FZ": "freezing",
+    "MI": "shallow",
+    "PR": "partial",
+    "BC": "patches of",
+    "DR": "low drifting",
+    "BL": "blowing",
+    "SH": "showers",
+    "TS": "thunderstorm",
+    "FZ": "freezing",
 }
 PHENOMENA = {
     # precipitation
-    "DZ": "drizzle", "RA": "rain", "SN": "snow", "SG": "snow grains", "IC": "ice crystals", "PL": "ice pellets",
-    "GR": "hail", "GS": "small hail", "UP": "unknown precipitation",
+    "DZ": "drizzle",
+    "RA": "rain",
+    "SN": "snow",
+    "SG": "snow grains",
+    "IC": "ice crystals",
+    "PL": "ice pellets",
+    "GR": "hail",
+    "GS": "small hail",
+    "UP": "unknown precipitation",
     # obscuration
-    "BR": "mist", "FG": "fog", "FU": "smoke", "VA": "volcanic ash", "DU": "dust", "SA": "sand", "HZ": "haze",
+    "BR": "mist",
+    "FG": "fog",
+    "FU": "smoke",
+    "VA": "volcanic ash",
+    "DU": "dust",
+    "SA": "sand",
+    "HZ": "haze",
     "PY": "spray",
     # other
-    "PO": "dust whirls", "SQ": "squalls", "FC": "funnel cloud", "SS": "sandstorm", "DS": "duststorm",
+    "PO": "dust whirls",
+    "SQ": "squalls",
+    "FC": "funnel cloud",
+    "SS": "sandstorm",
+    "DS": "duststorm",
 }
 COVER = {"FEW": "Few", "SCT": "Scattered", "BKN": "Broken", "OVC": "Overcast"}
 CEILING = ("BKN", "OVC", "OVX")
@@ -149,8 +173,9 @@ def estimate_category(metar):
         found.append("LIFR" if miles < 1 else "IFR" if miles < 3 else "MVFR" if miles <= 5 else "VFR")
     if metar.get("skyConditions"):
         feet = ceiling_ft(metar["skyConditions"], metar.get("vertVisFt"))
-        found.append("VFR" if feet is None or feet > 3000 else "MVFR" if feet >= 1000 else
-                     "IFR" if feet >= 500 else "LIFR")
+        found.append(
+            "VFR" if feet is None or feet > 3000 else "MVFR" if feet >= 1000 else "IFR" if feet >= 500 else "LIFR"
+        )
     return max(found, key=CATEGORIES.index) if found else None
 
 
@@ -158,6 +183,7 @@ def density_altitude_sentence(metar):
     """ "Density altitude 1,200 ft (field elevation 46 ft)", to the nearest 100 ft."""
     # imported here: the visualizers import this module
     from metarmap.visualizers.density_altitude import calculate_density_altitude, meters_to_feet
+
     if not metar.get("altimHg") or metar.get("elevation_m") is None or metar.get("tempC") is None:
         return None
     feet = calculate_density_altitude(metar["altimHg"], metar["elevation_m"], metar["tempC"])
@@ -197,6 +223,7 @@ def weather(wx):
 @dataclass(frozen=True)
 class WeatherGroup:
     """One group of a METAR's weather, e.g. "-SHRA": intensity "-", descriptor "SH", phenomena ("RA",)."""
+
     code: str  # as reported
     intensity: str = ""  # "-" light, "" moderate, "+" heavy
     vicinity: bool = False  # VC: in the vicinity, not at the airport
@@ -219,11 +246,11 @@ def parse_weather_group(group):
     descriptor = None
     if code[:2] in DESCRIPTORS:
         descriptor, code = code[:2], code[2:]
-    if len(code) % 2 or any(code[i:i + 2] not in PHENOMENA for i in range(0, len(code), 2)):
+    if len(code) % 2 or any(code[i : i + 2] not in PHENOMENA for i in range(0, len(code), 2)):
         return None
     if not code and not descriptor:
         return None
-    return WeatherGroup(group, intensity, vicinity, descriptor, tuple(code[i:i + 2] for i in range(0, len(code), 2)))
+    return WeatherGroup(group, intensity, vicinity, descriptor, tuple(code[i : i + 2] for i in range(0, len(code), 2)))
 
 
 def weather_group(group):

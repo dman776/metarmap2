@@ -2,14 +2,17 @@
 Wind Gusts: colors each airport by how much stronger its gusts are than its wind (the gust spread), the cue pilots use
 for how bumpy and changeable the wind is. Wind shows how strong the wind is; this shows how much it swings.
 """
+
 import metarmap.lib.colors as colors_lib
 from metarmap.models import Look, Metar
 from metarmap.visualizers import style
 from metarmap.visualizers.style import Band
 
 NAME = "Wind Gusts"
-DESCRIPTION = "Display how much stronger the gusts are than the wind: dim white with no gusts, then blue, yellow, " \
-              "orange and red as the gusts get stronger."
+DESCRIPTION = (
+    "Display how much stronger the gusts are than the wind: dim white with no gusts, then blue, yellow, "
+    "orange and red as the gusts get stronger."
+)
 EXCLUSIVE = False
 BARBS = True  # the Map page draws each airport's wind barb
 
@@ -25,9 +28,9 @@ BANDS = [
 
 def gust_spread(metar: Metar) -> int:
     """Knots the gusts are above the wind; 0 when it isn't gusting."""
-    if not metar.get('windGust'):
+    if not metar.get("windGust"):
         return 0
-    return max(0, (metar.get('windGustSpeed') or 0) - metar['windSpeed'])
+    return max(0, (metar.get("windGustSpeed") or 0) - metar["windSpeed"])
 
 
 def legend(settings):
@@ -37,6 +40,6 @@ def legend(settings):
 def look(metar: Metar, settings) -> Look:
     if not metar:
         return style.no_report()
-    if metar.get('windSpeed') is None:
+    if metar.get("windSpeed") is None:
         return style.missing()
     return Look.solid(style.band_for(gust_spread(metar), BANDS, settings))

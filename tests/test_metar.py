@@ -1,4 +1,5 @@
 """Tests for METAR fetching and parsing (metar.py)."""
+
 import json
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
@@ -29,8 +30,19 @@ def response(*reports):
     return json.dumps(list(reports)).encode()
 
 
-GOOD = dict(rawOb="KTST 241453Z 14009KT 10SM CLR 28/22 A2995", obsTime=at("2026-10-24T14:53:00Z"),
-            temp=28, dewp=22, wdir=140, wspd=9, visib="10+", altim=1014.2, fltCat="VFR", cover="CLR", clouds=[])
+GOOD = dict(
+    rawOb="KTST 241453Z 14009KT 10SM CLR 28/22 A2995",
+    obsTime=at("2026-10-24T14:53:00Z"),
+    temp=28,
+    dewp=22,
+    wdir=140,
+    wspd=9,
+    visib="10+",
+    altim=1014.2,
+    fltCat="VFR",
+    cover="CLR",
+    clouds=[],
+)
 
 
 @pytest.fixture
@@ -41,6 +53,7 @@ def houston(make_config, fixture_bytes):
 
 
 # ---- parsing a real aviationweather.gov response ------------------------------------------------------------
+
 
 def test_real_response_fields(houston):
     khou = houston.data["KHOU"]
@@ -98,6 +111,7 @@ def test_an_airport_on_two_leds_is_fetched_once(make_config):
 
 # ---- unusual responses -----------------------------------------------------------------------------------------
 
+
 def test_single_report_response(make_config):
     m = metar.METAR(make_config("KTST", "KOTH"), clock=CLOCK)
     m._process(response(report("KTST", **GOOD)))
@@ -150,6 +164,7 @@ def test_data_is_replaced_not_mutated(make_config):
 
 # ---- fetch() ---------------------------------------------------------------------------------------------------
 
+
 class FakeResponse:
     def __init__(self, content=b"", status=200):
         self.content = content
@@ -169,6 +184,7 @@ def test_fetch_success(monkeypatch, make_config, fixture_bytes):
     def fake_get(url, **kwargs):
         urls.append(url)
         return FakeResponse(fixture_bytes("metars_houston.json"))
+
     monkeypatch.setattr(metar.requests, "get", fake_get)
 
     m = metar.METAR(make_config(*HOUSTON), clock=CLOCK)
@@ -180,11 +196,14 @@ def test_fetch_success(monkeypatch, make_config, fixture_bytes):
     assert urls[0].endswith("ids=KHOU,KIAH,KGLS,KCLL,KLBX,KBPT,KDKR")
 
 
-@pytest.mark.parametrize("fake_get", [
-    lambda url, **kw: (_ for _ in ()).throw(requests.exceptions.ConnectionError("no network")),
-    lambda url, **kw: FakeResponse(status=503),
-    lambda url, **kw: FakeResponse(b"<html>not the JSON you wanted"),
-])
+@pytest.mark.parametrize(
+    "fake_get",
+    [
+        lambda url, **kw: (_ for _ in ()).throw(requests.exceptions.ConnectionError("no network")),
+        lambda url, **kw: FakeResponse(status=503),
+        lambda url, **kw: FakeResponse(b"<html>not the JSON you wanted"),
+    ],
+)
 def test_fetch_errors_are_contained(monkeypatch, make_config, fake_get):
     monkeypatch.setattr(metar.requests, "get", fake_get)
     m = metar.METAR(make_config("KTST"), clock=CLOCK)
@@ -213,9 +232,11 @@ def test_old_reports_count_as_not_reporting(make_config, hours_old, reporting):
 
 # ---- where airports without a report are ----------------------------------------------------------------------
 
-STATIONS = [{"icaoId": "KDKR", "lat": 31.307, "lon": -95.404, "site": "Crockett/Houston Co"},
-            {"icaoId": "KEFD", "lat": 29.606, "lon": -95.16, "site": "Houston/Ellington Arpt"},
-            {"icaoId": "KHOU", "lat": 29.638, "lon": -95.282, "site": "Houston/Hobby Arpt"}]
+STATIONS = [
+    {"icaoId": "KDKR", "lat": 31.307, "lon": -95.404, "site": "Crockett/Houston Co"},
+    {"icaoId": "KEFD", "lat": 29.606, "lon": -95.16, "site": "Houston/Ellington Arpt"},
+    {"icaoId": "KHOU", "lat": 29.638, "lon": -95.282, "site": "Houston/Hobby Arpt"},
+]
 
 
 def stations_api(monkeypatch, fixture_bytes, stations=STATIONS, fail=False):
@@ -224,9 +245,10 @@ def stations_api(monkeypatch, fixture_bytes, stations=STATIONS, fail=False):
 
     def fake_get(url, **kwargs):
         if url.startswith(metar.STATION_URL):
-            asked.append(url[len(metar.STATION_URL):].split(","))
+            asked.append(url[len(metar.STATION_URL) :].split(","))
             return FakeResponse(b"", status=502) if fail else FakeResponse(json.dumps(stations).encode())
         return FakeResponse(fixture_bytes("metars_houston.json"))
+
     monkeypatch.setattr(metar.requests, "get", fake_get)
     return asked
 
@@ -238,8 +260,11 @@ def test_airports_without_a_report_are_looked_up(monkeypatch, make_config, fixtu
     assert asked == [["KHOU", "KDKR", "KEFD", "KXXX"]]  # every airport once (for its name), in one request
     assert m.position("KDKR") == (31.307, -95.404)
     assert m.position("KHOU") == (29.6458, -95.2821)  # its METAR's position comes first
-    assert m.station_names() == {"KDKR": "Crockett/Houston Co", "KEFD": "Houston/Ellington Arpt",
-                                 "KHOU": "Houston/Hobby Arpt"}
+    assert m.station_names() == {
+        "KDKR": "Crockett/Houston Co",
+        "KEFD": "Houston/Ellington Arpt",
+        "KHOU": "Houston/Hobby Arpt",
+    }
     assert m.position("KXXX") is None  # the lookup doesn't know it
 
     m.fetch()
@@ -266,9 +291,11 @@ def test_a_failed_metar_fetch_skips_the_lookup(monkeypatch, make_config):
 
 # ---- the parsing on its own (no METAR object, no network) ------------------------------------------------------
 
+
 def test_process_is_a_plain_function(fixture_bytes):
-    data, reporting, missing = metar.process(fixture_bytes("metars_houston.json"), ["KHOU", "KDKR", "KIAH"],
-                                             CLOCK.now())
+    data, reporting, missing = metar.process(
+        fixture_bytes("metars_houston.json"), ["KHOU", "KDKR", "KIAH"], CLOCK.now()
+    )
     assert list(data) == ["KHOU", "KDKR", "KIAH"]
     assert reporting == ["KHOU", "KIAH"] and missing == ["KDKR"]
     assert data["KIAH"]["windSpeed"] == 10 and data["KDKR"] == {}
@@ -281,6 +308,7 @@ def test_reports_too_old_count_as_missing(fixture_bytes):
 
 
 # ---- reading the JSON API's fields ------------------------------------------------------------------------------
+
 
 def parse(**fields):
     return metar.parse_report({**GOOD, **fields})
@@ -368,8 +396,9 @@ def test_parse_raw_metric():
 
 
 def test_a_day_still_ahead_is_last_month():
-    assert metar.parse_raw("KDWH 302353Z 00000KT 10SM CLR 20/10 A3000", NOW)["obsTime"] == \
-        datetime(2026, 9, 30, 23, 53, tzinfo=timezone.utc)
+    assert metar.parse_raw("KDWH 302353Z 00000KT 10SM CLR 20/10 A3000", NOW)["obsTime"] == datetime(
+        2026, 9, 30, 23, 53, tzinfo=timezone.utc
+    )
 
 
 @pytest.mark.parametrize("text", ["", "hello world", "METAR"])
@@ -388,9 +417,18 @@ def mocked(make_config, dev_mode=True, mock=KDWH, code="KDWH"):
 def test_a_mock_replaces_the_fetched_report(make_config):
     m = mocked(make_config)
     assert m.data["KDWH"]["mock"] is True and m.data["KDWH"]["raw"] == KDWH  # before any fetch
-    real = report("KDWH", **{**GOOD, "rawOb": "KDWH 280053Z 18005KT 2SM BR OVC004 20/19 A3010", "fltCat": "LIFR",
-                             "obsTime": at("2026-10-28T00:53:00Z"), "lat": 30.06, "lon": -95.55,
-                             "name": "Houston/D W Hooks"})
+    real = report(
+        "KDWH",
+        **{
+            **GOOD,
+            "rawOb": "KDWH 280053Z 18005KT 2SM BR OVC004 20/19 A3010",
+            "fltCat": "LIFR",
+            "obsTime": at("2026-10-28T00:53:00Z"),
+            "lat": 30.06,
+            "lon": -95.55,
+            "name": "Houston/D W Hooks",
+        },
+    )
     m._process(response(real, report("KHOU", **{**GOOD, "obsTime": at("2026-10-28T00:53:00Z")})))
     kdwh = m.data["KDWH"]
     assert kdwh["raw"] == KDWH and kdwh["flightCategory"] == "VFR" and kdwh["mock"] is True

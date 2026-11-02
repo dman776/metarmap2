@@ -1,4 +1,9 @@
-### Unreleased — Scheduled nighttime display off
+### Unreleased
+
+- **Estimated flight category breathing** (Config > Visualizers, `visualizer.estimated_category_breathing`,
+  on by default): off shows an estimated flight category in a steady color instead of breathing. The estimate and
+  its color are unchanged, the OLED still marks it (`VFR*`), and the Map page's popup says *No category*; the
+  legend follows the setting. From Travis Cole (traviscole)
 
 - **Nighttime display off** (Config > Physical LEDs): optional local-time start/end interval sets the physical
   LEDs to 0% brightness and restores the appropriate sunrise/sunset scheduled level at the end. Disabled by default;

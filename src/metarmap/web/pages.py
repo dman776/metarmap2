@@ -1,6 +1,7 @@
 """
 The web UI's pages. Each page function gathers its template's data from the map's parts and renders it.
 """
+
 import io
 import pprint
 
@@ -12,43 +13,71 @@ from metarmap.web.site import render
 
 
 def stations(services):
-    return views.stations(services.config.airports, services.metars.data, getattr(services.metars, "position", None),
-                          services.config.data.led.count)
+    return views.stations(
+        services.config.airports,
+        services.metars.data,
+        getattr(services.metars, "position", None),
+        services.config.data.led.count,
+    )
 
 
 def index(services, site):
     s = stations(services)
-    return render(site, "index.tpl",
-                  stations=s, fetched=services.metars.lastFetchTime, cats=views.CATEGORIES, **views.summary(s),
-                  active=views.visualizer(services.renderer), visualizers=views.visualizer_names(services.renderer),
-                  brightness=services.renderer.pixels().brightness,
-                  schedule=views.brightness_schedule(services.sun.times, services.config.data.led.brightness,
-                                                     services.config.data.led.night_off),
-                  night_off=services.config.data.led.night_off,
-                  # the OLED switch only shows when the screen is turned on in Config
-                  oled_on=services.display.on if services.config.data.display_screen.enabled else None)
+
+    return render(
+        site,
+        "index.tpl",
+        stations=s,
+        fetched=services.metars.lastFetchTime,
+        cats=views.CATEGORIES,
+        **views.summary(s),
+        active=views.visualizer(services.renderer),
+        visualizers=views.visualizer_names(services.renderer),
+        brightness=services.renderer.pixels().brightness,
+        schedule=views.brightness_schedule(
+            services.sun.times,
+            services.config.data.led.brightness,
+            services.config.data.led.night_off,
+        ),
+        night_off=services.config.data.led.night_off,
+        # the OLED switch only shows when the screen is turned on in Config
+        oled_on=services.display.on if services.config.data.display_screen.enabled else None,
+    )
+
 
 
 def metars(services, site):
     s = stations(services)
-    return render(site, "metars.tpl", stations=s, fetched=services.metars.lastFetchTime, cats=views.CATEGORIES,
-                  **views.summary(s))
+    return render(
+        site, "metars.tpl", stations=s, fetched=services.metars.lastFetchTime, cats=views.CATEGORIES, **views.summary(s)
+    )
 
 
 def map_page(services, site):
     settings = views.map_settings(services.config.data.geo.map, site.sectionals, stations(services))
-    return render(site, "map.tpl", settings=settings, active=views.visualizer(services.renderer),
-                  brightness=services.renderer.pixels().brightness)
+    return render(
+        site,
+        "map.tpl",
+        settings=settings,
+        active=views.visualizer(services.renderer),
+        brightness=services.renderer.pixels().brightness,
+    )
 
 
 def remote(services, site):
     """A remote control for the map, laid out for an iPad in kiosk mode."""
     s = stations(services)
-    return render(site, "remote.tpl", stations=s, cats=views.CATEGORIES,
-                  settings=views.map_settings(services.config.data.geo.map, site.sectionals, s),
-                  active=views.visualizer(services.renderer), visualizers=views.visualizer_choices(services.renderer),
-                  brightness=services.renderer.pixels().brightness,
-                  oled_on=services.display.on if services.config.data.display_screen.enabled else None)
+    return render(
+        site,
+        "remote.tpl",
+        stations=s,
+        cats=views.CATEGORIES,
+        settings=views.map_settings(services.config.data.geo.map, site.sectionals, s),
+        active=views.visualizer(services.renderer),
+        visualizers=views.visualizer_choices(services.renderer),
+        brightness=services.renderer.pixels().brightness,
+        oled_on=services.display.on if services.config.data.display_screen.enabled else None,
+    )
 
 
 def legend(services, site):
@@ -58,21 +87,36 @@ def legend(services, site):
 
 def debug(services, site):
     renderer = services.renderer
-    return render(site, "debug.tpl", active=views.visualizer(renderer), fetched=services.metars.lastFetchTime,
-                  looks=renderer.looks, strip_look=renderer.strip_look,
-                  rows=list(enumerate(zip(services.metars.data, renderer.looks))))
+    return render(
+        site,
+        "debug.tpl",
+        active=views.visualizer(renderer),
+        fetched=services.metars.lastFetchTime,
+        looks=renderer.looks,
+        strip_look=renderer.strip_look,
+        rows=list(enumerate(zip(services.metars.data, renderer.looks))),
+    )
 
 
 def config(services, site):
     settings = views.map_settings(services.config.data.geo.map, site.sectionals, stations(services))
-    return render(site, "config.tpl", d=services.config.data, visualizers=views.visualizer_names(services.renderer),
-                  rotation=views.rotation(services.renderer, services.config.data.visualizer.auto_rotate.skip),
-                  map_settings=settings, sectionals=site.sectionals, chart_types=views.CHART_TYPES,
-                  led_pins=LED_PINS, led_orders=LED_ORDERS, lightning_colors=LIGHTNING_COLORS,
-                  traffic_seconds=TRAFFIC_SECONDS,
-                  # the login user's password only changes on a Raspberry Pi with the map running as root
-                  linux_user=system.login_user() if system.can_set_login_password() else None,
-                  wifi=system.current_wifi())
+    return render(
+        site,
+        "config.tpl",
+        d=services.config.data,
+        visualizers=views.visualizer_names(services.renderer),
+        rotation=views.rotation(services.renderer, services.config.data.visualizer.auto_rotate.skip),
+        map_settings=settings,
+        sectionals=site.sectionals,
+        chart_types=views.CHART_TYPES,
+        led_pins=LED_PINS,
+        led_orders=LED_ORDERS,
+        lightning_colors=LIGHTNING_COLORS,
+        traffic_seconds=TRAFFIC_SECONDS,
+        # the login user's password only changes on a Raspberry Pi with the map running as root
+        linux_user=system.login_user() if system.can_set_login_password() else None,
+        wifi=system.current_wifi(),
+    )
 
 
 def airports(services, site):
@@ -80,9 +124,18 @@ def airports(services, site):
     count, virtual = config.data.led.count, config.data.led.virtual_count
     leds = views.leds(config.airports, count)
     with_airport = len([led for led in leds if led["code"]])
-    return render(site, "airports.tpl", leds=leds, with_airport=with_airport, without_airport=len(leds) - with_airport,
-                  count=count, virtual=virtual, strip_leds=len(services.renderer.pixels()), max_leds=MAX_LEDS,
-                  dev_mode=config.data.dev_mode)
+    return render(
+        site,
+        "airports.tpl",
+        leds=leds,
+        with_airport=with_airport,
+        without_airport=len(leds) - with_airport,
+        count=count,
+        virtual=virtual,
+        strip_leds=len(services.renderer.pixels()),
+        max_leds=MAX_LEDS,
+        dev_mode=config.data.dev_mode,
+    )
 
 
 def raw(services):
@@ -94,7 +147,7 @@ def raw(services):
 
 
 def raw_code(services, code):
-    return "<b>" + code + "</b>: " + services.metars.data[code]['raw'] + "<br />"
+    return "<b>" + code + "</b>: " + services.metars.data[code]["raw"] + "<br />"
 
 
 def add_routes(app, services, site, auth):

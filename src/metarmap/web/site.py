@@ -1,6 +1,7 @@
 """
 What every page needs besides the map's parts, and rendering a template.
 """
+
 import os
 import socket
 from dataclasses import dataclass
@@ -23,7 +24,7 @@ class Site:
 
 def my_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.connect(('8.8.8.8', 1))  # connect() for UDP doesn't send packets
+    s.connect(("8.8.8.8", 1))  # connect() for UDP doesn't send packets
     return s.getsockname()[0]
 
 
@@ -43,5 +44,12 @@ def assets_version():
 def render(site, name, **data):
     """Renders templates/<name> with `data`, plus the version, IP and update state the header and footer show."""
     release = site.releases.state() if site.releases is not None else None
-    return bottle.template(name, template_lookup=[TEMPLATE_DIR], version=__version__, myIP=site.ip, release=release,
-                           assets=assets_version(), **data)
+    return bottle.template(
+        name,
+        template_lookup=[TEMPLATE_DIR],
+        version=__version__,
+        myIP=site.ip,
+        release=release,
+        assets=assets_version(),
+        **data,
+    )

@@ -47,6 +47,7 @@ Returns a read-only snapshot of the map's state as `application/json`. No authen
     "visualizer.auto_rotate.delay_seconds": 60,
     "visualizer.auto_rotate.skip": [],
     "visualizer.missing_data_blink": true,
+    "visualizer.estimated_category_breathing": true,
     "lightning.animation": true,
     "lightning.color": "yellow",
     "display_screen.enabled": true,
@@ -386,6 +387,7 @@ Settings that apply right away:
 - `tfr.nearby_nm`: the TFR visualizer also shows a TFR this close to an airport (dim), 0 to 50 NM; 0 is inside only. 10 by default. Applies right away
 - `lightning.animation`: a double flicker every 2 s on airports with lightning (`LTG` in the report) or a thunderstorm (`TS`, `TSRA`, `VCTS`...), over whatever every weather visualizer shows; Rainbow and Chase are unaffected. Off: no flashes anywhere (Precipitation still shows a thunderstorm: its precipitation, else yellow)
 - `visualizer.missing_data_blink`: the slow red blink on an airport whose report lacks what the visualizer shows (no flight category, visibility or sky condition; no wind speed; weather codes the map doesn't know...), in every visualizer. `false`: those LEDs stay dark, and the legends say *Off*. `true` by default
+- `visualizer.estimated_category_breathing`: an estimated flight category (the station reported visibility or clouds, but no category) breathes slowly. `false`: a steady color, like a reported category; the OLED still marks it (`VFR*`). `true` by default
 - `lightning.color`: the flicker's color, `yellow` (the default) or `white`; anything else is a 400. Precipitation's thunderstorm stays yellow either way (its snow is white)
 - `display_screen.locate_active`
 - `display_screen.delay`

@@ -1,4 +1,5 @@
 """Tests for the LED strip stand-in and opening the strip off the Pi."""
+
 from metarmap.leds.strip import FakeStrip, open_strip
 from metarmap.settings import Settings
 

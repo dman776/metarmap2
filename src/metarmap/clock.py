@@ -1,6 +1,7 @@
 """
 Time, passed in rather than read globally, so tests can control it.
 """
+
 import threading
 import time
 from datetime import datetime, timedelta, timezone

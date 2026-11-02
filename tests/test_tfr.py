@@ -2,6 +2,7 @@
 Tests for TFRs (metarmap.tfr): reading the FAA's detail XML, what's in effect or upcoming, which airports are in or
 near one, fetching, and the TFR visualizer.
 """
+
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
@@ -29,15 +30,38 @@ NOW = epoch("2026-11-02T12:00:00")
 
 def square_points(lat, lon, size):
     """Avx points around (lat, lon), as the FAA writes them (42.98154645N, 090.68611111W)."""
+
     def point(la, lo):
-        return (f"<Avx><codeDatum>WGE</codeDatum><codeType>GRC</codeType><geoLat>{abs(la):.8f}{'N' if la >= 0 else 'S'}"
-                f"</geoLat><geoLong>{abs(lo):012.8f}{'E' if lo >= 0 else 'W'}</geoLong></Avx>")
-    return "".join(point(la, lo) for la, lo in [(lat - size, lon - size), (lat - size, lon + size),
-                                                 (lat + size, lon + size), (lat + size, lon - size)])
+        return (
+            f"<Avx><codeDatum>WGE</codeDatum><codeType>GRC</codeType><geoLat>{abs(la):.8f}{'N' if la >= 0 else 'S'}"
+            f"</geoLat><geoLong>{abs(lo):012.8f}{'E' if lo >= 0 else 'W'}</geoLong></Avx>"
+        )
+
+    return "".join(
+        point(la, lo)
+        for la, lo in [
+            (lat - size, lon - size),
+            (lat - size, lon + size),
+            (lat + size, lon + size),
+            (lat + size, lon - size),
+        ]
+    )
 
 
-def area_xml(name="Area A", lat=HOUSTON[0], lon=HOUSTON[1], size=0.05, floor="0", floor_code="HEI", ceiling="17999",
-             ceiling_code="ALT", start="2026-11-02T10:00:00", end="2026-11-02T20:00:00", uom="FT", points=None):
+def area_xml(
+    name="Area A",
+    lat=HOUSTON[0],
+    lon=HOUSTON[1],
+    size=0.05,
+    floor="0",
+    floor_code="HEI",
+    ceiling="17999",
+    ceiling_code="ALT",
+    start="2026-11-02T10:00:00",
+    end="2026-11-02T20:00:00",
+    uom="FT",
+    points=None,
+):
     outline = points if points is not None else square_points(lat, lon, size)
     effective = f"<dateEffective>{start}</dateEffective>" if start else ""
     expire = f"<dateExpire>{end}</dateExpire>" if end else ""
@@ -60,6 +84,7 @@ def detail_xml(*areas):
 
 # ---- reading the detail XML -----------------------------------------------------------------------------------
 
+
 def test_parse_detail():
     (area,) = tfr.parse_detail(detail_xml(area_xml(floor="0", floor_code="HEI", ceiling="17999", ceiling_code="ALT")))
     assert area["name"] == "Area A"
@@ -70,8 +95,12 @@ def test_parse_detail():
 
 
 def test_parse_detail_several_areas_and_flight_levels():
-    areas = tfr.parse_detail(detail_xml(area_xml("Area A"), area_xml("Area B", floor="180", floor_code="ALT", uom="FL",
-                                                                     ceiling="600", start=None, end=None)))
+    areas = tfr.parse_detail(
+        detail_xml(
+            area_xml("Area A"),
+            area_xml("Area B", floor="180", floor_code="ALT", uom="FL", ceiling="600", start=None, end=None),
+        )
+    )
     assert [a["name"] for a in areas] == ["Area A", "Area B"]
     b = areas[1]
     assert (b["floor"], b["floor_ref"], b["ceiling"]) == (18000, "MSL", 60000)
@@ -79,8 +108,10 @@ def test_parse_detail_several_areas_and_flight_levels():
 
 
 def test_parse_detail_skips_areas_without_an_outline():
-    line = ("<Avx><geoLat>29.00000000N</geoLat><geoLong>095.00000000W</geoLong></Avx>"
-            "<Avx><geoLat>30.00000000N</geoLat><geoLong>095.00000000W</geoLong></Avx>")  # two points: not an area
+    line = (
+        "<Avx><geoLat>29.00000000N</geoLat><geoLong>095.00000000W</geoLong></Avx>"
+        "<Avx><geoLat>30.00000000N</geoLat><geoLong>095.00000000W</geoLong></Avx>"
+    )  # two points: not an area
     assert tfr.parse_detail(detail_xml(area_xml(points=""), area_xml(points=line))) == []
 
 
@@ -89,13 +120,24 @@ def test_parse_detail_rejects_what_isnt_xml():
         tfr.parse_detail("<html><body>Not found")
 
 
-@pytest.mark.parametrize("text, value", [("42.98154645N", 42.98154645), ("090.68611111W", -90.68611111),
-                                         ("12.5S", -12.5), ("100.0E", 100.0), ("", None), (None, None), ("abcN", None)])
+@pytest.mark.parametrize(
+    "text, value",
+    [
+        ("42.98154645N", 42.98154645),
+        ("090.68611111W", -90.68611111),
+        ("12.5S", -12.5),
+        ("100.0E", 100.0),
+        ("", None),
+        (None, None),
+        ("abcN", None),
+    ],
+)
 def test_degrees(text, value):
     assert tfr.degrees(text) == value
 
 
 # ---- distance -------------------------------------------------------------------------------------------------
+
 
 def test_distance_nm():
     box = [(29.0, -96.0), (29.0, -95.0), (30.0, -95.0), (30.0, -96.0)]
@@ -105,6 +147,7 @@ def test_distance_nm():
 
 
 # ---- fetching -------------------------------------------------------------------------------------------------
+
 
 class FakeFaa:
     """Answers the list and details; counts what was asked."""
@@ -124,8 +167,14 @@ class FakeFaa:
 
 
 def item(notam, kind="SECURITY", description="HOUSTON, TX"):
-    return {"notam_id": notam, "type": kind, "facility": "ZHU", "state": "TX", "description": description,
-            "creation_date": "11/01/2026"}
+    return {
+        "notam_id": notam,
+        "type": kind,
+        "facility": "ZHU",
+        "state": "TX",
+        "description": description,
+        "creation_date": "11/01/2026",
+    }
 
 
 def make(listed, details, nearby=10, fail=()):
@@ -136,16 +185,22 @@ def make(listed, details, nearby=10, fail=()):
 
 
 def test_fetch_gets_each_detail_once():
-    found, faa, _ = make([item("6/1"), item("6/2", "VIP")],
-                         {"6/1": detail_xml(area_xml()), "6/2": detail_xml(area_xml())})
+    found, faa, _ = make(
+        [item("6/1"), item("6/2", "VIP")], {"6/1": detail_xml(area_xml()), "6/2": detail_xml(area_xml())}
+    )
     assert found.at(*HOUSTON) is None  # nothing fetched yet
     assert found.fetch() is True
-    assert faa.urls == [tfr.LIST_URL, "https://tfr.faa.gov/download/detail_6_1.xml",
-                        "https://tfr.faa.gov/download/detail_6_2.xml"]
+    assert faa.urls == [
+        tfr.LIST_URL,
+        "https://tfr.faa.gov/download/detail_6_1.xml",
+        "https://tfr.faa.gov/download/detail_6_2.xml",
+    ]
     found.fetch()
     assert faa.urls[3:] == [tfr.LIST_URL]  # the details are known
-    assert found.at(*HOUSTON) == [{"type": "VIP", "upcoming": False, "inside": True},
-                                  {"type": "SECURITY", "upcoming": False, "inside": True}]
+    assert found.at(*HOUSTON) == [
+        {"type": "VIP", "upcoming": False, "inside": True},
+        {"type": "SECURITY", "upcoming": False, "inside": True},
+    ]
 
 
 def test_a_tfr_that_leaves_the_list_is_forgotten():
@@ -192,6 +247,7 @@ def test_fetch_soon_runs_in_the_background_then_calls_back():
     found, _, _ = make([item("6/1")], {"6/1": detail_xml(area_xml())})
     done = []
     import threading
+
     finished = threading.Event()
     found.fetch_soon(then=lambda: (done.append(True), finished.set()))
     assert finished.wait(5) and done == [True]
@@ -199,9 +255,11 @@ def test_fetch_soon_runs_in_the_background_then_calls_back():
 
 # ---- what's in effect, and where ------------------------------------------------------------------------------
 
+
 def test_in_effect_upcoming_or_neither():
-    found, _, clock = make([item("6/1")], {"6/1": detail_xml(area_xml(start="2026-11-03T08:00:00",
-                                                                      end="2026-11-03T20:00:00"))})
+    found, _, clock = make(
+        [item("6/1")], {"6/1": detail_xml(area_xml(start="2026-11-03T08:00:00", end="2026-11-03T20:00:00"))}
+    )
     found.fetch()
     assert found.at(*HOUSTON) == [{"type": "SECURITY", "upcoming": True, "inside": True}]  # starts in 20 h
     clock.t = epoch("2026-11-01T12:00:00")
@@ -228,14 +286,18 @@ def test_nearby():
 
 
 def test_order_in_effect_then_inside_then_type():
-    details = {"6/1": detail_xml(area_xml(start="2026-11-02T20:00:00", end="2026-11-02T23:00:00")),  # VIP, upcoming
-               "6/2": detail_xml(area_xml(lat=HOUSTON[0] + 0.2, size=0.04)),  # VIP, nearby
-               "6/3": detail_xml(area_xml())}  # air show, inside
+    details = {
+        "6/1": detail_xml(area_xml(start="2026-11-02T20:00:00", end="2026-11-02T23:00:00")),  # VIP, upcoming
+        "6/2": detail_xml(area_xml(lat=HOUSTON[0] + 0.2, size=0.04)),  # VIP, nearby
+        "6/3": detail_xml(area_xml()),
+    }  # air show, inside
     found, _, _ = make([item("6/1", "VIP"), item("6/2", "VIP"), item("6/3", "AIR SHOWS/SPORTS")], details, nearby=15)
     found.fetch()
-    assert found.at(*HOUSTON) == [{"type": "AIR SHOWS/SPORTS", "upcoming": False, "inside": True},
-                                  {"type": "VIP", "upcoming": False, "inside": False},
-                                  {"type": "VIP", "upcoming": True, "inside": True}]
+    assert found.at(*HOUSTON) == [
+        {"type": "AIR SHOWS/SPORTS", "upcoming": False, "inside": True},
+        {"type": "VIP", "upcoming": False, "inside": False},
+        {"type": "VIP", "upcoming": True, "inside": True},
+    ]
 
 
 def test_state():
@@ -251,11 +313,16 @@ def test_state():
 
 # ---- each METAR gets its TFRs ---------------------------------------------------------------------------------
 
+
 def test_with_tfrs():
     found, _, _ = make([item("6/1")], {"6/1": detail_xml(area_xml())})
     found.fetch()
-    data = {"KIAH": {"raw": "...", "latitude": HOUSTON[0], "longitude": HOUSTON[1]},
-            "KDFW": {"raw": "...", "latitude": "32.9", "longitude": "-97.04"}, "KXXX": {"raw": "..."}, "KDKR": {}}
+    data = {
+        "KIAH": {"raw": "...", "latitude": HOUSTON[0], "longitude": HOUSTON[1]},
+        "KDFW": {"raw": "...", "latitude": "32.9", "longitude": "-97.04"},
+        "KXXX": {"raw": "..."},
+        "KDKR": {},
+    }
     result = with_tfrs(data, found)
     assert result["KIAH"]["tfrs"] == [{"type": "SECURITY", "upcoming": False, "inside": True}]
     assert result["KDFW"]["tfrs"] == [] and result["KXXX"]["tfrs"] is None
@@ -263,6 +330,7 @@ def test_with_tfrs():
 
 
 # ---- the visualizer -------------------------------------------------------------------------------------------
+
 
 @pytest.fixture
 def settings():
@@ -273,15 +341,25 @@ def color(name):
     return colors_lib.get_colors()[name]
 
 
-@pytest.mark.parametrize("tfrs, expected", [
-    ([], Look.solid(color(colors_lib.GRAY))),
-    ([{"type": "VIP", "upcoming": False, "inside": True}], Look.solid(color(colors_lib.RED))),
-    ([{"type": "HAZARDS", "upcoming": False, "inside": False}], Look.solid(style.dim(color(colors_lib.ORANGE)))),
-    ([{"type": "SECURITY", "upcoming": True, "inside": True}],
-     Look.pulse(color(colors_lib.MAGENTA), period=style.LIGHT_PERIOD, low=style.LIGHT_LOW)),
-    ([{"type": "UAS PUBLIC GATHERING", "upcoming": False, "inside": True},
-      {"type": "VIP", "upcoming": True, "inside": True}], Look.solid(color(colors_lib.CYAN))),  # the first one
-])
+@pytest.mark.parametrize(
+    "tfrs, expected",
+    [
+        ([], Look.solid(color(colors_lib.GRAY))),
+        ([{"type": "VIP", "upcoming": False, "inside": True}], Look.solid(color(colors_lib.RED))),
+        ([{"type": "HAZARDS", "upcoming": False, "inside": False}], Look.solid(style.dim(color(colors_lib.ORANGE)))),
+        (
+            [{"type": "SECURITY", "upcoming": True, "inside": True}],
+            Look.pulse(color(colors_lib.MAGENTA), period=style.LIGHT_PERIOD, low=style.LIGHT_LOW),
+        ),
+        (
+            [
+                {"type": "UAS PUBLIC GATHERING", "upcoming": False, "inside": True},
+                {"type": "VIP", "upcoming": True, "inside": True},
+            ],
+            Look.solid(color(colors_lib.CYAN)),
+        ),  # the first one
+    ],
+)
 def test_look(settings, tfrs, expected):
     assert vis.look({"raw": "...", "tfrs": tfrs}, settings) == expected
 

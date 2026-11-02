@@ -14,6 +14,7 @@ How the LEDs show things, shared by every visualizer so the same meaning always 
 Ranges (wind, temperature, ...) are a few solid bands of clearly different colors, not blends: a Band table is the
 one place each visualizer's thresholds live, and its legend is built from the same table.
 """
+
 import math
 from dataclasses import dataclass
 from typing import Callable, Optional, Sequence, Union
@@ -51,8 +52,11 @@ def missing() -> Look:
 
 def is_missing_legend(item) -> bool:
     """A legend entry for missing() (missing_legend(), or a visualizer's own wording of it)."""
-    return item["effect"] == "blink" and item["period"] == MISSING_PERIOD and \
-        item["colors"] == [colors_lib.to_css(named(colors_lib.RED))]
+    return (
+        item["effect"] == "blink"
+        and item["period"] == MISSING_PERIOD
+        and item["colors"] == [colors_lib.to_css(named(colors_lib.RED))]
+    )
 
 
 def by_intensity(color, intensity=MODERATE) -> Look:
@@ -126,20 +130,27 @@ def with_lightning(look: Look, settings) -> Look:
 
 def lightning_legend(settings):
     name, flash = lightning_color(settings)
-    return legend_item("Lightning or a thunderstorm", f"Two quick {name} flashes every 2 s over the airport's color",
-                       dim(named(colors_lib.WHITE)), flash, effect="flash",
-                       period=LIGHTNING_EVERY)
+    return legend_item(
+        "Lightning or a thunderstorm",
+        f"Two quick {name} flashes every 2 s over the airport's color",
+        dim(named(colors_lib.WHITE)),
+        flash,
+        effect="flash",
+        period=LIGHTNING_EVERY,
+    )
 
 
 # ---- legend entries for the conventions ---------------------------------------------------------------------
+
 
 def no_report_legend(label="METAR not available"):
     return legend_item(label, "Off")
 
 
 def missing_legend(what):
-    return legend_item(f"No {what} in the report", "Slow red blink", named(colors_lib.RED), effect="blink",
-                       period=MISSING_PERIOD)
+    return legend_item(
+        f"No {what} in the report", "Slow red blink", named(colors_lib.RED), effect="blink", period=MISSING_PERIOD
+    )
 
 
 def intensity_legend(color, example):
@@ -147,8 +158,14 @@ def intensity_legend(color, example):
     kind's own entry already shows it, so it has no entry here."""
     return [
         legend_item(f"Light ({example})", "Breathing", color, effect="pulse", period=LIGHT_PERIOD, low=LIGHT_LOW),
-        legend_item(f"Heavy ({example})", "Fast blink, bright and dim", color, dim(color), effect="alternate",
-                    period=HEAVY_PERIOD),
+        legend_item(
+            f"Heavy ({example})",
+            "Fast blink, bright and dim",
+            color,
+            dim(color),
+            effect="alternate",
+            period=HEAVY_PERIOD,
+        ),
         legend_item(f"In the vicinity ({example})", "Dim", dim(color)),
     ]
 
@@ -161,6 +178,7 @@ ColorSpec = Union[str, Callable[[object], Sequence[int]]]  # a colors_lib name, 
 @dataclass(frozen=True)
 class Band:
     """Values below `below` (or up to it, if `inclusive`), down to the band before; None: no upper limit."""
+
     below: Optional[float]
     color: ColorSpec
     label: str  # e.g. "10-14 kt"

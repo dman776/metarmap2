@@ -1,6 +1,7 @@
 """
 What the pages and API responses show, as plain data built from the map's parts. No bottle here.
 """
+
 import json
 import os
 from datetime import datetime
@@ -33,6 +34,7 @@ def is_login(web_server, user, password):
 
 # ---- airports ------------------------------------------------------------------------------------------------
 
+
 def stations(airports, data, position=None, count=None):
     """
     One entry per airport (in LED order, skipping LEDs with no airport) for the templates.
@@ -48,20 +50,22 @@ def stations(airports, data, position=None, count=None):
         lat, lon = m.get("latitude"), m.get("longitude")
         if not (lat and lon) and position:
             lat, lon = position(airport.code) or (None, None)
-        result.append({
-            "code": airport.code,
-            "pixel": pixel,
-            "mock": bool(m.get("mock")),  # a mock METAR (dev_mode) in place of the real one
-            "name": airport.name,
-            "display": airport.display,
-            "virtual": count is not None and pixel >= count,
-            "has_data": bool(m),
-            "cat": m.get("flightCategory") or None,
-            "raw": m.get("raw"),
-            "obsTime": m.get("obsTime"),
-            "lat": lat,
-            "lon": lon,
-        })
+        result.append(
+            {
+                "code": airport.code,
+                "pixel": pixel,
+                "mock": bool(m.get("mock")),  # a mock METAR (dev_mode) in place of the real one
+                "name": airport.name,
+                "display": airport.display,
+                "virtual": count is not None and pixel >= count,
+                "has_data": bool(m),
+                "cat": m.get("flightCategory") or None,
+                "raw": m.get("raw"),
+                "obsTime": m.get("obsTime"),
+                "lat": lat,
+                "lon": lon,
+            }
+        )
     return result
 
 
@@ -69,8 +73,17 @@ def leds(airports, count):
     """
     Every LED for the Airports page, with its airport (code "" for none), then the virtual airports after led.count.
     """
-    return [{"pixel": pixel, "code": a.code, "name": a.name, "display": a.display, "virtual": pixel >= count,
-             "mock": mock_text(a)} for pixel, a in enumerate(airports)]
+    return [
+        {
+            "pixel": pixel,
+            "code": a.code,
+            "name": a.name,
+            "display": a.display,
+            "virtual": pixel >= count,
+            "mock": mock_text(a),
+        }
+        for pixel, a in enumerate(airports)
+    ]
 
 
 def summary(stations):
@@ -83,6 +96,7 @@ def summary(stations):
 
 
 # ---- visualizers ---------------------------------------------------------------------------------------------
+
 
 def visualizer(renderer):
     """The active visualizer."""
@@ -106,6 +120,7 @@ def rotation(renderer, skip):
 
 # ---- brightness schedule -------------------------------------------------------------------------------------
 
+
 def sun_schedule(times, levels, now=None):
     """
     Today's brightness schedule, with the next change flagged.
@@ -113,8 +128,10 @@ def sun_schedule(times, levels, now=None):
     """
     if not times:
         return []
-    schedule = [{"name": name.capitalize(), "time": times[name], "level": getattr(levels, level), "next": False}
-                for name, level in LEVEL_AT.items()]
+    schedule = [
+        {"name": name.capitalize(), "time": times[name], "level": getattr(levels, level), "next": False}
+        for name, level in LEVEL_AT.items()
+    ]
     now = now or datetime.now(schedule[0]["time"].tzinfo)
     upcoming = [s for s in schedule if s["time"] > now]
     if upcoming:
@@ -207,5 +224,6 @@ def chart_for_airports(sectionals, stations):
 
     def covered(c):
         return sum(1 for lat, lon in points if c["south"] <= lat <= c["north"] and c["west"] <= lon <= c["east"])
+
     best = max(sectionals, key=covered)
     return best["name"] if covered(best) else None

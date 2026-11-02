@@ -34,6 +34,7 @@ def wheel(pos):
 def get_location(city):
     import astral.geocoder
     import astral.sun
+
     try:
         return astral.geocoder.lookup(city, astral.geocoder.database())
     except KeyError:
@@ -67,11 +68,7 @@ def index_in_list(akey, alist):
     return list(alist.keys()).index(akey)
 
 
-def get_proportion_between_floats(
-    start: float,
-    current: float,
-    end: float
-):
+def get_proportion_between_floats(start: float, current: float, end: float):
     """
     Gets the "distance" (0.0 to 1.0) between the start and the end where the current is.
     IE:
@@ -86,8 +83,8 @@ def get_proportion_between_floats(
         float -- The amount of interpolaton for Current between Start and End
     """
 
-    total_delta = (end - start)
-    time_in = (current - start)
+    total_delta = end - start
+    time_in = current - start
 
     return time_in / total_delta
 
@@ -122,6 +119,7 @@ def _as_owner(uid, gid):
     if os.geteuid() != 0 or uid == 0:
         return {}
     import pwd
+
     account = pwd.getpwuid(uid)
     env = {**os.environ, "HOME": account.pw_dir, "USER": account.pw_name, "LOGNAME": account.pw_name}
     return {"user": uid, "group": gid, "env": env}
@@ -154,8 +152,13 @@ def run_git(repo, *args, timeout=GIT_TIMEOUT):
     """
     owner = _as_owner(*_repo_owner(repo))
     env = {**owner.get("env", os.environ), "GIT_TERMINAL_PROMPT": "0"}
-    return subprocess.run([shutil.which("git") or "/usr/bin/git", "-C", repo, *args],
-                          capture_output=True, text=True, timeout=timeout, **{**owner, "env": env})
+    return subprocess.run(
+        [shutil.which("git") or "/usr/bin/git", "-C", repo, *args],
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        **{**owner, "env": env},
+    )
 
 
 class UpdateResult:

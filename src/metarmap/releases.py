@@ -7,6 +7,7 @@ asks GitHub which tags and commits exist (git ls-remote): it downloads no code a
 
 Also what's running (read_build): a release, or commits after one, so a map running unreleased code says so.
 """
+
 import os
 import re
 import subprocess
@@ -32,8 +33,10 @@ SETTINGS_FILES = ("config.json", "airports.json")
 
 def github_url(remote):
     """https://github.com/owner/repo for a GitHub remote (https or ssh), else None."""
-    match = re.match(r"^(?:https://github\.com/|git@github\.com:|ssh://git@github\.com/)([^/\s]+/[^/\s]+?)(?:\.git)?/?$",
-                     str(remote or "").strip())
+    match = re.match(
+        r"^(?:https://github\.com/|git@github\.com:|ssh://git@github\.com/)([^/\s]+/[^/\s]+?)(?:\.git)?/?$",
+        str(remote or "").strip(),
+    )
     return f"https://github.com/{match.group(1)}" if match else None
 
 
@@ -43,6 +46,7 @@ def read_build(git, version):
     the code was changed locally (config.json and airports.json don't count). None outside a git checkout.
     git: runs a git command and returns the CompletedProcess. version: the running version (2.9.2).
     """
+
     def out(*args):
         try:
             done = git(*args)
@@ -66,8 +70,9 @@ def read_build(git, version):
     prerelease = tag is not None and versions.parse(tag) is None  # v2.9.0-rc1
     release = tag is not None and not prerelease and ahead == 0 and not modified
     # the version was bumped (and maybe committed) but that version has no tag yet
-    untagged = (tag is not None and not prerelease and versions.parse(version) is not None
-                and not versions.same(tag, version))
+    untagged = (
+        tag is not None and not prerelease and versions.parse(version) is not None and not versions.same(tag, version)
+    )
 
     if release:
         pill = None
@@ -93,8 +98,9 @@ def read_build(git, version):
         "release": release,
         "untagged": untagged,
         "describe": (tag if not ahead else f"{tag}+{ahead}") if tag else commit,
-        "chip": f"v{version}" if release else f"v{version}{f' +{ahead}' if ahead else ''} · {commit}"
-                                              f"{'*' if modified else ''}",
+        "chip": f"v{version}"
+        if release
+        else f"v{version}{f' +{ahead}' if ahead else ''} · {commit}{'*' if modified else ''}",
         "pill": pill,
         "url": f"{base}/commit/{sha}" if base else None,
     }
@@ -107,8 +113,16 @@ class ReleaseCheck:
     git: runs a git command in the map's folder and returns the CompletedProcess (tests pass their own).
     """
 
-    def __init__(self, repo=None, channel=lambda: "releases", current=__version__, git=None, clock=time.time,
-                 branch=lambda: "", dev_mode=lambda: False):
+    def __init__(
+        self,
+        repo=None,
+        channel=lambda: "releases",
+        current=__version__,
+        git=None,
+        clock=time.time,
+        branch=lambda: "",
+        dev_mode=lambda: False,
+    ):
         self._repo = repo or os.getcwd()
         self._channel = channel
         self._branch = branch
@@ -133,15 +147,18 @@ class ReleaseCheck:
         """Asks GitHub what's newest. Never raises: a failure is kept as state()["error"]. Returns state()."""
         channel = self._channel()
         try:
-            tags = [line.split("refs/tags/", 1)[1] for line in self._run("ls-remote", "--tags", "--refs", "origin")
-                    .splitlines() if "refs/tags/" in line]
+            tags = [
+                line.split("refs/tags/", 1)[1]
+                for line in self._run("ls-remote", "--tags", "--refs", "origin").splitlines()
+                if "refs/tags/" in line
+            ]
             releases = versions.releases(tags)
             heads = {}  # branch: newest commit
             if self._dev_mode():
                 for line in self._run("ls-remote", "--heads", "origin").splitlines():
                     sha, _, ref = line.partition("\t")
                     if ref.startswith("refs/heads/"):
-                        heads[ref[len("refs/heads/"):]] = sha
+                        heads[ref[len("refs/heads/") :]] = sha
             if channel in ("latest", "branch"):
                 if channel == "latest":
                     newest = (self._run("ls-remote", "origin", "HEAD").split() or [""])[0]
@@ -202,8 +219,10 @@ class ReleaseCheck:
             "available": found["available"],
             "installed": self.installed,
             "badge": self.badge(),
-            "releases": [{"tag": tag, "running": versions.same(tag, self.current),
-                          "older": versions.is_newer(self.current, tag)} for tag in found["releases"]],
+            "releases": [
+                {"tag": tag, "running": versions.same(tag, self.current), "older": versions.is_newer(self.current, tag)}
+                for tag in found["releases"]
+            ],
             "checked": datetime.fromtimestamp(checked, timezone.utc).isoformat() if checked is not None else None,
             "error": found["error"],
         }
