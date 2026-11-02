@@ -158,7 +158,7 @@ class Renderer(object):
         return True
 
     def clear(self):
-        self._pixels.fill(self._config.data.color.clear)
+        self._pixels.fill((0, 0, 0))
         self._pixels.show()
 
     def animate_once(self, effect, clear=True):
