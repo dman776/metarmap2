@@ -147,6 +147,38 @@ def test_run_cleans_up_when_stopped(make_app, monkeypatch, error):
     assert all(c == clear for c in app.renderer.pixels())
 
 
+def test_run_on_another_port_for_this_run_only(make_app, monkeypatch):
+    app = make_app(**{"led.inittest": False})
+    webs = []
+    monkeypatch.setattr(app_module, "create_app", lambda services: webs.append(FakeWebApp(services)) or webs[-1])
+    monkeypatch.setattr(app_module, "serve", lambda web, host, port: setattr(web, "port", port))
+    monkeypatch.setattr(app.renderer, "render", lambda: (_ for _ in ()).throw(KeyboardInterrupt()))
+    saved = app.config.data.web_server.port
+
+    app_module.run(app, port=8080)
+
+    assert webs[0].port == 8080
+    assert app.config.data.web_server.port == saved  # not saved: config.json keeps its port
+
+
+@pytest.mark.parametrize("argv, port", [([], None), (["--port", "8080"], 8080), (["--port=1"], 1)])
+def test_parse_args(argv, port):
+    assert app_module.parse_args(argv).port == port
+
+
+@pytest.mark.parametrize("argv", [["--port", "0"], ["--port", "65536"], ["--port", "http"], ["--colour"]])
+def test_parse_args_rejects(argv, capsys):
+    with pytest.raises(SystemExit) as stopped:
+        app_module.parse_args(argv)
+    assert stopped.value.code == 2  # argparse's usage error
+
+
+def test_version(capsys):
+    with pytest.raises(SystemExit):
+        app_module.parse_args(["--version"])
+    assert f"metarmap {app_module.__version__}" in capsys.readouterr().out
+
+
 def test_the_leds_run_when_the_web_port_is_taken(make_app, monkeypatch):
     app = make_app(**{"led.inittest": False})
 

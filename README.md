@@ -125,23 +125,15 @@ These steps are for macOS or Linux, with Python 3.9 or newer and git installed.
    .venv/bin/pip install -e .
    ```
 
-2. In `config.json`, change the web server's port from `80` to `8080` (port 80 usually needs `sudo`):
-
-   ```json
-   "web_server": {
-       "user": "metar",
-       "password": "map",
-       "port": 8080
-   },
-   ```
-
-3. Start it:
+2. Start it on port 8080 (the map's own port, 80, usually needs `sudo` on a computer):
 
    ```sh
-   .venv/bin/python -m metarmap
+   .venv/bin/python -m metarmap --port 8080
    ```
 
-4. Open http://localhost:8080. The first METARs arrive within a few seconds. The Config pages ask for the login in
+   `--port` is for that run only; `config.json` keeps its port, so you can copy the folder to a Pi as it is.
+
+3. Open http://localhost:8080. The first METARs arrive within a few seconds. The Config pages ask for the login in
    `config.json` (`metar` / `map` to start).
 
 It starts with the 50 example airports around Houston; change them on **Config > Airports**. Settings are saved in
@@ -284,8 +276,9 @@ and the web UI (including the live Map page and its OLED window) works as usual 
 - Set up: `uv sync --extra dev` (or `python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"`)
 - Run the tests: `.venv/bin/pytest`
 - Check the code: `.venv/bin/ruff check .`
-- Run the map: `.venv/bin/python -m metarmap` (or `.venv/bin/metarmap`), from the folder with `config.json`; see
-  [Try it on your computer](#try-it-on-your-computer) for the port
+- Run the map: `.venv/bin/python -m metarmap --port 8080` (or `.venv/bin/metarmap --port 8080`), from the folder
+  with `config.json`. Without `--port` it uses `web_server.port` from `config.json` (80); `--version` prints the
+  version
 
 For testing on a real map, set `"dev_mode": true` in `config.json` by hand (stop the map first). Then **Config >
 Software > Update to** offers **Branch**, to install a branch you pushed to GitHub (**Check now** refreshes the list),

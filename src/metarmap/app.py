@@ -2,9 +2,11 @@
 The METAR map: builds every part from config.json, schedules the periodic jobs and runs the main loop.
 
 build() wires the parts together without starting anything, so a map can be built on fake hardware in tests;
-run() starts the web server and the OLED loop and drives the LEDs until stopped. main() is `python -m metarmap`.
+run() starts the web server and the OLED loop and drives the LEDs until stopped. main() is `python -m metarmap`
+(`--port 8080` to use another web port for that run, e.g. on a computer, where port 80 needs sudo).
 """
 
+import argparse
 import signal
 import sys
 import threading
@@ -234,8 +236,12 @@ def watch_display(app: App):
 
 # ---- running -------------------------------------------------------------------------------------------------
 
-def run(app: App):
-    """Starts the web server and the OLED loop, then drives the LEDs until Ctrl-C, SIGTERM or an error."""
+def run(app: App, port=None):
+    """
+    Starts the web server and the OLED loop, then drives the LEDs until Ctrl-C, SIGTERM or an error.
+    port: the web server's port for this run (--port), else web_server.port; it isn't saved to config.json.
+    """
+    port = port or app.config.data.web_server.port
     if app.config.data.display_screen.enabled:
         app.display.message("MAP", "info", "Starting..")
 
@@ -248,10 +254,10 @@ def run(app: App):
     web_app = create_app(app)
     check_releases(app)  # then every CHECK_HOURS
     try:
-        web_server = serve(web_app, "0.0.0.0", app.config.data.web_server.port)
+        web_server = serve(web_app, "0.0.0.0", port)
     except OSError as e:
         # e.g. the port is in use; the LEDs and OLED still run
-        safe_logging.safe_log(f"web server can't start on port {app.config.data.web_server.port}: {e}")
+        safe_logging.safe_log(f"web server can't start on port {port}: {e}")
         web_server = None
 
     safe_logging.safe_log("Main loop...")
@@ -314,7 +320,28 @@ def signal_handler(sig, frame):
     raise KeyboardInterrupt
 
 
-def main(config_file=CONFIG_FILE):
+def port_number(text):
+    try:
+        port = int(text)
+    except ValueError:
+        port = 0
+    if not 1 <= port <= 65535:
+        raise argparse.ArgumentTypeError(f"{text!r} isn't a port number (1 to 65535)")
+    return port
+
+
+def parse_args(argv=None):
+    """The command line: python -m metarmap [--port PORT]. argv: without the program name (sys.argv[1:] if None)."""
+    parser = argparse.ArgumentParser(prog="python -m metarmap", description="Runs the METAR map.")
+    parser.add_argument("--port", type=port_number,
+                        help="the web server's port for this run, instead of web_server.port in config.json "
+                             "(which it doesn't change), e.g. 8080 on a computer, where port 80 needs sudo")
+    parser.add_argument("--version", action="version", version=f"metarmap {__version__}")
+    return parser.parse_args(argv)
+
+
+def main(config_file=CONFIG_FILE, argv=None):
+    args = parse_args(argv)
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
     threading.excepthook = log_thread_exception
@@ -326,4 +353,4 @@ def main(config_file=CONFIG_FILE):
     except Exception as e:
         safe_logging.safe_log(f"service file check failed: {e}\n{traceback.format_exc()}")
     wait_for_internet()
-    run(build(config_file))
+    run(build(config_file), port=args.port)

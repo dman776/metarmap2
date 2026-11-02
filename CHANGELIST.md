@@ -1,3 +1,9 @@
+### dman776 3.1.2 (unreleased)
+
+- `python -m metarmap --port 8080` runs the web server on another port for that run, without editing `config.json`
+  (which keeps its port): for trying the map on a computer, where port 80 needs `sudo`. `--version` prints the
+  version, and `--help` lists both
+
 ### dman776 3.1.1 (2026-11-01)
 
 - Advisories visualizer (G-AIRMETs and SIGMETs), after Dewpoint Spread: each airport in the color of the advisory it's
