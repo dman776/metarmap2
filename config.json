@@ -14,7 +14,7 @@
             "dimmed": 0.1,
             "off": 0.01
         },
-        "night_off": {
+        "quiet_hours": {
             "enabled": false,
             "start": "23:00",
             "end": "05:00"

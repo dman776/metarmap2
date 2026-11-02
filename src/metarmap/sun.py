@@ -40,11 +40,11 @@ def brightness_for(now, times, levels):
     return getattr(levels, level_at(now, times))
 
 
-def night_off_active(now, night_off):
+def quiet_hours_active(now, quiet_hours):
     """Whether local wall-clock time falls in the configured blackout interval (start inclusive, end exclusive)."""
-    if not night_off.enabled:
+    if not quiet_hours.enabled:
         return False
-    start, end = night_off.start, night_off.end
+    start, end = quiet_hours.start, quiet_hours.end
     if start == end:
         return False  # equal endpoints are an empty interval, never an all-day blackout
     # Clock.now() is UTC; configured shutdown times use the Pi's local clock.

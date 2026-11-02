@@ -157,6 +157,11 @@ select:focus, input[type=text]:focus, input[type=search]:focus, input[type=passw
 .sched dd .sched-time { color: inherit; text-align: right; }
 .sched dd .sched-arrow { color: var(--muted); text-align: center; }
 .sched dd .sched-level { color: var(--muted); text-align: right; }
+.sched .muted-event { opacity: .42; }
+.sched .next.muted-event { background: transparent; }
+.sched .quiet-row .quiet-times { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.25; }
+.sched .quiet-row .quiet-end { font-size: 11px; color: var(--muted); }
+.quiet-details { display: block; margin-top: 4px; }
 .sched .next { background: var(--accent-soft); }
 .sched .next dt, .sched .next dd, .sched .next dd span { color: var(--accent); font-weight: 600; }
 

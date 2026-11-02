@@ -5,11 +5,10 @@
   its color are unchanged, the OLED still marks it (`VFR*`), and the Map page's popup says *No category*; the
   legend follows the setting. From Travis Cole (traviscole)
 
-- **Nighttime display off** (Config > Physical LEDs): optional local-time start/end interval sets the physical
-  LEDs to 0% brightness and restores the appropriate sunrise/sunset scheduled level at the end. Disabled by default;
-  intervals can cross midnight, and invalid HH:MM values are rejected.
-- Home LED Brightness schedule includes Night off / Resume schedule, uses fixed-width time/percentage columns,
-  and highlights the currently active brightness mode (not the next event).
+- **Quiet hours** (Config > Physical display, `led.quiet_hours`, off by default): override physical LED
+  brightness to 0% between local start/end times, including overnight intervals, then return to the sun schedule.
+  The Home page displays one quiet-hours row and mutes only sun events within that interval; the original next-event
+  highlight remains unchanged. Invalid hand-edited time values are logged and quiet hours are disabled at startup.
 
 ### dman776 3.1.3 (2026-11-01)
 

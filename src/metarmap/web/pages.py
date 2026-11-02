@@ -37,9 +37,9 @@ def index(services, site):
         schedule=views.brightness_schedule(
             services.sun.times,
             services.config.data.led.brightness,
-            services.config.data.led.night_off,
+            services.config.data.led.quiet_hours,
         ),
-        night_off=services.config.data.led.night_off,
+        quiet_hours=services.config.data.led.quiet_hours,
         # the OLED switch only shows when the screen is turned on in Config
         oled_on=services.display.on if services.config.data.display_screen.enabled else None,
     )

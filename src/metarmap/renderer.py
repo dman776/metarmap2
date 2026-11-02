@@ -11,7 +11,7 @@ import metarmap.lib.safe_logging as safe_logging
 from metarmap.clock import Clock
 from metarmap.leds.animations import animation_for
 from metarmap.models import Look
-from metarmap.sun import SunTimes, brightness_for, level_at, night_off_active
+from metarmap.sun import SunTimes, brightness_for, level_at, quiet_hours_active
 from metarmap.visualizers import visualizer
 
 from adafruit_led_animation.sequence import AnimateOnce
@@ -276,9 +276,13 @@ class Renderer(object):
     def config(self):
         return self._config
 
+    def quiet_hours_active(self):
+        """Whether the current local time is inside the quiet-hours window."""
+        return quiet_hours_active(self._clock.now(), self._config.data.led.quiet_hours)
+
     def brightness_for(self, now):
         """The scheduled LED brightness at `now` (timezone-aware), from today's sun times."""
-        if night_off_active(now, self._config.data.led.night_off):
+        if quiet_hours_active(now, self._config.data.led.quiet_hours):
             return 0.0
         return brightness_for(now, self._sun.times, self._config.data.led.brightness)
 
