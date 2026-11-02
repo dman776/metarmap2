@@ -117,7 +117,13 @@ class Renderer(object):
                 # one frame at a time, so locate() can get in between frames
                 with self._lock:
                     # rebuilt (new data, visualizer or strip length): the main loop starts the new animations
-                    if self._animations is not built or not animations.animate():
+                    if self._animations is not built:
+                        break
+                    # Render all pixel-subset animations into the shared buffer first.
+                    # A PixelSubset.show() transmits the ENTIRE strip, so letting each animation call show() makes updates unnecessarily slow.
+                    running = animations.animate(show=False)
+                    self._pixels.show()  # one physical transfer per frame
+                    if not running:
                         break
                 time.sleep(FRAME_SECONDS)  # outside the lock, so locate() and the web UI can get in
         except Exception as e:
@@ -152,7 +158,7 @@ class Renderer(object):
         return True
 
     def clear(self):
-        self._pixels.fill((0, 0, 0))
+        self._pixels.fill(self._config.data.color.clear)
         self._pixels.show()
 
     def animate_once(self, effect, clear=True):
