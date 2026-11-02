@@ -46,12 +46,12 @@
     "visualizer": {
         "active": 0,
         "numbering": 4,
-		"missing_data_blink": true,
         "auto_rotate": {
             "enabled": false,
             "delay_seconds": 60,
             "skip": []
-        }
+        },
+        "missing_data_blink": true
     },
     "lightning": {
         "animation": true,
