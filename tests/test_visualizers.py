@@ -71,6 +71,39 @@ def test_flight_category_missing_blinks_red(settings):
     assert look == Look.blink(C[colors_lib.RED], period=2)
 
 
+def test_missing_data_blink_off_leaves_the_led_dark(settings):
+    settings.visualizer.missing_data_blink = False
+    assert visualizer.look(flightcategory, metar(flightCategory=None), settings) == OFF
+    assert visualizer.look(wind, metar(windSpeed=None), settings) == OFF
+    assert visualizer.look(precipitation, metar(obs="ZZ"), settings) == OFF  # weather codes the map doesn't know
+    # everything else is unchanged: a category, an estimate
+    assert visualizer.look(flightcategory, metar(flightCategory="IFR"), settings) == Look.solid(C[colors_lib.RED])
+    assert visualizer.look(flightcategory, metar(flightCategory=None, visibilitySM=10.0), settings).effect == "pulse"
+
+
+def test_missing_data_blink_on_by_default(settings):
+    assert settings.visualizer.missing_data_blink is True
+    assert visualizer.look(flightcategory, metar(flightCategory=None), settings) == style.missing()
+
+
+def test_lightning_flickers_over_dark_missing_data(settings):
+    settings.visualizer.missing_data_blink = False
+    frames = visualizer.look(flightcategory, metar(flightCategory=None, lightning=True), settings).colors
+    assert frames[:3] == (style.LIGHTNING,) * 3 and frames[3] == (0, 0, 0)
+
+
+@pytest.mark.parametrize("v", visualizers.WEATHER)
+def test_missing_data_blink_off_in_every_legend(v, settings):
+    on = visualizer.legend(v, settings)
+    assert any(style.is_missing_legend(i) for i in on)
+    settings.visualizer.missing_data_blink = False
+    off = visualizer.legend(v, settings)
+    assert not any(style.is_missing_legend(i) for i in off)
+    assert [i["label"] for i in off] == [i["label"] for i in on]  # the same entries, now "Off"
+    changed = [i for i, j in zip(off, on) if i != j]
+    assert changed and all(i["detail"] == "Off" and i["effect"] == "off" for i in changed)
+
+
 def test_flight_category_no_report_is_off(settings):
     assert flightcategory.look({}, settings) == OFF
 

@@ -113,6 +113,7 @@
                 % end
             </select>
         </div>
+        % switch('visualizer.missing_data_blink', d.visualizer.missing_data_blink, 'Missing data blink', 'Slow red blink on an airport whose report lacks what the visualizer shows, such as no flight category, visibility or sky condition. Off leaves its LED dark.')
         % switch('lightning.animation', d.lightning.animation, 'Lightning animation', 'Two quick flashes on airports with lightning or a thunderstorm, in every weather visualizer.')
         <div class="set">
             <div>

@@ -1,5 +1,9 @@
 ### Unreleased
 
+- **Missing data blink** (Config > Visualizers, `visualizer.missing_data_blink`, on by default): off leaves an airport
+  dark instead of blinking slow red when its report lacks what the visualizer shows, such as no flight category,
+  visibility or sky condition. It applies in every visualizer, on the LEDs, the Map page and the legends (which say
+  *Off*); lightning still flashes over a dark airport. Idea from Travis Cole (traviscole)
 - **Lightning color** (Config > Visualizers, `lightning.color`): the lightning flashes can be yellow (the default) or
   white, on the LEDs, the Map page and the legends. Precipitation's thunderstorm with no precipitation stays yellow,
   since its snow is white. Idea from Travis Cole (traviscole)

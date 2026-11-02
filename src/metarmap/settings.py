@@ -93,6 +93,8 @@ class VisualizerSettings(_Section):
     # which list `active` counts in; a file without it is from before Wind Direction (see renumber_visualizers)
     numbering: int = 4
     auto_rotate: AutoRotate = field(default_factory=AutoRotate)
+    # the slow red blink of an airport whose report lacks what the visualizer shows; off: its LED stays dark
+    missing_data_blink: bool = True
 
 
 # lightning.color: the colors the lightning flashes can be (style.LIGHTNING_COLORS has each one's LED color)

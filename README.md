@@ -190,6 +190,8 @@ Changes save right away. To check the wiring order:
 
 **Config** has the rest of the settings:
 - the default visualizer and auto-rotate, including which visualizers it shows
+- whether an airport blinks red when its report lacks what the visualizer shows (**Missing data blink**, on by
+  default), or stays dark
 - lightning: the animation on or off, and its color (yellow or white)
 - the OLED screen
 - the map page's chart

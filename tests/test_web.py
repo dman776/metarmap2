@@ -238,6 +238,17 @@ def test_led_pin_and_order(client):
     assert '<option value="RGB" selected>RGB</option>' in body
 
 
+def test_missing_data_blink(client):
+    def blink():
+        return client.services.config.data.visualizer.missing_data_blink
+    assert blink() is True
+    assert client.json("/api/status", auth=False)["config"]["visualizer.missing_data_blink"] is True
+    assert client("/config/edit/visualizer.missing_data_blink/false")[0] == 200
+    assert blink() is False
+    assert client.json("/api/status", auth=False)["config"]["visualizer.missing_data_blink"] is False
+    assert 'data-key="visualizer.missing_data_blink"' in client("/config")[1]
+
+
 def test_lightning_color(client):
     def color():
         return client.services.config.data.lightning.color

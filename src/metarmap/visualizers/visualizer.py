@@ -74,20 +74,30 @@ def shows_lightning(vis, settings) -> bool:
 
 
 def look(vis, metar, settings) -> Look:
-    """One airport's look: the visualizer's, with lightning over it when the airport has some."""
+    """
+    One airport's look: the visualizer's, with lightning over it when the airport has some. Missing data is off
+    instead of a red blink with visualizer.missing_data_blink off.
+    """
     from metarmap.visualizers import style  # style uses legend_item() from here
     base = vis.look(metar, settings)
+    if not settings.visualizer.missing_data_blink and base == style.missing():
+        base = Look.off()
     return style.with_lightning(base, settings) if shows_lightning(vis, settings) and style.has_lightning(metar) \
         else base
 
 
 def legend(vis, settings) -> List[dict]:
-    """The visualizer's legend, with lightning before "METAR not available" (or last) when it shows lightning."""
+    """
+    The visualizer's legend, with lightning before "METAR not available" (or last) when it shows lightning, and
+    missing data as off with visualizer.missing_data_blink off.
+    """
     from metarmap.visualizers import style
     items = list(vis.legend(settings))
     if shows_lightning(vis, settings):
         at = next((n for n, item in enumerate(items) if item["effect"] == "off"), len(items))
         items.insert(at, style.lightning_legend(settings))
+    if not settings.visualizer.missing_data_blink:
+        items = [legend_item(item["label"], "Off") if style.is_missing_legend(item) else item for item in items]
     return items
 
 

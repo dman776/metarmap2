@@ -45,7 +45,8 @@
             "enabled": false,
             "delay_seconds": 60,
             "skip": []
-        }
+        },
+        "missing_data_blink": true
     },
     "lightning": {
         "animation": true,

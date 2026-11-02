@@ -45,8 +45,14 @@ def no_report() -> Look:
 
 
 def missing() -> Look:
-    """The airport reported, but not the value this visualizer shows."""
+    """The airport reported, but not the value this visualizer shows. Off with visualizer.missing_data_blink off."""
     return Look.blink(named(colors_lib.RED), period=MISSING_PERIOD)
+
+
+def is_missing_legend(item) -> bool:
+    """A legend entry for missing() (missing_legend(), or a visualizer's own wording of it)."""
+    return item["effect"] == "blink" and item["period"] == MISSING_PERIOD and \
+        item["colors"] == [colors_lib.to_css(named(colors_lib.RED))]
 
 
 def by_intensity(color, intensity=MODERATE) -> Look:
