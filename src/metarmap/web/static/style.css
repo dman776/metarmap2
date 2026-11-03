@@ -27,7 +27,7 @@
 }
 
 * { box-sizing: border-box; }
-html { color-scheme: dark; }
+html { color-scheme: dark; background: var(--bg); }  /* in fullscreen an older Safari doesn't carry body's background */
 body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 var(--sans); }
 a { color: var(--accent); text-decoration: none; }
 a:hover { color: #ffd27d; }

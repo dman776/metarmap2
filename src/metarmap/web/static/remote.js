@@ -18,7 +18,14 @@
     }
     fitHeight();
     window.addEventListener('resize', fitHeight);
-    window.addEventListener('orientationchange', function () { setTimeout(fitHeight, 300); });
+    function fitSoon() {  // again once Safari has finished rotating, or going in or out of fullscreen
+        fitHeight();
+        setTimeout(fitHeight, 300);
+        setTimeout(fitHeight, 1000);
+    }
+    window.addEventListener('orientationchange', fitSoon);
+    document.addEventListener('fullscreenchange', fitSoon);
+    document.addEventListener('webkitfullscreenchange', fitSoon);
 
     const LIVE_MS = 1000;
     const STATUS_MS = 60 * 1000;
