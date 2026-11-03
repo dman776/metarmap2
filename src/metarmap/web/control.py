@@ -124,6 +124,14 @@ def add_routes(app, services, site, auth, updates=None):
         renderer.visualizer_previous()
         return pages.index(services, site)
 
+    def auto_rotate(state):
+        """The Remote page's auto-rotate switch: saved, but needs no login (it's only this one setting)."""
+        if state not in ("on", "off"):
+            bottle.abort(400, "Use /visualizer/auto_rotate/on or /visualizer/auto_rotate/off")
+        config.edit("visualizer.auto_rotate.enabled", "true" if state == "on" else "false")
+        services.schedule_rotation()
+        return pages.index(services, site)
+
     def brightness(level):
         renderer.brightness(float(level))
         return pages.index(services, site)
@@ -335,6 +343,7 @@ def add_routes(app, services, site, auth, updates=None):
     app.route("/visualizer/<visnum>", "GET", visualizer)
     app.route("/visualizer/next", "GET", visualizer_next)
     app.route("/visualizer/previous", "GET", visualizer_previous)
+    app.route("/visualizer/auto_rotate/<state>", "GET", auto_rotate)
     app.route("/brightness/<level>", "GET", brightness)
     app.route("/display/<state>", "GET", display_power)
     app.route("/locate/<pixnum>", "GET", locate)

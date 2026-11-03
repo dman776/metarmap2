@@ -42,6 +42,14 @@
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
                 </button>
             </div>
+            <div class="r-rotate">
+                <label class="lbl" for="auto-rotate">Auto-rotate</label>
+                <input id="auto-rotate" class="switch" type="checkbox"{{!' checked' if auto_rotate else ''}}>
+                <span class="r-clock" id="r-clock" role="timer" aria-label="Next visualizer" hidden>
+                    <svg width="26" height="26" viewBox="0 0 36 36" aria-hidden="true"><circle class="track" cx="18" cy="18" r="15"/><circle class="left" id="r-clock-left" cx="18" cy="18" r="15" pathLength="100" stroke-dasharray="100 100"/></svg>
+                    <span id="r-clock-text"></span>
+                </span>
+            </div>
             <div class="chip-row r-chips" role="group" aria-label="Choose a visualizer">
                 % for i, v in enumerate(visualizers):
                 <button class="chip" type="button" aria-pressed="{{'true' if i == active['index'] else 'false'}}" data-call="/visualizer/{{i}}" data-then="none"

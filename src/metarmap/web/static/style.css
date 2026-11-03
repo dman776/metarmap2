@@ -466,8 +466,16 @@ body.kiosk main.wrap { max-width: none; height: 100vh; height: 100dvh; gap: 0; p
 .r-vis-pick { flex: none; display: flex; flex-direction: column; gap: 14px; }
 .r-legend { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; border-top: 1px solid var(--line); padding-top: 12px; }
 .r-vis-text { flex: 1; min-width: 0; text-align: center; }
-.r-vis .vis-head .name { font-size: 24px; }
+.r-vis .vis-head .name { font-size: clamp(32px, 5vw + 12px, 56px); line-height: 1.1; }  /* readable across the room */
 .r-vis .vis-head .desc { font-size: 13px; }
+/* auto-rotate: the switch, and a ring counting down to the next visualizer */
+.r-rotate { display: flex; align-items: center; justify-content: center; gap: 12px; }
+.r-rotate .switch { margin: 0; }
+.r-clock { display: inline-flex; align-items: center; gap: 6px; min-width: 6ch; color: var(--muted); font: 600 15px var(--mono); font-variant-numeric: tabular-nums; }
+.r-clock svg { flex: none; transform: rotate(-90deg); }
+.r-clock circle { fill: none; stroke-width: 4; }
+.r-clock .track { stroke: var(--line); }
+.r-clock .left { stroke: var(--accent); stroke-linecap: round; transition: stroke-dasharray .25s linear; }
 .r-chips .chip { min-height: 44px; }
 .r-legend .legend { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .r-legend .legend li { padding: 8px 10px; font-size: 13px; }

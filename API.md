@@ -147,7 +147,8 @@ What the physical map is doing right now. The Map page polls it every second. No
 {
   "now": 1792854523.9,
   "brightness": 0.5,
-  "visualizer": { "active": 0, "name": "Flight Category", "exclusive": false, "areas": false },
+  "visualizer": { "active": 0, "name": "Flight Category", "exclusive": false, "areas": false,
+                  "autoRotate": { "enabled": true, "seconds": 60, "next": 1792854560.0 } },
   "strip": null,
   "leds": [
     { "code": "KLBX", "pixel": 4, "name": "", "virtual": false, "lat": 29.11, "lon": -95.46, "flightCategory": "IFR",
@@ -171,6 +172,7 @@ What the physical map is doing right now. The Map page polls it every second. No
 | `leds[].wind` | While a wind visualizer runs (Wind, Wind Gusts, Wind Direction): the airport's wind for its barb on the Map page, `{"dir": 270.0, "kt": 12}` (the direction it blows from, and the sustained speed). `null` when it's calm, variable (`VRB`), has no direction or no report, and for every other visualizer. |
 | `leds[].virtual` | A virtual airport: no LED on the strip, so the Map page draws it in a dashed circle. |
 | `visualizer.areas` | Which areas the Map page draws while the visualizer runs: `advisories` (Advisories, from `/api/advisories`), `tfrs` (TFR, from `/api/tfrs`), else `null` |
+| `visualizer.autoRotate` | Auto-rotate: `enabled` and `seconds` are its settings (`visualizer.auto_rotate`); `next` is when it next changes the visualizer (Unix time, compare it with `now`), `null` while it's off |
 | `strip` | Set when one effect drives the whole strip instead: `rainbow` (`period`) or `chase` (`step`, `size`, `spacing`). The virtual airports keep their own `look` meanwhile: the same rainbow, or `off` for a chase (a wiring check). |
 | `locate` | The last white locate pulse: LED `pixel` and Unix time `at`. `null` until the first one. A virtual airport's pulse is only shown on the Map page. |
 | `display.on` | Whether the screen is showing; `false` after `/display/off` (then `screen` is `null`) |
@@ -331,7 +333,7 @@ last fetch that worked. adsb.fi's data is free for personal, non-commercial use,
 
 ## Control
 
-These endpoints change the map immediately. Nothing they change is saved to `config.json`, so the changes are lost on restart. Each one returns the HTML of a UI page; ignore it.
+These endpoints change the map immediately. Except for auto-rotate, nothing they change is saved to `config.json`, so the changes are lost on restart. Each one returns the HTML of a UI page; ignore it.
 
 | Endpoint | Description |
 |---|---|
@@ -340,6 +342,7 @@ These endpoints change the map immediately. Nothing they change is saved to `con
 | `GET /visualizer/<n>` | Switch to visualizer number `n` (see the table below) |
 | `GET /visualizer/next` | Next visualizer; after the last one it goes back to the first |
 | `GET /visualizer/previous` | Previous visualizer; before the first one it goes to the last |
+| `GET /visualizer/auto_rotate/on`, `GET /visualizer/auto_rotate/off` | Turn auto-rotate on or off (the Remote page's switch). Saved, as `visualizer.auto_rotate.enabled`, though it needs no login: it changes only that setting. The timer starts again now. |
 | `GET /locate/<pixel>` | Pulse one LED white. Ignored while an exclusive visualizer is running. |
 | `GET /fetch` | Fetch METARs from aviationweather.gov now. **The request does not return until the fetch finishes**, which can take up to about 30 seconds; other requests are answered in the meantime. |
 
@@ -488,7 +491,7 @@ curl -u metar:map -H 'Content-Type: application/json' -d '{"user": "pilot", "pas
 | `GET /metars` | | Table of METARs for every airport |
 | `GET /map` | | Live mirror of the LEDs and the OLED screen on an FAA chart, satellite or radar background (a new radar scan every 5 minutes while radar is shown) |
 | `GET /map/legend` | | The active visualizer's legend (HTML), which the Map page and the Remote page swap in when the visualizer changes |
-| `GET /remote` | | A remote control laid out for an iPad in kiosk mode, in four tabs: Visualizer (the visualizers and the legend), Map (the Map page's live map), Locator (Locate for every airport) and Config (brightness and the OLED switch, which aren't saved). It follows changes made anywhere else (it polls `/api/live`). `/remote#map`, `#locator` or `#config` opens that tab; otherwise it opens the one last used on that device. *Add to Home Screen* opens it full screen |
+| `GET /remote` | | A remote control laid out for an iPad in kiosk mode, in four tabs: Visualizer (the visualizers, the auto-rotate switch with a countdown to the next one, and the legend), Map (the Map page's live map), Locator (Locate for every airport) and Config (brightness and the OLED switch, which aren't saved). It follows changes made anywhere else (it polls `/api/live`). `/remote#map`, `#locator` or `#config` opens that tab; otherwise it opens the one last used on that device. *Add to Home Screen* opens it full screen |
 | `GET /raw` | | Raw METAR text for every airport, followed by the full parsed data |
 | `GET /raw/<code>` | | Raw METAR text for one airport |
 | `GET /debug` | | Debug information |

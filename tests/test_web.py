@@ -640,7 +640,13 @@ def test_live_whole_strip_visualizer(services):
     services.renderer.visualizer = 1  # rainbow
     live = api.live(services)
     assert live["strip"]["effect"] == "rainbow"
-    assert live["visualizer"] == {"active": 1, "name": "Rainbow", "exclusive": True, "areas": None}
+    assert live["visualizer"] == {
+        "active": 1,
+        "name": "Rainbow",
+        "exclusive": True,
+        "areas": None,
+        "autoRotate": {"enabled": False, "seconds": 60, "next": None},
+    }
 
 
 def test_live_wind_barbs(services):
@@ -1379,6 +1385,24 @@ def test_remote_controls_need_no_login(client):
         "/api/live",
     ):
         assert client(path, auth=False)[0] == 200, path
+
+
+def test_remote_auto_rotate_switch(client):
+    app = client.services
+    assert 'id="auto-rotate" class="switch" type="checkbox">' in client("/remote", auth=False)[1]
+    assert client.json("/api/live", auth=False)["visualizer"]["autoRotate"] == {
+        "enabled": False,
+        "seconds": app.config.data.visualizer.auto_rotate.delay_seconds,
+        "next": None,
+    }
+    assert client("/visualizer/auto_rotate/on", auth=False)[0] == 200  # saved, but no login: only this setting
+    assert app.config.data.visualizer.auto_rotate.enabled
+    (job,) = app.scheduler.get_jobs("rotate_visualizer")
+    assert client.json("/api/live")["visualizer"]["autoRotate"]["next"] == job.next_run.timestamp()
+    assert 'id="auto-rotate" class="switch" type="checkbox" checked' in client("/remote")[1]
+    assert client("/visualizer/auto_rotate/off", auth=False)[0] == 200
+    assert not app.config.data.visualizer.auto_rotate.enabled and not app.scheduler.get_jobs("rotate_visualizer")
+    assert client("/visualizer/auto_rotate/maybe", auth=False)[0] == 400
 
 
 def test_remote_page_follows_the_map(client):
