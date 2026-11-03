@@ -5,6 +5,8 @@
   row represents the overnight brightness period. The actual LEDs may differ during a temporary manual adjustment.
   From Travis Cole (traviscole)
 
+### dman776 3.1.4 (2026-11-02)
+
 - **Estimated flight category breathing** (Config > Visualizers, `visualizer.estimated_category_breathing`,
   on by default): off shows an estimated flight category in a steady color instead of breathing. The estimate and
   its color are unchanged, the OLED still marks it (`VFR*`), and the Map page's popup says *No category*; the
