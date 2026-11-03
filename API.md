@@ -491,7 +491,7 @@ curl -u metar:map -H 'Content-Type: application/json' -d '{"user": "pilot", "pas
 | `GET /metars` | | Table of METARs for every airport |
 | `GET /map` | | Live mirror of the LEDs and the OLED screen on an FAA chart, satellite or radar background (a new radar scan every 5 minutes while radar is shown) |
 | `GET /map/legend` | | The active visualizer's legend (HTML), which the Map page and the Remote page swap in when the visualizer changes |
-| `GET /remote` | | A remote control laid out for an iPad in kiosk mode, in four tabs: Visualizer (the visualizers and the legend), Map (the Map page's live map), Locator (Locate for every airport) and Config (brightness and the OLED switch, which aren't saved); the top bar has the auto-rotate switch and a countdown to the next visualizer. It follows changes made anywhere else (it polls `/api/live`). `/remote#map`, `#locator` or `#config` opens that tab; otherwise it opens the one last used on that device. *Add to Home Screen* opens it full screen |
+| `GET /remote` | | A remote control laid out for an iPad in kiosk mode, in four tabs: Visualizer (the visualizers, the legend, and the auto-rotate switch with a countdown to the next visualizer), Map (the Map page's live map), Locator (Locate for every airport) and Config (brightness and the OLED switch, which aren't saved). It follows changes made anywhere else (it polls `/api/live`). `/remote#map`, `#locator` or `#config` opens that tab; otherwise it opens the one last used on that device. *Add to Home Screen* opens it full screen |
 | `GET /raw` | | Raw METAR text for every airport, followed by the full parsed data |
 | `GET /raw/<code>` | | Raw METAR text for one airport |
 | `GET /debug` | | Debug information |

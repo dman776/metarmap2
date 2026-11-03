@@ -469,14 +469,12 @@ body.kiosk main.wrap { max-width: none; height: 100vh; height: 100dvh; gap: 0; p
 /* readable across the room; 48px where there's no clamp() (Safari before 13.1) */
 .r-vis .vis-head .name { font-size: 48px; font-size: clamp(32px, 5vw + 12px, 56px); line-height: 1.1; }
 .r-vis .vis-head .desc { font-size: 13px; }
-/* auto-rotate, in the bar: the switch, and a ring counting down to the next visualizer.
+/* auto-rotate, a footer under the legend: the switch, and a ring counting down to the next visualizer.
    Spaced with margins: an older iPad's Safari (before 14.1) has no flex gap */
-.r-rotate { flex: none; display: flex; align-items: center; margin-left: auto; }
-.r-rotate .switch { margin: 0 0 0 10px; }
-.r-rotate + .r-host { margin-left: 20px; }
-.r-clock { display: inline-flex; align-items: center; min-width: 7ch; margin-left: 10px; color: var(--muted); font: 600 15px var(--mono); font-variant-numeric: tabular-nums; }
-.r-clock svg { flex: none; margin-right: 6px; transform: rotate(-90deg); }
-@media (max-width: 760px) { .r-rotate .lbl { display: none; } }  /* a phone: the switch and clock only */
+.r-rotate { flex: none; display: flex; align-items: center; justify-content: center; border-top: 1px solid var(--line); padding-top: 10px; }
+.r-rotate .switch { margin: 0 0 0 12px; }
+.r-clock { display: inline-flex; align-items: center; min-width: 7ch; margin-left: 14px; color: var(--muted); font: 600 18px var(--mono); font-variant-numeric: tabular-nums; }
+.r-clock svg { flex: none; margin-right: 8px; transform: rotate(-90deg); }
 .r-clock circle { fill: none; stroke-width: 4; }
 .r-clock .track { stroke: var(--line); }
 .r-clock .left { stroke: var(--accent); stroke-linecap: round; transition: stroke-dasharray .25s linear; }
@@ -510,9 +508,8 @@ body.kiosk main.wrap { max-width: none; height: 100vh; height: 100dvh; gap: 0; p
 .r-set .big { font-size: 36px; }
 .r-set input[type=range] { height: 44px; }
 
-/* an iPad on its side: bigger names and airport tiles */
+/* an iPad on its side: bigger airport tiles */
 @media (min-width: 1000px) and (min-height: 600px) {
-    .r-vis .vis-head .name { font-size: 28px; }
     .r-grid { grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); gap: 10px; }
     .r-apt { min-height: 64px; font-size: 18px; }
 }

@@ -21,14 +21,6 @@
                 <span>Config</span>
             </button>
         </div>
-        <div class="r-rotate">
-            <label class="lbl" for="auto-rotate">Auto-rotate</label>
-            <input id="auto-rotate" class="switch" type="checkbox"{{!' checked' if auto_rotate else ''}}>
-            <span class="r-clock" id="r-clock" role="timer" aria-label="Next visualizer" hidden>
-                <svg width="26" height="26" viewBox="0 0 36 36" aria-hidden="true"><circle class="track" cx="18" cy="18" r="15"/><circle class="left" id="r-clock-left" cx="18" cy="18" r="15" pathLength="100" stroke-dasharray="100 100"/></svg>
-                <span id="r-clock-text"></span>
-            </span>
-        </div>
         <span class="host r-host" role="status" title="{{myIP}} · v{{version}}"><span>{{myIP}}</span></span>
         <button class="btn icon r-full" type="button" aria-label="Fullscreen" aria-pressed="false" hidden>
             <svg class="enter" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
@@ -59,6 +51,14 @@
         </div>
         <div class="r-legend" id="r-legend">
             %include("legend.tpl", legend=active['legend'])
+        </div>
+        <div class="r-rotate">
+            <label class="lbl" for="auto-rotate">Auto-rotate</label>
+            <input id="auto-rotate" class="switch" type="checkbox"{{!' checked' if auto_rotate else ''}}>
+            <span class="r-clock" id="r-clock" role="timer" aria-label="Next visualizer" hidden>
+                <svg width="26" height="26" viewBox="0 0 36 36" aria-hidden="true"><circle class="track" cx="18" cy="18" r="15"/><circle class="left" id="r-clock-left" cx="18" cy="18" r="15" pathLength="100" stroke-dasharray="100 100"/></svg>
+                <span id="r-clock-text"></span>
+            </span>
         </div>
     </section>
 
