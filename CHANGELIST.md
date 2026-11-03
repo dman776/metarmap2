@@ -1,9 +1,7 @@
 ### Unreleased
 
 - **Current brightness schedule highlight** (Home): highlight the active sun-brightness period rather than the next
-  event; while quiet hours are active, highlight the Quiet hours row instead. Before dawn and after dusk, the Dusk
-  row represents the overnight brightness period. The actual LEDs may differ during a temporary manual adjustment.
-  From Travis Cole (traviscole)
+  event; while quiet hours are active, highlight the Quiet hours row instead. From Travis Cole (traviscole)
 
 ### dman776 3.1.4 (2026-11-02)
 
@@ -14,8 +12,8 @@
 
 - **Quiet hours** (Config > Physical display, `led.quiet_hours`, off by default): override physical LED
   brightness to 0% between local start/end times, including overnight intervals, then return to the sun schedule.
-  The Home page displays one quiet-hours row and mutes only sun events within that interval.
-  Invalid hand-edited time values are logged and reset to defaults at startup.
+  The Home page displays one quiet-hours row and mutes only sun events within that interval; the original next-event
+  highlight remains unchanged. Invalid hand-edited time values are logged and quiet hours are disabled at startup.
   From Travis Cole (traviscole)
 
 ### dman776 3.1.3 (2026-11-01)
