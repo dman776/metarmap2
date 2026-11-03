@@ -1,5 +1,10 @@
 ### Unreleased
 
+- **Current brightness schedule highlight** (Home): highlight the active sun-brightness period rather than the next
+  event; while quiet hours are active, highlight the Quiet hours row instead. Before dawn and after dusk, the Dusk
+  row represents the overnight brightness period. The actual LEDs may differ during a temporary manual adjustment.
+  From Travis Cole (traviscole)
+
 - **Estimated flight category breathing** (Config > Visualizers, `visualizer.estimated_category_breathing`,
   on by default): off shows an estimated flight category in a steady color instead of breathing. The estimate and
   its color are unchanged, the OLED still marks it (`VFR*`), and the Map page's popup says *No category*; the
@@ -7,8 +12,8 @@
 
 - **Quiet hours** (Config > Physical display, `led.quiet_hours`, off by default): override physical LED
   brightness to 0% between local start/end times, including overnight intervals, then return to the sun schedule.
-  The Home page displays one quiet-hours row and mutes only sun events within that interval; the original next-event
-  highlight remains unchanged. Invalid hand-edited time values are logged and quiet hours are disabled at startup.
+  The Home page displays one quiet-hours row and mutes only sun events within that interval.
+  Invalid hand-edited time values are logged and reset to defaults at startup.
   From Travis Cole (traviscole)
 
 ### dman776 3.1.3 (2026-11-01)

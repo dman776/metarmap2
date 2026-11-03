@@ -4,10 +4,10 @@ What the pages and API responses show, as plain data built from the map's parts.
 
 import json
 import os
-from datetime import datetime, time
+from datetime import datetime
 
 from metarmap.metar import mock_text
-from metarmap.sun import LEVEL_AT
+from metarmap.sun import LEVEL_AT, quiet_hours_active
 from metarmap.visualizers.visualizer import info as visualizer_info
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
@@ -122,20 +122,20 @@ def rotation(renderer, skip):
 
 
 def sun_schedule(times, levels, now=None):
-    """
-    Today's brightness schedule, with the next change flagged.
-    times: today's sun times; levels: the led.brightness settings.
+    """Today's sun events, with the currently effective sun period highlighted.
+
+    Before dawn, the current period is the overnight level set by yesterday's
+    dusk; the Dusk row represents that same period on today's schedule.
     """
     if not times:
         return []
     schedule = [
-        {"name": name.capitalize(), "time": times[name], "level": getattr(levels, level), "next": False}
+        {"name": name.capitalize(), "time": times[name], "level": getattr(levels, level), "current": False}
         for name, level in LEVEL_AT.items()
     ]
-    now = now or datetime.now(schedule[0]["time"].tzinfo)
-    upcoming = [s for s in schedule if s["time"] > now]
-    if upcoming:
-        upcoming[0]["next"] = True
+    now = now if now is not None else datetime.now(schedule[0]["time"].tzinfo)
+    past = [event for event in schedule if event["time"] <= now]
+    (past[-1] if past else schedule[-1])["current"] = True
     return schedule
 
 
@@ -143,48 +143,41 @@ def sun_schedule(times, levels, now=None):
 
 
 def brightness_schedule(times, levels, quiet_hours, now=None):
-    """Sun brightness events and one optional quiet-hours window.
+    """Sun brightness periods and an optional overriding Quiet Hours period.
 
-    Highlight whichever visible event is next, including the start of quiet
-    hours. Sun events inside quiet hours are muted, not converted to 0%.
+    The highlighted row is the current scheduled period, not a prediction of
+    the next change or necessarily a temporary brightness-slider override.
+    Sun events inside Quiet Hours stay visually muted at their normal levels.
     """
     schedule = sun_schedule(times, levels, now=now)
     if not schedule:
         return []
 
-    # The Home schedule and its sun events use the configured city's timezone.
-    now = now or datetime.now(schedule[0]["time"].tzinfo)
-    for event in schedule:
-        event["muted"] = False
-        event["next"] = False
-
-    candidates = []
+    now = now if now is not None else datetime.now(schedule[0]["time"].tzinfo)
     if quiet_hours.enabled and quiet_hours.start != quiet_hours.end:
         start, end = quiet_hours.start, quiet_hours.end
         for event in schedule:
             clock = event["time"].strftime("%H:%M")
             event["muted"] = start <= clock < end if start < end else clock >= start or clock < end
 
-        quiet_start = datetime.combine(now.date(), time.fromisoformat(start), tzinfo=schedule[0]["time"].tzinfo)
-        quiet_event = {
-            "name": "Quiet hours",
-            "start": start,
-            "end": end,
-            "level": 0.0,
-            "next": False,
-            "muted": False,
-            "quiet_event": True,
-        }
-        schedule.append(quiet_event)
-        if quiet_start > now:
-            candidates.append((quiet_start, quiet_event))
-
-    # An event inside quiet hours does not change the physical LED level.
-    candidates.extend(
-        (event["time"], event) for event in schedule if "time" in event and not event["muted"] and event["time"] > now
-    )
-    if candidates:
-        min(candidates, key=lambda item: item[0])[1]["next"] = True
+        active = quiet_hours_active(now, quiet_hours)
+        if active:
+            for event in schedule:
+                event["current"] = False
+        schedule.append(
+            {
+                "name": "Quiet hours",
+                "start": start,
+                "end": end,
+                "level": 0.0,
+                "current": active,
+                "muted": False,
+                "quiet_event": True,
+            }
+        )
+    else:
+        for event in schedule:
+            event["muted"] = False
     return schedule
 
 

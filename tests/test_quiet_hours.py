@@ -1,4 +1,4 @@
-"""Quiet hours override and Home schedule; standard next-event highlighting."""
+"""Quiet Hours override and Home schedule; current-period highlighting."""
 
 from datetime import datetime
 import pytest
@@ -50,7 +50,7 @@ def test_api_time_validation(tmp_path):
         cfg.edit("led.quiet_hours.start", "7:00")
 
 
-def test_dashboard_next_and_grey_only_inside_interval():
+def test_dashboard_current_and_grey_only_inside_interval():
     led = Settings().led
     led.quiet_hours.enabled = True
     led.quiet_hours.start, led.quiet_hours.end = "23:00", "06:00"
@@ -59,7 +59,7 @@ def test_dashboard_next_and_grey_only_inside_interval():
     }
     rows = brightness_schedule(times, led.brightness, led.quiet_hours, now=at(12))
     assert len(rows) == 5
-    assert [r["name"] for r in rows if r["next"]] == ["Sunset"]
+    assert [r["name"] for r in rows if r["current"]] == ["Sunrise"]
     assert not any(r["muted"] for r in rows)
     led.quiet_hours.start, led.quiet_hours.end = "17:00", "05:00"
     rows = brightness_schedule(times, led.brightness, led.quiet_hours, now=at(12))
@@ -82,4 +82,97 @@ def test_dashboard_greys_only_events_inside_cross_midnight_window():
     }
     rows = brightness_schedule(times, led.brightness, led.quiet_hours, now=times["sunrise"])
     assert [row["name"] for row in rows if row["muted"]] == ["Dawn", "Dusk"]
-    assert [row["name"] for row in rows if row["next"]] == ["Sunset"]
+    assert [row["name"] for row in rows if row["current"]] == ["Sunrise"]
+
+
+def test_current_period_throughout_the_day_and_night():
+    led = Settings().led
+    times = {
+        name: at(h, m) for name, h, m in (("dawn", 6, 13), ("sunrise", 6, 38), ("sunset", 17, 39), ("dusk", 18, 4))
+    }
+    for hour, minute, expected in (
+        (0, 0, "Dusk"),  # the night level was set at yesterday's dusk
+        (6, 12, "Dusk"),
+        (6, 13, "Dawn"),
+        (6, 37, "Dawn"),
+        (6, 38, "Sunrise"),
+        (12, 0, "Sunrise"),
+        (17, 39, "Sunset"),
+        (18, 3, "Sunset"),
+        (18, 4, "Dusk"),
+        (23, 59, "Dusk"),
+    ):
+        rows = brightness_schedule(times, led.brightness, led.quiet_hours, now=at(hour, minute))
+        assert [row["name"] for row in rows if row["current"]] == [expected]
+        assert not any(row.get("quiet_event") for row in rows)
+
+
+@pytest.mark.parametrize(
+    "start,end,at_hour,at_minute,expected",
+    [
+        ("23:00", "05:00", 22, 59, "Dusk"),
+        ("23:00", "05:00", 23, 0, "Quiet hours"),
+        ("23:00", "05:00", 0, 0, "Quiet hours"),
+        ("23:00", "05:00", 4, 59, "Quiet hours"),
+        ("23:00", "05:00", 5, 0, "Dusk"),
+        ("17:00", "05:00", 16, 59, "Sunrise"),
+        ("17:00", "05:00", 17, 0, "Quiet hours"),
+        ("17:00", "05:00", 18, 51, "Quiet hours"),
+        ("17:00", "05:00", 5, 0, "Dusk"),
+        ("07:00", "09:00", 7, 0, "Quiet hours"),
+        ("07:00", "09:00", 8, 59, "Quiet hours"),
+        ("07:00", "09:00", 9, 0, "Sunrise"),
+        ("06:00", "08:00", 7, 0, "Quiet hours"),
+        ("06:00", "08:00", 8, 0, "Sunrise"),
+        ("17:00", "06:30", 6, 29, "Quiet hours"),
+        ("17:00", "06:30", 6, 30, "Dawn"),
+    ],
+)
+def test_current_respects_quiet_hours_and_boundary_times(start, end, at_hour, at_minute, expected):
+    led = Settings().led
+    led.quiet_hours.enabled = True
+    led.quiet_hours.start, led.quiet_hours.end = start, end
+    times = {
+        name: at(h, m) for name, h, m in (("dawn", 6, 13), ("sunrise", 6, 38), ("sunset", 17, 39), ("dusk", 18, 4))
+    }
+    rows = brightness_schedule(times, led.brightness, led.quiet_hours, now=at(at_hour, at_minute))
+    assert [row["name"] for row in rows if row["current"]] == [expected]
+    assert len(rows) == 5
+    expected_muted = {
+        "23:00": [],
+        "17:00": ["Dawn", "Sunset", "Dusk"] if end == "06:30" else ["Sunset", "Dusk"],
+        "07:00": [],
+        "06:00": ["Dawn", "Sunrise"],
+    }
+    assert [row["name"] for row in rows if row["muted"]] == expected_muted[start]
+
+
+def test_equal_quiet_hours_times_do_not_override_current():
+    led = Settings().led
+    led.quiet_hours.enabled = True
+    led.quiet_hours.start = led.quiet_hours.end = "17:00"
+    times = {
+        name: at(h, m) for name, h, m in (("dawn", 6, 13), ("sunrise", 6, 38), ("sunset", 17, 39), ("dusk", 18, 4))
+    }
+    rows = brightness_schedule(times, led.brightness, led.quiet_hours, now=at(18, 51))
+    assert [row["name"] for row in rows if row["current"]] == ["Dusk"]
+    assert len(rows) == 4
+
+
+def test_disabled_quiet_hours_does_not_override_current():
+    led = Settings().led
+    led.quiet_hours.enabled = False
+    led.quiet_hours.start, led.quiet_hours.end = "17:00", "05:00"
+    times = {
+        name: at(h, m) for name, h, m in (("dawn", 6, 13), ("sunrise", 6, 38), ("sunset", 17, 39), ("dusk", 18, 4))
+    }
+    rows = brightness_schedule(times, led.brightness, led.quiet_hours, now=at(18, 51))
+    assert [row["name"] for row in rows if row["current"]] == ["Dusk"]
+    assert not any(row["muted"] for row in rows)
+    assert len(rows) == 4
+
+
+def test_current_without_sun_times():
+    led = Settings().led
+    led.quiet_hours.enabled = True
+    assert brightness_schedule({}, led.brightness, led.quiet_hours, now=at(23)) == []
