@@ -122,6 +122,19 @@ def wind_barb(metar):
     return {"dir": direction, "kt": speed}
 
 
+def auto_rotate(services):
+    """Auto-rotate: whether it's on, its delay, and when it next changes the visualizer (Unix time; None when off)."""
+    rotate = services.config.data.visualizer.auto_rotate
+    scheduler = getattr(services, "scheduler", None)
+    runs = [j.next_run for j in scheduler.get_jobs("rotate_visualizer")] if scheduler is not None else []
+    runs = [r for r in runs if r is not None]
+    return {
+        "enabled": rotate.enabled,
+        "seconds": rotate.delay_seconds,
+        "next": min(runs).timestamp() if runs else None,  # schedule's times are the map's local time
+    }
+
+
 def live(services, now=None):
     """
     What the physical map is doing right now: every LED's effect, the OLED screen and the last locate pulse.
@@ -170,6 +183,7 @@ def live(services, now=None):
             "name": active_vis.NAME,
             "exclusive": active_vis.EXCLUSIVE,
             "areas": visualizer.shows_areas(active_vis),
+            "autoRotate": auto_rotate(services),
         },
         "strip": strip,
         "leds": leds,

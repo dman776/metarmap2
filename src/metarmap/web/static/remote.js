@@ -12,6 +12,21 @@
         return;
     }
 
+    // the page fills the window: an older iPad's Safari has no dvh, and its 100vh reaches under the toolbars
+    function fitHeight() {
+        document.documentElement.style.setProperty('--kiosk-h', window.innerHeight + 'px');
+    }
+    fitHeight();
+    window.addEventListener('resize', fitHeight);
+    function fitSoon() {  // again once Safari has finished rotating, or going in or out of fullscreen
+        fitHeight();
+        setTimeout(fitHeight, 300);
+        setTimeout(fitHeight, 1000);
+    }
+    window.addEventListener('orientationchange', fitSoon);
+    document.addEventListener('fullscreenchange', fitSoon);
+    document.addEventListener('webkitfullscreenchange', fitSoon);
+
     const LIVE_MS = 1000;
     const STATUS_MS = 60 * 1000;
     const HOLD_MS = 3000;  // after a touch, a control keeps what the user set while the map catches up
@@ -116,6 +131,50 @@
         c.addEventListener('click', function () { showVisualizer(+c.dataset.vis); });
     });
 
+    // ---- auto-rotate: the switch (saved), and a countdown to the next visualizer ------------------------------
+    const rotate = document.getElementById('auto-rotate');
+    const clock = document.getElementById('r-clock');
+    const clockLeft = document.getElementById('r-clock-left');
+    const clockText = document.getElementById('r-clock-text');
+    let rotateTouched = 0;
+    let rotateAt = null;  // when the next visualizer comes, in this browser's time (ms)
+    let rotateSeconds = 0;
+
+    rotate.addEventListener('change', async function () {
+        rotateTouched = Date.now();
+        try {
+            const res = await fetch('/visualizer/auto_rotate/' + (rotate.checked ? 'on' : 'off'), {cache: 'no-store'});
+            if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+            rotateTouched = 0;
+            poll();  // the new countdown now, not at the next poll
+        } catch (err) {
+            console.error('[remote] auto-rotate failed', err);
+        }
+    });
+
+    function showRotation(r, now) {
+        if (Date.now() - rotateTouched < HOLD_MS) return;
+        rotate.checked = r.enabled;
+        rotateSeconds = r.seconds;
+        if (!r.enabled || r.next === null) {
+            rotateAt = null;
+        } else {
+            const at = Date.now() + Math.max(0, r.next - now) * 1000;
+            if (rotateAt === null || Math.abs(at - rotateAt) > 1500) rotateAt = at;  // not jumping with each poll's delay
+        }
+        clock.hidden = rotateAt === null;
+        tick();
+    }
+
+    function tick() {
+        if (rotateAt === null) return;
+        const left = Math.max(0, Math.ceil((rotateAt - Date.now()) / 1000));
+        clockText.textContent = Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0');
+        const part = rotateSeconds > 0 ? Math.min(100, 100 * left / rotateSeconds) : 0;
+        clockLeft.setAttribute('stroke-dasharray', part.toFixed(1) + ' 100');
+    }
+    setInterval(tick, 250);
+
     // ---- brightness and the OLED switch: the map's, unless the user just changed them -------------------------
     let brtTouched = 0;
     let oledTouched = 0;
@@ -175,6 +234,7 @@
             const live = await res.json();
             online(true);
             followVisualizer(live.visualizer.active);
+            showRotation(live.visualizer.autoRotate, live.now);
             showBrightness(live.brightness);
             showOled(live.display);
             showAirports(live.leds, live.locate, live.now);

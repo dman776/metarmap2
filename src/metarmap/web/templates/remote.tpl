@@ -16,10 +16,6 @@
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
                 <span>Locator</span>
             </button>
-            <button class="r-tab" type="button" role="tab" id="tab-config" aria-controls="config" aria-selected="false" data-tab="config">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
-                <span>Config</span>
-            </button>
         </div>
         <span class="host r-host" role="status" title="{{myIP}} · v{{version}}"><span>{{myIP}}</span></span>
         <button class="btn icon r-full" type="button" aria-label="Fullscreen" aria-pressed="false" hidden>
@@ -51,6 +47,28 @@
         </div>
         <div class="r-legend" id="r-legend">
             %include("legend.tpl", legend=active['legend'])
+        </div>
+        <!-- the controls, under the legend (it scrolls on its own); spaced with margins: Safari before 14.1 has no flex gap -->
+        <div class="r-foot">
+            <div class="r-foot-item r-rotate">
+                <label class="lbl" for="auto-rotate">Auto-rotate</label>
+                <input id="auto-rotate" class="switch" type="checkbox"{{!' checked' if auto_rotate else ''}}>
+                <span class="r-clock" id="r-clock" role="timer" aria-label="Next visualizer" hidden>
+                    <svg width="26" height="26" viewBox="0 0 36 36" aria-hidden="true"><circle class="track" cx="18" cy="18" r="15"/><circle class="left" id="r-clock-left" cx="18" cy="18" r="15" pathLength="100" stroke-dasharray="100 100"/></svg>
+                    <span id="r-clock-text"></span>
+                </span>
+            </div>
+            <div class="r-foot-item r-brt" title="Until the next sunrise, sunset, dawn or dusk, which set it again">
+                <label class="lbl" for="brightness">LED brightness</label>
+                <input id="brightness" type="range" min="0" max="1" step="0.01" value="{{brightness}}" data-label="brt_label" data-format="pct">
+                <span class="r-val" id="brt_label">{{int(round(brightness * 100))}}%</span>
+            </div>
+            % if oled_on is not None:
+            <div class="r-foot-item" title="Back on when the map restarts">
+                <label class="lbl" for="oled-on">OLED</label>
+                <input id="oled-on" class="switch" type="checkbox"{{!' checked' if oled_on else ''}}>
+            </div>
+            % end
         </div>
     </section>
 
@@ -84,26 +102,6 @@
             </button>
             % end
         </div>
-    </section>
-
-    <section class="r-panel r-ctl" id="config" role="tabpanel" aria-labelledby="tab-config" hidden>
-        <div class="card r-set">
-            <div class="set-inline">
-                <label class="lbl" for="brightness">LED brightness</label>
-                <span class="big" id="brt_label">{{int(round(brightness * 100))}}%</span>
-            </div>
-            <input id="brightness" type="range" min="0" max="1" step="0.01" value="{{brightness}}" data-label="brt_label" data-format="pct">
-            <p class="muted">Until the next sunrise, sunset, dawn or dusk, which set it again.</p>
-        </div>
-        % if oled_on is not None:
-        <div class="card r-set">
-            <div class="set-inline">
-                <label class="lbl" for="oled-on">OLED display</label>
-                <input id="oled-on" class="switch" type="checkbox"{{!' checked' if oled_on else ''}}>
-            </div>
-            <p class="muted">Back on when the map restarts.</p>
-        </div>
-        % end
     </section>
 </div>
 
