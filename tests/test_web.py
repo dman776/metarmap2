@@ -1356,7 +1356,7 @@ def test_remote_page(client):
     assert status == 200
     assert '<body class="kiosk">' in body and 'class="topbar"' not in body and 'class="foot"' not in body
     assert 'name="apple-mobile-web-app-capable" content="yes"' in body
-    assert [t.split('"')[0] for t in body.split('data-tab="')[1:]] == ["visualizer", "map", "locator", "config"]
+    assert [t.split('"')[0] for t in body.split('data-tab="')[1:]] == ["visualizer", "map", "locator"]
     assert 'id="locator" role="tabpanel" aria-labelledby="tab-locator" hidden' in body
     # the Map tab: map.js is only loaded when it opens
     assert 'id="r-map" role="tabpanel" aria-labelledby="tab-map" hidden' in body

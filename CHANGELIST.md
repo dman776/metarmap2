@@ -3,9 +3,11 @@
 - **Current brightness schedule highlight** (Home): highlight the active sun-brightness period rather than the next
   event; while quiet hours are active, highlight the Quiet hours row instead. From Travis Cole (traviscole)
 - Remote: the visualizer's name is larger, to read across the room (it grows with the screen)
-- **Auto-rotate on the Remote** (Visualizer tab, a footer under the legend): a switch turns auto-rotate on or off, and a small clock counts
-  down to the next visualizer. The switch is saved (`visualizer.auto_rotate.enabled`), with no login, through the
-  new `/visualizer/auto_rotate/on` and `/off`; `/api/live` has `visualizer.autoRotate` for the countdown
+- **Remote: controls in a footer** (Visualizer tab, under the legend, which still scrolls): an auto-rotate switch with a
+  small clock counting down to the next visualizer, LED brightness and the OLED switch. The Config tab is gone. The
+  auto-rotate switch is saved (`visualizer.auto_rotate.enabled`), with no login, through the new
+  `/visualizer/auto_rotate/on` and `/off`; `/api/live` has `visualizer.autoRotate` for the countdown
+- Remote: spacing that works on an older iPad's Safari (before 14.1)
 
 ### dman776 3.1.4 (2026-11-02)
 

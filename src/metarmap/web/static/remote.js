@@ -12,6 +12,14 @@
         return;
     }
 
+    // the page fills the window: an older iPad's Safari has no dvh, and its 100vh reaches under the toolbars
+    function fitHeight() {
+        document.documentElement.style.setProperty('--kiosk-h', window.innerHeight + 'px');
+    }
+    fitHeight();
+    window.addEventListener('resize', fitHeight);
+    window.addEventListener('orientationchange', function () { setTimeout(fitHeight, 300); });
+
     const LIVE_MS = 1000;
     const STATUS_MS = 60 * 1000;
     const HOLD_MS = 3000;  // after a touch, a control keeps what the user set while the map catches up
