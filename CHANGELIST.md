@@ -1,4 +1,4 @@
-### Unreleased
+### dman776 3.1.5 (2026-11-03)
 
 - **Current brightness schedule highlight** (Home): highlight the active sun-brightness period rather than the next
   event; while quiet hours are active, highlight the Quiet hours row instead. From Travis Cole (traviscole)
