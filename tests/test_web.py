@@ -1173,10 +1173,15 @@ def test_a_slow_fetch_does_not_hold_up_other_requests(services):
         release.wait(10)  # like aviationweather.gov taking its time
 
     services.metars.fetch = slow_fetch
+    services.metars.station_names = lambda: {}  # /fetch names new airports after the fetch
+    services.config.fill_names = lambda names: None
+    statuses = []
     server = serve(create_app(services, ip="10.0.0.2"), "127.0.0.1", 0)
     base = f"http://127.0.0.1:{server.server_port}"
     try:
-        fetch = threading.Thread(target=lambda: urllib.request.urlopen(base + "/fetch", timeout=15).read())
+        fetch = threading.Thread(
+            target=lambda: statuses.append(urllib.request.urlopen(base + "/fetch", timeout=15).status)
+        )
         fetch.start()
         assert started.wait(5)
         with urllib.request.urlopen(base + "/api/live", timeout=3) as response:  # answers while /fetch waits
@@ -1184,7 +1189,7 @@ def test_a_slow_fetch_does_not_hold_up_other_requests(services):
         assert fetch.is_alive()
         release.set()
         fetch.join(10)
-        assert not fetch.is_alive()
+        assert not fetch.is_alive() and statuses == [200]
     finally:
         release.set()
         server.shutdown()

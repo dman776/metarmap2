@@ -45,17 +45,27 @@ def make_app(tmp_path):
     from metarmap.oled.screen import FakeScreen
     from metarmap.settings import Settings
 
+    built = []
+
     def make(**settings):
         repo = Path(__file__).parent.parent
         config = Settings.load(repo / "config.json")
         for key, value in settings.items():
             config.set(key, value)
         config.save(tmp_path / "config.json")
-        return app_module.build(
-            str(tmp_path / "config.json"), strip=FakeStrip(config.led.count), screen=FakeScreen(), fetch=False
+        built.append(
+            app_module.build(
+                str(tmp_path / "config.json"), strip=FakeStrip(config.led.count), screen=FakeScreen(), fetch=False
+            )
         )
+        return built[-1]
 
-    return make
+    yield make
+    # a stopped OLED loop finishes its LED locate pulse (about a second) first: wait, so it can't run into later tests
+    for app in built:
+        app.display.stop(clear=False)
+        if app.display._thread.ident is not None:
+            app.display._thread.join(5)
 
 
 @pytest.fixture(autouse=True)

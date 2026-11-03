@@ -262,6 +262,7 @@ def test_restart_before_start_waits_for_start():
 
 def test_parallel_restarts_leave_one_loop():
     """An airport edit and the watchdog can restart the loop at the same time."""
+    others = set(threading.enumerate())  # e.g. another test's loop, still finishing a locate pulse
     d, _, _, _ = make()
     d.start()
     try:
@@ -271,7 +272,7 @@ def test_parallel_restarts_leave_one_loop():
         for t in threads:
             t.join()
         time.sleep(0.2)
-        loops = [t for t in threading.enumerate() if t.name == "display" and t.is_alive()]
+        loops = [t for t in threading.enumerate() if t.name == "display" and t.is_alive() and t not in others]
         assert loops == [d._thread]
     finally:
         d.stop()
