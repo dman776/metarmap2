@@ -5,6 +5,12 @@
   its color are unchanged, the OLED still marks it (`VFR*`), and the Map page's popup says *No category*; the
   legend follows the setting. From Travis Cole (traviscole)
 
+- **Quiet hours** (Config > Physical display, `led.quiet_hours`, off by default): override physical LED
+  brightness to 0% between local start/end times, including overnight intervals, then return to the sun schedule.
+  The Home page displays one quiet-hours row and mutes only sun events within that interval; the original next-event
+  highlight remains unchanged. Invalid hand-edited time values are logged and quiet hours are disabled at startup.
+  From Travis Cole (traviscole)
+
 ### dman776 3.1.3 (2026-11-01)
 
 - Faster LEDs on a long strip: the animations draw into the strip first and the renderer sends it once per frame.

@@ -89,6 +89,15 @@
         % slider('led.brightness.dimmed', d.led.brightness.dimmed, 'Dawn / dusk brightness', 'Dawn to sunrise, sunset to dusk.')
         % slider('led.brightness.off', d.led.brightness.off, 'Night brightness', 'Dusk to dawn.')
         <p class="muted" style="margin: 0; padding: 0 24px 18px; font-size: 13px">The level in use now changes right away; the others take over at their time of day.</p>
+        % switch('led.quiet_hours.enabled', d.led.quiet_hours.enabled, 'Quiet hours', 'Force physical LED brightness to 0% between the times below, regardless of sunrise or sunset.')
+        <div class="set">
+            <div><label class="t" for="quiet-hours-start">Start quiet hours</label><div class="d">Local Raspberry Pi time.</div></div>
+            <input id="quiet-hours-start" type="time" value="{{d.led.quiet_hours.start}}" data-key="led.quiet_hours.start" step="60">
+        </div>
+        <div class="set">
+            <div><label class="t" for="quiet-hours-end">End quiet hours</label><div class="d">Local Raspberry Pi time. Returns to the scheduled brightness. The interval can cross midnight.</div></div>
+            <input id="quiet-hours-end" type="time" value="{{d.led.quiet_hours.end}}" data-key="led.quiet_hours.end" step="60">
+        </div>
     </section>
 
     <section class="card settings">

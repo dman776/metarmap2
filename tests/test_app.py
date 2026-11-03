@@ -30,6 +30,22 @@ def test_build_wires_the_parts_together(make_app):
     assert len(app.renderer.pixels()) == app.config.data.led.count
 
 
+def test_quiet_hours_jobs(make_app):
+    app = make_app(
+        **{
+            "led.quiet_hours.enabled": True,
+            "led.quiet_hours.start": "22:00",
+            "led.quiet_hours.end": "07:00",
+        }
+    )
+
+    assert jobs(app)["adjust_brightness_for_time"] == 2
+    assert {job.at_time.strftime("%H:%M") for job in app.scheduler.get_jobs("quiet_hours")} == {
+        "22:00",
+        "07:00",
+    }
+
+
 def test_jobs(make_app):
     app = make_app()
     assert jobs(app) == {

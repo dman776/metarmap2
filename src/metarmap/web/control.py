@@ -162,6 +162,9 @@ def add_routes(app, services, site, auth, updates=None):
         renderer.refresh()
         if key.startswith("visualizer.auto_rotate."):  # the new timer starts now, no restart needed
             services.schedule_rotation()
+        if key.startswith("led.quiet_hours."):
+            services.schedule_quiet_hours()
+            renderer.adjust_brightness_for_time()
         if key.startswith("led.brightness.") and key.rsplit(".", 1)[1] == renderer.scheduled_level():
             renderer.adjust_brightness_for_time()  # the level in use now changes now; the others at their time
         if key == "led.inittest" and config.data.led.inittest:  # shows what it looks like, without a restart

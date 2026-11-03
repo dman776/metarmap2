@@ -57,7 +57,10 @@ Returns a read-only snapshot of the map's state as `application/json`. No authen
     "led.dim_on_refresh": true,
     "led.brightness.normal": 0.5,
     "led.brightness.dimmed": 0.1,
-    "led.brightness.off": 0.01
+    "led.brightness.off": 0.01,
+    "led.quiet_hours.enabled": false,
+    "led.quiet_hours.start": "23:00",
+    "led.quiet_hours.end": "05:00"
   },
   "display": { "enabled": true, "on": true },
   "suntimes": {
@@ -396,6 +399,7 @@ Settings that apply right away:
 
 `dev_mode` (top level, `false` by default) can only be changed by editing `config.json` by hand: `/config/edit/dev_mode/…` is a 400. With it on, Config > Software offers **Branch** under *Update to*, with a list of GitHub's branches (refreshed by each check: push a branch, then **Check now**). Turning it off makes a `branch` channel act as `releases`; the saved channel and branch stay. It also turns on mock METARs on the Airports page (see *Mock METARs*).
 - `led.brightness.normal`, `led.brightness.dimmed`, `led.brightness.off`: the level in use now changes right away; the others take over at their sun time
+- `led.quiet_hours.enabled`, `led.quiet_hours.start`, `led.quiet_hours.end`: the LEDs are off (0%) from the start time to the end time, in the Pi's local time; the window can cross midnight. Times are 24-hour `HH:MM` (e.g. `/config/edit/led.quiet_hours.start/22:30`); anything else is a 400. Changes apply right away
 - `led.inittest`: turning it on also runs the test pattern once now
 - `led.dim_on_refresh`: the LEDs fade to half their brightness while METARs are fetched (at least a second), then fade back
 - `visualizer.active`, the default visualizer used at startup. Saving it doesn't change the visualizer that's running now; use `/visualizer/<n>` for that. (`visualizer.numbering` says which list of visualizer numbers it counts in; the map keeps it, and `/config/edit/visualizer.numbering/…` is a 400.)

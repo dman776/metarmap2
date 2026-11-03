@@ -85,14 +85,25 @@
             <label class="lbl" for="brightness">LED brightness</label>
             <div class="big" id="brt_label">{{int(round(brightness * 100))}}%</div>
             <input id="brightness" type="range" min="0" max="1" step="0.01" value="{{brightness}}" data-label="brt_label" data-format="pct">
+            % if quiet_hours.enabled and quiet_hours.start != quiet_hours.end:
+            <p class="muted" style="margin: 0; font-size: 13px">Quiet hours: {{quiet_hours.start}}–{{quiet_hours.end}} (0%).<span class="quiet-details">The physical LEDs return to their normal schedule when quiet hours end.</span></p>
+            % else:
             <p class="muted" style="margin: 0; font-size: 13px">Temporary. The schedule below sets it again at the next sun event.</p>
+            % end
             % if schedule:
             <dl class="sched">
                 % for s in schedule:
-                <div{{!' class="next"' if s['next'] else ''}}>
-                    <dt>{{s['name']}}{{' · next' if s['next'] else ''}}</dt>
-                    <dd>{{s['time'].strftime("%H:%M")}} <span>→ {{int(round(s['level'] * 100))}}%</span></dd>
+                % if s.get('quiet_event'):
+                <div class="quiet-row{{' next' if s['next'] else ''}}">
+                    <dt>Quiet hours{{' · next' if s['next'] else ''}}</dt>
+                    <dd><span class="sched-time quiet-times" title="{{s['start']}}–{{s['end']}}"><span>{{s['start']}}</span><span class="quiet-end">{{s['end']}}</span></span><span class="sched-arrow">→</span><span class="sched-level">0%</span></dd>
                 </div>
+                % else:
+                <div class="{{'next ' if s['next'] else ''}}{{'muted-event' if s.get('muted') else ''}}">
+                    <dt>{{s['name']}}{{' · next' if s['next'] else ''}}</dt>
+                    <dd><span class="sched-time">{{s['time'].strftime("%H:%M")}}</span><span class="sched-arrow">→</span><span class="sched-level">{{int(round(s['level'] * 100))}}%</span></dd>
+                </div>
+                % end
                 % end
             </dl>
             % end

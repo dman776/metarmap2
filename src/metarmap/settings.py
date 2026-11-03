@@ -7,6 +7,7 @@ so older or hand-edited files keep working and round-trip on save.
 
 import dataclasses
 import json
+import logging
 import os
 import re
 import typing
@@ -38,9 +39,23 @@ class Brightness(_Section):
 LED_PINS = (18, 12, 13, 21, 10)
 # the order the strip wants its colors in; the wrong one swaps red and green
 LED_ORDERS = ("GRB", "RGB")
+QUIET_TIME = re.compile(r"^(?:[01][0-9]|2[0-3]):[0-5][0-9]$")
+
+
+def valid_quiet_time(value):
+    return isinstance(value, str) and QUIET_TIME.fullmatch(value) is not None
+
+
 # geo.map.traffic_seconds: the fewest and most seconds between live traffic fetches. adsb.fi allows one request a
 # second; 2 leaves room for a slow answer and a retry
 TRAFFIC_SECONDS = (2, 60)
+
+
+@dataclass
+class QuietHours(_Section):
+    enabled: bool = False
+    start: str = "23:00"  # local time, 24-hour HH:MM
+    end: str = "05:00"
 
 
 @dataclass
@@ -50,6 +65,7 @@ class Led(_Section):
     pin: int = 18
     order: str = "GRB"
     brightness: Brightness = field(default_factory=Brightness)
+    quiet_hours: QuietHours = field(default_factory=QuietHours)
     inittest: bool = True
     dim_on_refresh: bool = True  # the LEDs dim while METARs are fetched, a sign of an update
 
@@ -163,6 +179,15 @@ class Settings(_Section):
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Settings":
         settings = _from_dict(cls, data)
+        # a hand-edited time the scheduler can't take would stop the map at startup, or when quiet hours is turned on
+        quiet = settings.led.quiet_hours
+        if not all(valid_quiet_time(t) for t in (quiet.start, quiet.end)):
+            logging.getLogger(__name__).warning(
+                "Invalid quiet hours in config.json (start=%r, end=%r); quiet hours is off and the times are reset",
+                quiet.start,
+                quiet.end,
+            )
+            quiet.enabled, quiet.start, quiet.end = False, QuietHours.start, QuietHours.end
         renumber_visualizers(settings, data)
         settings._extra.pop("color", None)  # the LED colors live in the code now (3.1.2); an older file's are dropped
         return settings
