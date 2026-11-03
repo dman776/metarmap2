@@ -33,13 +33,11 @@ def test_invalid_file_disables_quiet_hours(caplog):
     assert "Invalid quiet hours" in caplog.text
 
 
-def test_legacy_setting_migrates():
+def test_invalid_time_is_reset_even_when_off():
     data = Settings().to_dict()
-    data["led"]["night_off"] = {"enabled": True, "start": "23:00", "end": "06:00"}
-    del data["led"]["quiet_hours"]
-    cfg = Settings.from_dict(data)
-    assert cfg.led.quiet_hours.enabled and cfg.led.quiet_hours.start == "23:00"
-    assert "night_off" not in cfg.to_dict()["led"]
+    data["led"]["quiet_hours"] = {"enabled": False, "start": "22:00", "end": "bad"}
+    quiet = Settings.from_dict(data).led.quiet_hours
+    assert (quiet.enabled, quiet.start, quiet.end) == (False, "23:00", "05:00")
 
 
 def test_api_time_validation(tmp_path):

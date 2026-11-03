@@ -338,6 +338,19 @@ def test_estimated_category_breathing(client):
     assert 'data-key="visualizer.estimated_category_breathing"' in client("/config")[1]
 
 
+def test_quiet_hours(client):
+    def quiet():
+        return client.services.config.data.led.quiet_hours
+
+    assert client("/config/edit/led.quiet_hours.start/22:30")[0] == 200
+    assert client("/config/edit/led.quiet_hours.start/7:00")[0] == 400
+    assert client("/config/edit/led.quiet_hours.enabled/true")[0] == 200
+    assert (quiet().enabled, quiet().start, quiet().end) == (True, "22:30", "05:00")
+    config = client.json("/api/status", auth=False)["config"]
+    assert (config["led.quiet_hours.enabled"], config["led.quiet_hours.start"]) == (True, "22:30")
+    assert 'data-key="led.quiet_hours.start"' in client("/config")[1]
+
+
 def test_lightning_color(client):
     def color():
         return client.services.config.data.lightning.color

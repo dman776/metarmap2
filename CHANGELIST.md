@@ -9,6 +9,7 @@
   brightness to 0% between local start/end times, including overnight intervals, then return to the sun schedule.
   The Home page displays one quiet-hours row and mutes only sun events within that interval; the original next-event
   highlight remains unchanged. Invalid hand-edited time values are logged and quiet hours are disabled at startup.
+  From Travis Cole (traviscole)
 
 ### dman776 3.1.3 (2026-11-01)
 

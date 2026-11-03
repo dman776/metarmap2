@@ -88,7 +88,7 @@
             % if quiet_hours.enabled and quiet_hours.start != quiet_hours.end:
             <p class="muted" style="margin: 0; font-size: 13px">Quiet hours: {{quiet_hours.start}}–{{quiet_hours.end}} (0%).<span class="quiet-details">The physical LEDs return to their normal schedule when quiet hours end.</span></p>
             % else:
-            <p class="muted" style="margin: 0; font-size: 13px">Temporary brightness adjustment. Scheduled brightness resumes at the next sun event.</p>
+            <p class="muted" style="margin: 0; font-size: 13px">Temporary. The schedule below sets it again at the next sun event.</p>
             % end
             % if schedule:
             <dl class="sched">

@@ -54,8 +54,8 @@ TRAFFIC_SECONDS = (2, 60)
 @dataclass
 class QuietHours(_Section):
     enabled: bool = False
-    start: str = "22:00"  # local time, 24-hour HH:MM
-    end: str = "07:00"
+    start: str = "23:00"  # local time, 24-hour HH:MM
+    end: str = "05:00"
 
 
 @dataclass
@@ -178,20 +178,16 @@ class Settings(_Section):
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Settings":
-        # Existing night_off installations retain their times and enabled flag.
-        if isinstance(data, dict) and isinstance(data.get("led"), dict):
-            led = data["led"]
-            if "night_off" in led:
-                data = {**data, "led": dict(led)}
-                old = data["led"].pop("night_off")
-                data["led"].setdefault("quiet_hours", old)
         settings = _from_dict(cls, data)
+        # a hand-edited time the scheduler can't take would stop the map at startup, or when quiet hours is turned on
         quiet = settings.led.quiet_hours
-        if quiet.enabled and not all(valid_quiet_time(t) for t in (quiet.start, quiet.end)):
+        if not all(valid_quiet_time(t) for t in (quiet.start, quiet.end)):
             logging.getLogger(__name__).warning(
-                "Invalid quiet hours in config.json (start=%r, end=%r); disabling quiet hours", quiet.start, quiet.end
+                "Invalid quiet hours in config.json (start=%r, end=%r); quiet hours is off and the times are reset",
+                quiet.start,
+                quiet.end,
             )
-            quiet.enabled = False
+            quiet.enabled, quiet.start, quiet.end = False, QuietHours.start, QuietHours.end
         renumber_visualizers(settings, data)
         settings._extra.pop("color", None)  # the LED colors live in the code now (3.1.2); an older file's are dropped
         return settings

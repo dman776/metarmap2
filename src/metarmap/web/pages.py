@@ -23,7 +23,6 @@ def stations(services):
 
 def index(services, site):
     s = stations(services)
-
     return render(
         site,
         "index.tpl",
