@@ -1,5 +1,10 @@
 ### Unreleased
 
+- **Current brightness schedule highlight** (Home): highlight the active sun-brightness period rather than the next
+  event; while quiet hours are active, highlight the Quiet hours row instead. From Travis Cole (traviscole)
+
+### dman776 3.1.4 (2026-11-02)
+
 - **Estimated flight category breathing** (Config > Visualizers, `visualizer.estimated_category_breathing`,
   on by default): off shows an estimated flight category in a steady color instead of breathing. The estimate and
   its color are unchanged, the OLED still marks it (`VFR*`), and the Map page's popup says *No category*; the

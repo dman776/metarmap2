@@ -1085,17 +1085,55 @@ def test_below_vfr_is_worst_first():
     assert [x["code"] for x in views.summary(s)["below_vfr"]] == ["B", "D", "A"]
 
 
-def test_sun_schedule_flags_the_next_change():
+def test_sun_schedule_flags_the_current_period():
     levels = Settings().led.brightness
     schedule = views.sun_schedule(SUN, levels, now=SUN["sunrise"] + timedelta(minutes=1))
-    assert [(s["name"], s["level"], s["next"]) for s in schedule] == [
+    assert [(s["name"], s["level"], s["current"]) for s in schedule] == [
         ("Dawn", levels.dimmed, False),
-        ("Sunrise", levels.normal, False),
-        ("Sunset", levels.dimmed, True),
+        ("Sunrise", levels.normal, True),
+        ("Sunset", levels.dimmed, False),
         ("Dusk", levels.off, False),
     ]
-    assert not any(s["next"] for s in views.sun_schedule(SUN, levels, now=SUN["dusk"] + timedelta(hours=1)))
+    at_dusk = views.sun_schedule(SUN, levels, now=SUN["dusk"])
+    assert [s["name"] for s in at_dusk if s["current"]] == ["Dusk"]
+    before_dawn = views.sun_schedule(SUN, levels, now=SUN["dawn"] - timedelta(minutes=1))
+    assert [s["name"] for s in before_dawn if s["current"]] == ["Dusk"]
     assert views.sun_schedule({}, levels) == []
+
+
+def test_home_brightness_schedule_labels_current_period(client, monkeypatch):
+    """The Home template must render the current style, not the old next style."""
+    levels = client.services.config.data.led.brightness
+    current = views.sun_schedule(SUN, levels, now=SUN["sunrise"])
+    monkeypatch.setattr(views, "brightness_schedule", lambda *args, **kwargs: current)
+    body = client("/")[1]
+    assert "Sunrise · current" in body
+    assert 'class="current "' in body
+    assert "· next" not in body
+
+
+def test_home_quiet_hours_row_labels_current(client, monkeypatch):
+    """The overridden Quiet Hours row must also get the same current highlight."""
+    levels = client.services.config.data.led.brightness
+    current = views.sun_schedule(SUN, levels, now=SUN["sunrise"])
+    for row in current:
+        row["current"] = False
+    current.append(
+        {
+            "name": "Quiet hours",
+            "start": "17:00",
+            "end": "05:00",
+            "level": 0.0,
+            "current": True,
+            "muted": False,
+            "quiet_event": True,
+        }
+    )
+    monkeypatch.setattr(views, "brightness_schedule", lambda *args, **kwargs: current)
+    body = client("/")[1]
+    assert "Quiet hours · current" in body
+    assert 'class="quiet-row current"' in body
+    assert "· next" not in body
 
 
 def test_map_settings_pick_the_chart_covering_the_airports(services):

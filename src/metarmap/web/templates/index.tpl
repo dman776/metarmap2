@@ -94,13 +94,13 @@
             <dl class="sched">
                 % for s in schedule:
                 % if s.get('quiet_event'):
-                <div class="quiet-row{{' next' if s['next'] else ''}}">
-                    <dt>Quiet hours{{' · next' if s['next'] else ''}}</dt>
+                <div class="quiet-row{{' current' if s['current'] else ''}}">
+                    <dt>Quiet hours{{' · current' if s['current'] else ''}}</dt>
                     <dd><span class="sched-time quiet-times" title="{{s['start']}}–{{s['end']}}"><span>{{s['start']}}</span><span class="quiet-end">{{s['end']}}</span></span><span class="sched-arrow">→</span><span class="sched-level">0%</span></dd>
                 </div>
                 % else:
-                <div class="{{'next ' if s['next'] else ''}}{{'muted-event' if s.get('muted') else ''}}">
-                    <dt>{{s['name']}}{{' · next' if s['next'] else ''}}</dt>
+                <div class="{{'current ' if s['current'] else ''}}{{'muted-event' if s.get('muted') else ''}}">
+                    <dt>{{s['name']}}{{' · current' if s['current'] else ''}}</dt>
                     <dd><span class="sched-time">{{s['time'].strftime("%H:%M")}}</span><span class="sched-arrow">→</span><span class="sched-level">{{int(round(s['level'] * 100))}}%</span></dd>
                 </div>
                 % end
