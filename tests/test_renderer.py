@@ -77,6 +77,19 @@ def test_first_frame_lights_the_leds(config, clock):
     assert strip[4] == flightcategory.COLORS["LIFR"]
 
 
+def test_draw_frame_lights_the_leds_at_once(config, clock):
+    r, strip = make(config, clock)
+    r.draw_frame()
+    assert strip[0] == flightcategory.COLORS["VFR"]
+    assert strip[4] == flightcategory.COLORS["LIFR"]
+
+
+def test_draw_frame_errors_are_logged_not_raised(config, clock, monkeypatch):
+    r, strip = make(config, clock)
+    monkeypatch.setattr(strip, "show", lambda: (_ for _ in ()).throw(RuntimeError("bus")))
+    r.draw_frame()
+
+
 def test_led_states_for_the_web_ui(config, clock):
     r, _ = make(config, clock)
     leds, strip = r.led_states()

@@ -19,6 +19,9 @@ from metarmap.oled.screens import airports_to_show, message_screen, pages_for, s
 
 log = logging.getLogger(__name__)
 
+# at startup, seconds the LEDs show the visualizer before the first "Highlight active airport" pulse (app.run)
+STARTUP_LOCATE_DELAY = 2.0
+
 
 def watchdog_limit(delay: float) -> float:
     """Seconds without a new page before the loop counts as stuck: two pages per airport plus the locate pulse."""
@@ -49,6 +52,8 @@ class Display(object):
         self._screen = None  # what is on the OLED right now (mirrored by the web UI)
         self.last_change = self._clock.time()  # when the loop last moved on; used by the watchdog
         self.on = False  # whether the screen should be showing: start()/turn_on() set it, turn_off() clears it
+        self._locate_delay = 0.0  # seconds the next locate pulse waits (start(locate_delay=...)); then 0
+        self.locate_thread: Optional[threading.Thread] = None  # a delayed pulse, waiting or running
 
     def _local_timezone(self):
         location = utils.get_location(self._config.data.geo.city)
@@ -64,7 +69,13 @@ class Display(object):
     def is_alive(self):
         return self._thread.is_alive()
 
-    def start(self):
+    def start(self, locate_delay: float = 0.0):
+        """
+        Starts the loop. locate_delay: seconds the first airport's locate pulse waits (on its own thread, so the
+        OLED shows the airport at once). At startup that lets the visualizer show first, instead of the pulse
+        coming right after the LEDs' first frame, which looks like a glitch.
+        """
+        self._locate_delay = locate_delay
         self.on = True
         self.last_change = self._clock.time()
         self._thread.start()
@@ -133,11 +144,11 @@ class Display(object):
                 if event.is_set():
                     return
                 if self._renderer is not None and self._config.data.display_screen.locate_active:
-                    try:
-                        self._renderer.locate(pixel)  # a virtual airport: on the web map only
-                    except Exception as e:
-                        # a failed LED pulse shouldn't cost the airport its pages
-                        log.warning(f"locate {airport}: {e}")
+                    if self._locate_delay > 0:
+                        self._locate_later(pixel, airport, self._locate_delay, event)
+                    else:
+                        self._locate(pixel, airport)
+                self._locate_delay = 0.0  # only the first airport's pulse waits
                 try:
                     self.show_airport(
                         airport,
@@ -153,6 +164,23 @@ class Display(object):
             if not airports:
                 self.last_change = self._clock.time()
                 self._clock.wait(event, 5)  # nothing to show; don't spin
+
+    def _locate(self, pixel, airport):
+        try:
+            self._renderer.locate(pixel)  # a virtual airport: on the web map only
+        except Exception as e:
+            # a failed LED pulse shouldn't cost the airport its pages
+            log.warning(f"locate {airport}: {e}")
+
+    def _locate_later(self, pixel, airport, delay, event):
+        """The pulse after `delay` seconds on its own thread, while the loop goes on to the airport's pages."""
+
+        def pulse():
+            if not self._clock.wait(event, delay):  # not if the loop stopped meanwhile
+                self._locate(pixel, airport)
+
+        self.locate_thread = threading.Thread(target=pulse, name="locate", daemon=True)
+        self.locate_thread.start()
 
     def show_airport(self, airport, metar, delay, event, virtual=False):
         for page in pages_for(metar):

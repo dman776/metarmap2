@@ -117,6 +117,32 @@ def test_locate_pulse_once_per_airport():
     assert renderer.located == [0, 2, 3]  # LED positions of KHOU, KDKR, KGLS
 
 
+def test_the_first_pulse_can_wait_while_the_oled_goes_on():
+    """At startup (start(locate_delay=2)) the LEDs show the visualizer before the first pulse; the OLED doesn't wait."""
+    renderer = FakeRenderer()
+    threads = {}
+    locate = renderer.locate
+    renderer.locate = lambda pixel: threads.setdefault(pixel, threading.current_thread().name) and locate(pixel)
+    d, screen, _, _ = make(renderer=renderer, stop_after=5)
+    d._locate_delay = 2.0  # what start(locate_delay=2.0) sets
+    run(d)
+    d.locate_thread.join(5)
+    assert pages(screen) == [("KHOU", 1), ("KHOU", 2), ("KDKR", 0), ("KGLS", 1), ("KGLS", 2)]  # as without it
+    assert sorted(renderer.located) == [0, 2, 3]  # every airport still pulses once
+    assert threads[0] == "locate" and threads[2] != "locate"  # only the first waits, off the loop's thread
+    assert d._locate_delay == 0.0
+
+
+def test_a_delayed_pulse_is_dropped_if_the_loop_stops():
+    renderer = FakeRenderer()
+    d, _, _, _ = make(renderer=renderer)
+    event = threading.Event()
+    event.set()
+    d._locate_later(0, "KHOU", 2.0, event)
+    d.locate_thread.join(5)
+    assert renderer.located == []
+
+
 def test_locate_can_be_turned_off():
     renderer = FakeRenderer()
     d, _, _, _ = make(renderer=renderer, locate_active=False, stop_after=5)
