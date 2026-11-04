@@ -482,6 +482,25 @@ def test_turning_on_the_test_pattern_runs_it(client, monkeypatch):
     assert ran.wait(5)
 
 
+def test_play_the_startup_sequence_now(client, monkeypatch):
+    app = client.services
+    ran = threading.Event()
+    monkeypatch.setattr(app.renderer, "test_pattern", ran.set)
+    app.config.edit("led.inittest", "false")
+    assert client("/led/init_sequence/play")[0] == 200
+    assert ran.wait(5)  # whether or not it plays at startup
+
+
+def test_the_startup_sequence_on_the_config_page(client):
+    body = client("/config")[1]
+    assert 'data-key="led.init_sequence"' in body and '<option value="radar">Radar sweep</option>' in body
+    assert '<option value="comet" selected>Comet</option>' in body
+    assert 'data-key="led.init_sweep_from"' in body and '<option value="W" selected>West to east</option>' in body
+    assert 'data-call="/led/init_sequence/play"' in body
+    assert client("/config/edit/led.init_sequence/spiral")[0] == 400
+    assert client("/config/edit/led.init_sweep_from/up")[0] == 400
+
+
 def test_choose_visualizers_for_auto_rotate(client):
     app = client.services
     body = client("/config")[1]

@@ -154,6 +154,11 @@ def add_routes(app, services, site, auth, updates=None):
         renderer.locate(pixnum)
         return pages.metars(services, site)
 
+    def play_init_sequence():
+        """Config > Physical display's Play now: the startup sequence once, as it's set (on or off at startup)."""
+        threading.Thread(target=renderer.test_pattern, name="test-pattern", daemon=True).start()
+        return ""
+
     def fetch():
         with renderer.dimmed():
             services.metars.fetch()
@@ -302,6 +307,7 @@ def add_routes(app, services, site, auth, updates=None):
     app.route("/brightness/<level>", "GET", brightness)
     app.route("/display/<state>", "GET", display_power)
     app.route("/locate/<pixnum>", "GET", locate)
+    app.route("/led/init_sequence/play", "GET", play_init_sequence)
     app.route("/fetch", "GET", fetch)
     app.route("/config/edit/<key>/<value:path>", "GET", edit_config, apply=auth)  # a branch name can have a /
     app.route("/config/airports/<pixel:int>/<key>/<value>", "GET", set_airport, apply=auth)

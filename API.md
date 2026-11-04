@@ -55,6 +55,8 @@ Returns a read-only snapshot of the map's state as `application/json`. No authen
     "display_screen.locate_active": true,
     "display_screen.delay": 5.0,
     "led.inittest": true,
+    "led.init_sequence": "comet",
+    "led.init_sweep_from": "W",
     "led.dim_on_refresh": true,
     "led.brightness.normal": 0.5,
     "led.brightness.dimmed": 0.1,
@@ -345,6 +347,7 @@ These endpoints change the map immediately. Except for auto-rotate, nothing they
 | `GET /visualizer/previous` | Previous visualizer; before the first one it goes to the last |
 | `GET /visualizer/auto_rotate/on`, `GET /visualizer/auto_rotate/off` | Turn auto-rotate on or off (the Remote page's switch). Saved, as `visualizer.auto_rotate.enabled`, though it needs no login: it changes only that setting. The timer starts again now. |
 | `GET /locate/<pixel>` | Pulse one LED white. Ignored while an exclusive visualizer is running. |
+| `GET /led/init_sequence/play` | Play the startup sequence (`led.init_sequence`) once now, whether or not `led.inittest` is on. Returns at once. |
 | `GET /fetch` | Fetch METARs from aviationweather.gov now. **The request does not return until the fetch finishes**, which can take up to about 30 seconds; other requests are answered in the meantime. |
 
 Visualizers:
@@ -404,7 +407,9 @@ Settings that apply right away:
 `dev_mode` (top level, `false` by default) can only be changed by editing `config.json` by hand: `/config/edit/dev_mode/…` is a 400. With it on, Config > Software offers **Branch** under *Update to*, with a list of GitHub's branches (refreshed by each check: push a branch, then **Check now**). Turning it off makes a `branch` channel act as `releases`; the saved channel and branch stay. It also turns on mock METARs on the Airports page (see *Mock METARs*).
 - `led.brightness.normal`, `led.brightness.dimmed`, `led.brightness.off`: the level in use now changes right away; the others take over at their sun time
 - `led.quiet_hours.enabled`, `led.quiet_hours.start`, `led.quiet_hours.end`: the LEDs are off (0%) from the start time to the end time, in the Pi's local time; the window can cross midnight. Times are 24-hour `HH:MM` (e.g. `/config/edit/led.quiet_hours.start/22:30`); anything else is a 400. Changes apply right away
-- `led.inittest`: turning it on also runs the test pattern once now
+- `led.inittest`: whether the startup sequence plays when the map starts; turning it on also plays it once now
+- `led.init_sequence`: the startup sequence: `comet` (a rainbow along the strip; the default), `center_out` (the map fades in from the middle of the box around the airports out to its edges), `edges_in` (from the edges in to the middle), `sweep` (across the map, from `led.init_sweep_from`), `radar` (a beam from north, clockwise) or `sparkle` (one LED at a time, in random order). All but `comet` fade each LED in to its visualizer color over 3 seconds. Changing it plays it once now
+- `led.init_sweep_from`: where `sweep` starts: `W` (west to east; the default), `NW`, `N`, `NE`, `E`, `SE`, `S` or `SW`. Changing it plays the sequence once now
 - `led.dim_on_refresh`: the LEDs fade to half their brightness while METARs are fetched (at least a second), then fade back
 - `visualizer.active`, the default visualizer used at startup, by id (`/config/edit/visualizer.active/wind`); a number is taken too and saved as the id. An unknown one is a 400. Saving it doesn't change the visualizer that's running now; use `/visualizer/<id>` for that.
 - `visualizer.auto_rotate.enabled`

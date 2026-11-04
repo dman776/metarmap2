@@ -164,6 +164,15 @@ def test_turning_inittest_on_shows_the_test_pattern(quiet_app):
     assert calls[-1] == "thread"
 
 
+def test_choosing_a_startup_sequence_plays_it(quiet_app):
+    app, calls = quiet_app
+    app.config.edit("led.init_sequence", "radar")
+    assert calls[-1] == "thread"
+    calls.clear()
+    app.config.edit("led.init_sweep_from", "N")
+    assert calls == ["thread"]  # played, and the LEDs aren't refreshed for it
+
+
 def test_update_channel_checks_for_releases(quiet_app, monkeypatch):
     app, calls = quiet_app
     spy(monkeypatch, app.releases, "check_soon", calls)

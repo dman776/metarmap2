@@ -7,6 +7,7 @@ import pprint
 
 from metarmap import system
 from metarmap.config import MAX_LEDS
+from metarmap.leds import intro
 from metarmap.settings import LED_ORDERS, LED_PINS, LIGHTNING_COLORS, TRAFFIC_SECONDS
 from metarmap.web import views
 from metarmap.web.site import render
@@ -110,6 +111,8 @@ def config(services, site):
         chart_types=views.CHART_TYPES,
         led_pins=LED_PINS,
         led_orders=LED_ORDERS,
+        init_sequences=intro.NAMES,
+        sweep_sides={side: name for side, (name, _) in intro.SWEEP_FROM.items()},
         lightning_colors=LIGHTNING_COLORS,
         traffic_seconds=TRAFFIC_SECONDS,
         # the login user's password only changes on a Raspberry Pi with the map running as root

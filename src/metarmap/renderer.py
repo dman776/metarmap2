@@ -8,6 +8,7 @@ import time
 from contextlib import contextmanager
 
 from metarmap.clock import Clock
+from metarmap.leds import intro
 from metarmap.leds.animations import animation_for
 from metarmap.models import Look
 from metarmap.sun import SunTimes, brightness_for, level_at, quiet_hours_active
@@ -26,6 +27,7 @@ log = logging.getLogger(__name__)
 # instead of asking them "is it time yet?" thousands of times a second, which used a whole CPU core.
 FRAME_SECONDS = 0.01
 
+INTRO_FRAME_SECONDS = 0.02  # a startup sequence's frames: 50 a second is smooth, and leaves the Pi time to spare
 DIM_FACTOR = 0.5  # how bright the LEDs are while METARs are fetched, as a part of their brightness
 DIM_SECONDS = 1  # the shortest dim, so a quick fetch still shows
 FADE_SECONDS = 0.6  # the dim fades down and back up over this long, rather than cutting
@@ -311,8 +313,49 @@ class Renderer:
         self.brightness(self.brightness_for(self._clock.now()))
 
     def test_pattern(self):
-        """A rainbow comet along the whole strip, once (led.inittest at startup, and when it's turned on)."""
-        self.animate_once(RainbowComet(self._pixels, speed=0.05, tail_length=5, bounce=False))
+        """
+        The startup sequence (led.init_sequence), once: at startup with led.inittest on, when it's turned on or
+        changed, and from the Config page's Play now. Comet is a rainbow along the strip; the others fade each LED
+        in to its visualizer color, in an order from where its airport is (leds/intro.py).
+        """
+        sequence = self._config.data.led.init_sequence
+        if sequence == "comet":
+            self.animate_once(RainbowComet(self._pixels, speed=0.05, tail_length=5, bounce=False))
+        else:
+            self.fade_in(sequence)
+
+    def fade_in(self, sequence):
+        """
+        Fades the LEDs in to the visualizer's colors over intro.SECONDS, each starting when the sequence says. A
+        visualizer that drives the whole strip (Rainbow, Chase) fades in white, then starts.
+        """
+        settings = self._config.data
+        count = min(settings.led.count, len(self._pixels))
+        codes = [a.code for a in settings.airports[:count]]
+        position = getattr(self._metars, "position", None)  # metar.Reports; a test's data may not have it
+        positions = [position(code) if code and position else None for code in codes]
+        positions += [None] * (count - len(positions))  # LEDs past the airports
+        if self._strip_look is not None:
+            targets = [intro.WHITE] * count
+        else:
+            targets = [intro.target(look) for look in self._looks[:count]]
+            targets += [intro.OFF] * (count - len(targets))
+        starts = intro.start_times(sequence, positions, settings.led.init_sweep_from)
+        never = threading.Event()  # the clock's wait, so a test's fake clock runs it at once
+        with self._lock:
+            self.stop()
+            try:
+                begin = self._clock.time()
+                while True:
+                    t = self._clock.time() - begin
+                    for i, color in enumerate(intro.colors_at(t, starts, targets)):
+                        self._pixels[i] = color
+                    self._pixels.show()
+                    if t >= intro.SECONDS:
+                        break
+                    self._clock.wait(never, INTRO_FRAME_SECONDS)
+            finally:
+                self.resume()
 
 
 if __name__ == "__main__":
