@@ -26,6 +26,8 @@ class Rule:
     pattern:  a regular expression the whole value must match
     message:  the error for a pattern mismatch, formatted with key and value (the value as it was sent)
     unit:     after the range in a `between` error, e.g. " NM"
+    parse:    parse(value, key) -> the value to store, e.g. a visualizer's id from its number; raises ValueError for
+              one it doesn't know
     check:    check(value, settings) -> an error or None, for a rule that depends on other settings; edits only
     editable: False: the web UI can't change it (Config.edit refuses it), and `message` says why
     """
@@ -35,6 +37,7 @@ class Rule:
     pattern: Optional[re.Pattern] = None
     message: str = ""
     unit: str = ""
+    parse: Optional[Callable[[Any, str], Any]] = None
     check: Optional[Callable[[Any, Any], Optional[str]]] = None
     editable: bool = True
 
@@ -53,9 +56,36 @@ class Rule:
         return None
 
 
-def setting(default, **rule):
-    """A field with a Rule, e.g. pin: int = setting(18, choices=LED_PINS)."""
-    return field(default=default, metadata={"rule": Rule(**rule)})
+def setting(default=dataclasses.MISSING, *, default_factory=dataclasses.MISSING, **rule):
+    """A field with a Rule, e.g. pin: int = setting(18, choices=LED_PINS); default_factory for a list."""
+    return field(default=default, default_factory=default_factory, metadata={"rule": Rule(**rule)})
+
+
+def default_of(f):
+    return f.default_factory() if f.default is dataclasses.MISSING else f.default
+
+
+def visualizer_id(value, key):
+    """A visualizer's id from its id or its number in visualizers.ALL (as the API accepts them)."""
+    from metarmap import visualizers  # here, not at the top: the visualizers don't need the settings to load
+
+    try:
+        return visualizers.ALL[visualizers.index_of(value)].id
+    except LookupError:
+        raise ValueError(f"{key}: {value!r} is not a visualizer") from None
+
+
+def visualizer_ids(values, key):
+    """Visualizers' ids from their ids, names or numbers, each once."""
+    from metarmap import visualizers
+
+    by_name = {v.name: v.id for v in visualizers.ALL}
+    ids = []
+    for value in values:
+        vid = by_name.get(value) or visualizer_id(value, key)
+        if vid not in ids:
+            ids.append(vid)
+    return ids
 
 
 def rule_of(f) -> Optional[Rule]:
@@ -149,14 +179,15 @@ class DisplayScreen(_Section):
 class AutoRotate(_Section):
     enabled: bool = False
     delay_seconds: int = 60
-    skip: List[str] = field(default_factory=list)  # names of visualizers auto-rotate leaves out
+    # the ids of the visualizers auto-rotate leaves out (names and numbers are taken too, and saved as ids)
+    skip: List[str] = setting(default_factory=list, parse=visualizer_ids)
 
 
 @dataclass
 class VisualizerSettings(_Section):
-    active: int = 0  # a number in visualizers.ALL
-    # which list `active` counts in; a file without it is from before Wind Direction (see renumber_visualizers)
-    numbering: int = setting(4, editable=False, message="visualizer.numbering is kept by the map")
+    # the id of the visualizer at startup (its number is taken too, and saved as the id). Older files saved a number
+    # (and a `numbering`): see migrate_visualizers
+    active: str = setting("flight_category", parse=visualizer_id)
     auto_rotate: AutoRotate = field(default_factory=AutoRotate)
     # the slow red blink of an airport whose report lacks what the visualizer shows; off: its LED stays dark
     missing_data_blink: bool = True
@@ -243,7 +274,7 @@ class Settings(_Section):
                 quiet.end,
             )
             quiet.enabled, quiet.start, quiet.end = False, QuietHours.start, QuietHours.end
-        renumber_visualizers(settings, data)
+        migrate_visualizers(settings, data)
         _check_rules(settings, "")
         settings._extra.pop("color", None)  # the LED colors live in the code now (3.1.2); an older file's are dropped
         return settings
@@ -301,6 +332,8 @@ class Settings(_Section):
         section, f, kind = self._field(key)
         rule = rule_of(f)
         converted = _convert(value, kind, key)
+        if rule is not None and rule.parse is not None:
+            converted = rule.parse(converted, key)
         problem = rule.problem(key, value, converted, self) if rule is not None else None
         if problem:
             raise ValueError(problem)
@@ -338,17 +371,19 @@ def _check_rules(section, prefix):
         if dataclasses.is_dataclass(value):
             _check_rules(value, key + ".")
             continue
-        rule = rule_of(f)
-        if rule is None or not rule.editable or value == f.default:
+        rule, default = rule_of(f), default_of(f)
+        if rule is None or not rule.editable or value == default:
             continue
         try:
             converted = _convert(value, hints[f.name], key)
+            if rule.parse is not None:
+                converted = rule.parse(converted, key)
             problem = rule.problem(key, value, converted)
         except (TypeError, ValueError) as e:
             problem = str(e)
         if problem:
-            logging.getLogger(__name__).warning("Invalid %s in config.json (%s); using %r", key, problem, f.default)
-            setattr(section, f.name, f.default)
+            logging.getLogger(__name__).warning("Invalid %s in config.json (%s); using %r", key, problem, default)
+            setattr(section, f.name, default)
         else:
             setattr(section, f.name, converted)
 
@@ -390,19 +425,47 @@ def _to_dict(obj):
     return out
 
 
+# Older files saved visualizer.active as a number in the list of visualizers, which changed as visualizers were added
+# (visualizer.numbering said which list), and visualizer.auto_rotate.skip as names. Both are ids now; these turn the
+# old ones into ids once. They describe the past, so they never change: not even when a visualizer is renamed or added.
 # numbering 1 -> 2: Wind Direction went in at 3, after Wind Gusts, moving the visualizers from Pressure on by one;
 # 2 -> 3: AIRMET went in at 11, after Dewpoint Spread, moving Rainbow and Chase by one; 3 -> 4: TFR at 12, after it
 INSERTED_AT = {2: 3, 3: 11, 4: 12}
+LAST_NUMBERING = 4
+# (id, name) in the order of numbering 4, the last
+NUMBERED = (
+    ("flight_category", "Flight Category"),
+    ("wind", "Wind"),
+    ("wind_gusts", "Wind Gusts"),
+    ("wind_direction", "Wind Direction"),
+    ("pressure", "Pressure"),
+    ("precipitation", "Precipitation"),
+    ("temperature", "Temperature"),
+    ("visibility", "Visibility"),
+    ("density_altitude", "Density Altitude"),
+    ("ceiling", "Ceiling"),
+    ("dewpoint_spread", "Dewpoint Spread"),
+    ("advisories", "Advisories"),
+    ("tfr", "TFR"),
+    ("rainbow", "Rainbow"),
+    ("chase", "Chase"),
+)
 
 
-def renumber_visualizers(settings, data):
-    """Keeps an older file's visualizer.active on the same visualizer after one was added before it."""
-    vis = data.get("visualizer") if isinstance(data.get("visualizer"), dict) else {}
-    numbering = vis.get("numbering", 1 if "active" in vis else VisualizerSettings.numbering)
-    for version in range(numbering + 1, VisualizerSettings.numbering + 1):
-        if settings.visualizer.active >= INSERTED_AT[version]:
-            settings.visualizer.active += 1
-    settings.visualizer.numbering = VisualizerSettings.numbering
+def migrate_visualizers(settings, data):
+    """An older file's visualizer.active (a number) and auto_rotate.skip (names) as ids, for the same visualizers."""
+    vis = settings.visualizer
+    stored = data.get("visualizer") if isinstance(data.get("visualizer"), dict) else {}
+    numbering = vis._extra.pop("numbering", 1)  # a file with no numbering is from before Wind Direction
+    if isinstance(vis.active, int) and not isinstance(vis.active, bool) and "active" in stored:
+        number = vis.active
+        for version in range(numbering + 1, LAST_NUMBERING + 1):
+            if number >= INSERTED_AT[version]:
+                number += 1
+        vis.active = NUMBERED[number][0] if 0 <= number < len(NUMBERED) else VisualizerSettings.active
+    if isinstance(vis.auto_rotate.skip, list):
+        ids = dict((name, vid) for vid, name in NUMBERED)
+        vis.auto_rotate.skip = [ids.get(name, name) for name in vis.auto_rotate.skip]
 
 
 def _is_section_list(kind):

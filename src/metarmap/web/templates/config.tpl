@@ -117,8 +117,8 @@
                 <div class="d">Shown when the map starts.</div>
             </div>
             <select id="visualizer-active" data-key="visualizer.active">
-                % for i, name in enumerate(visualizers):
-                <option value="{{i}}"{{!' selected' if i == d.visualizer.active else ''}}>{{name}}</option>
+                % for v in visualizers:
+                <option value="{{v['id']}}"{{!' selected' if v['id'] == d.visualizer.active else ''}}>{{v['name']}}</option>
                 % end
             </select>
         </div>
@@ -166,7 +166,7 @@
             <div class="rotate-list" role="group" aria-labelledby="rotate-label">
                 % for v in rotation:
                 %   if not v['exclusive']:
-                <label><input type="checkbox" data-rotate="{{v['name']}}"{{!' checked' if v['shown'] else ''}}> {{v['name']}}</label>
+                <label><input type="checkbox" data-rotate="{{v['id']}}"{{!' checked' if v['shown'] else ''}}> {{v['name']}}</label>
                 %   end
                 % end
             </div>

@@ -7,10 +7,8 @@ import metarmap.lib.colors as colors_lib
 from metarmap.models import Look, Metar
 from metarmap.visualizers import style
 from metarmap.visualizers.style import Band
+from metarmap.visualizers.visualizer import Visualizer
 
-NAME = "Visibility"
-DESCRIPTION = "Display the visibility: white over 5 miles, then yellow, orange and red as it gets worse."
-EXCLUSIVE = False
 
 BANDS = [
     Band(1, colors_lib.RED, "Under 1 mile (LIFR)", "Red"),
@@ -31,3 +29,12 @@ def look(metar: Metar, settings) -> Look:
     if miles is None:
         return style.missing()
     return Look.solid(style.band_for(miles, BANDS, settings))
+
+
+VISUALIZER = Visualizer(
+    id="visibility",
+    name="Visibility",
+    description="Display the visibility: white over 5 miles, then yellow, orange and red as it gets worse.",
+    legend=legend,
+    look=look,
+)

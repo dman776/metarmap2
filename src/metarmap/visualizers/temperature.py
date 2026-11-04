@@ -7,10 +7,8 @@ import metarmap.lib.utils as utils
 from metarmap.models import Look, Metar
 from metarmap.visualizers import style
 from metarmap.visualizers.style import Band
+from metarmap.visualizers.visualizer import Visualizer
 
-NAME = "Temperature"
-DESCRIPTION = "Display the temperature in degrees Fahrenheit."
-EXCLUSIVE = False
 
 # in °F; below freezing gets its own band, since that's where icing starts
 BANDS = [
@@ -34,3 +32,12 @@ def look(metar: Metar, settings) -> Look:
     if metar.get("tempC") is None:
         return style.missing()
     return Look.solid(style.band_for(utils.celsius_to_fahrenheit(metar["tempC"]), BANDS, settings))
+
+
+VISUALIZER = Visualizer(
+    id="temperature",
+    name="Temperature",
+    description="Display the temperature in degrees Fahrenheit.",
+    legend=legend,
+    look=look,
+)

@@ -12,7 +12,7 @@ from metarmap.clock import Clock
 from metarmap.leds.animations import animation_for
 from metarmap.models import Look
 from metarmap.sun import SunTimes, brightness_for, level_at, quiet_hours_active
-from metarmap.visualizers import visualizer
+from metarmap.visualizers import index_of, visualizer
 
 from adafruit_led_animation.sequence import AnimateOnce
 from adafruit_led_animation.group import AnimationGroup
@@ -104,7 +104,7 @@ class Renderer(object):
         if self._strip_look is not None:
             strip = self._strip_look.to_dict()
             settings = self._config.data
-            virtual = strip if visualizer.covers_virtual(self._vis) else Look.off().to_dict()
+            virtual = strip if self._vis.covers_virtual else Look.off().to_dict()
             leds.update({i: virtual for i in range(settings.led.count, len(settings.airports))})
         return leds, strip
 
@@ -179,7 +179,7 @@ class Renderer(object):
         Pulses one LED white (ignored while an exclusive visualizer is running). A virtual airport has no LED: only
         the web map pulses it (from last_locate).
         """
-        if self._vis.EXCLUSIVE:
+        if self._vis.exclusive:
             return
         try:
             self.last_locate = {"pixel": int(pixnum), "at": self._clock.time()}
@@ -192,8 +192,8 @@ class Renderer(object):
     # ---- visualizers ------------------------------------------------------------------------------------------
 
     @property
-    # returns [number, visualizer]
     def visualizer(self):
+        """(number, Visualizer) of the one running now."""
         return self.active_visualizer, self._visualizers[self.active_visualizer]
 
     @property
@@ -201,9 +201,11 @@ class Renderer(object):
         return self._visualizers
 
     @visualizer.setter
-    def visualizer(self, vis):
-        self._vis = self._visualizers[vis]
-        self.active_visualizer = vis
+    def visualizer(self, key):
+        """Switches to a visualizer by its id ("wind") or number (3, "3"). Raises LookupError if there's none."""
+        number = index_of(key, self._visualizers)
+        self._vis = self._visualizers[number]
+        self.active_visualizer = number
         self._rebuild()
 
     def refresh(self):
@@ -211,14 +213,14 @@ class Renderer(object):
 
     def visualizer_next(self, skip_exclusive=False, skip=()):
         """
-        Switches to the next visualizer, leaving out the exclusive ones if skip_exclusive and any named in `skip`
-        (auto-rotate). If there's nothing to switch to, the visualizer stays.
+        Switches to the next visualizer, leaving out the exclusive ones if skip_exclusive and those whose id is in
+        `skip` (auto-rotate). If there's nothing to switch to, the visualizer stays.
         """
         total = len(self._visualizers)
         for step in range(1, total + 1):  # one lap, ending back at the current visualizer
             vnum = (self.active_visualizer + step) % total
             vis = self._visualizers[vnum]
-            if not (skip_exclusive and vis.EXCLUSIVE) and vis.NAME not in skip:
+            if not (skip_exclusive and vis.exclusive) and vis.id not in skip:
                 self.visualizer = vnum
                 return
 

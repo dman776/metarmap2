@@ -352,10 +352,11 @@ def test_a_rejected_edit_publishes_nothing(config):
     assert heard == []
 
 
-@pytest.mark.parametrize("key", ["dev_mode", "visualizer.numbering"])
-def test_settings_only_config_json_changes_are_refused(config, key):
+def test_a_setting_only_config_json_changes_is_refused(config):
     with pytest.raises(ValueError):
-        config.edit(key, "true" if key == "dev_mode" else "1")
+        config.edit("dev_mode", "true")
+    with pytest.raises(KeyError):  # gone: visualizer.active is an id now
+        config.edit("visualizer.numbering", "1")
 
 
 def test_patterns(config):
@@ -403,7 +404,8 @@ def test_subscribers_run_after_the_lock_is_released(config):
         t = threading.Thread(target=lambda: seen.append(config._lock.acquire(timeout=1) and config._lock.release()))
         t.start()
         t.join()
-        seen.append(json.loads(open(config._file).read())["led"]["pin"])
+        with open(config._file) as f:
+            seen.append(json.load(f)["led"]["pin"])
 
     config.subscribe("led.pin", check)
     config.edit("led.pin", "13")

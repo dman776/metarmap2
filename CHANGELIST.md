@@ -10,6 +10,16 @@
     (the LEDs, the OLED, auto-rotate and quiet hours timers, the update check, a new airport's name and METAR).
     Saving a value it already had no longer redoes those; one of them failing is logged and no longer fails the
     page
+- **Visualizers have ids** (`wind_direction`), which `config.json` saves instead of a number (`visualizer.active`)
+  and names (`visualizer.auto_rotate.skip`), so adding a visualizer anywhere in the list or rewording a name no longer
+  moves anyone's settings. An older `config.json` is converted once when the map starts, keeping the same visualizers
+  (`visualizer.numbering` is no longer needed)
+  - `/visualizer/<id>` and `/config/edit/visualizer.active/<id>`; numbers still work, so Home Assistant and scripts
+    that use them keep working
+  - `/api/status` and `/api/live` add each visualizer's `id`; `visualizer.active` in `/api/status`'s `config` is the
+    id
+  - Inside the code: each visualizer declares itself as one `Visualizer` (id, name, description, legend, look or
+    strip look, barbs, areas), checked when the map starts; `exclusive` comes from having a strip look
 
 ### dman776 3.1.5 (2026-11-03)
 

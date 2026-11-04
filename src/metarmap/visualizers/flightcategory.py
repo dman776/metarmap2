@@ -10,14 +10,8 @@ of the two reported, the real category could be worse than the estimate, never b
 from metarmap.decode import estimate_category
 from metarmap.models import FlightCategory as Category, Look, Metar
 from metarmap.visualizers import style
-from metarmap.visualizers.visualizer import legend_item
+from metarmap.visualizers.visualizer import Visualizer, legend_item
 
-NAME = "Flight Category"
-DESCRIPTION = (
-    "Display the flight category (VFR, MVFR, IFR, LIFR). A station that doesn't report one gets an "
-    "estimate from its visibility and ceiling, shown breathing (or solid, if that's turned off in Config)."
-)
-EXCLUSIVE = False
 
 ESTIMATE_PERIOD = 4.0  # seconds per breath of an estimated category
 
@@ -70,3 +64,13 @@ def look(metar: Metar, settings) -> Look:
 
 def color_for(category):
     return COLORS.get(category, OFF)
+
+
+VISUALIZER = Visualizer(
+    id="flight_category",
+    name="Flight Category",
+    description="Display the flight category (VFR, MVFR, IFR, LIFR). A station that doesn't report one gets an "
+    "estimate from its visibility and ceiling, shown breathing (or solid, if that's turned off in Config).",
+    legend=legend,
+    look=look,
+)

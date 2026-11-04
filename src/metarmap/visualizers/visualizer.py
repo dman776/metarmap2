@@ -1,7 +1,63 @@
-from typing import List, Optional
+"""
+What a visualizer is (Visualizer), and using one: its looks and legend, with the lightning every weather visualizer
+shares added over them.
+"""
+
+import re
+from dataclasses import dataclass
+from typing import Callable, List, Optional
 
 import metarmap.lib.colors as colors_lib
-from metarmap.models import Look
+from metarmap.models import Look, Metar
+
+# Visualizer.areas: the areas the Map page can draw, each from /api/<areas>
+AREAS = ("advisories", "tfrs")
+ID = re.compile(r"^[a-z][a-z0-9_]*$")
+
+
+@dataclass(frozen=True)
+class Visualizer:
+    """
+    One way of showing the map, declared once at the end of its module (VISUALIZER = Visualizer(...)) and listed in
+    visualizers.ALL. Visualizers don't touch the LEDs: the renderer turns their looks into animations.
+
+    id:          what config.json saves (visualizer.active, visualizer.auto_rotate.skip) and the API accepts; never
+                 changes, so `name` can
+    name, description: shown in the web UI, Home Assistant and on the OLED
+    legend:      legend(settings) -> legend_item() entries describing what the LEDs mean
+    look:        look(metar, settings) -> how one airport's LED looks (metar is {} when it has no report), or
+    strip_look:  strip_look(settings) -> one look for the whole strip (rainbow, chase); exactly one of the two.
+                 A strip look makes it exclusive: it has every LED, so /locate is ignored
+    covers_virtual: with strip_look, whether the web map's virtual airports show it too (else they stay dark)
+    barbs:       the Map page draws each airport's wind barb
+    areas:       the areas the Map page draws (one of AREAS), or None
+    Lightning isn't a visualizer's job: looks() and legend() below add it to every one with a look per airport.
+    """
+
+    id: str
+    name: str
+    description: str
+    legend: Callable[..., List[dict]]
+    look: Optional[Callable[[Metar, object], Look]] = None
+    strip_look: Optional[Callable[[object], Look]] = None
+    covers_virtual: bool = False
+    barbs: bool = False
+    areas: Optional[str] = None
+
+    def __post_init__(self):
+        if not ID.fullmatch(self.id):
+            raise ValueError(f"visualizer id {self.id!r}: lower case letters, digits and _, starting with a letter")
+        if (self.look is None) == (self.strip_look is None):
+            raise ValueError(f"visualizer {self.id}: needs either look or strip_look, not both")
+        if self.covers_virtual and self.strip_look is None:
+            raise ValueError(f"visualizer {self.id}: covers_virtual is for a strip look")
+        if self.areas is not None and self.areas not in AREAS:
+            raise ValueError(f"visualizer {self.id}: areas {self.areas!r} is not one of {', '.join(AREAS)}")
+
+    @property
+    def exclusive(self) -> bool:
+        """Whether it has the whole strip (one strip look), so /locate and auto-rotate leave it alone."""
+        return self.strip_look is not None
 
 
 def legend_item(label, detail, *colors, effect="solid", period=None, low=None):
@@ -28,38 +84,11 @@ def legend_item(label, detail, *colors, effect="solid", period=None, low=None):
 
 
 # ---- using a visualizer -----------------------------------------------------------------------------------------
-#
-# A visualizer is a module in this package with:
-#   NAME, DESCRIPTION   shown in the web UI
-#   EXCLUSIVE           True: it has the whole strip, so locate() is ignored
-#   legend(settings)    legend_item() entries describing what the LEDs mean
-#   look(metar, settings) -> Look        how one airport's LED looks ({} when it has no report), or
-#   strip_look(settings) -> Look         one look for the whole strip (rainbow, chase)
-#   COVERS_VIRTUAL      with strip_look: True if the virtual airports show it too (default: they stay dark)
-#   BARBS               True: the Map page draws a wind barb on each airport (default: none)
-#   AREAS               the areas the Map page draws, from /api/<AREAS>: "advisories" or "tfrs" (default: none)
-# Visualizers don't touch the LEDs; the renderer turns their looks into animations.
-# Lightning isn't a visualizer's job: looks() and legend() add it to every one with a look per airport.
 
 
-def strip_look(vis, settings) -> Optional[Look]:
+def strip_look(vis: Visualizer, settings) -> Optional[Look]:
     """The visualizer's look for the whole strip, or None if it has one look per airport."""
-    return vis.strip_look(settings) if hasattr(vis, "strip_look") else None
-
-
-def covers_virtual(vis) -> bool:
-    """Whether the virtual airports show the visualizer's whole-strip look, or stay dark while it runs."""
-    return getattr(vis, "COVERS_VIRTUAL", False)
-
-
-def shows_barbs(vis) -> bool:
-    """Whether the Map page draws the airports' wind barbs while the visualizer runs."""
-    return getattr(vis, "BARBS", False)
-
-
-def shows_areas(vis):
-    """The areas the Map page draws while the visualizer runs ("advisories", "tfrs"), or None."""
-    return getattr(vis, "AREAS", None)
+    return vis.strip_look(settings) if vis.strip_look is not None else None
 
 
 def looks(vis, codes, data, settings) -> List[Look]:
@@ -70,8 +99,8 @@ def looks(vis, codes, data, settings) -> List[Look]:
     return [look(vis, data.get(code) or {}, settings) if code else Look.off() for code in codes]
 
 
-def shows_lightning(vis, settings) -> bool:
-    return hasattr(vis, "look") and settings.lightning.animation
+def shows_lightning(vis: Visualizer, settings) -> bool:
+    return vis.look is not None and settings.lightning.animation
 
 
 def look(vis, metar, settings) -> Look:
@@ -108,8 +137,9 @@ def legend(vis, settings) -> List[dict]:
 def info(vis, settings) -> dict:
     """What the web UI and API show about a visualizer."""
     return {
-        "name": vis.NAME,
-        "description": vis.DESCRIPTION,
-        "exclusive": vis.EXCLUSIVE,
+        "id": vis.id,
+        "name": vis.name,
+        "description": vis.description,
+        "exclusive": vis.exclusive,
         "legend": legend(vis, settings),
     }

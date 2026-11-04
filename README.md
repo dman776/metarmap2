@@ -296,8 +296,9 @@ The code is the `metarmap` package in `src/metarmap/`:
 - `config.py` and `settings.py`: `config.json`, including the airport on each LED
 - `metar.py`: reading METARs (`process()`, `parse_report()`) and fetching them (`METAR`); `decode.py`: a METAR in
   plain English; `renderer.py` and `leds/`: the LEDs; `display.py` and `oled/`: the OLED screen
-- `visualizers/`: how each visualizer colors the LEDs. Each is a module of functions (`NAME`, `legend()`, and
-  `look()` or `strip_look()`); `visualizers.ALL` lists them in order
+- `visualizers/`: how each visualizer colors the LEDs. Each is a module of functions (`legend()`, and `look()` or
+  `strip_look()`) that ends by declaring itself, `VISUALIZER = Visualizer(id=..., name=..., ...)`, which checks it
+  (`visualizers/visualizer.py`); `visualizers.ALL` lists them in the web UI's order
 - `web/`: the web UI and API. `create_app()` builds it; the routes are in `pages.py`, `api.py` and `control.py`,
   and `views.py` prepares what each page shows (templates in `web/templates/`, files in `web/static/`)
 - `releases.py`: what's newest on GitHub (the "Update available" check); `lib/utils.py`'s `run_update()` installs it

@@ -13,11 +13,8 @@ import metarmap.lib.safe_logging as safe_logging
 from metarmap.decode import parse_weather
 from metarmap.models import Look, Metar
 from metarmap.visualizers import style
-from metarmap.visualizers.visualizer import legend_item
+from metarmap.visualizers.visualizer import Visualizer, legend_item
 
-NAME = "Precipitation"
-DESCRIPTION = "Display the current observed weather: the color is what it is, the effect is how heavy it is."
-EXCLUSIVE = False
 
 MIXED_PERIOD = 2.0  # seconds per alternation of two kinds of precipitation
 
@@ -132,3 +129,12 @@ def legend(settings):
             period=style.MISSING_PERIOD,
         ),
     ]
+
+
+VISUALIZER = Visualizer(
+    id="precipitation",
+    name="Precipitation",
+    description="Display the current observed weather: the color is what it is, the effect is how heavy it is.",
+    legend=legend,
+    look=look,
+)

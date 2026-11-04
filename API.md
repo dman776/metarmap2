@@ -28,6 +28,7 @@ Returns a read-only snapshot of the map's state as `application/json`. No authen
   "brightness": 0.5,
   "visualizer": {
     "active": 0,
+    "id": "flight_category",
     "name": "Flight Category",
     "exclusive": false,
     "description": "Display the flight category (ie. VFR, MVFR, IFR, LIFR).",
@@ -38,11 +39,11 @@ Returns a read-only snapshot of the map's state as `application/json`. No authen
     ]
   },
   "visualizers": [
-    { "index": 0, "name": "Flight Category", "exclusive": false },
-    { "index": 1, "name": "Wind", "exclusive": false }
+    { "index": 0, "id": "flight_category", "name": "Flight Category", "exclusive": false },
+    { "index": 1, "id": "wind", "name": "Wind", "exclusive": false }
   ],
   "config": {
-    "visualizer.active": 0,
+    "visualizer.active": "flight_category",
     "visualizer.auto_rotate.enabled": false,
     "visualizer.auto_rotate.delay_seconds": 60,
     "visualizer.auto_rotate.skip": [],
@@ -129,9 +130,9 @@ Returns a read-only snapshot of the map's state as `application/json`. No authen
 | `brightness` | Current LED brightness, `0.0`–`1.0` |
 | `build` | What's running, read when the map started: `tag` is the release it's at or after (`null` if none), `ahead` how many commits after it, `commit` and `sha` the commit, `modified` whether the code was changed on the map itself (`config.json` and `airports.json` don't count). `release` is true on a release exactly; otherwise `pill` says why not ("Unreleased: 3 commits after v2.9.2", "Not tagged: v2.9.3" when `untagged`, "Pre-release: v2.9.0-rc1", "Modified: local changes to v2.9.2", "Unreleased: no release tag"). `chip` is the header's version text and `url` the commit on GitHub (`null` if the map isn't from GitHub). `null` outside a git checkout. |
 | `update` | What's newest on GitHub: `current` is the running version, `commit` the running commit, `channel` is the channel in use (`branch` counts as `releases` without `dev_mode`), `available` the release (or, on the `latest` and `branch` channels, the commit) an update would install, or `null` when up to date; `installed` is what an update installed that needs a restart; `releases` lists the releases that can be installed, newest first; with `dev_mode`, `branches` lists GitHub's branches and `branch` is the one the `branch` channel follows; `checked` is when GitHub was last asked, and `error` why that failed. `null` if the map doesn't check. |
-| `visualizer` | The visualizer that is running now. `exclusive` visualizers ignore `/locate`. |
+| `visualizer` | The visualizer that is running now: `active` is its number, `id` its id (see the table under Control). `exclusive` visualizers ignore `/locate`. |
 | `visualizer.legend` | What the LEDs mean for that visualizer. `colors` are CSS hex colors; two or more mean a gradient across the range. `effect` is `solid`, `blink`, `pulse`, `flash` (the first color with flashes of the second), `chase` or `off`. `period` is the seconds per blink or pulse, or `null`. |
-| `visualizers` | Every visualizer, in index order (the indexes used by `/visualizer/<n>`) |
+| `visualizers` | Every visualizer, in index order: `index` is its number and `id` its id, both accepted by `/visualizer/<id>` |
 | `config` | The saved `config.json` values, keyed by the dotted path accepted by `/config/edit` |
 | `display` | The OLED screen: `enabled` is the Config setting (`display_screen.enabled`); `on` is whether it's showing now (false after `/display/off`, or when not enabled) |
 | `suntimes` | Today's dimming schedule (ISO 8601 with time zone) |
@@ -147,7 +148,7 @@ What the physical map is doing right now. The Map page polls it every second. No
 {
   "now": 1792854523.9,
   "brightness": 0.5,
-  "visualizer": { "active": 0, "name": "Flight Category", "exclusive": false, "areas": false,
+  "visualizer": { "active": 0, "id": "flight_category", "name": "Flight Category", "exclusive": false, "areas": null,
                   "autoRotate": { "enabled": true, "seconds": 60, "next": 1792854560.0 } },
   "strip": null,
   "leds": [
@@ -339,41 +340,41 @@ These endpoints change the map immediately. Except for auto-rotate, nothing they
 |---|---|
 | `GET /brightness/<level>` | Set LED brightness, `0.0`–`1.0`; the map ignores values outside that range. The dimming schedule overrides it at the next dawn, sunrise, sunset or dusk. |
 | `GET /display/on`, `GET /display/off` | Turn the OLED screen on or off (blank). Not saved: it's back on when the map restarts. A 409 if the screen is turned off in Config (`display_screen.enabled`), which is the saved setting. |
-| `GET /visualizer/<n>` | Switch to visualizer number `n` (see the table below) |
+| `GET /visualizer/<id>` | Switch to a visualizer by its id, e.g. `/visualizer/wind_direction`, or by its number, `/visualizer/3` (see the table below). A 404 for one there isn't. |
 | `GET /visualizer/next` | Next visualizer; after the last one it goes back to the first |
 | `GET /visualizer/previous` | Previous visualizer; before the first one it goes to the last |
 | `GET /visualizer/auto_rotate/on`, `GET /visualizer/auto_rotate/off` | Turn auto-rotate on or off (the Remote page's switch). Saved, as `visualizer.auto_rotate.enabled`, though it needs no login: it changes only that setting. The timer starts again now. |
 | `GET /locate/<pixel>` | Pulse one LED white. Ignored while an exclusive visualizer is running. |
 | `GET /fetch` | Fetch METARs from aviationweather.gov now. **The request does not return until the fetch finishes**, which can take up to about 30 seconds; other requests are answered in the meantime. |
 
-Visualizer indexes:
+Visualizers:
 
-| # | Name | Exclusive |
-|---|---|---|
-| 0 | Flight Category | |
-| 1 | Wind | |
-| 2 | Wind Gusts | |
-| 3 | Wind Direction | |
-| 4 | Pressure | |
-| 5 | Precipitation | |
-| 6 | Temperature | |
-| 7 | Visibility | |
-| 8 | Density Altitude | |
-| 9 | Ceiling | |
-| 10 | Dewpoint Spread | |
-| 11 | Advisories | |
-| 12 | TFR | |
-| 13 | Rainbow | yes |
-| 14 | Chase | yes |
+| # | Id | Name | Exclusive |
+|---|---|---|---|
+| 0 | `flight_category` | Flight Category | |
+| 1 | `wind` | Wind | |
+| 2 | `wind_gusts` | Wind Gusts | |
+| 3 | `wind_direction` | Wind Direction | |
+| 4 | `pressure` | Pressure | |
+| 5 | `precipitation` | Precipitation | |
+| 6 | `temperature` | Temperature | |
+| 7 | `visibility` | Visibility | |
+| 8 | `density_altitude` | Density Altitude | |
+| 9 | `ceiling` | Ceiling | |
+| 10 | `dewpoint_spread` | Dewpoint Spread | |
+| 11 | `advisories` | Advisories | |
+| 12 | `tfr` | TFR | |
+| 13 | `rainbow` | Rainbow | yes |
+| 14 | `chase` | Chase | yes |
 
-Wind Direction (3) was added after 3.0.1, and Advisories (11) and TFR (12) after 3.1.0, each moving the visualizers after it up by one.
-A `config.json` from before then (`visualizer.numbering` missing or older) has its `visualizer.active` moved with
-them when the map starts, so it keeps the same visualizer; scripts and automations that pick a visualizer by number
-need the new numbers.
+Use the id in scripts and automations: it never changes, while a number moves when a visualizer is added before
+it (Wind Direction after 3.0.1, Advisories and TFR after 3.1.0 each did) and a name can be reworded. `config.json`
+saves ids; one saved before ids (`visualizer.active` a number, with `visualizer.numbering`) is converted when the
+map starts, keeping the same visualizer.
 
 ```sh
 curl http://metarmap.local/brightness/0.25
-curl http://metarmap.local/visualizer/1
+curl http://metarmap.local/visualizer/wind
 ```
 
 ## Configuration (auth)
@@ -405,10 +406,10 @@ Settings that apply right away:
 - `led.quiet_hours.enabled`, `led.quiet_hours.start`, `led.quiet_hours.end`: the LEDs are off (0%) from the start time to the end time, in the Pi's local time; the window can cross midnight. Times are 24-hour `HH:MM` (e.g. `/config/edit/led.quiet_hours.start/22:30`); anything else is a 400. Changes apply right away
 - `led.inittest`: turning it on also runs the test pattern once now
 - `led.dim_on_refresh`: the LEDs fade to half their brightness while METARs are fetched (at least a second), then fade back
-- `visualizer.active`, the default visualizer used at startup. Saving it doesn't change the visualizer that's running now; use `/visualizer/<n>` for that. (`visualizer.numbering` says which list of visualizer numbers it counts in; the map keeps it, and `/config/edit/visualizer.numbering/…` is a 400.)
+- `visualizer.active`, the default visualizer used at startup, by id (`/config/edit/visualizer.active/wind`); a number is taken too and saved as the id. An unknown one is a 400. Saving it doesn't change the visualizer that's running now; use `/visualizer/<id>` for that.
 - `visualizer.auto_rotate.enabled`
 - `visualizer.auto_rotate.delay_seconds` (the new delay starts counting when it's saved)
-- `visualizer.auto_rotate.skip`: the visualizers auto-rotate leaves out, as a JSON list of names, e.g. `/config/edit/visualizer.auto_rotate.skip/%5B%22Wind%22%2C%22Wind%20Gusts%22%5D` for `["Wind","Wind Gusts"]` (`[]` leaves none out). Exclusive visualizers (`"exclusive": true` in `/api/status`) are always left out. The previous/next buttons still go to every visualizer.
+- `visualizer.auto_rotate.skip`: the visualizers auto-rotate leaves out, as a JSON list of ids, e.g. `/config/edit/visualizer.auto_rotate.skip/%5B%22wind%22%2C%22wind_gusts%22%5D` for `["wind","wind_gusts"]` (`[]` leaves none out). Names and numbers are taken too, and saved as ids; an unknown one is a 400. Exclusive visualizers (`"exclusive": true` in `/api/status`) are always left out. The previous/next buttons still go to every visualizer.
 
 Map page settings (apply the next time the Map page is opened):
 - `geo.map.background`: `sectional`, `satellite` or `radar`

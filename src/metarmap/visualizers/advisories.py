@@ -8,16 +8,8 @@ severe turbulence or icing...) is more serious and takes over: a fast bright-and
 import metarmap.lib.colors as colors_lib
 from metarmap.models import Look, Metar
 from metarmap.visualizers import style
-from metarmap.visualizers.visualizer import legend_item
+from metarmap.visualizers.visualizer import Visualizer, legend_item
 
-NAME = "Advisories"
-DESCRIPTION = (
-    "Display the advisory over each airport, below 18,000 ft. G-AIRMETs in steady colors: IFR orange, "
-    "mountain obscuration magenta, turbulence yellow, wind shear red, strong surface wind blue, icing "
-    "cyan; two at once alternate, none is dim white. A SIGMET takes over, blinking in its hazard's color."
-)
-EXCLUSIVE = False
-AREAS = "advisories"  # the Map page draws the G-AIRMET and SIGMET areas (/api/advisories)
 
 MIXED_PERIOD = 2.0  # seconds per alternation of two AIRMET hazards
 SIGMET_PERIOD = style.HEAVY_PERIOD  # a SIGMET blinks like heavy weather: fast, bright and dim, never dark
@@ -129,3 +121,15 @@ def look(metar: Metar, settings) -> Look:
     if len(colors) == 1:
         return Look.solid(colors[0])
     return Look.blink(colors[0], period=MIXED_PERIOD, background=colors[1])
+
+
+VISUALIZER = Visualizer(
+    id="advisories",
+    name="Advisories",
+    description="Display the advisory over each airport, below 18,000 ft. G-AIRMETs in steady colors: IFR orange, "
+    "mountain obscuration magenta, turbulence yellow, wind shear red, strong surface wind blue, icing "
+    "cyan; two at once alternate, none is dim white. A SIGMET takes over, blinking in its hazard's color.",
+    legend=legend,
+    look=look,
+    areas="advisories",  # the Map page draws the G-AIRMET and SIGMET areas (/api/advisories)
+)

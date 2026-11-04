@@ -9,10 +9,8 @@ from metarmap.decode import ceiling_ft
 from metarmap.models import Look, Metar
 from metarmap.visualizers import style
 from metarmap.visualizers.style import Band
+from metarmap.visualizers.visualizer import Visualizer
 
-NAME = "Ceiling"
-DESCRIPTION = "Display the ceiling: white above 3,000 ft, then yellow, orange and red as it gets lower."
-EXCLUSIVE = False
 
 BANDS = [
     Band(500, colors_lib.RED, "Below 500 ft (LIFR)", "Red"),
@@ -45,3 +43,12 @@ def look(metar: Metar, settings) -> Look:
     if feet is None:
         return Look.solid(no_ceiling(settings))
     return Look.solid(style.band_for(feet, BANDS, settings))
+
+
+VISUALIZER = Visualizer(
+    id="ceiling",
+    name="Ceiling",
+    description="Display the ceiling: white above 3,000 ft, then yellow, orange and red as it gets lower.",
+    legend=legend,
+    look=look,
+)

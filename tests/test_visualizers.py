@@ -3,10 +3,13 @@ Color rules for every visualizer: METAR in, Look out. No LEDs involved.
 Colors are in the strip's GRB order (see lib/colors.py).
 """
 
+import importlib
+
 import pytest
 
 import metarmap.lib.colors as colors_lib
 from metarmap.models import Look
+from metarmap.visualizers.visualizer import Visualizer
 from metarmap.settings import LIGHTNING_COLORS, Settings
 from metarmap import decode, visualizers
 from metarmap.visualizers import (
@@ -61,8 +64,8 @@ def metar(**fields):
 
 @pytest.mark.parametrize("v", ALL)
 def test_metadata(v, settings):
-    assert v.NAME and v.DESCRIPTION and v.EXCLUSIVE in (True, False)
-    assert hasattr(v, "look") != hasattr(v, "strip_look"), "one look per airport, or one for the whole strip"
+    assert v.id and v.name and v.description
+    assert (v.look is None) != (v.strip_look is None), "one look per airport, or one for the whole strip"
     assert v.legend(settings), "every visualizer explains its colors"
     for item in v.legend(settings):
         assert item["label"] and item["detail"]
@@ -78,16 +81,68 @@ def test_leds_without_an_airport_stay_dark(v, settings):
 
 
 def test_exclusive_visualizers():
-    assert {v.NAME for v in ALL if v.EXCLUSIVE} == {"Rainbow", "Chase"}
+    assert {v.name for v in ALL if v.exclusive} == {"Rainbow", "Chase"}
 
 
 def test_info(settings):
-    assert visualizer.info(wind, settings) == {
+    assert visualizer.info(wind.VISUALIZER, settings) == {
+        "id": "wind",
         "name": "Wind",
-        "description": wind.DESCRIPTION,
+        "description": wind.VISUALIZER.description,
         "exclusive": False,
-        "legend": visualizer.legend(wind, settings),
+        "legend": visualizer.legend(wind.VISUALIZER, settings),
     }
+
+
+def off_look(metar, settings):
+    return Look.off()
+
+
+def off_strip(settings):
+    return Look.off()
+
+
+# ---- the contract (Visualizer) ------------------------------------------------------------------------------------
+
+
+def make_visualizer(**fields):
+    return Visualizer(**{"id": "test", "name": "Test", "description": "A test.", "legend": lambda s: [], **fields})
+
+
+@pytest.mark.parametrize(
+    "fields, error",
+    [
+        ({}, "needs either look or strip_look"),
+        ({"look": off_look, "strip_look": off_strip}, "needs either look or strip_look"),
+        ({"look": off_look, "covers_virtual": True}, "covers_virtual is for a strip look"),
+        ({"look": off_look, "areas": "clouds"}, "areas 'clouds' is not one of advisories, tfrs"),
+        ({"look": off_look, "id": "Wind Gusts"}, "lower case letters, digits and _"),
+        ({"look": off_look, "id": "2wind"}, "lower case letters, digits and _"),
+    ],
+)
+def test_a_visualizer_that_breaks_the_contract_is_refused(fields, error):
+    with pytest.raises(ValueError, match=error):
+        make_visualizer(**fields)
+
+
+def test_exclusive_means_a_strip_look():
+    assert not make_visualizer(look=off_look).exclusive
+    assert make_visualizer(strip_look=off_strip).exclusive
+
+
+def test_ids_are_unique_and_index_of_finds_them():
+    assert len({v.id for v in ALL}) == len(ALL) == len(visualizers.BY_ID)
+    for number, v in enumerate(ALL):
+        assert visualizers.index_of(v.id) == visualizers.index_of(number) == visualizers.index_of(str(number)) == number
+    for unknown in ("nope", "Wind", len(ALL), str(len(ALL)), -1):
+        with pytest.raises(LookupError):
+            visualizers.index_of(unknown)
+
+
+def test_every_module_declares_its_visualizer():
+    for v in ALL:
+        module = importlib.import_module(v.look.__module__ if v.look else v.strip_look.__module__)
+        assert module.VISUALIZER is v
 
 
 # ---- flight category ----------------------------------------------------------------------------------------
@@ -106,22 +161,29 @@ def test_flight_category_missing_blinks_red(settings):
 
 def test_missing_data_blink_off_leaves_the_led_dark(settings):
     settings.visualizer.missing_data_blink = False
-    assert visualizer.look(flightcategory, metar(flightCategory=None), settings) == OFF
-    assert visualizer.look(wind, metar(windSpeed=None), settings) == OFF
-    assert visualizer.look(precipitation, metar(obs="ZZ"), settings) == OFF  # weather codes the map doesn't know
+    assert visualizer.look(flightcategory.VISUALIZER, metar(flightCategory=None), settings) == OFF
+    assert visualizer.look(wind.VISUALIZER, metar(windSpeed=None), settings) == OFF
+    assert (
+        visualizer.look(precipitation.VISUALIZER, metar(obs="ZZ"), settings) == OFF
+    )  # weather codes the map doesn't know
     # everything else is unchanged: a category, an estimate
-    assert visualizer.look(flightcategory, metar(flightCategory="IFR"), settings) == Look.solid(C[colors_lib.RED])
-    assert visualizer.look(flightcategory, metar(flightCategory=None, visibilitySM=10.0), settings).effect == "pulse"
+    assert visualizer.look(flightcategory.VISUALIZER, metar(flightCategory="IFR"), settings) == Look.solid(
+        C[colors_lib.RED]
+    )
+    assert (
+        visualizer.look(flightcategory.VISUALIZER, metar(flightCategory=None, visibilitySM=10.0), settings).effect
+        == "pulse"
+    )
 
 
 def test_missing_data_blink_on_by_default(settings):
     assert settings.visualizer.missing_data_blink is True
-    assert visualizer.look(flightcategory, metar(flightCategory=None), settings) == style.missing()
+    assert visualizer.look(flightcategory.VISUALIZER, metar(flightCategory=None), settings) == style.missing()
 
 
 def test_lightning_flickers_over_dark_missing_data(settings):
     settings.visualizer.missing_data_blink = False
-    frames = visualizer.look(flightcategory, metar(flightCategory=None, lightning=True), settings).colors
+    frames = visualizer.look(flightcategory.VISUALIZER, metar(flightCategory=None, lightning=True), settings).colors
     assert frames[:3] == (style.LIGHTNING,) * 3 and frames[3] == (0, 0, 0)
 
 
@@ -230,7 +292,7 @@ def flicker(base, flash):
 
 
 def test_lightning_flickers_over_the_category(settings):
-    look = lit(flightcategory, settings, flightCategory="IFR", lightning=True)
+    look = lit(flightcategory.VISUALIZER, settings, flightCategory="IFR", lightning=True)
     ifr, yellow = flightcategory.COLORS["IFR"], style.LIGHTNING
     assert look.effect == "cycle" and look.step == style.LIGHTNING_STEP
     assert list(look.colors) == flicker(ifr, yellow) * 2  # every 2 s, for 4 s
@@ -279,23 +341,25 @@ def test_lightning_keeps_the_look_moving_between_flashes(settings):
 
 def test_lightning_on_yellow_is_dimmed_between_flashes(settings):
     yellow = style.LIGHTNING
-    frames = lit(precipitation, settings, obs="TS").colors
+    frames = lit(precipitation.VISUALIZER, settings, obs="TS").colors
     assert frames[:3] == (yellow,) * 3 and frames[3] == style.dim(yellow)
 
 
 def test_lightning_color_white(settings):
     settings.lightning.color = "white"
     white = C[colors_lib.WHITE]
-    look = lit(flightcategory, settings, flightCategory="IFR", lightning=True)
+    look = lit(flightcategory.VISUALIZER, settings, flightCategory="IFR", lightning=True)
     assert list(look.colors) == flicker(flightcategory.COLORS["IFR"], white) * 2
-    item = next(i for i in visualizer.legend(flightcategory, settings) if i["label"] == "Lightning or a thunderstorm")
+    item = next(
+        i for i in visualizer.legend(flightcategory.VISUALIZER, settings) if i["label"] == "Lightning or a thunderstorm"
+    )
     assert "white flashes" in item["detail"] and item["colors"][1] == colors_lib.to_css(white)
 
 
 def test_lightning_color_white_on_white_is_dimmed_between_flashes(settings):
     settings.lightning.color = "white"
     white = C[colors_lib.WHITE]
-    frames = lit(precipitation, settings, obs="SN", lightning=True).colors  # snow is white
+    frames = lit(precipitation.VISUALIZER, settings, obs="SN", lightning=True).colors  # snow is white
     assert frames[:3] == (white,) * 3 and frames[3] == style.dim(white)
 
 
@@ -303,7 +367,7 @@ def test_precipitation_thunderstorm_stays_yellow_with_white_lightning(settings):
     """Snow is white in Precipitation, so a thunderstorm keeps its yellow; only the flashes are white."""
     settings.lightning.color = "white"
     assert precipitation.look(metar(obs="TS"), settings) == Look.solid(style.LIGHTNING)
-    frames = lit(precipitation, settings, obs="TS").colors
+    frames = lit(precipitation.VISUALIZER, settings, obs="TS").colors
     assert frames[:3] == (C[colors_lib.WHITE],) * 3 and frames[3] == style.LIGHTNING
 
 
@@ -311,7 +375,7 @@ def test_unknown_lightning_color_in_config_json_is_yellow():
     data = Settings().to_dict()
     data["lightning"]["color"] = "purple"  # hand-edited config.json: reset when it loads
     settings = Settings.from_dict(data)
-    assert lit(flightcategory, settings, flightCategory="VFR", lightning=True).colors[0] == style.LIGHTNING
+    assert lit(flightcategory.VISUALIZER, settings, flightCategory="VFR", lightning=True).colors[0] == style.LIGHTNING
     assert "yellow flashes" in style.lightning_legend(settings)["detail"]
 
 
@@ -320,13 +384,13 @@ def test_every_lightning_color_has_an_led_color():
 
 
 def test_lightning_isnt_added_to_whole_strip_patterns(settings):
-    assert not visualizer.shows_lightning(rainbow, settings)
-    assert all(i["label"] != "Lightning or a thunderstorm" for i in visualizer.legend(rainbow, settings))
+    assert not visualizer.shows_lightning(rainbow.VISUALIZER, settings)
+    assert all(i["label"] != "Lightning or a thunderstorm" for i in visualizer.legend(rainbow.VISUALIZER, settings))
 
 
 # ---- the shared conventions (style.py) ---------------------------------------------------------------------
 
-PER_AIRPORT = [v for v in ALL if hasattr(v, "look")]
+PER_AIRPORT = [v for v in ALL if v.look is not None]
 RED_BLINK = Look.blink(C[colors_lib.RED], period=2)
 
 
@@ -734,14 +798,14 @@ def test_wind_direction_legend(settings):
 
 def test_wind_direction_flickers_with_lightning(settings):
     storm = metar(windDir="180", windSpeed=10, lightning=True)
-    assert visualizer.look(wind_direction, storm, settings) == style.with_lightning(
+    assert visualizer.look(wind_direction.VISUALIZER, storm, settings) == style.with_lightning(
         Look.solid(C[colors_lib.CYAN]), settings
     )
 
 
 def test_the_patterns_are_last():
-    """Rainbow and Chase (one look for the whole strip) always come after the weather visualizers."""
-    assert [v.NAME for v in ALL] == [
+    """Rainbow and Chase (one look for the whole strip) come after the weather visualizers, in the web UI."""
+    assert [v.name for v in ALL] == [
         "Flight Category",
         "Wind",
         "Wind Gusts",
