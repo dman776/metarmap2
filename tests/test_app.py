@@ -313,12 +313,12 @@ def test_run_draws_the_visualizer_before_the_oled_loop_starts(make_app, monkeypa
     monkeypatch.setattr(app_module, "serve", lambda web, host, port: None)
     order = []
     monkeypatch.setattr(app.renderer, "draw_frame", lambda: order.append("frame"))
-    monkeypatch.setattr(app.display, "start", lambda: order.append("display"))
+    monkeypatch.setattr(app.display, "start", lambda locate_delay: order.append(("display", locate_delay)))
     monkeypatch.setattr(app.renderer, "render", lambda: (_ for _ in ()).throw(KeyboardInterrupt()))
 
     app_module.run(app)
 
-    assert order == ["frame", "display"]
+    assert order == ["frame", ("display", 2.0)]  # and the first pulse waits 2 s
 
 
 def test_run_on_another_port_for_this_run_only(make_app, monkeypatch):

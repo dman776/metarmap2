@@ -24,7 +24,7 @@ from metarmap.advisories import Advisories
 from metarmap.tfr import Tfrs
 from metarmap.clock import Clock
 from metarmap.config import Config
-from metarmap.display import Display
+from metarmap.display import STARTUP_LOCATE_DELAY, Display
 from metarmap.leds.strip import open_strip
 from metarmap.lib import utils
 from metarmap.metar import Reports
@@ -363,7 +363,7 @@ def run(app: App, port=None):
     log.info("Main loop...")
     app.renderer.draw_frame()  # the visualizer first, then the OLED loop's first "Highlight active airport" pulse
     if app.config.data.display_screen.enabled:
-        app.display.start()
+        app.display.start(locate_delay=STARTUP_LOCATE_DELAY)
     try:
         while True:
             app.renderer.render()
