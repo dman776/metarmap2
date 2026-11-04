@@ -111,6 +111,19 @@ class Renderer(object):
 
     # ---- running the LEDs -------------------------------------------------------------------------------------
 
+    def draw_frame(self):
+        """
+        Draws the visualizer's first frame at once. At startup the LEDs then show it before the OLED loop's first
+        locate() pulse (otherwise the pulse comes first and the visualizer only after it).
+        """
+        try:
+            with self._lock:
+                for animation in self._animations:
+                    animation.animate(show=False)
+                self._pixels.show()
+        except Exception as e:
+            log.warning("draw_frame error: " + str(e))
+
     def render(self):
         try:
             built = self._animations

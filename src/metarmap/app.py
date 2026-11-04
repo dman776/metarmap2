@@ -361,6 +361,7 @@ def run(app: App, port=None):
         web_server = None
 
     log.info("Main loop...")
+    app.renderer.draw_frame()  # the visualizer first, then the OLED loop's first "Highlight active airport" pulse
     if app.config.data.display_screen.enabled:
         app.display.start()
     try:

@@ -9,6 +9,8 @@
   `CALM / 0SM / 0.00`, and the Map page's Decoded and Summary tabs leave out the wind instead of saying "Calm".
   The Wind and Wind Gusts LEDs show missing data for it instead of calm. A calm wind (`00000KT`) is still CALM, and
   the API still sends 0 for all three
+- **At startup the LEDs show the visualizer first**, then the first "Highlight active airport" pulse. It used to
+  come right after the test pattern, before any visualizer color
 
 ### dman776 3.2.0 (2026-11-03)
 
