@@ -219,12 +219,12 @@ def add_routes(app, services, site, auth, updates=None):
         except IndexError:
             bottle.abort(404, f"No LED {data.get('pixel')}")
         code = config.airports[pixel].code
-        shown = services.metars.data.get(code) or {}
+        shown = services.metars.data.get(code)
         return as_json(
             {
                 "code": code,
-                "mock": shown.get("raw") if shown.get("mock") else None,
-                "flightCategory": shown.get("flightCategory"),
+                "mock": shown.raw if shown and shown.mock else None,
+                "flightCategory": shown.flight_category if shown else None,
             }
         )
 

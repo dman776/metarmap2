@@ -3,8 +3,10 @@ Wind Direction: colors each airport by the compass direction its wind blows from
 45° sectors. Wind and Wind Gusts show how strong it is.
 """
 
+from typing import Optional
+
 import metarmap.lib.colors as colors_lib
-from metarmap.models import Look, Metar
+from metarmap.models import Look, Report
 from metarmap.visualizers import style
 from metarmap.visualizers.visualizer import Visualizer, legend_item
 
@@ -29,9 +31,9 @@ def sector(degrees: float) -> int:
     return int((degrees % 360 + 22.5) // 45) % 8
 
 
-def heading(metar: Metar):
+def heading(metar: Report):
     """The direction in degrees, "VRB", or None when the report has none."""
-    direction = str(metar.get("windDir") or "").strip().upper()
+    direction = str(metar.wind_dir or "").strip().upper()
     if direction == "VRB":
         return direction
     try:
@@ -40,11 +42,11 @@ def heading(metar: Metar):
         return None
 
 
-def look(metar: Metar, settings) -> Look:
+def look(metar: Optional[Report], settings) -> Look:
     if not metar:
         return style.no_report()
     direction = heading(metar)
-    if metar.get("windSpeed") == 0 or (direction == 0 and not metar.get("windSpeed")):
+    if metar.wind_speed == 0 or (direction == 0 and not metar.wind_speed):
         return Look.solid(style.named(CALM))
     if direction == "VRB":
         return Look.pulse(style.named(VARIABLE), period=style.LIGHT_PERIOD, low=style.LIGHT_LOW)

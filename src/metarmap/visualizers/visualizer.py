@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import Callable, List, Optional
 
 import metarmap.lib.colors as colors_lib
-from metarmap.models import Look, Metar
+from metarmap.models import Look, Report
 
 # Visualizer.areas: the areas the Map page can draw, each from /api/<areas>
 AREAS = ("advisories", "tfrs")
@@ -38,7 +38,7 @@ class Visualizer:
     name: str
     description: str
     legend: Callable[..., List[dict]]
-    look: Optional[Callable[[Metar, object], Look]] = None
+    look: Optional[Callable[[Optional[Report], object], Look]] = None
     strip_look: Optional[Callable[[object], Look]] = None
     covers_virtual: bool = False
     barbs: bool = False
@@ -96,7 +96,7 @@ def looks(vis, codes, data, settings) -> List[Look]:
     One look per LED. codes: each LED's airport, in LED order ("" for none, which stays dark);
     data: airport code -> METAR.
     """
-    return [look(vis, data.get(code) or {}, settings) if code else Look.off() for code in codes]
+    return [look(vis, data.get(code), settings) if code else Look.off() for code in codes]
 
 
 def shows_lightning(vis: Visualizer, settings) -> bool:

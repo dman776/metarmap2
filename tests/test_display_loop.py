@@ -5,6 +5,7 @@ recovering from errors, and the watchdog.
 
 import threading
 import time
+from dataclasses import replace
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
@@ -12,24 +13,24 @@ import pytest
 
 from conftest import airports
 from metarmap.display import Display, watchdog_limit
+from metarmap.models import Report
 from metarmap.clock import FakeClock
 from metarmap.oled.screen import FakeScreen
 from metarmap.settings import Settings
 
-GOOD = {
-    "flightCategory": "VFR",
-    "windDir": "100",
-    "windSpeed": 13,
-    "windGustSpeed": 0,
-    "windGust": False,
-    "vis": 10,
-    "altimHg": 30.2,
-    "tempC": 28,
-    "dewpointC": 16,
-    "obsTime": datetime(2026, 10, 24, 17, 53, tzinfo=timezone.utc),
-}
+GOOD = Report(
+    flight_category="VFR",
+    wind_dir="100",
+    wind_speed=13,
+    wind_gust_speed=0,
+    visibility_sm=10.0,
+    altimeter_inhg=30.2,
+    temp_c=28,
+    dewpoint_c=16,
+    obs_time=datetime(2026, 10, 24, 17, 53, tzinfo=timezone.utc),
+)
 AIRPORTS = airports("KHOU", "KIAH", "KDKR", "KGLS", display=("KHOU", "KDKR", "KGLS"))
-DATA = {"KHOU": GOOD, "KIAH": GOOD, "KDKR": {}, "KGLS": {**GOOD, "flightCategory": "LIFR"}}
+DATA = {"KHOU": GOOD, "KIAH": GOOD, "KDKR": None, "KGLS": replace(GOOD, flight_category="LIFR")}
 
 
 class FakeRenderer:

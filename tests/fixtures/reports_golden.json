@@ -1,0 +1,1716 @@
+{
+ "now": "2026-10-28T01:00:00+00:00",
+ "reports": [
+  {
+   "input": {
+    "icaoId": "KCLL",
+    "obsTime": 1792864380,
+    "temp": 27.2,
+    "dewp": 16.1,
+    "wdir": 130,
+    "wspd": 7,
+    "wgst": 16,
+    "visib": "10+",
+    "altim": 1023.0,
+    "rawOb": "METAR KCLL 241753Z 13007G16KT 10SM SCT042 27/16 A3021 RMK AO2 SLP225 T02720161 10272 20144 58009 $",
+    "lat": 30.5912,
+    "lon": -96.3631,
+    "elev": 96,
+    "name": "",
+    "cover": "SCT",
+    "clouds": [
+     {
+      "cover": "SCT",
+      "base": 4200
+     }
+    ],
+    "fltCat": "VFR"
+   },
+   "expected": {
+    "raw": "METAR KCLL 241753Z 13007G16KT 10SM SCT042 27/16 A3021 RMK AO2 SLP225 T02720161 10272 20144 58009 $",
+    "name": "",
+    "elevation_m": 96,
+    "flightCategory": "VFR",
+    "windDir": "130",
+    "windSpeed": 7,
+    "windGustSpeed": 16,
+    "windGust": true,
+    "vis": 10,
+    "visibilitySM": 10.0,
+    "visibilityMore": true,
+    "vertVisFt": null,
+    "obs": "",
+    "tempC": 27,
+    "dewpointC": 16,
+    "altimHg": 30.21,
+    "lightning": false,
+    "skyConditions": [
+     {
+      "cover": "SCT",
+      "cloudBaseFt": 4200
+     }
+    ],
+    "obsTime": "2026-10-24T17:53:00+00:00",
+    "latitude": 30.5912,
+    "longitude": -96.3631
+   }
+  },
+  {
+   "input": {
+    "icaoId": "KBPT",
+    "obsTime": 1792864380,
+    "temp": 27.2,
+    "dewp": 15.0,
+    "wdir": "VRB",
+    "wspd": 6,
+    "visib": "10+",
+    "altim": 1023.7,
+    "rawOb": "METAR KBPT 241753Z VRB06KT 10SM CLR 27/15 A3023 RMK AO2 SLP235 T02720150 10272 20167 58006 $",
+    "lat": 29.9521,
+    "lon": -94.0262,
+    "elev": 6,
+    "name": "",
+    "cover": "CLR",
+    "clouds": [],
+    "fltCat": "VFR"
+   },
+   "expected": {
+    "raw": "METAR KBPT 241753Z VRB06KT 10SM CLR 27/15 A3023 RMK AO2 SLP235 T02720150 10272 20167 58006 $",
+    "name": "",
+    "elevation_m": 6,
+    "flightCategory": "VFR",
+    "windDir": "VRB",
+    "windSpeed": 6,
+    "windGustSpeed": 0,
+    "windGust": false,
+    "vis": 10,
+    "visibilitySM": 10.0,
+    "visibilityMore": true,
+    "vertVisFt": null,
+    "obs": "",
+    "tempC": 27,
+    "dewpointC": 15,
+    "altimHg": 30.23,
+    "lightning": false,
+    "skyConditions": [
+     {
+      "cover": "CLR",
+      "cloudBaseFt": 0
+     }
+    ],
+    "obsTime": "2026-10-24T17:53:00+00:00",
+    "latitude": 29.9521,
+    "longitude": -94.0262
+   }
+  },
+  {
+   "input": {
+    "icaoId": "KHOU",
+    "obsTime": 1792864380,
+    "temp": 28.3,
+    "dewp": 16.1,
+    "wdir": 100,
+    "wspd": 13,
+    "wgst": 19,
+    "visib": "10+",
+    "altim": 1022.7,
+    "rawOb": "METAR KHOU 241753Z 10013G19KT 10SM SCT044 28/16 A3020 RMK AO2 SLP232 T02830161 10283 20183 58007 $",
+    "lat": 29.6458,
+    "lon": -95.2821,
+    "elev": 13,
+    "name": "",
+    "cover": "SCT",
+    "clouds": [
+     {
+      "cover": "SCT",
+      "base": 4400
+     }
+    ],
+    "fltCat": "VFR"
+   },
+   "expected": {
+    "raw": "METAR KHOU 241753Z 10013G19KT 10SM SCT044 28/16 A3020 RMK AO2 SLP232 T02830161 10283 20183 58007 $",
+    "name": "",
+    "elevation_m": 13,
+    "flightCategory": "VFR",
+    "windDir": "100",
+    "windSpeed": 13,
+    "windGustSpeed": 19,
+    "windGust": true,
+    "vis": 10,
+    "visibilitySM": 10.0,
+    "visibilityMore": true,
+    "vertVisFt": null,
+    "obs": "",
+    "tempC": 28,
+    "dewpointC": 16,
+    "altimHg": 30.2,
+    "lightning": false,
+    "skyConditions": [
+     {
+      "cover": "SCT",
+      "cloudBaseFt": 4400
+     }
+    ],
+    "obsTime": "2026-10-24T17:53:00+00:00",
+    "latitude": 29.6458,
+    "longitude": -95.2821
+   }
+  },
+  {
+   "input": {
+    "icaoId": "KLBX",
+    "obsTime": 1792864380,
+    "temp": 28.3,
+    "dewp": 16.7,
+    "wdir": 90,
+    "wspd": 7,
+    "wgst": 19,
+    "visib": "10+",
+    "altim": 1022.7,
+    "rawOb": "METAR KLBX 241753Z AUTO 09007G19KT 10SM SCT043 28/17 A3020 RMK AO2 SLP226 T02830167 10289 20150 58005",
+    "lat": 29.1154,
+    "lon": -95.4632,
+    "elev": 4,
+    "name": "",
+    "cover": "SCT",
+    "clouds": [
+     {
+      "cover": "SCT",
+      "base": 4300
+     }
+    ],
+    "fltCat": "VFR"
+   },
+   "expected": {
+    "raw": "METAR KLBX 241753Z AUTO 09007G19KT 10SM SCT043 28/17 A3020 RMK AO2 SLP226 T02830167 10289 20150 58005",
+    "name": "",
+    "elevation_m": 4,
+    "flightCategory": "VFR",
+    "windDir": "90",
+    "windSpeed": 7,
+    "windGustSpeed": 19,
+    "windGust": true,
+    "vis": 10,
+    "visibilitySM": 10.0,
+    "visibilityMore": true,
+    "vertVisFt": null,
+    "obs": "",
+    "tempC": 28,
+    "dewpointC": 17,
+    "altimHg": 30.2,
+    "lightning": false,
+    "skyConditions": [
+     {
+      "cover": "SCT",
+      "cloudBaseFt": 4300
+     }
+    ],
+    "obsTime": "2026-10-24T17:53:00+00:00",
+    "latitude": 29.1154,
+    "longitude": -95.4632
+   }
+  },
+  {
+   "input": {
+    "icaoId": "KIAH",
+    "obsTime": 1792864380,
+    "temp": 28.3,
+    "dewp": 15.6,
+    "wdir": 100,
+    "wspd": 10,
+    "visib": "10+",
+    "altim": 1023.0,
+    "rawOb": "METAR KIAH 241753Z 10010KT 10SM FEW048 28/16 A3021 RMK AO2 SLP230 T02830156 10289 20144 58009",
+    "lat": 29.9844,
+    "lon": -95.3607,
+    "elev": 27,
+    "name": "",
+    "cover": "FEW",
+    "clouds": [
+     {
+      "cover": "FEW",
+      "base": 4800
+     }
+    ],
+    "fltCat": "VFR"
+   },
+   "expected": {
+    "raw": "METAR KIAH 241753Z 10010KT 10SM FEW048 28/16 A3021 RMK AO2 SLP230 T02830156 10289 20144 58009",
+    "name": "",
+    "elevation_m": 27,
+    "flightCategory": "VFR",
+    "windDir": "100",
+    "windSpeed": 10,
+    "windGustSpeed": 0,
+    "windGust": false,
+    "vis": 10,
+    "visibilitySM": 10.0,
+    "visibilityMore": true,
+    "vertVisFt": null,
+    "obs": "",
+    "tempC": 28,
+    "dewpointC": 16,
+    "altimHg": 30.21,
+    "lightning": false,
+    "skyConditions": [
+     {
+      "cover": "FEW",
+      "cloudBaseFt": 4800
+     }
+    ],
+    "obsTime": "2026-10-24T17:53:00+00:00",
+    "latitude": 29.9844,
+    "longitude": -95.3607
+   }
+  },
+  {
+   "input": {
+    "icaoId": "KGLS",
+    "obsTime": 1792864320,
+    "temp": 27.8,
+    "dewp": 17.2,
+    "wdir": 110,
+    "wspd": 9,
+    "visib": "10+",
+    "altim": 1023.4,
+    "rawOb": "METAR KGLS 241752Z 11009KT 10SM CLR 28/17 A3022 RMK AO2 SLP234 T02780172 10278 20211 58004",
+    "lat": 29.2704,
+    "lon": -94.8642,
+    "elev": 2,
+    "name": "",
+    "cover": "CLR",
+    "clouds": [],
+    "fltCat": "VFR"
+   },
+   "expected": {
+    "raw": "METAR KGLS 241752Z 11009KT 10SM CLR 28/17 A3022 RMK AO2 SLP234 T02780172 10278 20211 58004",
+    "name": "",
+    "elevation_m": 2,
+    "flightCategory": "VFR",
+    "windDir": "110",
+    "windSpeed": 9,
+    "windGustSpeed": 0,
+    "windGust": false,
+    "vis": 10,
+    "visibilitySM": 10.0,
+    "visibilityMore": true,
+    "vertVisFt": null,
+    "obs": "",
+    "tempC": 28,
+    "dewpointC": 17,
+    "altimHg": 30.22,
+    "lightning": false,
+    "skyConditions": [
+     {
+      "cover": "CLR",
+      "cloudBaseFt": 0
+     }
+    ],
+    "obsTime": "2026-10-24T17:52:00+00:00",
+    "latitude": 29.2704,
+    "longitude": -94.8642
+   }
+  },
+  {
+   "input": {
+    "icaoId": "KCLL",
+    "obsTime": 1792860780,
+    "temp": 26.7,
+    "dewp": 16.7,
+    "wdir": 140,
+    "wspd": 11,
+    "visib": "10+",
+    "altim": 1023.7,
+    "rawOb": "METAR KCLL 241653Z 14011KT 10SM CLR 27/17 A3023 RMK AO2 SLP233 T02670167 $",
+    "lat": 30.5912,
+    "lon": -96.3631,
+    "elev": 96,
+    "name": "",
+    "cover": "CLR",
+    "clouds": [],
+    "fltCat": "VFR"
+   },
+   "expected": {
+    "raw": "METAR KCLL 241653Z 14011KT 10SM CLR 27/17 A3023 RMK AO2 SLP233 T02670167 $",
+    "name": "",
+    "elevation_m": 96,
+    "flightCategory": "VFR",
+    "windDir": "140",
+    "windSpeed": 11,
+    "windGustSpeed": 0,
+    "windGust": false,
+    "vis": 10,
+    "visibilitySM": 10.0,
+    "visibilityMore": true,
+    "vertVisFt": null,
+    "obs": "",
+    "tempC": 27,
+    "dewpointC": 17,
+    "altimHg": 30.23,
+    "lightning": false,
+    "skyConditions": [
+     {
+      "cover": "CLR",
+      "cloudBaseFt": 0
+     }
+    ],
+    "obsTime": "2026-10-24T16:53:00+00:00",
+    "latitude": 30.5912,
+    "longitude": -96.3631
+   }
+  },
+  {
+   "input": {
+    "icaoId": "KBPT",
+    "obsTime": 1792860780,
+    "temp": 26.1,
+    "dewp": 16.1,
+    "wdir": 80,
+    "wspd": 10,
+    "visib": "10+",
+    "altim": 1024.0,
+    "rawOb": "METAR KBPT 241653Z 08010KT 10SM CLR 26/16 A3024 RMK AO2 SLP241 T02610161 $",
+    "lat": 29.9521,
+    "lon": -94.0262,
+    "elev": 6,
+    "name": "",
+    "cover": "CLR",
+    "clouds": [],
+    "fltCat": "VFR"
+   },
+   "expected": {
+    "raw": "METAR KBPT 241653Z 08010KT 10SM CLR 26/16 A3024 RMK AO2 SLP241 T02610161 $",
+    "name": "",
+    "elevation_m": 6,
+    "flightCategory": "VFR",
+    "windDir": "80",
+    "windSpeed": 10,
+    "windGustSpeed": 0,
+    "windGust": false,
+    "vis": 10,
+    "visibilitySM": 10.0,
+    "visibilityMore": true,
+    "vertVisFt": null,
+    "obs": "",
+    "tempC": 26,
+    "dewpointC": 16,
+    "altimHg": 30.24,
+    "lightning": false,
+    "skyConditions": [
+     {
+      "cover": "CLR",
+      "cloudBaseFt": 0
+     }
+    ],
+    "obsTime": "2026-10-24T16:53:00+00:00",
+    "latitude": 29.9521,
+    "longitude": -94.0262
+   }
+  },
+  {
+   "input": {
+    "icaoId": "KHOU",
+    "obsTime": 1792860780,
+    "temp": 27.2,
+    "dewp": 16.1,
+    "wdir": 110,
+    "wspd": 12,
+    "wgst": 19,
+    "visib": "10+",
+    "altim": 1023.4,
+    "rawOb": "METAR KHOU 241653Z 11012G19KT 10SM SCT043 SCT250 27/16 A3022 RMK AO2 SLP239 T02720161 $",
+    "lat": 29.6458,
+    "lon": -95.2821,
+    "elev": 13,
+    "name": "",
+    "cover": "SCT",
+    "clouds": [
+     {
+      "cover": "SCT",
+      "base": 4300
+     },
+     {
+      "cover": "SCT",
+      "base": 25000
+     }
+    ],
+    "fltCat": "VFR"
+   },
+   "expected": {
+    "raw": "METAR KHOU 241653Z 11012G19KT 10SM SCT043 SCT250 27/16 A3022 RMK AO2 SLP239 T02720161 $",
+    "name": "",
+    "elevation_m": 13,
+    "flightCategory": "VFR",
+    "windDir": "110",
+    "windSpeed": 12,
+    "windGustSpeed": 19,
+    "windGust": true,
+    "vis": 10,
+    "visibilitySM": 10.0,
+    "visibilityMore": true,
+    "vertVisFt": null,
+    "obs": "",
+    "tempC": 27,
+    "dewpointC": 16,
+    "altimHg": 30.22,
+    "lightning": false,
+    "skyConditions": [
+     {
+      "cover": "SCT",
+      "cloudBaseFt": 4300
+     },
+     {
+      "cover": "SCT",
+      "cloudBaseFt": 25000
+     }
+    ],
+    "obsTime": "2026-10-24T16:53:00+00:00",
+    "latitude": 29.6458,
+    "longitude": -95.2821
+   }
+  },
+  {
+   "input": {
+    "icaoId": "KLBX",
+    "obsTime": 1792860780,
+    "temp": 28.9,
+    "dewp": 17.2,
+    "wdir": 100,
+    "wspd": 8,
+    "wgst": 15,
+    "visib": "10+",
+    "altim": 1023.0,
+    "rawOb": "METAR KLBX 241653Z AUTO 10008G15KT 10SM BKN043 29/17 A3021 RMK AO2 SLP231 T02890172",
+    "lat": 29.1154,
+    "lon": -95.4632,
+    "elev": 4,
+    "name": "",
+    "cover": "BKN",
+    "clouds": [
+     {
+      "cover": "BKN",
+      "base": 4300
+     }
+    ],
+    "fltCat": "VFR"
+   },
+   "expected": {
+    "raw": "METAR KLBX 241653Z AUTO 10008G15KT 10SM BKN043 29/17 A3021 RMK AO2 SLP231 T02890172",
+    "name": "",
+    "elevation_m": 4,
+    "flightCategory": "VFR",
+    "windDir": "100",
+    "windSpeed": 8,
+    "windGustSpeed": 15,
+    "windGust": true,
+    "vis": 10,
+    "visibilitySM": 10.0,
+    "visibilityMore": true,
+    "vertVisFt": null,
+    "obs": "",
+    "tempC": 29,
+    "dewpointC": 17,
+    "altimHg": 30.21,
+    "lightning": false,
+    "skyConditions": [
+     {
+      "cover": "BKN",
+      "cloudBaseFt": 4300
+     }
+    ],
+    "obsTime": "2026-10-24T16:53:00+00:00",
+    "latitude": 29.1154,
+    "longitude": -95.4632
+   }
+  },
+  {
+   "input": {
+    "icaoId": "KIAH",
+    "obsTime": 1792860780,
+    "temp": 27.8,
+    "dewp": 16.7,
+    "wdir": 90,
+    "wspd": 10,
+    "visib": "10+",
+    "altim": 1023.7,
+    "rawOb": "METAR KIAH 241653Z 09010KT 10SM FEW045 28/17 A3023 RMK AO2 SLP238 T02780167",
+    "lat": 29.9844,
+    "lon": -95.3607,
+    "elev": 27,
+    "name": "",
+    "cover": "FEW",
+    "clouds": [
+     {
+      "cover": "FEW",
+      "base": 4500
+     }
+    ],
+    "fltCat": "VFR"
+   },
+   "expected": {
+    "raw": "METAR KIAH 241653Z 09010KT 10SM FEW045 28/17 A3023 RMK AO2 SLP238 T02780167",
+    "name": "",
+    "elevation_m": 27,
+    "flightCategory": "VFR",
+    "windDir": "90",
+    "windSpeed": 10,
+    "windGustSpeed": 0,
+    "windGust": false,
+    "vis": 10,
+    "visibilitySM": 10.0,
+    "visibilityMore": true,
+    "vertVisFt": null,
+    "obs": "",
+    "tempC": 28,
+    "dewpointC": 17,
+    "altimHg": 30.23,
+    "lightning": false,
+    "skyConditions": [
+     {
+      "cover": "FEW",
+      "cloudBaseFt": 4500
+     }
+    ],
+    "obsTime": "2026-10-24T16:53:00+00:00",
+    "latitude": 29.9844,
+    "longitude": -95.3607
+   }
+  },
+  {
+   "input": {
+    "icaoId": "KGLS",
+    "obsTime": 1792860720,
+    "temp": 27.2,
+    "dewp": 16.7,
+    "wdir": 110,
+    "wspd": 11,
+    "visib": "10+",
+    "altim": 1023.7,
+    "rawOb": "METAR KGLS 241652Z 11011KT 10SM CLR 27/17 A3023 RMK AO2 SLP238 T02720167",
+    "lat": 29.2704,
+    "lon": -94.8642,
+    "elev": 2,
+    "name": "",
+    "cover": "CLR",
+    "clouds": [],
+    "fltCat": "VFR"
+   },
+   "expected": {
+    "raw": "METAR KGLS 241652Z 11011KT 10SM CLR 27/17 A3023 RMK AO2 SLP238 T02720167",
+    "name": "",
+    "elevation_m": 2,
+    "flightCategory": "VFR",
+    "windDir": "110",
+    "windSpeed": 11,
+    "windGustSpeed": 0,
+    "windGust": false,
+    "vis": 10,
+    "visibilitySM": 10.0,
+    "visibilityMore": true,
+    "vertVisFt": null,
+    "obs": "",
+    "tempC": 27,
+    "dewpointC": 17,
+    "altimHg": 30.23,
+    "lightning": false,
+    "skyConditions": [
+     {
+      "cover": "CLR",
+      "cloudBaseFt": 0
+     }
+    ],
+    "obsTime": "2026-10-24T16:52:00+00:00",
+    "latitude": 29.2704,
+    "longitude": -94.8642
+   }
+  },
+  {
+   "input": {
+    "icaoId": "KBPT",
+    "obsTime": 1792857180,
+    "temp": 25.6,
+    "dewp": 16.7,
+    "wdir": 90,
+    "wspd": 8,
+    "visib": "10+",
+    "altim": 1024.4,
+    "rawOb": "METAR KBPT 241553Z 09008KT 10SM CLR 26/17 A3025 RMK AO2 SLP243 T02560167 $",
+    "lat": 29.9521,
+    "lon": -94.0262,
+    "elev": 6,
+    "name": "",
+    "cover": "CLR",
+    "clouds": [],
+    "fltCat": "VFR"
+   },
+   "expected": {
+    "raw": "METAR KBPT 241553Z 09008KT 10SM CLR 26/17 A3025 RMK AO2 SLP243 T02560167 $",
+    "name": "",
+    "elevation_m": 6,
+    "flightCategory": "VFR",
+    "windDir": "90",
+    "windSpeed": 8,
+    "windGustSpeed": 0,
+    "windGust": false,
+    "vis": 10,
+    "visibilitySM": 10.0,
+    "visibilityMore": true,
+    "vertVisFt": null,
+    "obs": "",
+    "tempC": 26,
+    "dewpointC": 17,
+    "altimHg": 30.25,
+    "lightning": false,
+    "skyConditions": [
+     {
+      "cover": "CLR",
+      "cloudBaseFt": 0
+     }
+    ],
+    "obsTime": "2026-10-24T15:53:00+00:00",
+    "latitude": 29.9521,
+    "longitude": -94.0262
+   }
+  },
+  {
+   "input": {
+    "icaoId": "KHOU",
+    "obsTime": 1792857180,
+    "temp": 26.7,
+    "dewp": 17.2,
+    "wdir": 100,
+    "wspd": 9,
+    "visib": "10+",
+    "altim": 1023.7,
+    "rawOb": "METAR KHOU 241553Z 10009KT 10SM FEW050 FEW250 27/17 A3023 RMK AO2 SLP241 T02670172 $",
+    "lat": 29.6458,
+    "lon": -95.2821,
+    "elev": 13,
+    "name": "",
+    "cover": "FEW",
+    "clouds": [
+     {
+      "cover": "FEW",
+      "base": 5000
+     },
+     {
+      "cover": "FEW",
+      "base": 25000
+     }
+    ],
+    "fltCat": "VFR"
+   },
+   "expected": {
+    "raw": "METAR KHOU 241553Z 10009KT 10SM FEW050 FEW250 27/17 A3023 RMK AO2 SLP241 T02670172 $",
+    "name": "",
+    "elevation_m": 13,
+    "flightCategory": "VFR",
+    "windDir": "100",
+    "windSpeed": 9,
+    "windGustSpeed": 0,
+    "windGust": false,
+    "vis": 10,
+    "visibilitySM": 10.0,
+    "visibilityMore": true,
+    "vertVisFt": null,
+    "obs": "",
+    "tempC": 27,
+    "dewpointC": 17,
+    "altimHg": 30.23,
+    "lightning": false,
+    "skyConditions": [
+     {
+      "cover": "FEW",
+      "cloudBaseFt": 5000
+     },
+     {
+      "cover": "FEW",
+      "cloudBaseFt": 25000
+     }
+    ],
+    "obsTime": "2026-10-24T15:53:00+00:00",
+    "latitude": 29.6458,
+    "longitude": -95.2821
+   }
+  },
+  {
+   "input": {
+    "icaoId": "KIAH",
+    "obsTime": 1792857180,
+    "temp": 26.1,
+    "dewp": 16.7,
+    "wdir": 100,
+    "wspd": 8,
+    "visib": "10+",
+    "altim": 1024.0,
+    "rawOb": "METAR KIAH 241553Z 10008KT 10SM FEW040 FEW250 26/17 A3024 RMK AO2 SLP241 T02610167",
+    "lat": 29.9844,
+    "lon": -95.3607,
+    "elev": 27,
+    "name": "",
+    "cover": "FEW",
+    "clouds": [
+     {
+      "cover": "FEW",
+      "base": 4000
+     },
+     {
+      "cover": "FEW",
+      "base": 25000
+     }
+    ],
+    "fltCat": "VFR"
+   },
+   "expected": {
+    "raw": "METAR KIAH 241553Z 10008KT 10SM FEW040 FEW250 26/17 A3024 RMK AO2 SLP241 T02610167",
+    "name": "",
+    "elevation_m": 27,
+    "flightCategory": "VFR",
+    "windDir": "100",
+    "windSpeed": 8,
+    "windGustSpeed": 0,
+    "windGust": false,
+    "vis": 10,
+    "visibilitySM": 10.0,
+    "visibilityMore": true,
+    "vertVisFt": null,
+    "obs": "",
+    "tempC": 26,
+    "dewpointC": 17,
+    "altimHg": 30.24,
+    "lightning": false,
+    "skyConditions": [
+     {
+      "cover": "FEW",
+      "cloudBaseFt": 4000
+     },
+     {
+      "cover": "FEW",
+      "cloudBaseFt": 25000
+     }
+    ],
+    "obsTime": "2026-10-24T15:53:00+00:00",
+    "latitude": 29.9844,
+    "longitude": -95.3607
+   }
+  },
+  {
+   "input": {
+    "icaoId": "KCLL",
+    "obsTime": 1792857180,
+    "temp": 25.0,
+    "dewp": 16.7,
+    "wdir": 110,
+    "wspd": 9,
+    "visib": "10+",
+    "altim": 1024.0,
+    "rawOb": "METAR KCLL 241553Z 11009KT 10SM CLR 25/17 A3024 RMK AO2 SLP236 T02500167 $",
+    "lat": 30.5912,
+    "lon": -96.3631,
+    "elev": 96,
+    "name": "",
+    "cover": "CLR",
+    "clouds": [],
+    "fltCat": "VFR"
+   },
+   "expected": {
+    "raw": "METAR KCLL 241553Z 11009KT 10SM CLR 25/17 A3024 RMK AO2 SLP236 T02500167 $",
+    "name": "",
+    "elevation_m": 96,
+    "flightCategory": "VFR",
+    "windDir": "110",
+    "windSpeed": 9,
+    "windGustSpeed": 0,
+    "windGust": false,
+    "vis": 10,
+    "visibilitySM": 10.0,
+    "visibilityMore": true,
+    "vertVisFt": null,
+    "obs": "",
+    "tempC": 25,
+    "dewpointC": 17,
+    "altimHg": 30.24,
+    "lightning": false,
+    "skyConditions": [
+     {
+      "cover": "CLR",
+      "cloudBaseFt": 0
+     }
+    ],
+    "obsTime": "2026-10-24T15:53:00+00:00",
+    "latitude": 30.5912,
+    "longitude": -96.3631
+   }
+  },
+  {
+   "input": {
+    "icaoId": "KLBX",
+    "obsTime": 1792857180,
+    "temp": 27.8,
+    "dewp": 17.8,
+    "wdir": 140,
+    "wspd": 10,
+    "visib": "10+",
+    "altim": 1023.4,
+    "rawOb": "METAR KLBX 241553Z AUTO 14010KT 10SM SCT036 28/18 A3022 RMK AO2 SLP233 T02780178",
+    "lat": 29.1154,
+    "lon": -95.4632,
+    "elev": 4,
+    "name": "",
+    "cover": "SCT",
+    "clouds": [
+     {
+      "cover": "SCT",
+      "base": 3600
+     }
+    ],
+    "fltCat": "VFR"
+   },
+   "expected": {
+    "raw": "METAR KLBX 241553Z AUTO 14010KT 10SM SCT036 28/18 A3022 RMK AO2 SLP233 T02780178",
+    "name": "",
+    "elevation_m": 4,
+    "flightCategory": "VFR",
+    "windDir": "140",
+    "windSpeed": 10,
+    "windGustSpeed": 0,
+    "windGust": false,
+    "vis": 10,
+    "visibilitySM": 10.0,
+    "visibilityMore": true,
+    "vertVisFt": null,
+    "obs": "",
+    "tempC": 28,
+    "dewpointC": 18,
+    "altimHg": 30.22,
+    "lightning": false,
+    "skyConditions": [
+     {
+      "cover": "SCT",
+      "cloudBaseFt": 3600
+     }
+    ],
+    "obsTime": "2026-10-24T15:53:00+00:00",
+    "latitude": 29.1154,
+    "longitude": -95.4632
+   }
+  },
+  {
+   "input": {
+    "icaoId": "KGLS",
+    "obsTime": 1792857120,
+    "temp": 27.2,
+    "dewp": 17.2,
+    "wdir": 100,
+    "wspd": 9,
+    "visib": "10+",
+    "altim": 1024.0,
+    "rawOb": "METAR KGLS 241552Z 10009KT 10SM CLR 27/17 A3024 RMK AO2 SLP239 T02720172",
+    "lat": 29.2704,
+    "lon": -94.8642,
+    "elev": 2,
+    "name": "",
+    "cover": "CLR",
+    "clouds": [],
+    "fltCat": "VFR"
+   },
+   "expected": {
+    "raw": "METAR KGLS 241552Z 10009KT 10SM CLR 27/17 A3024 RMK AO2 SLP239 T02720172",
+    "name": "",
+    "elevation_m": 2,
+    "flightCategory": "VFR",
+    "windDir": "100",
+    "windSpeed": 9,
+    "windGustSpeed": 0,
+    "windGust": false,
+    "vis": 10,
+    "visibilitySM": 10.0,
+    "visibilityMore": true,
+    "vertVisFt": null,
+    "obs": "",
+    "tempC": 27,
+    "dewpointC": 17,
+    "altimHg": 30.24,
+    "lightning": false,
+    "skyConditions": [
+     {
+      "cover": "CLR",
+      "cloudBaseFt": 0
+     }
+    ],
+    "obsTime": "2026-10-24T15:52:00+00:00",
+    "latitude": 29.2704,
+    "longitude": -94.8642
+   }
+  },
+  {
+   "input": {
+    "icaoId": "KHOU",
+    "obsTime": 1792853580,
+    "temp": 24.4,
+    "dewp": 17.2,
+    "wdir": 100,
+    "wspd": 6,
+    "visib": "10+",
+    "altim": 1023.7,
+    "rawOb": "METAR KHOU 241453Z 10006KT 10SM CLR 24/17 A3023 RMK AO2 SLP240 T02440172 51019 $",
+    "lat": 29.6458,
+    "lon": -95.2821,
+    "elev": 13,
+    "name": "",
+    "cover": "CLR",
+    "clouds": [],
+    "fltCat": "VFR"
+   },
+   "expected": {
+    "raw": "METAR KHOU 241453Z 10006KT 10SM CLR 24/17 A3023 RMK AO2 SLP240 T02440172 51019 $",
+    "name": "",
+    "elevation_m": 13,
+    "flightCategory": "VFR",
+    "windDir": "100",
+    "windSpeed": 6,
+    "windGustSpeed": 0,
+    "windGust": false,
+    "vis": 10,
+    "visibilitySM": 10.0,
+    "visibilityMore": true,
+    "vertVisFt": null,
+    "obs": "",
+    "tempC": 24,
+    "dewpointC": 17,
+    "altimHg": 30.23,
+    "lightning": false,
+    "skyConditions": [
+     {
+      "cover": "CLR",
+      "cloudBaseFt": 0
+     }
+    ],
+    "obsTime": "2026-10-24T14:53:00+00:00",
+    "latitude": 29.6458,
+    "longitude": -95.2821
+   }
+  },
+  {
+   "input": {
+    "icaoId": "KCLL",
+    "obsTime": 1792853580,
+    "temp": 22.2,
+    "dewp": 16.1,
+    "wdir": 100,
+    "wspd": 5,
+    "visib": "10+",
+    "altim": 1024.0,
+    "rawOb": "METAR KCLL 241453Z 10005KT 10SM CLR 22/16 A3024 RMK AO2 SLP235 T02220161 52018 $",
+    "lat": 30.5912,
+    "lon": -96.3631,
+    "elev": 96,
+    "name": "",
+    "cover": "CLR",
+    "clouds": [],
+    "fltCat": "VFR"
+   },
+   "expected": {
+    "raw": "METAR KCLL 241453Z 10005KT 10SM CLR 22/16 A3024 RMK AO2 SLP235 T02220161 52018 $",
+    "name": "",
+    "elevation_m": 96,
+    "flightCategory": "VFR",
+    "windDir": "100",
+    "windSpeed": 5,
+    "windGustSpeed": 0,
+    "windGust": false,
+    "vis": 10,
+    "visibilitySM": 10.0,
+    "visibilityMore": true,
+    "vertVisFt": null,
+    "obs": "",
+    "tempC": 22,
+    "dewpointC": 16,
+    "altimHg": 30.24,
+    "lightning": false,
+    "skyConditions": [
+     {
+      "cover": "CLR",
+      "cloudBaseFt": 0
+     }
+    ],
+    "obsTime": "2026-10-24T14:53:00+00:00",
+    "latitude": 30.5912,
+    "longitude": -96.3631
+   }
+  },
+  {
+   "input": {
+    "icaoId": "KBPT",
+    "obsTime": 1792853580,
+    "temp": 23.3,
+    "dewp": 17.8,
+    "wdir": 60,
+    "wspd": 7,
+    "visib": "10+",
+    "altim": 1024.0,
+    "rawOb": "METAR KBPT 241453Z 06007KT 10SM CLR 23/18 A3024 RMK AO2 SLP241 T02330178 51022 $",
+    "lat": 29.9521,
+    "lon": -94.0262,
+    "elev": 6,
+    "name": "",
+    "cover": "CLR",
+    "clouds": [],
+    "fltCat": "VFR"
+   },
+   "expected": {
+    "raw": "METAR KBPT 241453Z 06007KT 10SM CLR 23/18 A3024 RMK AO2 SLP241 T02330178 51022 $",
+    "name": "",
+    "elevation_m": 6,
+    "flightCategory": "VFR",
+    "windDir": "60",
+    "windSpeed": 7,
+    "windGustSpeed": 0,
+    "windGust": false,
+    "vis": 10,
+    "visibilitySM": 10.0,
+    "visibilityMore": true,
+    "vertVisFt": null,
+    "obs": "",
+    "tempC": 23,
+    "dewpointC": 18,
+    "altimHg": 30.24,
+    "lightning": false,
+    "skyConditions": [
+     {
+      "cover": "CLR",
+      "cloudBaseFt": 0
+     }
+    ],
+    "obsTime": "2026-10-24T14:53:00+00:00",
+    "latitude": 29.9521,
+    "longitude": -94.0262
+   }
+  },
+  {
+   "input": {
+    "icaoId": "KIAH",
+    "obsTime": 1792853580,
+    "temp": 23.3,
+    "dewp": 16.1,
+    "wdir": 60,
+    "wspd": 6,
+    "visib": "10+",
+    "altim": 1024.0,
+    "rawOb": "METAR KIAH 241453Z 06006KT 10SM FEW180 23/16 A3024 RMK AO2 SLP239 T02330161 51018",
+    "lat": 29.9844,
+    "lon": -95.3607,
+    "elev": 27,
+    "name": "",
+    "cover": "FEW",
+    "clouds": [
+     {
+      "cover": "FEW",
+      "base": 18000
+     }
+    ],
+    "fltCat": "VFR"
+   },
+   "expected": {
+    "raw": "METAR KIAH 241453Z 06006KT 10SM FEW180 23/16 A3024 RMK AO2 SLP239 T02330161 51018",
+    "name": "",
+    "elevation_m": 27,
+    "flightCategory": "VFR",
+    "windDir": "60",
+    "windSpeed": 6,
+    "windGustSpeed": 0,
+    "windGust": false,
+    "vis": 10,
+    "visibilitySM": 10.0,
+    "visibilityMore": true,
+    "vertVisFt": null,
+    "obs": "",
+    "tempC": 23,
+    "dewpointC": 16,
+    "altimHg": 30.24,
+    "lightning": false,
+    "skyConditions": [
+     {
+      "cover": "FEW",
+      "cloudBaseFt": 18000
+     }
+    ],
+    "obsTime": "2026-10-24T14:53:00+00:00",
+    "latitude": 29.9844,
+    "longitude": -95.3607
+   }
+  },
+  {
+   "input": {
+    "icaoId": "KLBX",
+    "obsTime": 1792853580,
+    "temp": 25.0,
+    "dewp": 19.4,
+    "wdir": 80,
+    "wspd": 5,
+    "visib": "10+",
+    "altim": 1023.0,
+    "rawOb": "METAR KLBX 241453Z AUTO 08005KT 10SM CLR 25/19 A3021 RMK AO2 SLP231 T02500194 51018",
+    "lat": 29.1154,
+    "lon": -95.4632,
+    "elev": 4,
+    "name": "",
+    "cover": "CLR",
+    "clouds": [],
+    "fltCat": "VFR"
+   },
+   "expected": {
+    "raw": "METAR KLBX 241453Z AUTO 08005KT 10SM CLR 25/19 A3021 RMK AO2 SLP231 T02500194 51018",
+    "name": "",
+    "elevation_m": 4,
+    "flightCategory": "VFR",
+    "windDir": "80",
+    "windSpeed": 5,
+    "windGustSpeed": 0,
+    "windGust": false,
+    "vis": 10,
+    "visibilitySM": 10.0,
+    "visibilityMore": true,
+    "vertVisFt": null,
+    "obs": "",
+    "tempC": 25,
+    "dewpointC": 19,
+    "altimHg": 30.21,
+    "lightning": false,
+    "skyConditions": [
+     {
+      "cover": "CLR",
+      "cloudBaseFt": 0
+     }
+    ],
+    "obsTime": "2026-10-24T14:53:00+00:00",
+    "latitude": 29.1154,
+    "longitude": -95.4632
+   }
+  },
+  {
+   "input": {
+    "icaoId": "KGLS",
+    "obsTime": 1792853520,
+    "temp": 26.1,
+    "dewp": 17.2,
+    "wdir": 110,
+    "wspd": 8,
+    "visib": "10+",
+    "altim": 1023.7,
+    "rawOb": "METAR KGLS 241452Z 11008KT 10SM CLR 26/17 A3023 RMK AO2 SLP237 T02610172 51021",
+    "lat": 29.2704,
+    "lon": -94.8642,
+    "elev": 2,
+    "name": "",
+    "cover": "CLR",
+    "clouds": [],
+    "fltCat": "VFR"
+   },
+   "expected": {
+    "raw": "METAR KGLS 241452Z 11008KT 10SM CLR 26/17 A3023 RMK AO2 SLP237 T02610172 51021",
+    "name": "",
+    "elevation_m": 2,
+    "flightCategory": "VFR",
+    "windDir": "110",
+    "windSpeed": 8,
+    "windGustSpeed": 0,
+    "windGust": false,
+    "vis": 10,
+    "visibilitySM": 10.0,
+    "visibilityMore": true,
+    "vertVisFt": null,
+    "obs": "",
+    "tempC": 26,
+    "dewpointC": 17,
+    "altimHg": 30.23,
+    "lightning": false,
+    "skyConditions": [
+     {
+      "cover": "CLR",
+      "cloudBaseFt": 0
+     }
+    ],
+    "obsTime": "2026-10-24T14:52:00+00:00",
+    "latitude": 29.2704,
+    "longitude": -94.8642
+   }
+  },
+  {
+   "input": {
+    "icaoId": "KHOU",
+    "obsTime": 1792849980,
+    "temp": 21.1,
+    "dewp": 17.2,
+    "wdir": 60,
+    "wspd": 5,
+    "visib": "10+",
+    "altim": 1023.0,
+    "rawOb": "METAR KHOU 241353Z 06005KT 10SM CLR 21/17 A3021 RMK AO2 SLP235 T02110172 $",
+    "lat": 29.6458,
+    "lon": -95.2821,
+    "elev": 13,
+    "name": "",
+    "cover": "CLR",
+    "clouds": [],
+    "fltCat": "VFR"
+   },
+   "expected": {
+    "raw": "METAR KHOU 241353Z 06005KT 10SM CLR 21/17 A3021 RMK AO2 SLP235 T02110172 $",
+    "name": "",
+    "elevation_m": 13,
+    "flightCategory": "VFR",
+    "windDir": "60",
+    "windSpeed": 5,
+    "windGustSpeed": 0,
+    "windGust": false,
+    "vis": 10,
+    "visibilitySM": 10.0,
+    "visibilityMore": true,
+    "vertVisFt": null,
+    "obs": "",
+    "tempC": 21,
+    "dewpointC": 17,
+    "altimHg": 30.21,
+    "lightning": false,
+    "skyConditions": [
+     {
+      "cover": "CLR",
+      "cloudBaseFt": 0
+     }
+    ],
+    "obsTime": "2026-10-24T13:53:00+00:00",
+    "latitude": 29.6458,
+    "longitude": -95.2821
+   }
+  },
+  {
+   "input": {
+    "icaoId": "KBPT",
+    "obsTime": 1792849980,
+    "temp": 20.6,
+    "dewp": 18.3,
+    "wdir": 60,
+    "wspd": 6,
+    "visib": "10+",
+    "altim": 1023.7,
+    "rawOb": "METAR KBPT 241353Z 06006KT 10SM CLR 21/18 A3023 RMK AO2 SLP235 T02060183 $",
+    "lat": 29.9521,
+    "lon": -94.0262,
+    "elev": 6,
+    "name": "",
+    "cover": "CLR",
+    "clouds": [],
+    "fltCat": "VFR"
+   },
+   "expected": {
+    "raw": "METAR KBPT 241353Z 06006KT 10SM CLR 21/18 A3023 RMK AO2 SLP235 T02060183 $",
+    "name": "",
+    "elevation_m": 6,
+    "flightCategory": "VFR",
+    "windDir": "60",
+    "windSpeed": 6,
+    "windGustSpeed": 0,
+    "windGust": false,
+    "vis": 10,
+    "visibilitySM": 10.0,
+    "visibilityMore": true,
+    "vertVisFt": null,
+    "obs": "",
+    "tempC": 21,
+    "dewpointC": 18,
+    "altimHg": 30.23,
+    "lightning": false,
+    "skyConditions": [
+     {
+      "cover": "CLR",
+      "cloudBaseFt": 0
+     }
+    ],
+    "obsTime": "2026-10-24T13:53:00+00:00",
+    "latitude": 29.9521,
+    "longitude": -94.0262
+   }
+  },
+  {
+   "input": {
+    "icaoId": "KCLL",
+    "obsTime": 1792849980,
+    "temp": 17.8,
+    "dewp": 14.4,
+    "wdir": 90,
+    "wspd": 5,
+    "visib": "10+",
+    "altim": 1023.4,
+    "rawOb": "METAR KCLL 241353Z 09005KT 10SM CLR 18/14 A3022 RMK AO2 SLP230 T01780144 $",
+    "lat": 30.5912,
+    "lon": -96.3631,
+    "elev": 96,
+    "name": "",
+    "cover": "CLR",
+    "clouds": [],
+    "fltCat": "VFR"
+   },
+   "expected": {
+    "raw": "METAR KCLL 241353Z 09005KT 10SM CLR 18/14 A3022 RMK AO2 SLP230 T01780144 $",
+    "name": "",
+    "elevation_m": 96,
+    "flightCategory": "VFR",
+    "windDir": "90",
+    "windSpeed": 5,
+    "windGustSpeed": 0,
+    "windGust": false,
+    "vis": 10,
+    "visibilitySM": 10.0,
+    "visibilityMore": true,
+    "vertVisFt": null,
+    "obs": "",
+    "tempC": 18,
+    "dewpointC": 14,
+    "altimHg": 30.22,
+    "lightning": false,
+    "skyConditions": [
+     {
+      "cover": "CLR",
+      "cloudBaseFt": 0
+     }
+    ],
+    "obsTime": "2026-10-24T13:53:00+00:00",
+    "latitude": 30.5912,
+    "longitude": -96.3631
+   }
+  },
+  {
+   "input": {
+    "icaoId": "KLBX",
+    "obsTime": 1792849980,
+    "temp": 19.4,
+    "dewp": 18.3,
+    "wdir": 40,
+    "wspd": 4,
+    "visib": "10+",
+    "altim": 1022.7,
+    "rawOb": "METAR KLBX 241353Z AUTO 04004KT 10SM CLR 19/18 A3020 RMK AO2 SLP226 T01940183",
+    "lat": 29.1154,
+    "lon": -95.4632,
+    "elev": 4,
+    "name": "",
+    "cover": "CLR",
+    "clouds": [],
+    "fltCat": "VFR"
+   },
+   "expected": {
+    "raw": "METAR KLBX 241353Z AUTO 04004KT 10SM CLR 19/18 A3020 RMK AO2 SLP226 T01940183",
+    "name": "",
+    "elevation_m": 4,
+    "flightCategory": "VFR",
+    "windDir": "40",
+    "windSpeed": 4,
+    "windGustSpeed": 0,
+    "windGust": false,
+    "vis": 10,
+    "visibilitySM": 10.0,
+    "visibilityMore": true,
+    "vertVisFt": null,
+    "obs": "",
+    "tempC": 19,
+    "dewpointC": 18,
+    "altimHg": 30.2,
+    "lightning": false,
+    "skyConditions": [
+     {
+      "cover": "CLR",
+      "cloudBaseFt": 0
+     }
+    ],
+    "obsTime": "2026-10-24T13:53:00+00:00",
+    "latitude": 29.1154,
+    "longitude": -95.4632
+   }
+  },
+  {
+   "input": {
+    "icaoId": "KIAH",
+    "obsTime": 1792849980,
+    "temp": 19.4,
+    "dewp": 16.1,
+    "wdir": 60,
+    "wspd": 5,
+    "visib": 7.0,
+    "altim": 1023.4,
+    "rawOb": "METAR KIAH 241353Z 06005KT 7SM CLR 19/16 A3022 RMK AO2 SLP233 T01940161 $",
+    "lat": 29.9844,
+    "lon": -95.3607,
+    "elev": 27,
+    "name": "",
+    "cover": "CLR",
+    "clouds": [],
+    "fltCat": "VFR"
+   },
+   "expected": {
+    "raw": "METAR KIAH 241353Z 06005KT 7SM CLR 19/16 A3022 RMK AO2 SLP233 T01940161 $",
+    "name": "",
+    "elevation_m": 27,
+    "flightCategory": "VFR",
+    "windDir": "60",
+    "windSpeed": 5,
+    "windGustSpeed": 0,
+    "windGust": false,
+    "vis": 7,
+    "visibilitySM": 7.0,
+    "visibilityMore": false,
+    "vertVisFt": null,
+    "obs": "",
+    "tempC": 19,
+    "dewpointC": 16,
+    "altimHg": 30.22,
+    "lightning": false,
+    "skyConditions": [
+     {
+      "cover": "CLR",
+      "cloudBaseFt": 0
+     }
+    ],
+    "obsTime": "2026-10-24T13:53:00+00:00",
+    "latitude": 29.9844,
+    "longitude": -95.3607
+   }
+  },
+  {
+   "input": {
+    "icaoId": "KGLS",
+    "obsTime": 1792849920,
+    "temp": 25.0,
+    "dewp": 18.9,
+    "wdir": 100,
+    "wspd": 4,
+    "visib": "10+",
+    "altim": 1023.0,
+    "rawOb": "METAR KGLS 241352Z 10004KT 10SM CLR 25/19 A3021 RMK AO2 SLP231 T02500189",
+    "lat": 29.2704,
+    "lon": -94.8642,
+    "elev": 2,
+    "name": "",
+    "cover": "CLR",
+    "clouds": [],
+    "fltCat": "VFR"
+   },
+   "expected": {
+    "raw": "METAR KGLS 241352Z 10004KT 10SM CLR 25/19 A3021 RMK AO2 SLP231 T02500189",
+    "name": "",
+    "elevation_m": 2,
+    "flightCategory": "VFR",
+    "windDir": "100",
+    "windSpeed": 4,
+    "windGustSpeed": 0,
+    "windGust": false,
+    "vis": 10,
+    "visibilitySM": 10.0,
+    "visibilityMore": true,
+    "vertVisFt": null,
+    "obs": "",
+    "tempC": 25,
+    "dewpointC": 19,
+    "altimHg": 30.21,
+    "lightning": false,
+    "skyConditions": [
+     {
+      "cover": "CLR",
+      "cloudBaseFt": 0
+     }
+    ],
+    "obsTime": "2026-10-24T13:52:00+00:00",
+    "latitude": 29.2704,
+    "longitude": -94.8642
+   }
+  }
+ ],
+ "raw": [
+  {
+   "input": "METAR KDWH 272353Z AUTO 08003KT 9SM CLR 21/18 A3014 RMK AO2 SLP203 T02110178 10228 20200 55002",
+   "expected": {
+    "raw": "METAR KDWH 272353Z AUTO 08003KT 9SM CLR 21/18 A3014 RMK AO2 SLP203 T02110178 10228 20200 55002",
+    "name": "",
+    "elevation_m": 0,
+    "windDir": "80",
+    "windSpeed": 3,
+    "windGustSpeed": 0,
+    "windGust": false,
+    "vis": 9,
+    "visibilitySM": 9.0,
+    "visibilityMore": false,
+    "vertVisFt": null,
+    "obs": "",
+    "tempC": 21,
+    "dewpointC": 18,
+    "altimHg": 30.14,
+    "lightning": false,
+    "skyConditions": [
+     {
+      "cover": "CLR",
+      "cloudBaseFt": 0
+     }
+    ],
+    "obsTime": "2026-10-27T23:53:00+00:00",
+    "latitude": null,
+    "longitude": null,
+    "flightCategory": "VFR"
+   }
+  },
+  {
+   "input": "KHOU 280053Z 18012G25KT 1 1/2SM +TSRA BR BKN008 OVC015CB 22/21 A2992 RMK LTG DSNT",
+   "expected": {
+    "raw": "KHOU 280053Z 18012G25KT 1 1/2SM +TSRA BR BKN008 OVC015CB 22/21 A2992 RMK LTG DSNT",
+    "name": "",
+    "elevation_m": 0,
+    "windDir": "180",
+    "windSpeed": 12,
+    "windGustSpeed": 25,
+    "windGust": true,
+    "vis": 2,
+    "visibilitySM": 1.5,
+    "visibilityMore": false,
+    "vertVisFt": null,
+    "obs": "+TSRA BR",
+    "tempC": 22,
+    "dewpointC": 21,
+    "altimHg": 29.92,
+    "lightning": true,
+    "skyConditions": [
+     {
+      "cover": "BKN",
+      "cloudBaseFt": 800
+     },
+     {
+      "cover": "OVC",
+      "cloudBaseFt": 1500
+     }
+    ],
+    "obsTime": "2026-10-28T00:53:00+00:00",
+    "latitude": null,
+    "longitude": null,
+    "flightCategory": "IFR"
+   }
+  },
+  {
+   "input": "KXXX 272300Z 00000KT M1/4SM FG VV002 M02/M03 A3001",
+   "expected": {
+    "raw": "KXXX 272300Z 00000KT M1/4SM FG VV002 M02/M03 A3001",
+    "name": "",
+    "elevation_m": 0,
+    "windDir": "0",
+    "windSpeed": 0,
+    "windGustSpeed": 0,
+    "windGust": false,
+    "vis": 0,
+    "visibilitySM": 0.25,
+    "visibilityMore": false,
+    "vertVisFt": 200,
+    "obs": "FG",
+    "tempC": -2,
+    "dewpointC": -3,
+    "altimHg": 30.01,
+    "lightning": false,
+    "skyConditions": [
+     {
+      "cover": "OVX",
+      "cloudBaseFt": 0
+     }
+    ],
+    "obsTime": "2026-10-27T23:00:00+00:00",
+    "latitude": null,
+    "longitude": null,
+    "flightCategory": "LIFR"
+   }
+  },
+  {
+   "input": "EGLL 272350Z 24010MPS 9999 -RA SCT020 12/08 Q1012",
+   "expected": {
+    "raw": "EGLL 272350Z 24010MPS 9999 -RA SCT020 12/08 Q1012",
+    "name": "",
+    "elevation_m": 0,
+    "windDir": "240",
+    "windSpeed": 19,
+    "windGustSpeed": 0,
+    "windGust": false,
+    "vis": 6,
+    "visibilitySM": 6.21,
+    "visibilityMore": true,
+    "vertVisFt": null,
+    "obs": "-RA",
+    "tempC": 12,
+    "dewpointC": 8,
+    "altimHg": 29.88,
+    "lightning": false,
+    "skyConditions": [
+     {
+      "cover": "SCT",
+      "cloudBaseFt": 2000
+     }
+    ],
+    "obsTime": "2026-10-27T23:50:00+00:00",
+    "latitude": null,
+    "longitude": null,
+    "flightCategory": "VFR"
+   }
+  },
+  {
+   "input": "LFPG 272330Z VRB02KT CAVOK 09/07 Q1020",
+   "expected": {
+    "raw": "LFPG 272330Z VRB02KT CAVOK 09/07 Q1020",
+    "name": "",
+    "elevation_m": 0,
+    "windDir": "VRB",
+    "windSpeed": 2,
+    "windGustSpeed": 0,
+    "windGust": false,
+    "vis": 10,
+    "visibilitySM": 10.0,
+    "visibilityMore": true,
+    "vertVisFt": null,
+    "obs": "",
+    "tempC": 9,
+    "dewpointC": 7,
+    "altimHg": 30.12,
+    "lightning": false,
+    "skyConditions": [
+     {
+      "cover": "CAVOK",
+      "cloudBaseFt": 0
+     }
+    ],
+    "obsTime": "2026-10-27T23:30:00+00:00",
+    "latitude": null,
+    "longitude": null,
+    "flightCategory": "VFR"
+   }
+  },
+  {
+   "input": "KABC 272353Z",
+   "expected": {
+    "raw": "KABC 272353Z",
+    "name": "",
+    "elevation_m": 0,
+    "windDir": "",
+    "windSpeed": 0,
+    "windGustSpeed": 0,
+    "windGust": false,
+    "vis": 0,
+    "visibilitySM": null,
+    "visibilityMore": false,
+    "vertVisFt": null,
+    "obs": "",
+    "tempC": null,
+    "dewpointC": null,
+    "altimHg": 0.0,
+    "lightning": false,
+    "skyConditions": [],
+    "obsTime": "2026-10-27T23:53:00+00:00",
+    "latitude": null,
+    "longitude": null,
+    "flightCategory": null
+   }
+  }
+ ]
+}

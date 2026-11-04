@@ -1,3 +1,15 @@
+### Unreleased
+
+- **A parsed METAR is a `Report`** (inside the code; the web UI, the API and Home Assistant work as before):
+  - Each airport's report is a frozen dataclass (`models.Report`, with `SkyLayer` for the clouds) with snake_case
+    fields, instead of a dict with the API's camelCase keys; an airport with no report is `None` instead of `{}`
+  - `Report.to_api()` gives the field names `/api/status` uses, and a test checks they're the same as before
+  - The class that fetches them is `metar.Reports` (was `metar.METAR`)
+- **A report without wind, visibility or an altimeter setting shows dashes** on the OLED instead of
+  `CALM / 0SM / 0.00`, and the Map page's Decoded and Summary tabs leave out the wind instead of saying "Calm".
+  The Wind and Wind Gusts LEDs show missing data for it instead of calm. A calm wind (`00000KT`) is still CALM, and
+  the API still sends 0 for all three
+
 ### dman776 3.2.0 (2026-11-03)
 
 - **Settings follow their own rules** (inside the code; the web UI and the API work as before):

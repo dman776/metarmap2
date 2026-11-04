@@ -2,7 +2,7 @@
 
 import pytest
 
-from metarmap.models import Look
+from metarmap.models import Look, Report
 from metarmap.settings import Settings
 from metarmap.visualizers import flightcategory, style
 from metarmap.visualizers import visualizer
@@ -11,17 +11,17 @@ from metarmap.visualizers import visualizer
 @pytest.mark.parametrize(
     "fields, category",
     [
-        ({"visibilitySM": 10.0}, "VFR"),
-        ({"visibilitySM": 5.0}, "MVFR"),
-        ({"visibilitySM": 2.5}, "IFR"),
-        ({"visibilitySM": 0.75}, "LIFR"),
+        ({"visibility_sm": 10.0}, "VFR"),
+        ({"visibility_sm": 5.0}, "MVFR"),
+        ({"visibility_sm": 2.5}, "IFR"),
+        ({"visibility_sm": 0.75}, "LIFR"),
     ],
 )
 @pytest.mark.parametrize("enabled", [True, False])
 def test_estimated_category_effect_and_color(enabled, fields, category):
     settings = Settings()
     settings.visualizer.estimated_category_breathing = enabled
-    report = {"flightCategory": None, **fields}
+    report = Report(flight_category=None, **fields)
     color = flightcategory.COLORS[category]
     expected = (
         Look.pulse(color, period=flightcategory.ESTIMATE_PERIOD, low=style.LIGHT_LOW) if enabled else Look.solid(color)
@@ -43,7 +43,7 @@ def test_reported_category_is_solid_regardless_of_toggle():
     settings = Settings()
     for enabled in (True, False):
         settings.visualizer.estimated_category_breathing = enabled
-        assert flightcategory.look({"flightCategory": "IFR"}, settings) == Look.solid(flightcategory.COLORS["IFR"])
+        assert flightcategory.look(Report(flight_category="IFR"), settings) == Look.solid(flightcategory.COLORS["IFR"])
 
 
 def test_toggle_default_and_save_roundtrip():
@@ -63,11 +63,9 @@ def test_missing_data_blink_setting_remains_independent():
     assert (
         visualizer.look(
             flightcategory,
-            {"flightCategory": None},
+            Report(flight_category=None),
             settings,
         )
         == Look.off()
     )
-    assert flightcategory.look({"flightCategory": None, "visibilitySM": 10.0}, settings) == Look.solid(
-        flightcategory.COLORS["VFR"]
-    )
+    assert flightcategory.look(Report(visibility_sm=10.0), settings) == Look.solid(flightcategory.COLORS["VFR"])

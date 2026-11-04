@@ -46,22 +46,22 @@ def stations(airports, data, position=None, count=None):
     for pixel, airport in enumerate(airports):
         if not airport.code:
             continue
-        m = data.get(airport.code) or {}
-        lat, lon = m.get("latitude"), m.get("longitude")
+        m = data.get(airport.code)  # a Report, or None when it isn't reporting
+        lat, lon = (m.latitude, m.longitude) if m else (None, None)
         if not (lat and lon) and position:
             lat, lon = position(airport.code) or (None, None)
         result.append(
             {
                 "code": airport.code,
                 "pixel": pixel,
-                "mock": bool(m.get("mock")),  # a mock METAR (dev_mode) in place of the real one
+                "mock": bool(m and m.mock),  # a mock METAR (dev_mode) in place of the real one
                 "name": airport.name,
                 "display": airport.display,
                 "virtual": count is not None and pixel >= count,
-                "has_data": bool(m),
-                "cat": m.get("flightCategory") or None,
-                "raw": m.get("raw"),
-                "obsTime": m.get("obsTime"),
+                "has_data": m is not None,
+                "cat": (m.flight_category or None) if m else None,
+                "raw": m.raw if m else None,
+                "obsTime": m.obs_time if m else None,
                 "lat": lat,
                 "lon": lon,
             }

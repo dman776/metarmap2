@@ -1,15 +1,18 @@
 """
 A METAR in plain English, for the Map page's Decoded tab: one {"label", "text"} line per item the report has.
 
-Works on the dict metar.METAR builds for each airport. Weather codes follow the FAA's METAR key (FMH-1, chapter 12:
-intensity, descriptor, then precipitation, obscuration or other phenomena).
+Works on the Report (models.Report) metar.Reports keeps for each airport. Weather codes follow the FAA's METAR key
+(FMH-1, chapter 12: intensity, descriptor, then precipitation, obscuration or other phenomena).
 """
 
 from dataclasses import dataclass
 from fractions import Fraction
-from typing import Optional, Tuple
+from typing import TYPE_CHECKING, Optional, Sequence, Tuple
 
 from metarmap.lib import utils
+
+if TYPE_CHECKING:  # models imports nothing from here, but metar imports both
+    from metarmap.models import Report, SkyLayer
 
 INTENSITY = {"-": "light", "+": "heavy"}
 DESCRIPTORS = {
@@ -53,8 +56,8 @@ COVER = {"FEW": "Few", "SCT": "Scattered", "BKN": "Broken", "OVC": "Overcast"}
 CEILING = ("BKN", "OVC", "OVX")
 
 
-def decode(metar):
-    """The plain-English lines for one airport's METAR ({} or None when it isn't reporting: no lines)."""
+def decode(metar: Optional["Report"]):
+    """The plain-English lines for one airport's METAR (None when it isn't reporting: no lines)."""
     if not metar:
         return []
     lines = []
@@ -63,18 +66,18 @@ def decode(metar):
         if text:
             lines.append({"label": label, "text": text})
 
-    obs = metar.get("obsTime")
+    obs = metar.obs_time
     add("Observed", obs.strftime("%d %b %H:%MZ") if obs else None)
     add("Wind", wind(metar))
-    add("Visibility", visibility(metar.get("visibilitySM"), metar.get("visibilityMore")))
-    add("Weather", weather(metar.get("obs")))
-    for n, text in enumerate(clouds(metar.get("skyConditions"), metar.get("vertVisFt"))):
+    add("Visibility", visibility(metar.visibility_sm, metar.visibility_more))
+    add("Weather", weather(metar.weather))
+    for n, text in enumerate(clouds(metar.sky_conditions, metar.vert_vis_ft)):
         add("Clouds" if n == 0 else "", text)
-    add("Temperature", temperature(metar.get("tempC")))
-    add("Dewpoint", dewpoint(metar.get("dewpointC"), metar.get("tempC")))
-    altim = metar.get("altimHg")
+    add("Temperature", temperature(metar.temp_c))
+    add("Dewpoint", dewpoint(metar.dewpoint_c, metar.temp_c))
+    altim = metar.altimeter_inhg
     add("Altimeter", f"{altim:.2f} inHg" if altim else None)
-    add("Lightning", "Lightning observed" if metar.get("lightning") else None)
+    add("Lightning", "Lightning observed" if metar.lightning else None)
     return lines
 
 
@@ -89,116 +92,116 @@ FOG_SPREAD_C = 2  # temperature-dewpoint spread at or below which fog or low clo
 ICING_C = (-20, 2)  # temperatures at which visible moisture can ice an airplane
 
 
-def summary(metar):
+def summary(metar: Optional["Report"]):
     """
     A few sentences about the airport's weather for the Map page's popup, e.g. "Light rain" or "Density altitude
     1,200 ft". Only what the report has; none when it isn't reporting.
     """
     if not metar:
         return []
-    temp = metar.get("tempC")
+    temp = metar.temp_c
     lines = [
-        CATEGORY_TEXT.get(metar.get("flightCategory")),
-        weather(metar.get("obs")),
-        "Lightning reported" if metar.get("lightning") else None,
+        CATEGORY_TEXT.get(metar.flight_category),
+        weather(metar.weather),
+        "Lightning reported" if metar.lightning else None,
         wind_sentence(metar),
-        sky_sentence(metar.get("skyConditions"), metar.get("vertVisFt")),
+        sky_sentence(metar.sky_conditions, metar.vert_vis_ft),
         density_altitude_sentence(metar),
     ]
-    spread = temp - metar["dewpointC"] if temp is not None and metar.get("dewpointC") is not None else None
+    spread = temp - metar.dewpoint_c if temp is not None and metar.dewpoint_c is not None else None
     if spread is not None and spread <= FOG_SPREAD_C:
         lines.append(f"Temperature and dewpoint are {spread}°C apart: fog or low clouds can form")
-    moisture = metar.get("obs") or any(layer.get("cover") in CEILING for layer in metar.get("skyConditions") or [])
+    moisture = metar.weather or any(layer.cover in CEILING for layer in metar.sky_conditions)
     if temp is not None and ICING_C[0] <= temp <= ICING_C[1] and moisture:
         lines.append(f"Temperature {temp}°C with clouds or precipitation: icing is possible")
     return [line for line in lines if line]
 
 
-def wind_sentence(metar):
+def wind_sentence(metar: "Report"):
     """ "Wind from the south at 12 knots, gusting to 20"."""
-    speed = metar.get("windSpeed")
+    speed = metar.wind_speed
     if speed is None:
         return None
     if speed == 0:
         return "Calm wind"
-    direction = str(metar.get("windDir") or "").upper()
-    gust = f", gusting to {metar['windGustSpeed']}" if metar.get("windGust") else ""
+    direction = str(metar.wind_dir or "").upper()
+    gust = f", gusting to {metar.wind_gust_speed}" if metar.wind_gust else ""
     if not direction.isdigit():  # VRB
         return f"Variable wind at {speed} knots{gust}"
     degrees = int(direction)
     return f"Wind from the {COMPASS[round(degrees / 45) % 8]} ({degrees:03d}°) at {speed} knots{gust}"
 
 
-def sky_sentence(layers, vert_vis_ft=None):
+def sky_sentence(layers: Sequence["SkyLayer"], vert_vis_ft=None):
     """The ceiling (lowest broken or overcast layer), else the lowest clouds, else a clear sky."""
-    layers = [layer for layer in layers or [] if layer.get("cover")]
+    layers = [layer for layer in layers or () if layer.cover]
     if not layers:
         return None
     for layer in layers:
-        if layer["cover"] == "OVX":
+        if layer.cover == "OVX":
             return "Sky obscured" + (f": vertical visibility {vert_vis_ft:,} ft" if vert_vis_ft else "")
-        if layer["cover"] in ("BKN", "OVC") and layer.get("cloudBaseFt"):
-            return f"Ceiling {layer['cloudBaseFt']:,} ft ({COVER[layer['cover']].lower()})"
+        if layer.cover in ("BKN", "OVC") and layer.base_ft:
+            return f"Ceiling {layer.base_ft:,} ft ({COVER[layer.cover].lower()})"
     lowest = layers[0]
-    if lowest["cover"] in COVER and lowest.get("cloudBaseFt"):
-        return f"No ceiling; {COVER[lowest['cover']].lower()} clouds at {lowest['cloudBaseFt']:,} ft"
-    return "Clear skies" if lowest["cover"] in ("CLR", "SKC", "CAVOK", "NSC") else None
+    if lowest.cover in COVER and lowest.base_ft:
+        return f"No ceiling; {COVER[lowest.cover].lower()} clouds at {lowest.base_ft:,} ft"
+    return "Clear skies" if lowest.cover in ("CLR", "SKC", "CAVOK", "NSC") else None
 
 
-def ceiling_ft(layers, vert_vis_ft=None):
+def ceiling_ft(layers: Sequence["SkyLayer"], vert_vis_ft=None):
     """
     The ceiling in feet: the lowest broken or overcast layer, or the vertical visibility when the sky is obscured.
     None when there's no ceiling (clear, or only few or scattered clouds).
     """
-    for layer in layers or []:
-        if layer.get("cover") == "OVX":
+    for layer in layers or ():
+        if layer.cover == "OVX":
             return vert_vis_ft or 0
-        if layer.get("cover") in ("BKN", "OVC"):
-            return layer.get("cloudBaseFt") or 0
+        if layer.cover in ("BKN", "OVC"):
+            return layer.base_ft or 0
     return None
 
 
 CATEGORIES = ("VFR", "MVFR", "IFR", "LIFR")  # best to worst
 
 
-def estimate_category(metar):
+def estimate_category(metar: "Report"):
     """
     The flight category from the visibility and ceiling the report has (FAA limits), for a station that doesn't
     report one; None if it has neither. The worse of the two decides; a sky with no broken or overcast layer (or a
     clear one) has no ceiling. With only one of the two, the real category could be worse, never better.
     """
     found = []
-    miles = metar.get("visibilitySM")
+    miles = metar.visibility_sm
     if miles is not None:
         found.append("LIFR" if miles < 1 else "IFR" if miles < 3 else "MVFR" if miles <= 5 else "VFR")
-    if metar.get("skyConditions"):
-        feet = ceiling_ft(metar["skyConditions"], metar.get("vertVisFt"))
+    if metar.sky_conditions:
+        feet = ceiling_ft(metar.sky_conditions, metar.vert_vis_ft)
         found.append(
             "VFR" if feet is None or feet > 3000 else "MVFR" if feet >= 1000 else "IFR" if feet >= 500 else "LIFR"
         )
     return max(found, key=CATEGORIES.index) if found else None
 
 
-def density_altitude_sentence(metar):
+def density_altitude_sentence(metar: "Report"):
     """ "Density altitude 1,200 ft (field elevation 46 ft)", to the nearest 100 ft."""
     # imported here: the visualizers import this module
     from metarmap.visualizers.density_altitude import calculate_density_altitude, meters_to_feet
 
-    if not metar.get("altimHg") or metar.get("elevation_m") is None or metar.get("tempC") is None:
+    if not metar.altimeter_inhg or metar.elevation_m is None or metar.temp_c is None:
         return None
-    feet = calculate_density_altitude(metar["altimHg"], metar["elevation_m"], metar["tempC"])
-    field = meters_to_feet(metar["elevation_m"])
+    feet = calculate_density_altitude(metar.altimeter_inhg, metar.elevation_m, metar.temp_c)
+    field = meters_to_feet(metar.elevation_m)
     return f"Density altitude {round(feet, -2):,.0f} ft (field elevation {field:,.0f} ft)"
 
 
-def wind(metar):
-    speed = metar.get("windSpeed")
+def wind(metar: "Report"):
+    speed = metar.wind_speed
     if speed is None:
         return None
-    direction = str(metar.get("windDir") or "").upper()
+    direction = str(metar.wind_dir or "").upper()
     if speed == 0:
         return "Calm"
-    gust = f", gusts {metar['windGustSpeed']} kt" if metar.get("windGust") else ""
+    gust = f", gusts {metar.wind_gust_speed} kt" if metar.wind_gust else ""
     if direction in ("VRB", ""):
         return f"Variable at {speed} kt{gust}"
     return f"{int(direction):03d}° at {speed} kt{gust}"
@@ -278,11 +281,11 @@ def weather_group(group):
     return text
 
 
-def clouds(layers, vert_vis_ft=None):
+def clouds(layers: Sequence["SkyLayer"], vert_vis_ft=None):
     """One line per cloud layer, lowest first, with the ceiling (the lowest broken or overcast layer) marked."""
     lines, ceiling_found = [], False
-    for layer in layers or []:
-        cover, base = layer.get("cover", ""), layer.get("cloudBaseFt")
+    for layer in layers or ():
+        cover, base = layer.cover, layer.base_ft
         if cover in ("CLR", "SKC", "CAVOK", "NSC"):
             lines.append("Clear")
             continue

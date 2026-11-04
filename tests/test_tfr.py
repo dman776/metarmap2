@@ -12,7 +12,7 @@ import requests
 from metarmap import tfr
 from metarmap.lib import colors as colors_lib
 from metarmap.metar import with_tfrs
-from metarmap.models import Look
+from metarmap.models import Look, Report
 from metarmap.settings import Settings
 from metarmap.tfr import FOREVER, Tfrs
 from metarmap.visualizers import style
@@ -318,15 +318,15 @@ def test_with_tfrs():
     found, _, _ = make([item("6/1")], {"6/1": detail_xml(area_xml())})
     found.fetch()
     data = {
-        "KIAH": {"raw": "...", "latitude": HOUSTON[0], "longitude": HOUSTON[1]},
-        "KDFW": {"raw": "...", "latitude": "32.9", "longitude": "-97.04"},
-        "KXXX": {"raw": "..."},
-        "KDKR": {},
+        "KIAH": Report(raw="...", latitude=HOUSTON[0], longitude=HOUSTON[1]),
+        "KDFW": Report(raw="...", latitude=32.9, longitude=-97.04),
+        "KXXX": Report(raw="..."),
+        "KDKR": None,
     }
     result = with_tfrs(data, found)
-    assert result["KIAH"]["tfrs"] == [{"type": "SECURITY", "upcoming": False, "inside": True}]
-    assert result["KDFW"]["tfrs"] == [] and result["KXXX"]["tfrs"] is None
-    assert result["KDKR"] == {}  # no report: stays empty
+    assert result["KIAH"].tfrs == [{"type": "SECURITY", "upcoming": False, "inside": True}]
+    assert result["KDFW"].tfrs == [] and result["KXXX"].tfrs is None
+    assert result["KDKR"] is None  # no report: stays None
 
 
 # ---- the visualizer -------------------------------------------------------------------------------------------
@@ -361,12 +361,12 @@ def color(name):
     ],
 )
 def test_look(settings, tfrs, expected):
-    assert vis.look({"raw": "...", "tfrs": tfrs}, settings) == expected
+    assert vis.look(Report(raw="...", tfrs=tfrs), settings) == expected
 
 
 def test_look_without_data(settings):
-    assert vis.look({}, settings) == style.no_report()
-    assert vis.look({"raw": "...", "tfrs": None}, settings) == style.missing()
+    assert vis.look(None, settings) == style.no_report()
+    assert vis.look(Report(raw="...", tfrs=None), settings) == style.missing()
 
 
 def test_legend(settings):

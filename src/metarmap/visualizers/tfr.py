@@ -4,8 +4,10 @@ solid inside one, dim within tfr.nearby_nm of one, breathing for one that starts
 it's dim white.
 """
 
+from typing import Optional
+
 import metarmap.lib.colors as colors_lib
-from metarmap.models import Look, Metar
+from metarmap.models import Look, Report
 from metarmap.visualizers import style
 from metarmap.visualizers.visualizer import Visualizer, legend_item
 
@@ -70,10 +72,10 @@ def legend(settings):
     ]
 
 
-def look(metar: Metar, settings) -> Look:
+def look(metar: Optional[Report], settings) -> Look:
     if not metar:
         return style.no_report()
-    tfrs = metar.get("tfrs")
+    tfrs = metar.tfrs
     if tfrs is None:
         return style.missing()
     if not tfrs:

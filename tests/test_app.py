@@ -8,6 +8,7 @@ from types import SimpleNamespace
 import pytest
 
 from metarmap import app as app_module, visualizers
+from metarmap.models import Report
 from metarmap.visualizers import flightcategory
 
 REPO = Path(__file__).parent.parent
@@ -221,7 +222,7 @@ def test_update_data_fetches_and_redraws(make_app, monkeypatch):
 
     def fetch():
         brightness.append(app.renderer.pixels().brightness)
-        app.metars.data = {code: {"flightCategory": "VFR"}}
+        app.metars.data = {code: Report(flight_category="VFR")}
 
     monkeypatch.setattr(app.metars, "fetch", fetch)
     normal = app.renderer.pixels().brightness

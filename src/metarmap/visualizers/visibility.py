@@ -3,8 +3,10 @@ Visibility: colors each airport by its visibility, at the flight category limits
 under 1 mile): white when it's good, then yellow, orange and red as it gets worse.
 """
 
+from typing import Optional
+
 import metarmap.lib.colors as colors_lib
-from metarmap.models import Look, Metar
+from metarmap.models import Look, Report
 from metarmap.visualizers import style
 from metarmap.visualizers.style import Band
 from metarmap.visualizers.visualizer import Visualizer
@@ -22,10 +24,10 @@ def legend(settings):
     return [*style.band_legend(BANDS, settings), style.missing_legend("visibility"), style.no_report_legend()]
 
 
-def look(metar: Metar, settings) -> Look:
+def look(metar: Optional[Report], settings) -> Look:
     if not metar:
         return style.no_report()
-    miles = metar.get("visibilitySM", metar.get("vis"))  # exact miles; older data only has the rounded 'vis'
+    miles = metar.visibility_sm
     if miles is None:
         return style.missing()
     return Look.solid(style.band_for(miles, BANDS, settings))

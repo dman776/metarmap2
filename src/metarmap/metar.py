@@ -5,10 +5,15 @@ Module to handle METAR fetching and processing
 import json
 import logging
 import re
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from fractions import Fraction
+from typing import Dict, Optional
+
 import requests
+
 from metarmap.clock import Clock
+from metarmap.models import Report, SkyLayer
 
 log = logging.getLogger(__name__)
 
@@ -40,7 +45,7 @@ def airport_codes(airports):
     return list(dict.fromkeys(a.code for a in airports if a.code))
 
 
-# ---- parsing (no state: the METAR class below fetches and keeps the results) ------------------------------------
+# ---- parsing (no state: the Reports class below fetches and keeps the results) ------------------------------------
 
 
 def latest_reports(content):
@@ -62,25 +67,25 @@ def latest_reports(content):
 def process(content, codes, now):
     """
     The METARs for `codes` from a JSON response, as (data, reporting, missing): data is {code: parse_report()},
-    or {} for an airport with no report, a report older than MAX_REPORT_AGE before `now`, or one that can't be read.
+    or None for an airport with no report, a report older than MAX_REPORT_AGE before `now`, or one that can't be read.
     """
     by_station = latest_reports(content)
-    data, reporting, missing = {}, [], []
+    data: Dict[str, Optional[Report]] = {}
+    reporting, missing = [], []
     oldest_allowed = now - MAX_REPORT_AGE
     for airport in codes:
         metar = by_station.get(airport)
         if metar is None:
-            data[airport] = {}
+            data[airport] = None
             missing.append(airport)
             continue
         try:
             parsed = parse_report(metar)
-            if parsed["obsTime"] is not None and parsed["obsTime"] < oldest_allowed:
+            if parsed.obs_time is not None and parsed.obs_time < oldest_allowed:
                 log.info(
-                    f"{airport}: latest report is from {parsed['obsTime']:%Y-%m-%d %H:%MZ}; "
-                    f"treating it as not reporting"
+                    f"{airport}: latest report is from {parsed.obs_time:%Y-%m-%d %H:%MZ}; treating it as not reporting"
                 )
-                data[airport] = {}
+                data[airport] = None
                 missing.append(airport)
                 continue
             data[airport] = parsed
@@ -88,14 +93,14 @@ def process(content, codes, now):
         except Exception as e:
             # one malformed report only affects its own airport
             log.exception(f"Could not parse METAR for {airport}: {e} raw: {metar.get('raw_text')}")
-            data[airport] = {}
+            data[airport] = None
             missing.append(airport)
     return data, reporting, missing
 
 
-def parse_report(metar):
+def parse_report(metar) -> Report:
     """
-    Converts one METAR from the JSON response into the dict used everywhere else.
+    Converts one METAR from the JSON response into the Report used everywhere else.
     """
 
     def num(key, default=None):
@@ -109,51 +114,44 @@ def parse_report(metar):
     dewpoint_c = num("dewp")
     obs_time = metar.get("obsTime")
 
-    sky_conditions = [
-        {"cover": sc.get("cover", ""), "cloudBaseFt": int(sc.get("base") or 0)}
-        for sc in metar.get("clouds") or []
-        if isinstance(sc, dict)
-    ]
+    clouds = [sc for sc in metar.get("clouds") or [] if isinstance(sc, dict)]
+    sky_conditions = tuple(SkyLayer(sc.get("cover", ""), int(sc.get("base") or 0)) for sc in clouds)
     if not sky_conditions and metar.get("cover"):  # a clear sky has no layers, only "cover": "CLR"
-        sky_conditions = [{"cover": metar["cover"], "cloudBaseFt": 0}]
+        sky_conditions = (SkyLayer(metar["cover"]),)
 
     wind_dir = metar.get("wdir")
-    wind_gust_speed = int(num("wgst", 0))
-    visibility = parse_visibility(metar.get("visib"))
-    return {
-        "raw": raw_metar,
-        "name": metar.get("name") or "",  # e.g. "Houston/Hobby Arpt, TX, US"
-        "elevation_m": int(round(num("elev", 0))),
-        "flightCategory": metar.get("fltCat"),
-        "windDir": "" if wind_dir is None else str(wind_dir),  # degrees, or "VRB"
-        "windSpeed": int(num("wspd", 0)),
-        "windGustSpeed": wind_gust_speed,
-        "windGust": wind_gust_speed > 0,
-        "vis": int(round(visibility or 0)),
-        "visibilitySM": visibility,  # exact (e.g. 0.25), None if not reported
-        "visibilityMore": "+" in str(metar.get("visib") or ""),  # "10+": more than 10 miles
-        "vertVisFt": int(num("vertVis")) * 100 if num("vertVis") is not None else None,  # reported in hundreds of ft
-        "obs": metar.get("wxString") or "",
-        "tempC": int(round(temp_c)) if temp_c is not None else None,
-        "dewpointC": int(round(dewpoint_c)) if dewpoint_c is not None else None,
-        "altimHg": altimeter_inhg(raw_metar, num("altim")),
-        "lightning": "LTG" in raw_metar,
-        "skyConditions": sky_conditions,
-        "obsTime": datetime.fromtimestamp(obs_time, timezone.utc) if obs_time else None,
-        "latitude": num("lat"),
-        "longitude": num("lon"),
-    }
+    return Report(
+        raw=raw_metar,
+        name=metar.get("name") or "",  # e.g. "Houston/Hobby Arpt, TX, US"
+        elevation_m=int(round(num("elev", 0))),
+        flight_category=metar.get("fltCat"),
+        wind_dir="" if wind_dir is None else str(wind_dir),  # degrees, or "VRB"
+        wind_speed=int(num("wspd")) if num("wspd") is not None else None,
+        wind_gust_speed=int(num("wgst", 0)),
+        visibility_sm=parse_visibility(metar.get("visib")),
+        visibility_more="+" in str(metar.get("visib") or ""),  # "10+": more than 10 miles
+        vert_vis_ft=int(num("vertVis")) * 100 if num("vertVis") is not None else None,  # reported in hundreds of ft
+        weather=metar.get("wxString") or "",
+        temp_c=int(round(temp_c)) if temp_c is not None else None,
+        dewpoint_c=int(round(dewpoint_c)) if dewpoint_c is not None else None,
+        altimeter_inhg=altimeter_inhg(raw_metar, num("altim")),
+        lightning="LTG" in raw_metar,
+        sky_conditions=sky_conditions,
+        obs_time=datetime.fromtimestamp(obs_time, timezone.utc) if obs_time else None,
+        latitude=num("lat"),
+        longitude=num("lon"),
+    )
 
 
 def altimeter_inhg(raw, hectopascals):
     """
     The altimeter setting in inHg: as the report gives it (A3023 -> 30.23), which is exact; otherwise converted
-    from the JSON's hectopascals (rounded to 0.1 hPa, so it can be 0.01 inHg off); 0 if neither.
+    from the JSON's hectopascals (rounded to 0.1 hPa, so it can be 0.01 inHg off); None if neither.
     """
     found = ALTIMETER.search(raw.split(" RMK ")[0])
     if found:
         return int(found.group(1)) / 100
-    return round(hectopascals / HPA_PER_INHG, 2) if hectopascals else 0.0
+    return round(hectopascals / HPA_PER_INHG, 2) if hectopascals else None
 
 
 # ---- mock METARs (dev_mode): a report typed on the Airports page replaces the fetched one ---------------------
@@ -182,7 +180,7 @@ def observed(day, hour, minute, now):
     raise ValueError(f"{day:02d}{hour:02d}{minute:02d}Z isn't a time in the last month")
 
 
-def parse_raw(raw, now):
+def parse_raw(raw, now) -> Report:
     """
     A METAR typed by hand ("METAR KDWH 272353Z AUTO 08003KT 9SM CLR 21/18 A3014 RMK ...") as parse_report() gives
     one from the JSON, for the mock METARs. The flight category comes from the visibility and ceiling (FAA limits).
@@ -202,10 +200,10 @@ def parse_raw(raw, now):
         obs_time = observed(int(tokens[0][:2]), int(tokens[0][2:4]), int(tokens[0][4:6]), now)
         tokens = tokens[1:]
 
-    wind_dir, wind_speed, gust = "", 0, 0
+    wind_dir, wind_speed, gust = "", None, 0
     visibility, more, wx, sky, vert_vis = None, False, [], [], None
     temp_c = dewpoint_c = None
-    altim = 0.0
+    altim = None
     i = 0
     while i < len(tokens):
         t = tokens[i]
@@ -231,14 +229,14 @@ def parse_raw(raw, now):
             more = t == "9999"
         elif t == "CAVOK":
             visibility, more = 10.0, True
-            sky.append({"cover": "CAVOK", "cloudBaseFt": 0})
+            sky.append(SkyLayer("CAVOK"))
         elif clouds:
-            sky.append({"cover": clouds.group(1), "cloudBaseFt": int(clouds.group(2)) * 100})
+            sky.append(SkyLayer(clouds.group(1), int(clouds.group(2)) * 100))
         elif re.fullmatch(r"VV(\d{3}|///)", t):  # sky obscured
             vert_vis = int(t[2:]) * 100 if t[2:].isdigit() else 0
-            sky.append({"cover": "OVX", "cloudBaseFt": 0})
+            sky.append(SkyLayer("OVX"))
         elif t in ("CLR", "SKC", "NSC", "NCD"):
-            sky.append({"cover": t, "cloudBaseFt": 0})
+            sky.append(SkyLayer(t))
         elif temps:
             temp_c, dewpoint_c = (int(v.replace("M", "-")) if v else None for v in temps.groups())
         elif re.fullmatch(r"A\d{4}", t):
@@ -249,35 +247,28 @@ def parse_raw(raw, now):
             wx.append(t)
         i += 1  # anything else (AUTO, COR, RVR, NOSIG...) is skipped
 
-    report = {
-        "raw": raw,
-        "name": "",
-        "elevation_m": 0,
-        "windDir": wind_dir,
-        "windSpeed": wind_speed,
-        "windGustSpeed": gust,
-        "windGust": gust > 0,
-        "vis": int(round(visibility or 0)),
-        "visibilitySM": visibility,
-        "visibilityMore": more,
-        "vertVisFt": vert_vis,
-        "obs": " ".join(wx),
-        "tempC": temp_c,
-        "dewpointC": dewpoint_c,
-        "altimHg": altim,
-        "lightning": "LTG" in raw,
-        "skyConditions": sky,
-        "obsTime": obs_time,
-        "latitude": None,
-        "longitude": None,
-    }
-    report["flightCategory"] = estimate_category(report)
-    return report
+    report = Report(
+        raw=raw,
+        wind_dir=wind_dir,
+        wind_speed=wind_speed,
+        wind_gust_speed=gust,
+        visibility_sm=visibility,
+        visibility_more=more,
+        vert_vis_ft=vert_vis,
+        weather=" ".join(wx),
+        temp_c=temp_c,
+        dewpoint_c=dewpoint_c,
+        altimeter_inhg=altim,
+        lightning="LTG" in raw,
+        sky_conditions=tuple(sky),
+        obs_time=obs_time,
+    )
+    return replace(report, flight_category=estimate_category(report))
 
 
 def with_mocks(real, airports, positions, now):
     """
-    The METARs with each mocked airport's report replaced by its mock (marked "mock": True). The station's own
+    The METARs with each mocked airport's report replaced by its mock (marked mock=True). The station's own
     name, elevation and position are kept from its real report, or its station lookup. A mock that can't be read
     is logged and the real report stays.
     """
@@ -291,65 +282,66 @@ def with_mocks(real, airports, positions, now):
         except ValueError as e:
             log.warning(f"{airport.code}: mock METAR ignored: {e}")
             continue
-        known = real.get(airport.code) or {}
+        known = real.get(airport.code) or Report()
         station = positions.get(airport.code) or {}
-        mock.update(
-            name=known.get("name") or station.get("name", ""),
-            elevation_m=known.get("elevation_m", 0),
-            latitude=known.get("latitude") or station.get("lat"),
-            longitude=known.get("longitude") or station.get("lon"),
+        data[airport.code] = replace(
+            mock,
+            name=known.name or station.get("name", ""),
+            elevation_m=known.elevation_m,
+            latitude=known.latitude or station.get("lat"),
+            longitude=known.longitude or station.get("lon"),
             mock=True,
         )
-        data[airport.code] = mock
     return data
 
 
 def with_advisories(data, advisories):
     """
-    The METARs, each with "airmets" and "sigmets": the G-AIRMET and SIGMET hazards over the airport
+    The METARs, each with airmets and sigmets: the G-AIRMET and SIGMET hazards over the airport
     (metarmap.advisories), most important first. Either is None while there are none to go by (before its first fetch
     that worked) or the airport has no position.
     """
     result = {}
     for code, m in data.items():
-        if not m:  # no report: stays empty, so every visualizer still shows it as "METAR not available"
+        if m is None:  # no report: stays None, so every visualizer still shows it as "METAR not available"
             result[code] = m
             continue
-        lat, lon = m.get("latitude"), m.get("longitude")
+        lat, lon = m.latitude, m.longitude
         try:
             hazards = advisories.hazards_at(float(lat), float(lon)) if lat is not None and lon is not None else None
         except (TypeError, ValueError):
             hazards = None
-        result[code] = {**m, **(hazards or {"airmets": None, "sigmets": None})}
+        hazards = hazards or {}
+        result[code] = replace(m, airmets=hazards.get("airmets"), sigmets=hazards.get("sigmets"))
     return result
 
 
 def with_tfrs(data, tfrs):
     """
-    The METARs, each with "tfrs": the TFRs at or near the airport (metarmap.tfr.Tfrs.at), most important first, or None
-    while there's no TFR list to go by or the airport has no position. Airports with no report stay empty.
+    The METARs, each with tfrs: the TFRs at or near the airport (metarmap.tfr.Tfrs.at), most important first, or None
+    while there's no TFR list to go by or the airport has no position. Airports with no report stay None.
     """
     result = {}
     for code, m in data.items():
-        if not m:
+        if m is None:
             result[code] = m
             continue
         try:
-            found = tfrs.at(float(m["latitude"]), float(m["longitude"]))
-        except (KeyError, TypeError, ValueError):
+            found = tfrs.at(float(m.latitude), float(m.longitude))
+        except (TypeError, ValueError):
             found = None
-        result[code] = {**m, "tfrs": found}
+        result[code] = replace(m, tfrs=found)
     return result
 
 
-class METAR(object):
+class Reports:
     """
-    Object to control and handle METARs.
+    Fetches the METARs and keeps each airport's Report (None when it isn't reporting) in .data, by code.
     """
 
     def __init__(self, cfg, fetch=False, clock: Clock = None, advisories=None, tfrs=None):
         """
-        Creates a new METAR class. advisories: metarmap.advisories.Advisories, whose hazards are added to each report
+        advisories: metarmap.advisories.Advisories, whose hazards are added to each report
         (with_advisories); None for none. tfrs: metarmap.tfr.Tfrs, the same for TFRs (with_tfrs).
         """
 
@@ -447,9 +439,9 @@ class METAR(object):
 
     def position(self, code):
         """Where an airport is, as (lat, lon): from its METAR, else from the station lookup; None if unknown."""
-        m = self.data.get(code) or {}
-        if m.get("latitude") and m.get("longitude"):
-            return float(m["latitude"]), float(m["longitude"])
+        m = self.data.get(code)
+        if m and m.latitude and m.longitude:
+            return float(m.latitude), float(m.longitude)
         known = self.positions.get(code)
         return (known["lat"], known["lon"]) if known else None
 

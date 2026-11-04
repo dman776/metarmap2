@@ -30,7 +30,7 @@ class Display(object):
     Runs the OLED loop in a background thread.
 
     config:   config.Config (airports, display settings)
-    data:     anything with a .data dict of airport -> METAR (metar.METAR)
+    data:     anything with a .data dict of airport -> Report or None (metar.Reports)
     screen:   a screen driver (show(screen), clear())
     renderer: pulses the LED of the airport on screen (display_screen.locate_active); None for no pulse
     """
@@ -141,7 +141,7 @@ class Display(object):
                 try:
                     self.show_airport(
                         airport,
-                        self._data.data.get(airport) or {},
+                        self._data.data.get(airport),
                         self._config.data.display_screen.delay,
                         event,
                         virtual=pixel >= self._config.data.led.count,
