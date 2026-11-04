@@ -1,3 +1,3 @@
 """METARMap: a Raspberry Pi METAR map with NeoPixel LEDs, an OLED screen and a web UI. Run it: python -m metarmap"""
 
-__version__ = "3.1.5"
+__version__ = "3.2.0"
