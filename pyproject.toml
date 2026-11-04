@@ -53,6 +53,8 @@ metarmap = ["web/templates/*.tpl", "web/static/*"]
 testpaths = ["tests"]
 pythonpath = ["src"]
 addopts = "-ra"
+# a warning fails the test that causes it, so a new one is seen at once instead of hiding among old ones
+filterwarnings = ["error"]
 
 [tool.ruff]
 target-version = "py39"

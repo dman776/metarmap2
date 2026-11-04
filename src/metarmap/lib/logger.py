@@ -5,7 +5,7 @@ Simple wrapper around a logger.
 import logging
 import logging.handlers
 import threading
-from datetime import datetime
+from datetime import datetime, timezone
 
 LOG_NAME = "metarmap"
 
@@ -45,7 +45,9 @@ class Logger(object):
             _lock.acquire()
 
             if print_to_screen:
-                text = "{} INFO: {}".format(datetime.utcnow(), _escape(message_to_log))
+                # UTC, printed without "+00:00" as utcnow() did (utcnow() is deprecated)
+                now = datetime.now(timezone.utc).replace(tzinfo=None)
+                text = "{} INFO: {}".format(now, _escape(message_to_log))
                 print(text)
             self._logger.info(_escape(message_to_log))
         finally:

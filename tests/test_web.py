@@ -89,7 +89,12 @@ class Client:
             status.append(s)
             headers.extend(h)
 
-        body = b"".join(self.app(environ, start_response)).decode()
+        result = self.app(environ, start_response)
+        try:
+            body = b"".join(result).decode()
+        finally:
+            if hasattr(result, "close"):
+                result.close()  # as a WSGI server does: a static file's body is an open file
         self.headers = dict(headers)
         return int(status[0].split()[0]), body
 
