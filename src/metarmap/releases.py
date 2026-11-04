@@ -8,6 +8,7 @@ asks GitHub which tags and commits exist (git ls-remote): it downloads no code a
 Also what's running (read_build): a release, or commits after one, so a map running unreleased code says so.
 """
 
+import logging
 import os
 import re
 import subprocess
@@ -17,7 +18,8 @@ from datetime import datetime, timezone
 
 from metarmap import __version__
 from metarmap.lib import utils, versions
-from metarmap.lib.safe_logging import safe_log
+
+log = logging.getLogger(__name__)
 
 CHECK_HOURS = 6  # how often the map asks GitHub
 CHECK_TIMEOUT = 30  # seconds
@@ -171,7 +173,7 @@ class ReleaseCheck:
                 available = releases[0] if releases and versions.is_newer(releases[0], self.current) else None
             found = {"releases": releases, "branches": sorted(heads), "available": available, "error": None}
         except CheckFailed as e:
-            safe_log(f"couldn't check GitHub for updates: {e}")
+            log.warning(f"couldn't check GitHub for updates: {e}")
             found = {**self._found, "error": str(e)}
         found["checked"] = self._clock()
         with self._lock:

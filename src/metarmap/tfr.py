@@ -14,6 +14,7 @@ the description's words), its GeoJSON outlines (geoserver V_TFR_LOC) have neithe
 areas, and getWebText is an HTML table in JSON. JSON is preferred everywhere else (checked 2026-11-01).
 """
 
+import logging
 import math
 import threading
 import time
@@ -24,7 +25,8 @@ import requests
 
 from metarmap import __version__
 from metarmap.advisories import inside
-from metarmap.lib.safe_logging import safe_log
+
+log = logging.getLogger(__name__)
 
 LIST_URL = "https://tfr.faa.gov/tfrapi/exportTfrList"
 DETAIL_URL = "https://tfr.faa.gov/download/detail_{}.xml"  # 6/4084 -> detail_6_4084.xml
@@ -197,7 +199,7 @@ class Tfrs:
                         self._sleep(DETAIL_SPACING)
                         self._details[notam] = parse_detail(self._text(DETAIL_URL.format(notam.replace("/", "_"))))
                     except (requests.exceptions.RequestException, ValueError) as e:
-                        safe_log(f"TFR {notam}: couldn't get its detail: {e}")
+                        log.warning(f"TFR {notam}: couldn't get its detail: {e}")
                         failed += 1
                 if notam not in self._details:
                     continue
@@ -225,7 +227,7 @@ class Tfrs:
 
     def _failed(self, error):
         if self.error is None:  # once, not every 10 minutes
-            safe_log(error)
+            log.warning(error)
         self.error = error
 
     # ---- what's where -----------------------------------------------------------------------------------------

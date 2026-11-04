@@ -137,8 +137,8 @@ These steps are for macOS or Linux, with Python 3.9 or newer and git installed.
    `config.json` (`metar` / `map` to start).
 
 It starts with the 50 example airports around Houston; change them on **Config > Airports**. Settings are saved in
-the `config.json` of the folder you start it from, and the log is `metarmap.log` in the same folder. Settings for the
-hardware, such as the LED data pin, are saved but have nothing to drive. Stop the map with Ctrl-C.
+the `config.json` of the folder you start it from, and the log is `metarmap.log` in the same folder (warnings and
+errors also show in the terminal). Settings for the hardware, such as the LED data pin, are saved but have nothing to drive. Stop the map with Ctrl-C.
 
 ## Install
 
@@ -261,8 +261,9 @@ through this API. It provides:
 ## Troubleshooting
 
 - **Is it running?** `systemctl status metarmap`. Start and stop it with `./start.sh` and `./stop.sh`.
-- **What happened?** The map's log is `metarmap.log` in the `metarmap2` folder; crashes also go to
-  `journalctl -u metarmap`.
+- **What happened?** The map's log is `metarmap.log` in the `metarmap2` folder (older ones are `metarmap.log.1`,
+  `.2`, ...). Problems are marked `WARNING` or `ERROR` (`grep -E "WARNING|ERROR" metarmap.log`), and those, with
+  crashes, also go to `journalctl -u metarmap`.
 - **LEDs stay dark or show the wrong colors**:
   1. Check the data wire goes to the pin set in Config > LED pixels (GPIO 18 unless you changed it) and that the
      strip shares a ground with the Pi.

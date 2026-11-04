@@ -3,13 +3,14 @@ Module to handle METAR fetching and processing
 """
 
 import json
+import logging
 import re
 from datetime import datetime, timedelta, timezone
 from fractions import Fraction
-import traceback
 import requests
-import metarmap.lib.safe_logging as safe_logging
 from metarmap.clock import Clock
+
+log = logging.getLogger(__name__)
 
 # without `hours`, the API returns each station's latest report. (With hours=5 it returned up to ~13 reports per
 # station and stopped at 400, so a long airport list could lose the newest ones.)
@@ -75,7 +76,7 @@ def process(content, codes, now):
         try:
             parsed = parse_report(metar)
             if parsed["obsTime"] is not None and parsed["obsTime"] < oldest_allowed:
-                safe_logging.safe_log(
+                log.info(
                     f"{airport}: latest report is from {parsed['obsTime']:%Y-%m-%d %H:%MZ}; "
                     f"treating it as not reporting"
                 )
@@ -86,9 +87,7 @@ def process(content, codes, now):
             reporting.append(airport)
         except Exception as e:
             # one malformed report only affects its own airport
-            safe_logging.safe_log(
-                f"Could not parse METAR for {airport}: {e} raw: {metar.get('raw_text')}\n{traceback.format_exc()}"
-            )
+            log.exception(f"Could not parse METAR for {airport}: {e} raw: {metar.get('raw_text')}")
             data[airport] = {}
             missing.append(airport)
     return data, reporting, missing
@@ -290,7 +289,7 @@ def with_mocks(real, airports, positions, now):
         try:
             mock = parse_raw(text, now)
         except ValueError as e:
-            safe_logging.safe_log(f"{airport.code}: mock METAR ignored: {e}")
+            log.warning(f"{airport.code}: mock METAR ignored: {e}")
             continue
         known = real.get(airport.code) or {}
         station = positions.get(airport.code) or {}
@@ -376,28 +375,28 @@ class METAR(object):
         ok = False
         try:
             self._is_fetching = True
-            safe_logging.safe_log("Fetching...")
+            log.info("Fetching...")
             url = API_URL + ",".join(airport_codes(self._config.airports))
             response = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=30, verify=True)
             response.raise_for_status()
             content = response.content
             self._is_fetching = False
             self.lastFetchTime = datetime.now()
-            safe_logging.safe_log("Fetching completed.")
+            log.info("Fetching completed.")
             self._process(content)
             ok = True
             self.locate()
         except requests.exceptions.RequestException as e:
-            safe_logging.safe_log(f"Error occurred (RequestException): {e}")
+            log.warning(f"Error occurred (RequestException): {e}")
         except Exception as e:
-            safe_logging.safe_log(f"Error occurred: {e}\n{traceback.format_exc()}")
+            log.exception(f"Error occurred: {e}")
         finally:
             self._is_fetching = False
             self.last_fetch_ok = ok
             if callback is not None:
-                safe_logging.safe_log("Calling callback function...")
+                log.info("Calling callback function...")
                 callback()
-                safe_logging.safe_log("done.")
+                log.info("done.")
         return ok
 
     def locate(self):
@@ -419,7 +418,7 @@ class METAR(object):
             response.raise_for_status()
             stations = response.json()
         except (requests.exceptions.RequestException, ValueError) as e:
-            safe_logging.safe_log(f"Could not look up {', '.join(codes)}: {e}")
+            log.warning(f"Could not look up {', '.join(codes)}: {e}")
             return False
         found = {}
         for station in stations if isinstance(stations, list) else []:
@@ -461,14 +460,14 @@ class METAR(object):
         return self._is_fetching
 
     def _process(self, content):
-        safe_logging.safe_log("Processing...")
+        log.info("Processing...")
         # built separately, then swapped in, so readers never see half-filled data
         self._real, self._stations, self._missing_stations = process(
             content, airport_codes(self._config.airports), self._clock.now()
         )
         self.apply_mocks()
-        safe_logging.safe_log(f"Missing stations: {self._missing_stations}")
-        safe_logging.safe_log("Processing complete.")
+        log.info(f"Missing stations: {self._missing_stations}")
+        log.info("Processing complete.")
 
     def apply_mocks(self):
         """

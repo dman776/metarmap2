@@ -4,9 +4,11 @@ Screen drivers: the real 128x64 SSD1306 OLED and an in-memory FakeScreen.
 A driver only needs show(screen) and clear(); `screen` is a dict from metarmap.oled.screens.
 """
 
+import logging
 from typing import Callable, List, Optional
 
-from metarmap.lib.safe_logging import safe_log
+log = logging.getLogger(__name__)
+
 
 # FontAwesome glyphs for the icon names in metarmap.oled.screens
 GLYPHS = {
@@ -152,5 +154,5 @@ def open_screen():
     try:
         return SSD1306Screen()
     except (ImportError, NotImplementedError, OSError, ValueError, RuntimeError) as e:
-        safe_log(f"no OLED screen ({type(e).__name__}: {e}); using an in-memory screen")
+        log.info(f"no OLED screen ({type(e).__name__}: {e}); using an in-memory screen")
         return FakeScreen()

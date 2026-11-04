@@ -9,6 +9,7 @@ adsb.fi's open data is free for personal, non-commercial use, at most one reques
 it (the Map page does). https://github.com/adsbfi/opendata
 """
 
+import logging
 import math
 import threading
 import time
@@ -16,7 +17,8 @@ import time
 import requests
 
 from metarmap import __version__
-from metarmap.lib.safe_logging import safe_log
+
+log = logging.getLogger(__name__)
 
 API_URL = "https://opendata.adsb.fi/api/v3/lat/{lat:.4f}/lon/{lon:.4f}/dist/{dist}"
 USER_AGENT = f"metarmap/{__version__} (+https://github.com/dman776/metarmap2)"
@@ -245,7 +247,7 @@ class Traffic:
 
     def _failed(self, error, at_least=0):
         if self._error != error:  # once, not every few seconds
-            safe_log(f"live traffic: {error}")
+            log.warning(f"live traffic: {error}")
         with self._lock:
             self._error = error
             self._backoff = min(MAX_BACKOFF, max(at_least, 2 * self.interval(), 2 * self._backoff))

@@ -8,25 +8,25 @@ run() starts the web server and the OLED loop and drives the LEDs until stopped.
 
 import argparse
 import fnmatch
+import logging
 import signal
 import sys
 import threading
 import time
-import traceback
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
 import schedule
 
-from metarmap import __version__, service, visualizers
+from metarmap import __version__, logs, service, visualizers
 from metarmap.advisories import Advisories
 from metarmap.tfr import Tfrs
 from metarmap.clock import Clock
 from metarmap.config import Config
 from metarmap.display import Display
 from metarmap.leds.strip import open_strip
-from metarmap.lib import safe_logging, utils
+from metarmap.lib import utils
 from metarmap.metar import METAR
 from metarmap.oled.screen import open_screen
 from metarmap.releases import CHECK_HOURS, ReleaseCheck
@@ -34,6 +34,8 @@ from metarmap.renderer import Renderer
 from metarmap.sun import LEVEL_AT, SunTimes
 from metarmap.traffic import Traffic
 from metarmap.web import create_app, serve
+
+log = logging.getLogger(__name__)
 
 CONFIG_FILE = "config.json"
 METAR_MINUTES = 10  # how often METARs are fetched
@@ -69,7 +71,7 @@ def build(config_file=CONFIG_FILE, strip=None, screen=None, clock: Clock = None,
     sun = SunTimes(config.data.geo.city)
     sun.reload()
 
-    safe_logging.safe_log("Get weather for all airports...")
+    log.info("Get weather for all airports...")
     advisories = Advisories()
     if fetch:
         advisories.fetch()
@@ -237,7 +239,7 @@ def fill_names(app: App):
     """Airports with an empty name get the name the station lookup found (saved to config.json)."""
     filled = app.config.fill_names(app.metars.station_names())
     if filled:
-        safe_logging.safe_log(f"filled in the names of {filled} airports")
+        log.info(f"filled in the names of {filled} airports")
 
 
 def needs_retry(app: App):
@@ -249,7 +251,7 @@ def retry_soon(app: App):
     """Tries again every RETRY_SECONDS until it works, instead of waiting for the next regular fetch."""
     if not app.scheduler.get_jobs("retry"):
         what = "METAR fetch" if app.metars.last_fetch_ok is False else "airport position lookup"
-        safe_logging.safe_log(f"{what} failed; trying again every {RETRY_SECONDS} s until it works")
+        log.warning(f"{what} failed; trying again every {RETRY_SECONDS} s until it works")
         app.scheduler.every(RETRY_SECONDS).seconds.do(retry_fetch, app).tag("retry")
 
 
@@ -268,7 +270,7 @@ def retry_fetch(app: App):
 
 
 def load_suntimes(app: App):
-    safe_logging.safe_log("load suntimes")
+    log.info("load suntimes")
     app.sun.reload()
     schedule_brightness(app)
 
@@ -300,7 +302,7 @@ def set_brightness(app: App, level):
     # The renderer owns the scheduled brightness and quiet-hours override.
     if app.renderer.quiet_hours_active():
         level = 0.0
-    safe_logging.safe_log("set brightness: " + str(level))
+    log.info("set brightness: " + str(level))
     app.renderer.brightness(level)
 
 
@@ -323,12 +325,12 @@ def watch_display(app: App):
         return  # turned off
     reason = disp.stalled()
     if reason:
-        safe_logging.safe_log(f"display watchdog: {reason}; restarting")
+        log.warning(f"display watchdog: {reason}; restarting")
         try:
             disp.restart(timeout=5)
         except Exception as e:
             # an exception here would end the main loop; just try again next time
-            safe_logging.safe_log(f"display watchdog restart failed: {e}\n{traceback.format_exc()}")
+            log.exception(f"display watchdog restart failed: {e}")
 
 
 # ---- running -------------------------------------------------------------------------------------------------
@@ -355,10 +357,10 @@ def run(app: App, port=None):
         web_server = serve(web_app, "0.0.0.0", port)
     except OSError as e:
         # e.g. the port is in use; the LEDs and OLED still run
-        safe_logging.safe_log(f"web server can't start on port {port}: {e}")
+        log.error(f"web server can't start on port {port}: {e}")
         web_server = None
 
-    safe_logging.safe_log("Main loop...")
+    log.info("Main loop...")
     if app.config.data.display_screen.enabled:
         app.display.start()
     try:
@@ -368,13 +370,13 @@ def run(app: App, port=None):
     except KeyboardInterrupt:
         pass
     except Exception as e:
-        safe_logging.safe_log(f"main loop stopped: {e}\n{traceback.format_exc()}")
+        log.exception(f"main loop stopped: {e}")
     finally:
         shutdown(app, web_app, web_server)
 
 
 def shutdown(app: App, web_app, web_server):
-    safe_logging.safe_log("Cleaning up...")
+    log.info("Cleaning up...")
     app.scheduler.clear()
     app.display.stop()
     app.renderer.stop()
@@ -386,11 +388,11 @@ def shutdown(app: App, web_app, web_server):
 
 
 def wait_for_internet():
-    safe_logging.safe_log("Testing to see if internet (8.8.8.8) is reachable...")
+    log.info("Testing to see if internet (8.8.8.8) is reachable...")
     while utils.is_pingable("8.8.8.8") != 0:
-        safe_logging.safe_log(".")
+        log.info(".")
         time.sleep(1)
-    safe_logging.safe_log("done.")
+    log.info("done.")
 
 
 # ---- process setup -------------------------------------------------------------------------------------------
@@ -401,21 +403,18 @@ def log_thread_exception(args):
     Uncaught exceptions in background threads only go to stderr by default; put them in the log too.
     """
     name = args.thread.name if args.thread else "?"
-    safe_logging.safe_log(
-        f"uncaught exception in thread {name}: "
-        + "".join(traceback.format_exception(args.exc_type, args.exc_value, args.exc_traceback))
-    )
+    log.error(f"uncaught exception in thread {name}", exc_info=(args.exc_type, args.exc_value, args.exc_traceback))
 
 
 def log_uncaught_exception(exc_type, exc_value, exc_traceback):
     """
-    A crash in the main thread only goes to stderr (the systemd journal); put it in the log too.
+    A crash in the main thread: in the log, and (as an error) on the console, which systemd keeps in the journal.
+    Python's own printout would be a second copy there, so it's only used for Ctrl-C.
     """
-    if not issubclass(exc_type, KeyboardInterrupt):
-        safe_logging.safe_log(
-            "uncaught exception: " + "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
-        )
-    sys.__excepthook__(exc_type, exc_value, exc_traceback)
+    if issubclass(exc_type, KeyboardInterrupt):
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+    else:
+        log.critical("uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
 
 
 def signal_handler(sig, frame):
@@ -447,15 +446,16 @@ def parse_args(argv=None):
 
 def main(config_file=CONFIG_FILE, argv=None):
     args = parse_args(argv)
+    logs.configure()  # metarmap.log next to config.json, warnings also to the journal
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
     threading.excepthook = log_thread_exception
     sys.excepthook = log_uncaught_exception
 
-    safe_logging.safe_log(f"Starting metarmap {__version__} at " + datetime.now().strftime("%d/%m/%Y %H:%M"))
+    log.info(f"Starting metarmap {__version__} at " + datetime.now().strftime("%d/%m/%Y %H:%M"))
     try:
         service.migrate()  # an installed metarmap.service that still runs controller.py
     except Exception as e:
-        safe_logging.safe_log(f"service file check failed: {e}\n{traceback.format_exc()}")
+        log.exception(f"service file check failed: {e}")
     wait_for_internet()
     run(build(config_file), port=args.port)

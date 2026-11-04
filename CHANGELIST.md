@@ -20,6 +20,16 @@
     id
   - Inside the code: each visualizer declares itself as one `Visualizer` (id, name, description, legend, look or
     strip look, barbs, areas), checked when the map starts; `exclusive` comes from having a strip look
+- **The log** (`metarmap.log`):
+  - Problems are logged as `WARNING` or `ERROR` (everything was `INFO`), so `grep -E "WARNING|ERROR" metarmap.log`
+    finds them
+  - A line says where it was logged as `metarmap.metar.fetch:379`, the standard way (the class name is gone), in
+    local time
+  - Tracebacks are on lines of their own, as Python prints them, instead of one long line with `\n` in it
+  - The journal (`journalctl -u metarmap`) gets warnings, errors and crashes only, in the same format, instead of a
+    second copy of the whole log
+  - Inside the code: every module logs with Python's `logging` (`metarmap/logs.py` sets it up when the map starts);
+    `lib/safe_logging.py` and `lib/logger.py` are gone. Running the tests no longer writes to `metarmap.log`
 
 ### dman776 3.1.5 (2026-11-03)
 

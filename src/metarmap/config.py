@@ -1,15 +1,16 @@
 import fnmatch
 import functools
 import json
+import logging
 import re
 import threading
-import traceback
 from datetime import datetime, timezone
 from typing import Callable, List, Sequence, Union
 
-from metarmap.lib.safe_logging import safe_log
 from metarmap.metar import MOCK_KEY, parse_raw
 from metarmap.settings import Airport, Settings, parse_value
+
+log = logging.getLogger(__name__)
 
 MAX_LEDS = 1000
 ICAO = re.compile(r"^[A-Z0-9]{3,4}$")
@@ -93,7 +94,7 @@ class Config(object):
                 callback(keys)
             except Exception as e:
                 # the change is saved already; one part failing to follow it shouldn't stop the others
-                safe_log(f"after changing {', '.join(keys)}: {e}\n{traceback.format_exc()}")
+                log.exception(f"after changing {', '.join(keys)}: {e}")
 
     def read(self):
         with open(self._file) as f:
@@ -113,12 +114,12 @@ class Config(object):
             with open(path) as f:
                 old = json.load(f)
         except (OSError, ValueError) as e:
-            safe_log(f"no airports in {self._file} and can't read {path} ({e}); starting with none")
+            log.warning(f"no airports in {self._file} and can't read {path} ({e}); starting with none")
             return
         self._data.airports = airports_from_json(old)
         self._data._extra.pop("airports_file", None)
         self._data.save(self._file)
-        safe_log(f"moved {len(self._data.airports)} airports from {path} into {self._file}; {path} is kept as a backup")
+        log.info(f"moved {len(self._data.airports)} airports from {path} into {self._file}; {path} is kept as a backup")
 
     @locked
     def write(self):

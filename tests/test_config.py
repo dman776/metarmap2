@@ -420,9 +420,8 @@ def test_a_subscriber_can_change_the_config(config):
     assert heard == [["led.order"]]
 
 
-def test_a_failing_subscriber_is_logged_and_the_others_run(config, monkeypatch):
-    logged, heard = [], []
-    monkeypatch.setattr("metarmap.config.safe_log", logged.append)
+def test_a_failing_subscriber_is_logged_and_the_others_run(config, caplog):
+    heard = []
 
     def fail(keys):
         raise RuntimeError("boom")
@@ -432,7 +431,9 @@ def test_a_failing_subscriber_is_logged_and_the_others_run(config, monkeypatch):
     config.edit("led.pin", "13")
     assert config.data.led.pin == 13
     assert heard == [["led.pin"]]
-    assert "after changing led.pin: boom" in logged[0]
+    (record,) = [r for r in caplog.records if r.name == "metarmap.config"]
+    assert record.levelname == "ERROR" and record.getMessage() == "after changing led.pin: boom"
+    assert record.exc_info[0] is RuntimeError  # with its traceback
 
 
 @pytest.mark.parametrize(

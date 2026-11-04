@@ -15,13 +15,15 @@ Both are fetched with the METARs (every 10 minutes). Only advisories starting be
 turbulence doesn't affect flying from the airport.
 """
 
+import logging
 import threading
 import time
 
 import requests
 
 from metarmap import __version__
-from metarmap.lib.safe_logging import safe_log
+
+log = logging.getLogger(__name__)
 
 AIRMET_URL = "https://aviationweather.gov/api/data/gairmet?format=json"
 SIGMET_URL = "https://aviationweather.gov/api/data/sigmet?format=json"
@@ -210,7 +212,7 @@ class Advisories:
                 areas = feed.parse(response.json())
         except (requests.exceptions.RequestException, ValueError) as e:
             if feed.error is None:  # once, not every 10 minutes
-                safe_log(f"{feed.name} fetch failed: {e}")
+                log.warning(f"{feed.name} fetch failed: {e}")
             feed.error = f"couldn't reach aviationweather.gov: {e}"
             return False
         with self._lock:

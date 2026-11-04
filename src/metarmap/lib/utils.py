@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 import json
 import os
@@ -6,7 +7,7 @@ import subprocess
 import shutil
 import tempfile
 
-import metarmap.lib.safe_logging as safe_logging
+log = logging.getLogger(__name__)
 
 
 def wheel(pos):
@@ -38,7 +39,7 @@ def get_location(city):
     try:
         return astral.geocoder.lookup(city, astral.geocoder.database())
     except KeyError:
-        safe_logging.safe_log("Error: Location not recognized, please check list of supported cities and reconfigure")
+        log.warning("Error: Location not recognized, please check list of supported cities and reconfigure")
 
 
 def get_sun_times(city_name):
@@ -48,9 +49,9 @@ def get_sun_times(city_name):
     try:
         city = get_location(city_name)
     except KeyError:
-        safe_logging.safe_log("Error: Location not recognized, please check list of supported cities and reconfigure")
+        log.warning("Error: Location not recognized, please check list of supported cities and reconfigure")
     else:
-        safe_logging.safe_log(str(city))
+        log.info(str(city))
         sun = astral.sun.sun(city.observer, date=datetime.now().date(), tzinfo=city.timezone)
         # DAWN = sun['dawn']
         # SUNRISE = sun['sunrise']
@@ -202,7 +203,7 @@ def run_update(repo=None, progress=None, channel="releases", version=None, curre
             progress(fraction, label)
 
     def say(msg):
-        safe_logging.safe_log(msg)
+        log.info(msg)
         result.log.append("[u]" + msg)
 
     def fail(message):
@@ -390,7 +391,7 @@ def restart():
     src = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # .../src
     path = os.environ.get("PYTHONPATH")
     env = {**os.environ, "PYTHONPATH": src + (os.pathsep + path if path else "")}
-    safe_logging.safe_log("restarting... python -m metarmap")
+    log.info("restarting... python -m metarmap")
     os.execve(sys.executable, [sys.executable, "-m", "metarmap", *sys.argv[1:]], env)
 
 
