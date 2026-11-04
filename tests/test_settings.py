@@ -264,7 +264,7 @@ def test_settings_set_allows_what_only_config_json_changes():
 
 
 def test_rule_of_a_setting_without_one():
-    assert Settings().rule("geo.city") is None
+    assert Settings().rule("web_server.port") is None
     with pytest.raises(KeyError):
         Settings().rule("geo.nothing")
 
@@ -277,6 +277,7 @@ def test_rule_of_a_setting_without_one():
         ("lightning", "color", "purple", "yellow"),
         ("tfr", "nearby_nm", 500, 10),
         ("tfr", "nearby_nm", "far", 10),
+        ("geo", "city", "Houstn", "Houston"),  # a city the sun times don't know would stop the map at startup
     ],
 )
 def test_a_value_its_rule_rejects_is_reset_on_load(section, key, value, default, caplog):
@@ -309,3 +310,16 @@ def test_load_leaves_rules_that_depend_on_other_settings_alone(caplog):
     assert s.update.channel == "branch"
     assert s.update_channel() == "releases"
     assert "Invalid" not in caplog.text
+
+
+def test_any_city_the_sun_times_know_is_kept():
+    data = Settings().to_dict()
+    data["geo"]["city"] = "london"  # case doesn't matter
+    assert Settings.from_dict(data).geo.city == "london"
+
+
+def test_setting_a_city_the_sun_times_dont_know_is_refused():
+    s = Settings()
+    with pytest.raises(ValueError, match="not a city the sun times know"):
+        s.set("geo.city", "Houstn")
+    assert s.geo.city == "Houston"

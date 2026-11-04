@@ -12,6 +12,15 @@
 - **At startup the LEDs show the visualizer first**, then the first "Highlight active airport" pulse 2 seconds
   later. It used to come right after the test pattern, before any visualizer color. The OLED shows the first
   airport at once
+- **A misspelled `geo.city` no longer stops the map at startup.** A hand-edited city the sun times don't know is
+  logged and replaced by Houston when the map starts, as other invalid settings are, and setting one through
+  `/config/edit/geo.city` is refused. It used to fail with an `AttributeError` while loading the sun times
+- **The METAR fetches say who they are**: every request to aviationweather.gov, the FAA's TFR list and adsb.fi
+  sends `metarmap2/<version> (+https://github.com/dman776/metarmap2)`. The METAR and station fetches sent a fake
+  Edge browser's User-Agent; the TFR, advisory and traffic fetches sent `metarmap/<version>`
+- Cleanups inside the code: the standard library's `zoneinfo` instead of `pytz` (no longer a dependency);
+  `pyproject.toml` is the one list of dependencies (`requirements.txt`, which nothing used, is gone); no more
+  `class X(object)`
 
 ### dman776 3.2.0 (2026-11-03)
 
