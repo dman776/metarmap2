@@ -6,6 +6,7 @@ import pytest
 
 from metarmap import decode
 from metarmap.metar import parse_report, parse_visibility
+from metarmap.models import Report, SkyLayer
 
 OBS = datetime(2026, 10, 24, 17, 53, tzinfo=timezone.utc)
 
@@ -15,25 +16,24 @@ def lines(metar):
 
 
 def test_a_whole_report():
-    metar = {
-        "obsTime": OBS,
-        "windDir": "100",
-        "windSpeed": 13,
-        "windGust": True,
-        "windGustSpeed": 19,
-        "visibilitySM": 10.0,
-        "visibilityMore": True,
-        "obs": "-RA BR",
-        "tempC": 28,
-        "dewpointC": 17,
-        "altimHg": 30.2,
-        "lightning": False,
-        "skyConditions": [
-            {"cover": "SCT", "cloudBaseFt": 4300},
-            {"cover": "BKN", "cloudBaseFt": 8000},
-            {"cover": "OVC", "cloudBaseFt": 12000},
+    metar = Report(
+        obs_time=OBS,
+        wind_dir="100",
+        wind_speed=13,
+        wind_gust_speed=19,
+        visibility_sm=10.0,
+        visibility_more=True,
+        weather="-RA BR",
+        temp_c=28,
+        dewpoint_c=17,
+        altimeter_inhg=30.2,
+        lightning=False,
+        sky_conditions=[
+            SkyLayer("SCT", 4300),
+            SkyLayer("BKN", 8000),
+            SkyLayer("OVC", 12000),
         ],
-    }
+    )
     assert lines(metar) == [
         ("Observed", "24 Oct 17:53Z"),
         ("Wind", "100° at 13 kt, gusts 19 kt"),
@@ -49,11 +49,12 @@ def test_a_whole_report():
 
 
 def test_not_reporting():
-    assert decode.decode({}) == [] and decode.decode(None) == []
+    assert decode.decode(None) == []
 
 
 def test_only_what_the_report_has():
-    assert lines({"raw": "METAR KXXX", "tempC": -2, "lightning": True}) == [
+    assert lines(Report(raw="METAR KXXX", temp_c=-2, lightning=True)) == [
+        ("Wind", "Calm"),  # no wind in the report is read as 0, as aviationweather.gov's JSON leaves it out
         ("Temperature", "-2°C / 28°F"),
         ("Lightning", "Lightning observed"),
     ]
@@ -62,11 +63,11 @@ def test_only_what_the_report_has():
 @pytest.mark.parametrize(
     "metar, text",
     [
-        ({"windSpeed": 0, "windDir": "0"}, "Calm"),
-        ({"windSpeed": 4, "windDir": "VRB"}, "Variable at 4 kt"),
-        ({"windSpeed": 4, "windDir": ""}, "Variable at 4 kt"),
-        ({"windSpeed": 9, "windDir": "50"}, "050° at 9 kt"),
-        ({"windSpeed": 25, "windDir": "270", "windGust": True, "windGustSpeed": 35}, "270° at 25 kt, gusts 35 kt"),
+        (Report(wind_speed=0, wind_dir="0"), "Calm"),
+        (Report(wind_speed=4, wind_dir="VRB"), "Variable at 4 kt"),
+        (Report(wind_speed=4, wind_dir=""), "Variable at 4 kt"),
+        (Report(wind_speed=9, wind_dir="50"), "050° at 9 kt"),
+        (Report(wind_speed=25, wind_dir="270", wind_gust_speed=35), "270° at 25 kt, gusts 35 kt"),
     ],
 )
 def test_wind(metar, text):
@@ -131,12 +132,12 @@ def test_weather(wx, text):
 
 
 def test_clouds():
-    assert decode.clouds([{"cover": "CLR", "cloudBaseFt": 0}]) == ["Clear"]
-    assert decode.clouds([{"cover": "FEW", "cloudBaseFt": 1200}, {"cover": "OVC", "cloudBaseFt": 2500}]) == [
+    assert decode.clouds([SkyLayer("CLR", 0)]) == ["Clear"]
+    assert decode.clouds([SkyLayer("FEW", 1200), SkyLayer("OVC", 2500)]) == [
         "Few 1,200 ft",
         "Overcast 2,500 ft (ceiling)",
     ]
-    assert decode.clouds([{"cover": "OVX", "cloudBaseFt": 0}], vert_vis_ft=300) == [
+    assert decode.clouds([SkyLayer("OVX", 0)], vert_vis_ft=300) == [
         "Sky obscured, vertical visibility 300 ft (ceiling)"
     ]
     assert decode.clouds([]) == [] and decode.clouds(None) == []
@@ -165,8 +166,8 @@ def test_parsed_reports_have_what_decode_needs():
             "obsTime": 1792871580,
         }
     )
-    assert (parsed["vis"], parsed["visibilitySM"], parsed["visibilityMore"]) == (0, 0.5, False)
-    assert parsed["vertVisFt"] == 300
+    assert (parsed.vis, parsed.visibility_sm, parsed.visibility_more) == (0, 0.5, False)
+    assert parsed.vert_vis_ft == 300
     assert lines(parsed)[2:5] == [
         ("Visibility", "1/2 mile"),
         ("Weather", "Fog"),
@@ -178,20 +179,19 @@ def test_parsed_reports_have_what_decode_needs():
 
 
 def test_summary_of_a_whole_report():
-    metar = {
-        "flightCategory": "MVFR",
-        "obs": "-RA BR",
-        "lightning": True,
-        "windDir": "170",
-        "windSpeed": 12,
-        "windGust": True,
-        "windGustSpeed": 20,
-        "tempC": 1,
-        "dewpointC": 0,
-        "altimHg": 29.85,
-        "elevation_m": 14,
-        "skyConditions": [{"cover": "FEW", "cloudBaseFt": 800}, {"cover": "BKN", "cloudBaseFt": 2500}],
-    }
+    metar = Report(
+        flight_category="MVFR",
+        weather="-RA BR",
+        lightning=True,
+        wind_dir="170",
+        wind_speed=12,
+        wind_gust_speed=20,
+        temp_c=1,
+        dewpoint_c=0,
+        altimeter_inhg=29.85,
+        elevation_m=14,
+        sky_conditions=[SkyLayer("FEW", 800), SkyLayer("BKN", 2500)],
+    )
     assert decode.summary(metar) == [
         "Marginal VFR: ceiling 1,000-3,000 ft or visibility 3-5 miles",
         "Light rain, mist",
@@ -205,39 +205,39 @@ def test_summary_of_a_whole_report():
 
 
 def test_summary_not_reporting():
-    assert decode.summary({}) == [] and decode.summary(None) == []
+    assert decode.summary(None) == []
 
 
 def test_summary_only_what_the_report_has():
     # a hot, dry, clear day: no fog or icing, and a high density altitude
     assert decode.summary(
-        {
-            "flightCategory": "VFR",
-            "windSpeed": 0,
-            "tempC": 30,
-            "dewpointC": 10,
-            "altimHg": 30.01,
-            "elevation_m": 300,
-            "skyConditions": [{"cover": "CLR", "cloudBaseFt": 0}],
-        }
+        Report(
+            flight_category="VFR",
+            wind_speed=0,
+            temp_c=30,
+            dewpoint_c=10,
+            altimeter_inhg=30.01,
+            elevation_m=300,
+            sky_conditions=[SkyLayer("CLR", 0)],
+        )
     ) == [
         "VFR: ceiling above 3,000 ft and visibility over 5 miles",
         "Calm wind",
         "Clear skies",
         "Density altitude 2,900 ft (field elevation 984 ft)",
     ]
-    assert decode.summary({"tempC": -5, "dewpointC": -12}) == []  # cold but dry: no icing
+    assert decode.summary(Report(temp_c=-5, dewpoint_c=-12)) == ["Calm wind"]  # cold but dry: no icing
 
 
 @pytest.mark.parametrize(
     "metar, text",
     [
-        ({"windSpeed": 4, "windDir": "VRB"}, "Variable wind at 4 knots"),
-        ({"windSpeed": 9, "windDir": "360"}, "Wind from the north (360°) at 9 knots"),
-        ({"windSpeed": 9, "windDir": "337"}, "Wind from the northwest (337°) at 9 knots"),
-        ({"windSpeed": 9, "windDir": "338"}, "Wind from the north (338°) at 9 knots"),
-        ({"windSpeed": 9, "windDir": "290"}, "Wind from the west (290°) at 9 knots"),
-        ({"windSpeed": 9, "windDir": "45"}, "Wind from the northeast (045°) at 9 knots"),
+        (Report(wind_speed=4, wind_dir="VRB"), "Variable wind at 4 knots"),
+        (Report(wind_speed=9, wind_dir="360"), "Wind from the north (360°) at 9 knots"),
+        (Report(wind_speed=9, wind_dir="337"), "Wind from the northwest (337°) at 9 knots"),
+        (Report(wind_speed=9, wind_dir="338"), "Wind from the north (338°) at 9 knots"),
+        (Report(wind_speed=9, wind_dir="290"), "Wind from the west (290°) at 9 knots"),
+        (Report(wind_speed=9, wind_dir="45"), "Wind from the northeast (045°) at 9 knots"),
     ],
 )
 def test_wind_sentence(metar, text):
@@ -248,13 +248,13 @@ def test_wind_sentence(metar, text):
     "layers, vv, text",
     [
         (
-            [{"cover": "SCT", "cloudBaseFt": 4300}, {"cover": "OVC", "cloudBaseFt": 9000}],
+            [SkyLayer("SCT", 4300), SkyLayer("OVC", 9000)],
             None,
             "Ceiling 9,000 ft (overcast)",
         ),
-        ([{"cover": "FEW", "cloudBaseFt": 1200}], None, "No ceiling; few clouds at 1,200 ft"),
-        ([{"cover": "OVX", "cloudBaseFt": 0}], 300, "Sky obscured: vertical visibility 300 ft"),
-        ([{"cover": "SKC", "cloudBaseFt": 0}], None, "Clear skies"),
+        ([SkyLayer("FEW", 1200)], None, "No ceiling; few clouds at 1,200 ft"),
+        ([SkyLayer("OVX", 0)], 300, "Sky obscured: vertical visibility 300 ft"),
+        ([SkyLayer("SKC", 0)], None, "Clear skies"),
         ([], None, None),
     ],
 )
@@ -285,10 +285,10 @@ def test_parsed_reports_have_what_the_summary_needs():
 @pytest.mark.parametrize(
     "layers, vv, feet",
     [
-        ([{"cover": "SCT", "cloudBaseFt": 800}, {"cover": "BKN", "cloudBaseFt": 2500}], None, 2500),
-        ([{"cover": "OVX", "cloudBaseFt": 0}], 300, 300),
-        ([{"cover": "FEW", "cloudBaseFt": 800}], None, None),
-        ([{"cover": "CLR", "cloudBaseFt": 0}], None, None),
+        ([SkyLayer("SCT", 800), SkyLayer("BKN", 2500)], None, 2500),
+        ([SkyLayer("OVX", 0)], 300, 300),
+        ([SkyLayer("FEW", 800)], None, None),
+        ([SkyLayer("CLR", 0)], None, None),
         ([], None, None),
     ],
 )

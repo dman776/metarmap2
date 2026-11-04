@@ -21,7 +21,7 @@ from typing import Callable, Optional, Sequence, Union
 
 import metarmap.lib.colors as colors_lib
 from metarmap.decode import parse_weather
-from metarmap.models import Look
+from metarmap.models import Look, Report
 from metarmap.visualizers.visualizer import legend_item
 
 LIGHT, MODERATE, HEAVY, VICINITY = "-", "", "+", "VC"
@@ -83,11 +83,11 @@ FLICKER = (True, True, True, False, False, True, True, True)  # 0.15 s flash, 0.
 LIGHTNING_CYCLE = 4.0
 
 
-def has_lightning(metar) -> bool:
+def has_lightning(metar: Optional[Report]) -> bool:
     """LTG in the report (LTG DSNT W...), or a thunderstorm: TS, TSRA, VCTS..."""
     if not metar:
         return False
-    return bool(metar.get("lightning")) or any(g.descriptor == "TS" for g in parse_weather(metar.get("obs")))
+    return metar.lightning or any(g.descriptor == "TS" for g in parse_weather(metar.weather))
 
 
 def lightning_color(settings):

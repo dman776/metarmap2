@@ -13,8 +13,11 @@ A screen is a dict:
   lines    three {"icon": name, "text": str} lines
 """
 
+from typing import Optional
+
 import metarmap.lib.utils as utils
 from metarmap.decode import estimate_category
+from metarmap.models import Report
 
 MISSING = "--"
 
@@ -33,15 +36,15 @@ def safe_text(fn, data):
         return MISSING
 
 
-def wind_text(data):
-    speed = data.get("windSpeed")
+def wind_text(data: Report):
+    speed = data.wind_speed
     if not isinstance(speed, int):
         return speed
     if speed <= 0:
         return "CALM"
-    wind_dir = str(data.get("windDir", "")).upper()
+    wind_dir = str(data.wind_dir).upper()
     wind_dir = "VRB" if wind_dir in ("VRB", "") else "{0:03d}".format(int(wind_dir))
-    gust = "G{0:02d}".format(int(data["windGustSpeed"])) if data.get("windGust") else ""
+    gust = "G{0:02d}".format(int(data.wind_gust_speed)) if data.wind_gust else ""
     return "{0}@{1:02d}{2}".format(wind_dir, speed, gust)
 
 
@@ -55,15 +58,17 @@ def time_text(obs, tz):
     return "{0} {1}".format(obs.astimezone(tz).strftime("%H:%MC"), obs.strftime("%H:%MZ"))
 
 
-def badge_text(data):
-    """ "IFR"; "VFR*" for a category estimated from the visibility and ceiling; "" if neither."""
-    if data.get("flightCategory"):
-        return str(data["flightCategory"])
+def badge_text(data: Optional[Report]):
+    """ "IFR"; "VFR*" for a category estimated from the visibility and ceiling; "" if neither (or no report)."""
+    if data is None:
+        return ""
+    if data.flight_category:
+        return str(data.flight_category)
     estimate = estimate_category(data)
     return estimate + "*" if estimate else ""
 
 
-def screen_for(station, data, page, tz=None, virtual=False):
+def screen_for(station, data: Optional[Report], page, tz=None, virtual=False):
     """
     What the screen shows for one airport: page 1 (wind, visibility, pressure),
     page 2 (temperature, dewpoint, time) or page 0 (no data). A virtual airport (no LED) has its code in a dashed box.
@@ -81,14 +86,14 @@ def screen_for(station, data, page, tz=None, virtual=False):
     if page == 1:
         lines = [
             {"icon": "wind", "text": safe_text(wind_text, data)},
-            {"icon": "visibility", "text": safe_text(lambda d: "{0}SM".format(d["vis"]), data)},
-            {"icon": "pressure", "text": safe_text(lambda d: "{0:2.2f}".format(d["altimHg"]), data)},
+            {"icon": "visibility", "text": safe_text(lambda d: "{0}SM".format(d.vis), data)},
+            {"icon": "pressure", "text": safe_text(lambda d: "{0:2.2f}".format(d.altimeter_inhg), data)},
         ]
     else:
         lines = [
-            {"icon": "temp", "text": safe_text(lambda d: temp_text(d["tempC"]), data)},
-            {"icon": "dewpoint", "text": safe_text(lambda d: temp_text(d["dewpointC"]), data)},
-            {"icon": "date", "text": safe_text(lambda d: time_text(d["obsTime"], tz), data)},
+            {"icon": "temp", "text": safe_text(lambda d: temp_text(d.temp_c), data)},
+            {"icon": "dewpoint", "text": safe_text(lambda d: temp_text(d.dewpoint_c), data)},
+            {"icon": "date", "text": safe_text(lambda d: time_text(d.obs_time, tz), data)},
         ]
     return {
         "kind": "airport",
@@ -125,6 +130,6 @@ def airports_to_show(airports):
     return [(pixel, a.code) for pixel, a in enumerate(airports) if a.display and a.code]
 
 
-def pages_for(metar):
+def pages_for(metar: Optional[Report]):
     """An airport with a report shows pages 1 and 2; one without shows the "Data Unavailable" page."""
     return (1, 2) if metar else (0,)

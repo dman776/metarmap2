@@ -8,7 +8,7 @@ import importlib
 import pytest
 
 import metarmap.lib.colors as colors_lib
-from metarmap.models import Look
+from metarmap.models import Look, Report, SkyLayer
 from metarmap.visualizers.visualizer import Visualizer
 from metarmap.settings import LIGHTNING_COLORS, Settings
 from metarmap import decode, visualizers
@@ -42,21 +42,16 @@ def settings():
 
 
 def metar(**fields):
-    base = {
-        "flightCategory": "VFR",
-        "lightning": False,
-        "windSpeed": 0,
-        "windGust": False,
-        "windGustSpeed": 0,
-        "windDir": "100",
-        "tempC": 20,
-        "dewpointC": 10,
-        "altimHg": 29.92,
-        "vis": 10,
-        "elevation_m": 100,
-        "obs": "",
-    }
-    return {**base, **fields}
+    """A report: a VFR day with calm wind, unless `fields` say otherwise."""
+    base = dict(
+        flight_category="VFR",
+        wind_dir="100",
+        temp_c=20,
+        dewpoint_c=10,
+        altimeter_inhg=29.92,
+        elevation_m=100,
+    )
+    return Report(**{**base, **fields})
 
 
 # ---- every visualizer ---------------------------------------------------------------------------------------
@@ -150,40 +145,40 @@ def test_every_module_declares_its_visualizer():
 
 @pytest.mark.parametrize("category, attr", [("VFR", "vfr"), ("MVFR", "mvfr"), ("IFR", "ifr"), ("LIFR", "lifr")])
 def test_flight_category_colors(settings, category, attr):
-    look = flightcategory.look(metar(flightCategory=category), settings)
+    look = flightcategory.look(metar(flight_category=category), settings)
     assert look == Look.solid(flightcategory.COLORS[attr.upper()])
 
 
 def test_flight_category_missing_blinks_red(settings):
-    look = flightcategory.look(metar(flightCategory=None), settings)
+    look = flightcategory.look(metar(flight_category=None), settings)
     assert look == Look.blink(C[colors_lib.RED], period=2)
 
 
 def test_missing_data_blink_off_leaves_the_led_dark(settings):
     settings.visualizer.missing_data_blink = False
-    assert visualizer.look(flightcategory.VISUALIZER, metar(flightCategory=None), settings) == OFF
-    assert visualizer.look(wind.VISUALIZER, metar(windSpeed=None), settings) == OFF
+    assert visualizer.look(flightcategory.VISUALIZER, metar(flight_category=None), settings) == OFF
+    assert visualizer.look(wind.VISUALIZER, metar(wind_speed=None), settings) == OFF
     assert (
-        visualizer.look(precipitation.VISUALIZER, metar(obs="ZZ"), settings) == OFF
+        visualizer.look(precipitation.VISUALIZER, metar(weather="ZZ"), settings) == OFF
     )  # weather codes the map doesn't know
     # everything else is unchanged: a category, an estimate
-    assert visualizer.look(flightcategory.VISUALIZER, metar(flightCategory="IFR"), settings) == Look.solid(
+    assert visualizer.look(flightcategory.VISUALIZER, metar(flight_category="IFR"), settings) == Look.solid(
         C[colors_lib.RED]
     )
     assert (
-        visualizer.look(flightcategory.VISUALIZER, metar(flightCategory=None, visibilitySM=10.0), settings).effect
+        visualizer.look(flightcategory.VISUALIZER, metar(flight_category=None, visibility_sm=10.0), settings).effect
         == "pulse"
     )
 
 
 def test_missing_data_blink_on_by_default(settings):
     assert settings.visualizer.missing_data_blink is True
-    assert visualizer.look(flightcategory.VISUALIZER, metar(flightCategory=None), settings) == style.missing()
+    assert visualizer.look(flightcategory.VISUALIZER, metar(flight_category=None), settings) == style.missing()
 
 
 def test_lightning_flickers_over_dark_missing_data(settings):
     settings.visualizer.missing_data_blink = False
-    frames = visualizer.look(flightcategory.VISUALIZER, metar(flightCategory=None, lightning=True), settings).colors
+    frames = visualizer.look(flightcategory.VISUALIZER, metar(flight_category=None, lightning=True), settings).colors
     assert frames[:3] == (style.LIGHTNING,) * 3 and frames[3] == (0, 0, 0)
 
 
@@ -200,12 +195,12 @@ def test_missing_data_blink_off_in_every_legend(v, settings):
 
 
 def test_flight_category_no_report_is_off(settings):
-    assert flightcategory.look({}, settings) == OFF
+    assert flightcategory.look(None, settings) == OFF
 
 
 def estimated(metar_fields, settings):
     """The look of an airport that doesn't report a category."""
-    return flightcategory.look(metar(flightCategory=None, **metar_fields), settings)
+    return flightcategory.look(metar(flight_category=None, **metar_fields), settings)
 
 
 def breathing(color):
@@ -216,27 +211,27 @@ def breathing(color):
     "fields, attr",
     [
         # visibility only (an automated station without a ceilometer reading)
-        ({"visibilitySM": 10.0}, "vfr"),
-        ({"visibilitySM": 6.0}, "vfr"),
-        ({"visibilitySM": 5.0}, "mvfr"),
-        ({"visibilitySM": 3.0}, "mvfr"),
-        ({"visibilitySM": 2.5}, "ifr"),
-        ({"visibilitySM": 1.0}, "ifr"),
-        ({"visibilitySM": 0.75}, "lifr"),
+        ({"visibility_sm": 10.0}, "vfr"),
+        ({"visibility_sm": 6.0}, "vfr"),
+        ({"visibility_sm": 5.0}, "mvfr"),
+        ({"visibility_sm": 3.0}, "mvfr"),
+        ({"visibility_sm": 2.5}, "ifr"),
+        ({"visibility_sm": 1.0}, "ifr"),
+        ({"visibility_sm": 0.75}, "lifr"),
         # sky condition only
-        ({"skyConditions": [{"cover": "FEW", "cloudBaseFt": 3900}]}, "vfr"),
-        ({"skyConditions": [{"cover": "CLR", "cloudBaseFt": 0}]}, "vfr"),
-        ({"skyConditions": [{"cover": "BKN", "cloudBaseFt": 3100}]}, "vfr"),
-        ({"skyConditions": [{"cover": "BKN", "cloudBaseFt": 3000}]}, "mvfr"),
-        ({"skyConditions": [{"cover": "OVC", "cloudBaseFt": 1000}]}, "mvfr"),
-        ({"skyConditions": [{"cover": "BKN", "cloudBaseFt": 800}]}, "ifr"),
-        ({"skyConditions": [{"cover": "OVC", "cloudBaseFt": 500}]}, "ifr"),
-        ({"skyConditions": [{"cover": "OVC", "cloudBaseFt": 400}]}, "lifr"),
-        ({"skyConditions": [{"cover": "OVX", "cloudBaseFt": 0}], "vertVisFt": 200}, "lifr"),
+        ({"sky_conditions": [SkyLayer("FEW", 3900)]}, "vfr"),
+        ({"sky_conditions": [SkyLayer("CLR", 0)]}, "vfr"),
+        ({"sky_conditions": [SkyLayer("BKN", 3100)]}, "vfr"),
+        ({"sky_conditions": [SkyLayer("BKN", 3000)]}, "mvfr"),
+        ({"sky_conditions": [SkyLayer("OVC", 1000)]}, "mvfr"),
+        ({"sky_conditions": [SkyLayer("BKN", 800)]}, "ifr"),
+        ({"sky_conditions": [SkyLayer("OVC", 500)]}, "ifr"),
+        ({"sky_conditions": [SkyLayer("OVC", 400)]}, "lifr"),
+        ({"sky_conditions": [SkyLayer("OVX", 0)], "vert_vis_ft": 200}, "lifr"),
         # both: the worse decides
-        ({"visibilitySM": 10.0, "skyConditions": [{"cover": "OVC", "cloudBaseFt": 400}]}, "lifr"),
-        ({"visibilitySM": 2.0, "skyConditions": [{"cover": "CLR", "cloudBaseFt": 0}]}, "ifr"),
-        ({"visibilitySM": 4.0, "skyConditions": [{"cover": "BKN", "cloudBaseFt": 800}]}, "ifr"),
+        ({"visibility_sm": 10.0, "sky_conditions": [SkyLayer("OVC", 400)]}, "lifr"),
+        ({"visibility_sm": 2.0, "sky_conditions": [SkyLayer("CLR", 0)]}, "ifr"),
+        ({"visibility_sm": 4.0, "sky_conditions": [SkyLayer("BKN", 800)]}, "ifr"),
     ],
 )
 def test_a_missing_category_is_estimated_and_breathes(settings, fields, attr):
@@ -245,12 +240,12 @@ def test_a_missing_category_is_estimated_and_breathes(settings, fields, attr):
 
 def test_nothing_to_estimate_from_blinks_red(settings):
     assert estimated({}, settings) == RED_BLINK
-    assert estimated({"visibilitySM": None, "skyConditions": []}, settings) == RED_BLINK
+    assert estimated({"visibility_sm": None, "sky_conditions": []}, settings) == RED_BLINK
 
 
 def test_a_reported_category_is_never_estimated(settings):
     """aviationweather.gov's category wins, even if the visibility and ceiling would say otherwise."""
-    look = flightcategory.look(metar(flightCategory="VFR", visibilitySM=0.5), settings)
+    look = flightcategory.look(metar(flight_category="VFR", visibility_sm=0.5), settings)
     assert look == Look.solid(flightcategory.COLORS["VFR"])
 
 
@@ -292,7 +287,7 @@ def flicker(base, flash):
 
 
 def test_lightning_flickers_over_the_category(settings):
-    look = lit(flightcategory.VISUALIZER, settings, flightCategory="IFR", lightning=True)
+    look = lit(flightcategory.VISUALIZER, settings, flight_category="IFR", lightning=True)
     ifr, yellow = flightcategory.COLORS["IFR"], style.LIGHTNING
     assert look.effect == "cycle" and look.step == style.LIGHTNING_STEP
     assert list(look.colors) == flicker(ifr, yellow) * 2  # every 2 s, for 4 s
@@ -309,7 +304,7 @@ def test_every_weather_visualizer_shows_lightning(v, settings):
 @pytest.mark.parametrize("v", visualizers.WEATHER)
 def test_lightning_animation_off_is_honored_everywhere(v, settings):
     settings.lightning.animation = False
-    m = metar(lightning=True, obs="TSRA")
+    m = metar(lightning=True, weather="TSRA")
     assert visualizer.look(v, m, settings) == v.look(m, settings)
     assert all(i["label"] != "Lightning or a thunderstorm" for i in visualizer.legend(v, settings))
 
@@ -318,10 +313,10 @@ def test_lightning_animation_off_is_honored_everywhere(v, settings):
     "fields, has",
     [
         ({"lightning": True}, True),
-        ({"obs": "TSRA"}, True),
-        ({"obs": "+TSRA BR"}, True),
-        ({"obs": "VCTS"}, True),
-        ({"obs": "-RA"}, False),
+        ({"weather": "TSRA"}, True),
+        ({"weather": "+TSRA BR"}, True),
+        ({"weather": "VCTS"}, True),
+        ({"weather": "-RA"}, False),
         ({}, False),
     ],
 )
@@ -341,14 +336,14 @@ def test_lightning_keeps_the_look_moving_between_flashes(settings):
 
 def test_lightning_on_yellow_is_dimmed_between_flashes(settings):
     yellow = style.LIGHTNING
-    frames = lit(precipitation.VISUALIZER, settings, obs="TS").colors
+    frames = lit(precipitation.VISUALIZER, settings, weather="TS").colors
     assert frames[:3] == (yellow,) * 3 and frames[3] == style.dim(yellow)
 
 
 def test_lightning_color_white(settings):
     settings.lightning.color = "white"
     white = C[colors_lib.WHITE]
-    look = lit(flightcategory.VISUALIZER, settings, flightCategory="IFR", lightning=True)
+    look = lit(flightcategory.VISUALIZER, settings, flight_category="IFR", lightning=True)
     assert list(look.colors) == flicker(flightcategory.COLORS["IFR"], white) * 2
     item = next(
         i for i in visualizer.legend(flightcategory.VISUALIZER, settings) if i["label"] == "Lightning or a thunderstorm"
@@ -359,15 +354,15 @@ def test_lightning_color_white(settings):
 def test_lightning_color_white_on_white_is_dimmed_between_flashes(settings):
     settings.lightning.color = "white"
     white = C[colors_lib.WHITE]
-    frames = lit(precipitation.VISUALIZER, settings, obs="SN", lightning=True).colors  # snow is white
+    frames = lit(precipitation.VISUALIZER, settings, weather="SN", lightning=True).colors  # snow is white
     assert frames[:3] == (white,) * 3 and frames[3] == style.dim(white)
 
 
 def test_precipitation_thunderstorm_stays_yellow_with_white_lightning(settings):
     """Snow is white in Precipitation, so a thunderstorm keeps its yellow; only the flashes are white."""
     settings.lightning.color = "white"
-    assert precipitation.look(metar(obs="TS"), settings) == Look.solid(style.LIGHTNING)
-    frames = lit(precipitation.VISUALIZER, settings, obs="TS").colors
+    assert precipitation.look(metar(weather="TS"), settings) == Look.solid(style.LIGHTNING)
+    frames = lit(precipitation.VISUALIZER, settings, weather="TS").colors
     assert frames[:3] == (C[colors_lib.WHITE],) * 3 and frames[3] == style.LIGHTNING
 
 
@@ -375,7 +370,7 @@ def test_unknown_lightning_color_in_config_json_is_yellow():
     data = Settings().to_dict()
     data["lightning"]["color"] = "purple"  # hand-edited config.json: reset when it loads
     settings = Settings.from_dict(data)
-    assert lit(flightcategory.VISUALIZER, settings, flightCategory="VFR", lightning=True).colors[0] == style.LIGHTNING
+    assert lit(flightcategory.VISUALIZER, settings, flight_category="VFR", lightning=True).colors[0] == style.LIGHTNING
     assert "yellow flashes" in style.lightning_legend(settings)["detail"]
 
 
@@ -396,25 +391,23 @@ RED_BLINK = Look.blink(C[colors_lib.RED], period=2)
 
 @pytest.mark.parametrize("v", PER_AIRPORT)
 def test_no_report_is_off_everywhere(v, settings):
-    assert v.look({}, settings) == OFF
+    assert v.look(None, settings) == OFF
 
 
 @pytest.mark.parametrize(
     "v, field",
     [
-        (wind, "windSpeed"),
-        (windgusts, "windSpeed"),
-        (temperature, "tempC"),
-        (pressure, "altimHg"),
-        (visibility, "visibilitySM"),
-        (density_altitude, "tempC"),
-        (flightcategory, "flightCategory"),
+        (wind, "wind_speed"),
+        (windgusts, "wind_speed"),
+        (temperature, "temp_c"),
+        (pressure, "altimeter_inhg"),
+        (visibility, "visibility_sm"),
+        (density_altitude, "temp_c"),
+        (flightcategory, "flight_category"),
     ],
 )
 def test_a_missing_value_is_a_slow_red_blink_everywhere(v, field, settings):
     data = metar(**{field: None})
-    if field == "visibilitySM":
-        del data["vis"]  # older data's rounded visibility, used when visibilitySM is absent
     assert v.look(data, settings) == RED_BLINK
 
 
@@ -451,12 +444,12 @@ def test_legends_come_from_the_band_tables(v, settings):
     ],
 )
 def test_wind_bands(settings, speed, name):
-    assert wind.look(metar(windSpeed=speed), settings) == Look.solid(C[name])
+    assert wind.look(metar(wind_speed=speed), settings) == Look.solid(C[name])
 
 
 def test_calm_is_not_off(settings):
     """Off means no report; calm is a dim white so the two can't be confused."""
-    assert wind.look(metar(windSpeed=0), settings) != OFF
+    assert wind.look(metar(wind_speed=0), settings) != OFF
 
 
 @pytest.mark.parametrize(
@@ -474,26 +467,22 @@ def test_calm_is_not_off(settings):
     ],
 )
 def test_gust_spread_bands(settings, speed, gust, name):
-    data = metar(windSpeed=speed, windGust=gust > 0, windGustSpeed=gust)
+    data = metar(wind_speed=speed, wind_gust_speed=gust)
     assert windgusts.look(data, settings) == Look.solid(C[name])
 
 
 def test_gusts_are_about_the_spread_not_the_speed(settings):
     """A strong steady wind isn't gusty, and a light one can be."""
-    steady = metar(windSpeed=30, windGust=False, windGustSpeed=0)
-    gusty = metar(windSpeed=6, windGust=True, windGustSpeed=24)
+    steady = metar(wind_speed=30, wind_gust_speed=0)
+    gusty = metar(wind_speed=6, wind_gust_speed=24)
     assert windgusts.look(steady, settings) == Look.solid(C[colors_lib.GRAY])
     assert windgusts.look(gusty, settings) == Look.solid(C[colors_lib.ORANGE])
     assert wind.look(steady, settings) != wind.look(gusty, settings)
 
 
 def test_a_gust_that_is_not_above_the_wind_is_no_gust(settings):
-    assert windgusts.look(metar(windSpeed=12, windGust=True, windGustSpeed=12), settings) == Look.solid(
-        C[colors_lib.GRAY]
-    )
-    assert windgusts.look(metar(windSpeed=12, windGust=True, windGustSpeed=0), settings) == Look.solid(
-        C[colors_lib.GRAY]
-    )
+    assert windgusts.look(metar(wind_speed=12, wind_gust_speed=12), settings) == Look.solid(C[colors_lib.GRAY])
+    assert windgusts.look(metar(wind_speed=12, wind_gust_speed=0), settings) == Look.solid(C[colors_lib.GRAY])
 
 
 # ---- temperature, pressure, visibility, density altitude ----------------------------------------------------
@@ -514,7 +503,7 @@ def test_a_gust_that_is_not_above_the_wind_is_no_gust(settings):
 )
 def test_temperature_bands(settings, celsius, name):
     """In °F: below 32 (freezing) white, 32-49 purple, 50-64 blue, 65-79 cyan, 80-89 yellow, 90-99 orange."""
-    assert temperature.look(metar(tempC=celsius), settings) == Look.solid(C[name])
+    assert temperature.look(metar(temp_c=celsius), settings) == Look.solid(C[name])
 
 
 @pytest.mark.parametrize(
@@ -529,7 +518,7 @@ def test_temperature_bands(settings, celsius, name):
     ],
 )
 def test_pressure_bands(settings, inhg, name):
-    assert pressure.look(metar(altimHg=inhg), settings) == Look.solid(C[name])
+    assert pressure.look(metar(altimeter_inhg=inhg), settings) == Look.solid(C[name])
 
 
 @pytest.mark.parametrize(
@@ -547,11 +536,7 @@ def test_pressure_bands(settings, inhg, name):
 )
 def test_visibility_bands(settings, miles, name):
     """At the flight category limits: over 5 miles, 3-5, 1 to under 3, under 1."""
-    assert visibility.look(metar(visibilitySM=miles), settings) == Look.solid(C[name])
-
-
-def test_visibility_from_older_data(settings):
-    assert visibility.look(metar(vis=2), settings) == Look.solid(C[colors_lib.ORANGE])  # no visibilitySM
+    assert visibility.look(metar(visibility_sm=miles), settings) == Look.solid(C[name])
 
 
 def test_density_altitude_formula():
@@ -563,18 +548,19 @@ def test_density_altitude_formula():
 @pytest.mark.parametrize(
     "fields, name",
     [
-        ({"elevation_m": 0, "tempC": 15, "altimHg": 29.92}, colors_lib.LIGHT_BLUE),  # standard day
-        ({"elevation_m": 0, "tempC": 0, "altimHg": 29.92}, colors_lib.LIGHT_BLUE),  # 0°C at a sea-level field is real
-        ({"elevation_m": 0, "tempC": 28, "altimHg": 29.92}, colors_lib.YELLOW),
-        ({"elevation_m": 0, "tempC": 35, "altimHg": 29.92}, colors_lib.ORANGE),
-        ({"elevation_m": 1500, "tempC": 38, "altimHg": 29.7}, colors_lib.RED),
+        ({"elevation_m": 0, "temp_c": 15, "altimeter_inhg": 29.92}, colors_lib.LIGHT_BLUE),  # standard day
+        # 0°C at a sea-level field is real
+        ({"elevation_m": 0, "temp_c": 0, "altimeter_inhg": 29.92}, colors_lib.LIGHT_BLUE),
+        ({"elevation_m": 0, "temp_c": 28, "altimeter_inhg": 29.92}, colors_lib.YELLOW),
+        ({"elevation_m": 0, "temp_c": 35, "altimeter_inhg": 29.92}, colors_lib.ORANGE),
+        ({"elevation_m": 1500, "temp_c": 38, "altimeter_inhg": 29.7}, colors_lib.RED),
     ],
 )
 def test_density_altitude_bands(settings, fields, name):
     assert density_altitude.look(metar(**fields), settings) == Look.solid(C[name])
 
 
-@pytest.mark.parametrize("fields", [{"tempC": None}, {"altimHg": 0}, {"elevation_m": None}])
+@pytest.mark.parametrize("fields", [{"temp_c": None}, {"altimeter_inhg": 0}, {"elevation_m": None}])
 def test_density_altitude_needs_all_inputs(settings, fields):
     assert density_altitude.look(metar(**fields), settings) == RED_BLINK
 
@@ -587,7 +573,7 @@ def W(settings, name):
 
 
 def P(obs, settings):
-    return precipitation.look(metar(obs=obs), settings)
+    return precipitation.look(metar(weather=obs), settings)
 
 
 @pytest.mark.parametrize(
@@ -687,7 +673,7 @@ def test_chase_walks_every_led(settings):
 
 
 def sky(*layers):
-    return [{"cover": cover, "cloudBaseFt": base} for cover, base in layers]
+    return [SkyLayer(cover, base) for cover, base in layers]
 
 
 @pytest.mark.parametrize(
@@ -703,25 +689,26 @@ def sky(*layers):
     ],
 )
 def test_ceiling_bands(settings, layers, name):
-    assert ceiling.look(metar(skyConditions=layers), settings) == Look.solid(C[name])
+    assert ceiling.look(metar(sky_conditions=layers), settings) == Look.solid(C[name])
 
 
 @pytest.mark.parametrize("layers", [sky(("CLR", 0)), sky(("SKC", 0)), sky(("FEW", 800), ("SCT", 2000))])
 def test_no_ceiling_is_dim_white(settings, layers):
-    assert ceiling.look(metar(skyConditions=layers), settings) == Look.solid(style.dim(C[colors_lib.WHITE]))
+    assert ceiling.look(metar(sky_conditions=layers), settings) == Look.solid(style.dim(C[colors_lib.WHITE]))
 
 
 def test_an_obscured_sky_is_a_ceiling_at_the_vertical_visibility(settings):
-    assert ceiling.look(metar(skyConditions=sky(("OVX", 0)), vertVisFt=200), settings) == Look.solid(C[colors_lib.RED])
-    assert ceiling.look(metar(skyConditions=sky(("OVX", 0)), vertVisFt=None), settings) == Look.solid(
+    obscured = sky(("OVX", 0))
+    assert ceiling.look(metar(sky_conditions=obscured, vert_vis_ft=200), settings) == Look.solid(C[colors_lib.RED])
+    assert ceiling.look(metar(sky_conditions=sky(("OVX", 0)), vert_vis_ft=None), settings) == Look.solid(
         C[colors_lib.RED]
     )  # obscured, height unknown: as low as it gets
 
 
 def test_ceiling_missing_and_no_report(settings):
     assert ceiling.look(metar(), settings) == style.missing()  # no sky condition in the report
-    assert ceiling.look(metar(skyConditions=[]), settings) == style.missing()
-    assert ceiling.look({}, settings) == OFF
+    assert ceiling.look(metar(sky_conditions=[]), settings) == style.missing()
+    assert ceiling.look(None, settings) == OFF
 
 
 # ---- dewpoint spread ----------------------------------------------------------------------------------------
@@ -741,13 +728,13 @@ def test_ceiling_missing_and_no_report(settings):
     ],
 )
 def test_spread_bands(settings, temp, dewpoint, name):
-    assert spread.look(metar(tempC=temp, dewpointC=dewpoint), settings) == Look.solid(C[name])
+    assert spread.look(metar(temp_c=temp, dewpoint_c=dewpoint), settings) == Look.solid(C[name])
 
 
 def test_spread_missing_and_no_report(settings):
-    assert spread.look(metar(dewpointC=None), settings) == style.missing()
-    assert spread.look(metar(tempC=None), settings) == style.missing()
-    assert spread.look({}, settings) == OFF
+    assert spread.look(metar(dewpoint_c=None), settings) == style.missing()
+    assert spread.look(metar(temp_c=None), settings) == style.missing()
+    assert spread.look(None, settings) == OFF
 
 
 # ---- wind direction -----------------------------------------------------------------------------------------
@@ -773,20 +760,20 @@ def test_spread_missing_and_no_report(settings):
     ],
 )
 def test_wind_direction_sectors(settings, direction, name):
-    assert wind_direction.look(metar(windDir=direction, windSpeed=8), settings) == Look.solid(C[name])
+    assert wind_direction.look(metar(wind_dir=direction, wind_speed=8), settings) == Look.solid(C[name])
 
 
 def test_wind_direction_calm_variable_and_missing(settings):
     calm = Look.solid(C[colors_lib.GRAY])
-    assert wind_direction.look(metar(windDir="0", windSpeed=0), settings) == calm
-    assert wind_direction.look(metar(windDir="270", windSpeed=0), settings) == calm
-    assert wind_direction.look(metar(windDir="0", windSpeed=None), settings) == calm
-    assert wind_direction.look(metar(windDir="VRB", windSpeed=3), settings) == Look.pulse(
+    assert wind_direction.look(metar(wind_dir="0", wind_speed=0), settings) == calm
+    assert wind_direction.look(metar(wind_dir="270", wind_speed=0), settings) == calm
+    assert wind_direction.look(metar(wind_dir="0", wind_speed=None), settings) == calm
+    assert wind_direction.look(metar(wind_dir="VRB", wind_speed=3), settings) == Look.pulse(
         C[colors_lib.WHITE], period=style.LIGHT_PERIOD, low=style.LIGHT_LOW
     )
-    assert wind_direction.look(metar(windDir="", windSpeed=None), settings) == style.missing()
-    assert wind_direction.look(metar(windDir="", windSpeed=5), settings) == style.missing()
-    assert wind_direction.look({}, settings) == OFF
+    assert wind_direction.look(metar(wind_dir="", wind_speed=None), settings) == style.missing()
+    assert wind_direction.look(metar(wind_dir="", wind_speed=5), settings) == style.missing()
+    assert wind_direction.look(None, settings) == OFF
 
 
 def test_wind_direction_legend(settings):
@@ -797,7 +784,7 @@ def test_wind_direction_legend(settings):
 
 
 def test_wind_direction_flickers_with_lightning(settings):
-    storm = metar(windDir="180", windSpeed=10, lightning=True)
+    storm = metar(wind_dir="180", wind_speed=10, lightning=True)
     assert visualizer.look(wind_direction.VISUALIZER, storm, settings) == style.with_lightning(
         Look.solid(C[colors_lib.CYAN]), settings
     )

@@ -5,8 +5,10 @@ an airport in two at once alternates between their colors, and in none it's dim 
 severe turbulence or icing...) is more serious and takes over: a fast bright-and-dim blink in its hazard's color.
 """
 
+from typing import Optional
+
 import metarmap.lib.colors as colors_lib
-from metarmap.models import Look, Metar
+from metarmap.models import Look, Report
 from metarmap.visualizers import style
 from metarmap.visualizers.visualizer import Visualizer, legend_item
 
@@ -106,13 +108,13 @@ def legend(settings):
     ]
 
 
-def look(metar: Metar, settings) -> Look:
+def look(metar: Optional[Report], settings) -> Look:
     if not metar:
         return style.no_report()
-    sigmets = metar.get("sigmets") or []
+    sigmets = metar.sigmets or []
     if sigmets:  # the most serious one
         return sigmet_look(color(sigmets[0], "SIGMET"))
-    hazards = metar.get("airmets")
+    hazards = metar.airmets
     if hazards is None:
         return style.missing()
     colors = colors_for(hazards)

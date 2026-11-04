@@ -361,12 +361,12 @@ def color(name):
     ],
 )
 def test_look(settings, tfrs, expected):
-    assert vis.look({"raw": "...", "tfrs": tfrs}, settings) == expected
+    assert vis.look(Report(raw="...", tfrs=tfrs), settings) == expected
 
 
 def test_look_without_data(settings):
-    assert vis.look({}, settings) == style.no_report()
-    assert vis.look({"raw": "...", "tfrs": None}, settings) == style.missing()
+    assert vis.look(None, settings) == style.no_report()
+    assert vis.look(Report(raw="...", tfrs=None), settings) == style.missing()
 
 
 def test_legend(settings):

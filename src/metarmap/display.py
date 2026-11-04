@@ -141,7 +141,7 @@ class Display(object):
                 try:
                     self.show_airport(
                         airport,
-                        self._data.data.get(airport) or {},
+                        self._data.data.get(airport),
                         self._config.data.display_screen.delay,
                         event,
                         virtual=pixel >= self._config.data.led.count,

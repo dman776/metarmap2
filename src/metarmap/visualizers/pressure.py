@@ -2,8 +2,10 @@
 Pressure: colors each airport by its altimeter setting: red for low pressure, blue for high.
 """
 
+from typing import Optional
+
 import metarmap.lib.colors as colors_lib
-from metarmap.models import Look, Metar
+from metarmap.models import Look, Report
 from metarmap.visualizers import style
 from metarmap.visualizers.style import Band
 from metarmap.visualizers.visualizer import Visualizer
@@ -23,12 +25,12 @@ def legend(settings):
     return [*style.band_legend(BANDS, settings), style.missing_legend("altimeter setting"), style.no_report_legend()]
 
 
-def look(metar: Metar, settings) -> Look:
+def look(metar: Optional[Report], settings) -> Look:
     if not metar:
         return style.no_report()
-    if not metar.get("altimHg"):  # missing from the report (read as 0)
+    if not metar.altimeter_inhg:  # missing from the report (read as 0)
         return style.missing()
-    return Look.solid(style.band_for(metar["altimHg"], BANDS, settings))
+    return Look.solid(style.band_for(metar.altimeter_inhg, BANDS, settings))
 
 
 VISUALIZER = Visualizer(

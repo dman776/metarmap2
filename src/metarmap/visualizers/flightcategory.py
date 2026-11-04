@@ -7,8 +7,10 @@ estimate breathes slowly instead of shining steadily, so it can't be mistaken fo
 of the two reported, the real category could be worse than the estimate, never better.
 """
 
+from typing import Optional
+
 from metarmap.decode import estimate_category
-from metarmap.models import FlightCategory as Category, Look, Metar
+from metarmap.models import FlightCategory as Category, Look, Report
 from metarmap.visualizers import style
 from metarmap.visualizers.visualizer import Visualizer, legend_item
 
@@ -47,10 +49,10 @@ def legend(settings):
     return items
 
 
-def look(metar: Metar, settings) -> Look:
+def look(metar: Optional[Report], settings) -> Look:
     if not metar:
         return style.no_report()
-    category = metar.get("flightCategory")
+    category = metar.flight_category
     estimated = category is None
     if estimated:
         category = estimate_category(metar)

@@ -4,9 +4,11 @@ sky is obscured), at the flight category limits: white when it's high, then yell
 Flight Category shows the worse of ceiling and visibility; this shows the ceiling on its own.
 """
 
+from typing import Optional
+
 import metarmap.lib.colors as colors_lib
 from metarmap.decode import ceiling_ft
-from metarmap.models import Look, Metar
+from metarmap.models import Look, Report
 from metarmap.visualizers import style
 from metarmap.visualizers.style import Band
 from metarmap.visualizers.visualizer import Visualizer
@@ -33,13 +35,13 @@ def legend(settings):
     ]
 
 
-def look(metar: Metar, settings) -> Look:
+def look(metar: Optional[Report], settings) -> Look:
     if not metar:
         return style.no_report()
-    layers = metar.get("skyConditions")
+    layers = metar.sky_conditions
     if not layers:
         return style.missing()
-    feet = ceiling_ft(layers, metar.get("vertVisFt"))
+    feet = ceiling_ft(layers, metar.vert_vis_ft)
     if feet is None:
         return Look.solid(no_ceiling(settings))
     return Look.solid(style.band_for(feet, BANDS, settings))

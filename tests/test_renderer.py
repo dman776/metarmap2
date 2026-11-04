@@ -8,7 +8,7 @@ import pytest
 from conftest import airports
 from metarmap.clock import FakeClock
 from metarmap.leds.strip import FakeStrip
-from metarmap.models import Look
+from metarmap.models import Look, Report
 from metarmap.settings import Settings
 from metarmap.sun import SunTimes
 from metarmap.renderer import Renderer
@@ -23,21 +23,14 @@ SUN = {
 }
 
 
-def metar(category, wind=5, obs=""):
-    return {
-        "flightCategory": category,
-        "lightning": False,
-        "windSpeed": wind,
-        "windGust": False,
-        "windGustSpeed": 0,
-        "obs": obs,
-    }
+def metar(category, wind=5, weather=""):
+    return Report(flight_category=category, wind_speed=wind, weather=weather)
 
 
 CODES = ["KHOU", "KIAH", "", "KDKR", "KGLS"]  # LED 2 has no airport
 # the visualizers the renderer runs (each module's functions stay as they were, e.g. flightcategory.COLORS)
 FLIGHT, WIND, PRECIP, RAINBOW, CHASE = (m.VISUALIZER for m in (flightcategory, wind, precipitation, rainbow, chase))
-DATA = {"KHOU": metar("VFR"), "KIAH": metar("IFR", wind=20), "KDKR": {}, "KGLS": metar("LIFR")}
+DATA = {"KHOU": metar("VFR"), "KIAH": metar("IFR", wind=20), "KDKR": None, "KGLS": metar("LIFR")}
 
 
 @pytest.fixture
@@ -213,7 +206,7 @@ def test_render_rests_after_an_error(config, clock, monkeypatch):
 
 def test_render_stops_when_the_animations_are_rebuilt(config, clock):
     """New data, a new visualizer or a new strip length shows at once, not after the old animations' cycle."""
-    r, _ = make(config, clock, data={"KHOU": metar("VFR", obs="-RA")}, leds=1, visualizers=[PRECIP])
+    r, _ = make(config, clock, data={"KHOU": metar("VFR", weather="-RA")}, leds=1, visualizers=[PRECIP])
     frames = []
     animation = r.animations[0]
     animate = animation.animate

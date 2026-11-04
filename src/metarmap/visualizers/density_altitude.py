@@ -3,10 +3,10 @@ Density Altitude: colors each airport by how far its density altitude is above t
 airport "feels" to an airplane on a hot day or with low pressure.
 """
 
-from typing import Union
+from typing import Optional, Union
 
 import metarmap.lib.colors as colors_lib
-from metarmap.models import Look, Metar
+from metarmap.models import Look, Report
 from metarmap.visualizers import style
 from metarmap.visualizers.style import Band
 from metarmap.visualizers.visualizer import Visualizer
@@ -54,14 +54,14 @@ def legend(settings):
     ]
 
 
-def look(metar: Metar, settings) -> Look:
+def look(metar: Optional[Report], settings) -> Look:
     if not metar:
         return style.no_report()
     # a sea-level field (0 m) and 0°C are real values; a missing altimeter setting is read as 0
-    if not metar.get("altimHg") or metar.get("elevation_m") is None or metar.get("tempC") is None:
+    if not metar.altimeter_inhg or metar.elevation_m is None or metar.temp_c is None:
         return style.missing()
-    density_altitude = calculate_density_altitude(metar["altimHg"], metar["elevation_m"], metar["tempC"])
-    above = density_altitude - meters_to_feet(metar["elevation_m"])
+    density_altitude = calculate_density_altitude(metar.altimeter_inhg, metar.elevation_m, metar.temp_c)
+    above = density_altitude - meters_to_feet(metar.elevation_m)
     return Look.solid(style.band_for(above, BANDS, settings))
 
 

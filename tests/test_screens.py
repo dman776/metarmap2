@@ -1,5 +1,6 @@
 """Tests for what the OLED shows (metarmap/oled/screens.py). No hardware needed."""
 
+from dataclasses import replace
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
@@ -7,23 +8,23 @@ import pytest
 import pytz
 
 from conftest import airports
+from metarmap.models import Report, SkyLayer
 from metarmap.oled import screens
 from metarmap.oled.screen import GLYPHS
 
 CENTRAL = pytz.timezone("America/Chicago")
 
-KHOU = {
-    "flightCategory": "VFR",
-    "windDir": "100",
-    "windSpeed": 13,
-    "windGustSpeed": 19,
-    "windGust": True,
-    "vis": 10,
-    "altimHg": 30.2,
-    "tempC": 28,
-    "dewpointC": 16,
-    "obsTime": datetime(2026, 10, 24, 17, 53, tzinfo=timezone.utc),
-}
+KHOU = Report(
+    flight_category="VFR",
+    wind_dir="100",
+    wind_speed=13,
+    wind_gust_speed=19,
+    visibility_sm=10.0,
+    altimeter_inhg=30.2,
+    temp_c=28,
+    dewpoint_c=16,
+    obs_time=datetime(2026, 10, 24, 17, 53, tzinfo=timezone.utc),
+)
 
 
 def texts(screen):
@@ -33,12 +34,12 @@ def texts(screen):
 @pytest.mark.parametrize(
     "data, expected",
     [
-        ({"windSpeed": 0, "windDir": "100"}, "CALM"),
-        ({"windSpeed": 7, "windDir": "90"}, "090@07"),
-        ({"windSpeed": 13, "windDir": "100", "windGustSpeed": 19, "windGust": True}, "100@13G19"),
-        ({"windSpeed": 6, "windDir": "VRB"}, "VRB@06"),
-        ({"windSpeed": 6, "windDir": "vrb"}, "VRB@06"),
-        ({"windSpeed": 5, "windDir": ""}, "VRB@05"),  # speed but no direction reported
+        (Report(wind_speed=0, wind_dir="100"), "CALM"),
+        (Report(wind_speed=7, wind_dir="90"), "090@07"),
+        (Report(wind_speed=13, wind_dir="100", wind_gust_speed=19), "100@13G19"),
+        (Report(wind_speed=6, wind_dir="VRB"), "VRB@06"),
+        (Report(wind_speed=6, wind_dir="vrb"), "VRB@06"),
+        (Report(wind_speed=5, wind_dir=""), "VRB@05"),  # speed but no direction reported
     ],
 )
 def test_wind_text(data, expected):
@@ -61,25 +62,31 @@ def test_page2_converts_time_to_local():
 
 
 def test_page2_missing_values_show_dashes():
-    data = {**KHOU, "tempC": None, "dewpointC": None, "obsTime": None}
+    data = replace(KHOU, temp_c=None, dewpoint_c=None, obs_time=None)
     screen = screens.screen_for("KHOU", data, 2, CENTRAL)
     assert texts(screen) == [screens.MISSING] * 3
 
 
-def test_page1_missing_values_show_dashes():
-    screen = screens.screen_for("KTST", {"flightCategory": None}, 1)
+def test_page1_of_a_report_without_wind_visibility_or_altimeter():
+    """The parser reads them as 0 when the report leaves them out, so they show as 0, not dashes."""
+    screen = screens.screen_for("KTST", Report(flight_category=None), 1)
     assert screen["badge"] == ""
-    assert texts(screen) == [screens.MISSING] * 3
+    assert texts(screen) == ["CALM", "0SM", "0.00"]
+
+
+def test_page1_values_that_cant_be_shown_are_dashes():
+    screen = screens.screen_for("KTST", Report(wind_speed=None, altimeter_inhg=None), 1)
+    assert texts(screen) == [screens.MISSING, "0SM", screens.MISSING]
 
 
 @pytest.mark.parametrize(
     "data, badge",
     [
-        ({"flightCategory": "IFR", "visibilitySM": 10.0}, "IFR"),  # reported: shown as it is
-        ({"flightCategory": None, "visibilitySM": 10.0}, "VFR*"),  # estimated from the visibility
-        ({"flightCategory": None, "visibilitySM": 4.0}, "MVFR*"),
-        ({"flightCategory": None, "skyConditions": [{"cover": "OVC", "cloudBaseFt": 400}]}, "LIFR*"),
-        ({"flightCategory": None, "visibilitySM": None, "skyConditions": []}, ""),  # nothing to estimate from
+        (Report(flight_category="IFR", visibility_sm=10.0), "IFR"),  # reported: shown as it is
+        (Report(flight_category=None, visibility_sm=10.0), "VFR*"),  # estimated from the visibility
+        (Report(flight_category=None, visibility_sm=4.0), "MVFR*"),
+        (Report(flight_category=None, sky_conditions=[SkyLayer("OVC", 400)]), "LIFR*"),
+        (Report(flight_category=None, visibility_sm=None, sky_conditions=[]), ""),  # nothing to estimate from
     ],
 )
 def test_badge_marks_an_estimated_category(data, badge):
@@ -126,9 +133,9 @@ def test_airports_to_show_keeps_led_order():
 
 def test_a_virtual_airport_is_marked():
     """It has no LED to light up: its code goes in a dashed box instead."""
-    assert screens.screen_for("KGLS", {}, 0, virtual=True)["virtual"] is True
-    assert screens.screen_for("KGLS", {"flightCategory": "VFR"}, 1, virtual=True)["virtual"] is True
-    assert screens.screen_for("KGLS", {"flightCategory": "VFR"}, 1)["virtual"] is False
+    assert screens.screen_for("KGLS", None, 0, virtual=True)["virtual"] is True
+    assert screens.screen_for("KGLS", Report(flight_category="VFR"), 1, virtual=True)["virtual"] is True
+    assert screens.screen_for("KGLS", Report(flight_category="VFR"), 1)["virtual"] is False
 
 
 def test_dashed_box_fits_between_the_code_the_badge_and_the_first_line():
@@ -153,5 +160,5 @@ def test_dashed_rectangle():
 
 def test_pages_for():
     assert screens.pages_for(KHOU) == (1, 2)
-    assert screens.pages_for({}) == (0,)
+    assert screens.pages_for(None) == (0,)
     assert screens.pages_for(None) == (0,)

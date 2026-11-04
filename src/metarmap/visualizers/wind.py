@@ -2,8 +2,10 @@
 Wind: colors each airport by its wind speed, in a few bands.
 """
 
+from typing import Optional
+
 import metarmap.lib.colors as colors_lib
-from metarmap.models import Look, Metar
+from metarmap.models import Look, Report
 from metarmap.visualizers import style
 from metarmap.visualizers.style import Band
 from metarmap.visualizers.visualizer import Visualizer
@@ -27,12 +29,12 @@ def legend(settings):
     return [*style.band_legend(BANDS, settings), style.missing_legend("wind speed"), style.no_report_legend()]
 
 
-def look(metar: Metar, settings) -> Look:
+def look(metar: Optional[Report], settings) -> Look:
     if not metar:
         return style.no_report()
-    if metar.get("windSpeed") is None:
+    if metar.wind_speed is None:
         return style.missing()
-    return Look.solid(color_for(metar["windSpeed"], settings))
+    return Look.solid(color_for(metar.wind_speed, settings))
 
 
 VISUALIZER = Visualizer(

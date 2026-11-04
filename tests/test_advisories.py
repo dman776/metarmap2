@@ -366,14 +366,14 @@ def severe(name):
     ],
 )
 def test_look(settings, airmets, sigmets, expected):
-    assert vis.look({"raw": "...", "airmets": airmets, "sigmets": sigmets}, settings) == expected
+    assert vis.look(Report(raw="...", airmets=airmets, sigmets=sigmets), settings) == expected
 
 
 def test_look_without_data(settings):
-    assert vis.look({}, settings) == style.no_report()
-    assert vis.look({"raw": "...", "airmets": None, "sigmets": None}, settings) == style.missing()
-    assert vis.look({"raw": "...", "airmets": None, "sigmets": []}, settings) == style.missing()
-    assert vis.look({"raw": "..."}, settings) == style.missing()
+    assert vis.look(None, settings) == style.no_report()
+    assert vis.look(Report(raw="...", airmets=None, sigmets=None), settings) == style.missing()
+    assert vis.look(Report(raw="...", airmets=None, sigmets=[]), settings) == style.missing()
+    assert vis.look(Report(raw="..."), settings) == style.missing()
 
 
 def test_legend(settings):

@@ -8,10 +8,12 @@ clouds...), freezing precipitation and ice, snow, rain, drizzle, unknown precipi
 and dust. Two kinds in one group (e.g. -RASN) alternate.
 """
 
+from typing import Optional
+
 import logging
 import metarmap.lib.colors as colors_lib
 from metarmap.decode import parse_weather
-from metarmap.models import Look, Metar
+from metarmap.models import Look, Report
 from metarmap.visualizers import style
 from metarmap.visualizers.visualizer import Visualizer, legend_item
 
@@ -66,10 +68,10 @@ def intensity_of(group):
     return style.VICINITY if group.vicinity else group.intensity
 
 
-def look(metar: Metar, settings) -> Look:
+def look(metar: Optional[Report], settings) -> Look:
     if not metar:
         return style.no_report()
-    return look_for_weather(metar.get("obs"), settings)
+    return look_for_weather(metar.weather, settings)
 
 
 def look_for_weather(obs, settings) -> Look:

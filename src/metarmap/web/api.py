@@ -6,13 +6,31 @@ See API.md; the field names are part of the API.
 
 import json
 import time
+from typing import Optional
 
 import bottle
 
 from metarmap import __version__
 from metarmap.decode import decode, summary
+from metarmap.models import Report
 from metarmap.visualizers import advisories as advisories_vis, tfr as tfr_vis, visualizer, wind_direction
 from metarmap.web import views
+
+# each airport's report fields in /api/status (Report.to_api()'s names), in this order
+STATUS_FIELDS = (
+    "flightCategory",
+    "raw",
+    "windDir",
+    "windSpeed",
+    "windGustSpeed",
+    "vis",
+    "obs",
+    "tempC",
+    "dewpointC",
+    "altimHg",
+    "lightning",
+    "obsTime",
+)
 
 
 def status(services, ip):
@@ -32,7 +50,8 @@ def status(services, ip):
     for index, airport in enumerate(services.config.airports):
         if not airport.code:
             continue
-        m = metars.data.get(airport.code) or {}
+        m = metars.data.get(airport.code)
+        report = m.to_api() if m else {}  # no report: every field null
         airports.append(
             {
                 "code": airport.code,
@@ -40,19 +59,8 @@ def status(services, ip):
                 "text": airport.name,
                 "display": airport.display,
                 "virtual": index >= cfg.led.count,  # on the web map and here only, no LED
-                "mock": bool(m.get("mock")),  # a mock METAR (dev_mode) in place of the real one
-                "flightCategory": m.get("flightCategory"),
-                "raw": m.get("raw"),
-                "windDir": m.get("windDir"),
-                "windSpeed": m.get("windSpeed"),
-                "windGustSpeed": m.get("windGustSpeed"),
-                "vis": m.get("vis"),
-                "obs": m.get("obs"),
-                "tempC": m.get("tempC"),
-                "dewpointC": m.get("dewpointC"),
-                "altimHg": m.get("altimHg"),
-                "lightning": m.get("lightning"),
-                "obsTime": iso(m.get("obsTime")),
+                "mock": bool(m and m.mock),  # a mock METAR (dev_mode) in place of the real one
+                **{field: report.get(field) for field in STATUS_FIELDS},
             }
         )
 
@@ -115,10 +123,15 @@ def update_state(services):
     }
 
 
-def wind_barb(metar):
-    """An airport's wind for its barb on the Map page: {"dir": degrees, "kt": speed}, or None when calm or variable."""
+def wind_barb(metar: Optional[Report]):
+    """
+    An airport's wind for its barb on the Map page: {"dir": degrees, "kt": speed}, or None when calm, variable or
+    not reporting.
+    """
+    if metar is None:
+        return None
     direction = wind_direction.heading(metar)
-    speed = metar.get("windSpeed")
+    speed = metar.wind_speed
     if not isinstance(direction, float) or not speed:
         return None
     return {"dir": direction, "kt": speed}
@@ -160,7 +173,7 @@ def live(services, now=None):
         getattr(services.metars, "position", None),
         services.config.data.led.count,
     ):
-        m = services.metars.data.get(s["code"]) or {}
+        m = services.metars.data.get(s["code"])
         leds.append(
             {
                 "code": s["code"],
@@ -172,7 +185,7 @@ def live(services, now=None):
                 "lon": num(s["lon"]),
                 "flightCategory": s["cat"],
                 "raw": s["raw"],
-                "lightning": m.get("lightning", False),
+                "lightning": bool(m and m.lightning),
                 "look": led_looks.get(s["pixel"], {"effect": "off", "colors": []}),
                 "wind": wind_barb(m) if barbs else None,
             }
@@ -205,14 +218,13 @@ def metar(services, code):
     """
     if code not in {a.code for a in services.config.airports if a.code}:
         return None
-    m = services.metars.data.get(code) or {}
-    obs = m.get("obsTime")
+    m = services.metars.data.get(code)
     return {
         "code": code,
-        "raw": m.get("raw"),
-        "mock": bool(m.get("mock")),
-        "flightCategory": m.get("flightCategory"),
-        "obsTime": obs.isoformat() if obs else None,
+        "raw": m.raw if m else None,
+        "mock": bool(m and m.mock),
+        "flightCategory": m.flight_category if m else None,
+        "obsTime": m.obs_time.isoformat() if m and m.obs_time else None,
         "decoded": decode(m),
         "summary": summary(m),
     }
