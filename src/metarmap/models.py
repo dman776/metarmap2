@@ -62,13 +62,6 @@ class SkyLayer:
     def to_api(self) -> Dict[str, Any]:
         return {"cover": self.cover, "cloudBaseFt": self.base_ft}
 
-    # TEMPORARY, while readers move from dicts to attributes: the old dict keys
-    def get(self, key, default=None):
-        return {"cover": self.cover, "cloudBaseFt": self.base_ft}.get(key, default)
-
-    def __getitem__(self, key):
-        return {"cover": self.cover, "cloudBaseFt": self.base_ft}[key]
-
 
 @dataclass(frozen=True)
 class Report:
@@ -140,41 +133,6 @@ class Report:
             "latitude": self.latitude,
             "longitude": self.longitude,
         }
-
-    # TEMPORARY, while readers move from dicts to attributes: the old dict keys
-    _KEYS = {
-        "raw": "raw",
-        "name": "name",
-        "elevation_m": "elevation_m",
-        "flightCategory": "flight_category",
-        "windDir": "wind_dir",
-        "windSpeed": "wind_speed",
-        "windGustSpeed": "wind_gust_speed",
-        "windGust": "wind_gust",
-        "vis": "vis",
-        "visibilitySM": "visibility_sm",
-        "visibilityMore": "visibility_more",
-        "vertVisFt": "vert_vis_ft",
-        "obs": "weather",
-        "tempC": "temp_c",
-        "dewpointC": "dewpoint_c",
-        "altimHg": "altimeter_inhg",
-        "lightning": "lightning",
-        "skyConditions": "sky_conditions",
-        "obsTime": "obs_time",
-        "latitude": "latitude",
-        "longitude": "longitude",
-        "mock": "mock",
-        "airmets": "airmets",
-        "sigmets": "sigmets",
-        "tfrs": "tfrs",
-    }
-
-    def get(self, key, default=None):
-        return getattr(self, self._KEYS[key]) if key in self._KEYS else default
-
-    def __getitem__(self, key):
-        return getattr(self, self._KEYS[key])
 
 
 def _color(color: Sequence[int]) -> Color:
