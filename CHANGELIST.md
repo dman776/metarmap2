@@ -1,5 +1,9 @@
 ### Unreleased
 
+- **Config page groups**: settings that belong to a switch sit indented under it, with a line down their left side,
+  and are hidden while it's off: Startup sequence (Sequence, and Sweep direction only for Sweep), Quiet hours,
+  the OLED's Enabled, Lightning animation, Auto-rotate and, for the Branch update channel, the branch. The three
+  brightness sliders are grouped under a Brightness heading
 - **Startup sequences**: besides the rainbow Comet, the map can fade in to the visualizer from where each airport
   is, over 3 seconds:
   - **Center out** from the middle of the box around the airports to its edges, and **Edges in** the other way

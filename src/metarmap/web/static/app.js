@@ -277,12 +277,16 @@
         showTab(location.hash.slice(1) || remembered);
     }
 
-    // Config > Software (dev_mode): the branch list only for the Branch channel
-    const channel = document.getElementById('update-channel');
-    const branchRow = document.getElementById('update-branch-row');
-    if (channel && branchRow) {
-        channel.addEventListener('change', function () { branchRow.hidden = channel.value !== 'branch'; });
-    }
+    // Config: settings nested under another, <div class="sub" data-when="control-id" [data-when-value="v"]>, show
+    // while its switch is on (or its select has that value). The page is drawn with them already shown or hidden.
+    document.querySelectorAll('[data-when]').forEach(function (group) {
+        const control = document.getElementById(group.dataset.when);
+        if (!control) return;
+        const update = function () {
+            group.hidden = 'whenValue' in group.dataset ? control.value !== group.dataset.whenValue : !control.checked;
+        };
+        control.addEventListener('change', update);
+    });
 
     // Config > Visualizer: the unticked visualizers are saved as a list of ids (visualizer.auto_rotate.skip)
     const rotateBoxes = document.querySelectorAll('[data-rotate]');

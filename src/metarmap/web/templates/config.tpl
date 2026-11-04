@@ -83,7 +83,8 @@
                 % end
             </select>
         </div>
-        % switch('led.inittest', d.led.inittest, 'Startup sequence', 'Play the sequence below when the map starts. Turning it on plays it once now.')
+        % switch('led.inittest', d.led.inittest, 'Startup sequence', 'Play a sequence when the map starts. Turning it on plays it once now.')
+        <div class="sub" data-when="led-inittest"{{!'' if d.led.inittest else ' hidden'}}>
         <div class="set">
             <div>
                 <label class="t" for="led-init-sequence">Sequence</label>
@@ -98,10 +99,11 @@
                 <button class="btn" type="button" data-call="/led/init_sequence/play" data-then="none">Play now</button>
             </div>
         </div>
+        <div class="sub" data-when="led-init-sequence" data-when-value="sweep"{{!'' if d.led.init_sequence == 'sweep' else ' hidden'}}>
         <div class="set">
             <div>
                 <label class="t" for="led-init-sweep-from">Sweep direction</label>
-                <div class="d">Where Sweep starts on the map. Only Sweep uses it.</div>
+                <div class="d">Where Sweep starts on the map.</div>
             </div>
             <select id="led-init-sweep-from" data-key="led.init_sweep_from">
                 % for side, name in sweep_sides.items():
@@ -109,12 +111,22 @@
                 % end
             </select>
         </div>
+        </div>
+        </div>
         % switch('led.dim_on_refresh', d.led.dim_on_refresh, 'Dim while updating', 'The LEDs fade down for a moment while new METARs download.')
-        % slider('led.brightness.normal', d.led.brightness.normal, 'Daytime brightness', 'Sunrise to sunset.')
-        % slider('led.brightness.dimmed', d.led.brightness.dimmed, 'Dawn / dusk brightness', 'Dawn to sunrise, sunset to dusk.')
-        % slider('led.brightness.off', d.led.brightness.off, 'Night brightness', 'Dusk to dawn.')
-        <p class="muted" style="margin: 0; padding: 0 24px 18px; font-size: 13px">The level in use now changes right away; the others take over at their time of day.</p>
-        % switch('led.quiet_hours.enabled', d.led.quiet_hours.enabled, 'Quiet hours', 'Force physical LED brightness to 0% between the times below, regardless of sunrise or sunset.')
+        <div class="set subhead">
+            <div>
+                <div class="t">Brightness</div>
+                <div class="d">The level in use now changes right away; the others take over at their time of day.</div>
+            </div>
+        </div>
+        <div class="sub">
+        % slider('led.brightness.normal', d.led.brightness.normal, 'Daytime', 'Sunrise to sunset.')
+        % slider('led.brightness.dimmed', d.led.brightness.dimmed, 'Dawn / dusk', 'Dawn to sunrise, sunset to dusk.')
+        % slider('led.brightness.off', d.led.brightness.off, 'Night', 'Dusk to dawn.')
+        </div>
+        % switch('led.quiet_hours.enabled', d.led.quiet_hours.enabled, 'Quiet hours', 'Force physical LED brightness to 0% between two times, regardless of sunrise or sunset.')
+        <div class="sub" data-when="led-quiet_hours-enabled"{{!'' if d.led.quiet_hours.enabled else ' hidden'}}>
         <div class="set">
             <div><label class="t" for="quiet-hours-start">Start quiet hours</label><div class="d">Local Raspberry Pi time.</div></div>
             <input id="quiet-hours-start" type="time" value="{{d.led.quiet_hours.start}}" data-key="led.quiet_hours.start" step="60">
@@ -123,13 +135,16 @@
             <div><label class="t" for="quiet-hours-end">End quiet hours</label><div class="d">Local Raspberry Pi time. Returns to the scheduled brightness. The interval can cross midnight.</div></div>
             <input id="quiet-hours-end" type="time" value="{{d.led.quiet_hours.end}}" data-key="led.quiet_hours.end" step="60">
         </div>
+        </div>
     </section>
 
     <section class="card settings">
         <h2>OLED screen</h2>
         % switch('display_screen.enabled', d.display_screen.enabled, 'Enabled', 'Show airport details on the OLED screen.')
+        <div class="sub" data-when="display_screen-enabled"{{!'' if d.display_screen.enabled else ' hidden'}}>
         % switch('display_screen.locate_active', d.display_screen.locate_active, 'Highlight active airport', 'Pulse the LED of the airport on screen.')
         % slider('display_screen.delay', d.display_screen.delay, 'Delay per airport', lo=0, hi=30, step=1, fmt='sec')
+        </div>
     </section>
 </div>
 
@@ -150,6 +165,7 @@
         % switch('visualizer.missing_data_blink', d.visualizer.missing_data_blink, 'Missing data blink', 'Slow red blink on an airport whose report lacks what the visualizer shows, such as no flight category, visibility or sky condition. Off leaves its LED dark.')
         % switch('visualizer.estimated_category_breathing', d.visualizer.estimated_category_breathing, 'Estimated flight category breathing', 'Estimated flight categories breathe slowly. Off shows them in a steady color, like a reported one (the OLED still shows VFR*).')
         % switch('lightning.animation', d.lightning.animation, 'Lightning animation', 'Two quick flashes on airports with lightning or a thunderstorm, in every weather visualizer.')
+        <div class="sub" data-when="lightning-animation"{{!'' if d.lightning.animation else ' hidden'}}>
         <div class="set">
             <div>
                 <label class="t" for="lightning-color">Lightning color</label>
@@ -163,6 +179,7 @@
                 <option value="{{d.lightning.color}}" selected disabled>{{d.lightning.color}}</option>
                 % end
             </select>
+        </div>
         </div>
         <div class="set">
             <div>
@@ -180,6 +197,7 @@
             </select>
         </div>
         % switch('visualizer.auto_rotate.enabled', d.visualizer.auto_rotate.enabled, 'Auto-rotate visualizers', 'Cycle through the visualizers on a timer.')
+        <div class="sub" data-when="visualizer-auto_rotate-enabled"{{!'' if d.visualizer.auto_rotate.enabled else ' hidden'}}>
         % slider('visualizer.auto_rotate.delay_seconds', d.visualizer.auto_rotate.delay_seconds, 'Auto-rotate delay', 'Time on each visualizer.', lo=10, hi=600, step=10, fmt='sec')
         <div class="set">
             <div>
@@ -195,6 +213,7 @@
                 %   end
                 % end
             </div>
+        </div>
         </div>
     </section>
 </div>
@@ -310,7 +329,8 @@
         </div>
         % if release['dev_mode']:
         % branches = release['branches'] + ([release['branch']] if release['branch'] and release['branch'] not in release['branches'] else [])
-        <div class="set" id="update-branch-row"{{!'' if release['channel'] == 'branch' else ' hidden'}}>
+        <div class="sub" data-when="update-channel" data-when-value="branch" id="update-branch-row"{{!'' if release['channel'] == 'branch' else ' hidden'}}>
+        <div class="set">
             <div>
                 <label class="t" for="update-branch">Branch</label>
                 <div class="d">Branches on GitHub. Push a new one, then Check now to see it here.</div>
@@ -323,6 +343,7 @@
                 <option value="{{b}}"{{!' selected' if b == release['branch'] else ''}}>{{b}}{{'' if b in release['branches'] else ' (not on GitHub)'}}</option>
                 % end
             </select>
+        </div>
         </div>
         % end
         % if release['releases']:

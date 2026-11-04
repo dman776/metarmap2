@@ -501,6 +501,29 @@ def test_the_startup_sequence_on_the_config_page(client):
     assert client("/config/edit/led.init_sweep_from/up")[0] == 400
 
 
+def test_config_groups_show_under_their_switch(client):
+    """Settings nested under a switch (or a select's value) are drawn hidden while it's off."""
+    app = client.services
+    body = client("/config")[1]
+    assert body.count("<div") == body.count("</div>")  # the groups are closed where they should be
+    assert '<div class="sub" data-when="led-inittest">' in body  # on in the repo's config.json
+    assert '<div class="sub" data-when="led-init-sequence" data-when-value="sweep" hidden>' in body  # Comet
+    assert '<div class="sub" data-when="led-quiet_hours-enabled" hidden>' in body
+    for key in ("led.inittest", "led.quiet_hours.enabled", "display_screen.enabled", "lightning.animation"):
+        app.config.edit(key, "false")
+    app.config.edit("visualizer.auto_rotate.enabled", "true")
+    app.config.edit("led.init_sequence", "sweep")
+    body = client("/config")[1]
+    assert '<div class="sub" data-when="led-inittest" hidden>' in body
+    assert '<div class="sub" data-when="led-init-sequence" data-when-value="sweep">' in body
+    assert '<div class="sub" data-when="display_screen-enabled" hidden>' in body
+    assert '<div class="sub" data-when="lightning-animation" hidden>' in body
+    assert '<div class="sub" data-when="visualizer-auto_rotate-enabled">' in body
+    # every group's switch or select is on the page
+    for when in re.findall(r'data-when="([^"]+)"', body):
+        assert f'id="{when}"' in body, when
+
+
 def test_choose_visualizers_for_auto_rotate(client):
     app = client.services
     body = client("/config")[1]
