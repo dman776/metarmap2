@@ -21,14 +21,13 @@ import time
 
 import requests
 
-from metarmap import __version__
+from metarmap import USER_AGENT
 
 log = logging.getLogger(__name__)
 
 AIRMET_URL = "https://aviationweather.gov/api/data/gairmet?format=json"
 SIGMET_URL = "https://aviationweather.gov/api/data/sigmet?format=json"
 # aviationweather.gov asks for a user agent of our own, so automated filtering doesn't block the map
-USER_AGENT = f"metarmap/{__version__} (+https://github.com/dman776/metarmap2)"
 TIMEOUT = 30  # seconds
 MAX_BASE_FT = 18000
 

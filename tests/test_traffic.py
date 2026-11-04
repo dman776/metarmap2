@@ -337,4 +337,4 @@ def test_sends_its_own_user_agent():
         return FakeResponse()
 
     make(get=get)[0].snapshot()
-    assert seen.headers["User-Agent"].startswith("metarmap/")
+    assert seen.headers["User-Agent"].startswith("metarmap2/")

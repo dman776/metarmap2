@@ -12,6 +12,7 @@ from typing import Dict, Optional
 
 import requests
 
+from metarmap import USER_AGENT
 from metarmap.clock import Clock
 from metarmap.models import Report, SkyLayer
 
@@ -26,10 +27,6 @@ STATION_URL = "https://aviationweather.gov/api/data/stationinfo?format=json&ids=
 MAX_REPORT_AGE = timedelta(hours=5)
 ALTIMETER = re.compile(r"\bA(\d{4})\b")  # "A3023": 30.23 inHg, in a US report's body
 HPA_PER_INHG = 33.8639
-USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/86.0.4240.198 Safari/537.36 Edg/86.0.622.69"
-)
 
 
 def parse_visibility(value):
