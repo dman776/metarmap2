@@ -40,7 +40,7 @@
             </div>
             <div class="chip-row r-chips" role="group" aria-label="Choose a visualizer">
                 % for i, v in enumerate(visualizers):
-                <button class="chip" type="button" aria-pressed="{{'true' if i == active['index'] else 'false'}}" data-call="/visualizer/{{i}}" data-then="none"
+                <button class="chip" type="button" aria-pressed="{{'true' if v['id'] == active['id'] else 'false'}}" data-call="/visualizer/{{v['id']}}" data-then="none"
                         data-vis="{{i}}" data-name="{{v['name']}}" data-desc="{{v['description']}}" data-exclusive="{{'true' if v['exclusive'] else 'false'}}">{{v['name']}}</button>
                 % end
             </div>

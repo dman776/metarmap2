@@ -35,6 +35,8 @@ def metar(category, wind=5, obs=""):
 
 
 CODES = ["KHOU", "KIAH", "", "KDKR", "KGLS"]  # LED 2 has no airport
+# the visualizers the renderer runs (each module's functions stay as they were, e.g. flightcategory.COLORS)
+FLIGHT, WIND, PRECIP, RAINBOW, CHASE = (m.VISUALIZER for m in (flightcategory, wind, precipitation, rainbow, chase))
 DATA = {"KHOU": metar("VFR"), "KIAH": metar("IFR", wind=20), "KDKR": {}, "KGLS": metar("LIFR")}
 
 
@@ -52,7 +54,7 @@ def clock():
 
 def make(config, clock, data=DATA, leds=5, visualizers=None):
     strip = FakeStrip(leds)
-    visualizers = visualizers or [flightcategory, wind, precipitation, rainbow]
+    visualizers = visualizers or [FLIGHT, WIND, PRECIP, RAINBOW]
     r = Renderer(strip, SimpleNamespace(data=data), config, visualizers, SunTimes("Houston", SUN), clock=clock)
     return r, strip
 
@@ -67,9 +69,9 @@ def draw_frame(renderer):
 
 def test_looks_come_from_the_active_visualizer(config, clock):
     r, _ = make(config, clock)
-    assert r.looks == visualizer.looks(flightcategory, CODES, DATA, config.data)
+    assert r.looks == visualizer.looks(FLIGHT, CODES, DATA, config.data)
     r.visualizer = 1
-    assert r.looks == visualizer.looks(wind, CODES, DATA, config.data)
+    assert r.looks == visualizer.looks(WIND, CODES, DATA, config.data)
 
 
 def test_first_frame_lights_the_leds(config, clock):
@@ -211,7 +213,7 @@ def test_render_rests_after_an_error(config, clock, monkeypatch):
 
 def test_render_stops_when_the_animations_are_rebuilt(config, clock):
     """New data, a new visualizer or a new strip length shows at once, not after the old animations' cycle."""
-    r, _ = make(config, clock, data={"KHOU": metar("VFR", obs="-RA")}, leds=1, visualizers=[precipitation])
+    r, _ = make(config, clock, data={"KHOU": metar("VFR", obs="-RA")}, leds=1, visualizers=[PRECIP])
     frames = []
     animation = r.animations[0]
     animate = animation.animate
@@ -277,7 +279,7 @@ class DeadbandStrip(FakeStrip):
 def test_fade_at_night_brightness_ends_exactly(config, clock, night):
     """At 1% the fade takes fewer, bigger steps the Pi's strip won't ignore, so the level never drifts."""
     strip = DeadbandStrip(5, brightness=night)
-    r = Renderer(strip, SimpleNamespace(data=DATA), config, [flightcategory], SunTimes("Houston", SUN), clock=clock)
+    r = Renderer(strip, SimpleNamespace(data=DATA), config, [FLIGHT], SunTimes("Houston", SUN), clock=clock)
     strip.brightness = night
     for _ in range(20):  # 20 fetches
         with r.dimmed():
@@ -359,24 +361,36 @@ def test_auto_rotate_skips_exclusive_visualizers(config, clock):
     assert r.active_visualizer == 0
 
 
-def test_auto_rotate_skips_named_visualizers(config, clock):
-    r, _ = make(config, clock, visualizers=[flightcategory, wind, rainbow])
-    r.visualizer_next(skip_exclusive=True, skip=["Wind"])
+def test_auto_rotate_skips_listed_visualizers(config, clock):
+    r, _ = make(config, clock, visualizers=[FLIGHT, WIND, RAINBOW])
+    r.visualizer_next(skip_exclusive=True, skip=["wind"])
     assert r.active_visualizer == 0  # Wind skipped, Rainbow exclusive: back to the first
     r.visualizer_next()
     assert r.active_visualizer == 1  # the buttons still reach it
 
 
 def test_nothing_to_rotate_to_stays_put(config, clock):
-    r, _ = make(config, clock, visualizers=[chase, rainbow])
+    r, _ = make(config, clock, visualizers=[CHASE, RAINBOW])
     r.visualizer_next(skip_exclusive=True)  # used to loop forever
     assert r.active_visualizer == 0
-    r, _ = make(config, clock, visualizers=[flightcategory, wind])
-    r.visualizer = 1
-    r.visualizer_next(skip=["Flight Category", "Wind"])
+    r, _ = make(config, clock, visualizers=[FLIGHT, WIND])
+    r.visualizer = "wind"
+    r.visualizer_next(skip=["flight_category", "wind"])
     assert r.active_visualizer == 1
-    r.visualizer_next(skip=["Wind"])  # only itself left: it's what it is
+    r.visualizer_next(skip=["wind"])  # only itself left: it's what it is
     assert r.active_visualizer == 0
+
+
+def test_choose_a_visualizer_by_id_or_number(config, clock):
+    r, _ = make(config, clock)
+    r.visualizer = "precipitation"
+    assert r.visualizer == (2, PRECIP)
+    r.visualizer = "1"
+    assert r.visualizer == (1, WIND)
+    for unknown in ("nope", 9, "9"):
+        with pytest.raises(LookupError):
+            r.visualizer = unknown
+    assert r.visualizer == (1, WIND)
 
 
 # ---- locate -------------------------------------------------------------------------------------------------
@@ -432,7 +446,7 @@ def test_a_longer_strip_leaves_its_extra_leds_dark(virtual, clock):
 
 
 def test_virtual_airports_join_a_rainbow_but_not_a_chase(virtual, clock):
-    r, _ = make(virtual, clock, leds=3, visualizers=[chase, rainbow])
+    r, _ = make(virtual, clock, leds=3, visualizers=[CHASE, RAINBOW])
     leds, strip = r.led_states()  # chase: a wiring check, so the virtual airports have nothing to show
     assert strip["effect"] == "chase"
     assert leds == {3: {"effect": "off", "colors": []}, 4: {"effect": "off", "colors": []}}

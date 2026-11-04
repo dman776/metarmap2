@@ -7,10 +7,8 @@ import metarmap.lib.colors as colors_lib
 from metarmap.models import Look, Metar
 from metarmap.visualizers import style
 from metarmap.visualizers.style import Band
+from metarmap.visualizers.visualizer import Visualizer
 
-NAME = "Dewpoint Spread"
-DESCRIPTION = "Display the temperature-dewpoint spread (fog risk): white when it's dry, red when fog is likely."
-EXCLUSIVE = False
 
 # °C between the temperature and the dewpoint
 BANDS = [
@@ -35,3 +33,12 @@ def look(metar: Metar, settings) -> Look:
     if metar.get("tempC") is None or metar.get("dewpointC") is None:
         return style.missing()
     return Look.solid(style.band_for(metar["tempC"] - metar["dewpointC"], BANDS, settings))
+
+
+VISUALIZER = Visualizer(
+    id="dewpoint_spread",
+    name="Dewpoint Spread",
+    description="Display the temperature-dewpoint spread (fog risk): white when it's dry, red when fog is likely.",
+    legend=legend,
+    look=look,
+)

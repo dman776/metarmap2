@@ -62,13 +62,15 @@ def status(services, ip):
         "brightness": services.renderer.pixels().brightness,
         "visualizer": {
             "active": active_num,
-            "name": active_vis.NAME,
-            "exclusive": active_vis.EXCLUSIVE,
-            "description": active_vis.DESCRIPTION,
+            "id": active_vis.id,
+            "name": active_vis.name,
+            "exclusive": active_vis.exclusive,
+            "description": active_vis.description,
             "legend": visualizer.legend(active_vis, cfg),
         },
         "visualizers": [
-            {"index": i, "name": v.NAME, "exclusive": v.EXCLUSIVE} for i, v in enumerate(services.renderer.visualizers)
+            {"index": i, "id": v.id, "name": v.name, "exclusive": v.exclusive}
+            for i, v in enumerate(services.renderer.visualizers)
         ],
         "config": {
             "visualizer.active": cfg.visualizer.active,
@@ -150,7 +152,7 @@ def live(services, now=None):
     led_looks, strip = renderer.led_states()
     active_num, active_vis = renderer.visualizer
     display = services.display if services.config.data.display_screen.enabled else None
-    barbs = visualizer.shows_barbs(active_vis)
+    barbs = active_vis.barbs
     leds = []
     for s in views.stations(
         services.config.airports,
@@ -180,9 +182,10 @@ def live(services, now=None):
         "brightness": renderer.pixels().brightness,
         "visualizer": {
             "active": active_num,
-            "name": active_vis.NAME,
-            "exclusive": active_vis.EXCLUSIVE,
-            "areas": visualizer.shows_areas(active_vis),
+            "id": active_vis.id,
+            "name": active_vis.name,
+            "exclusive": active_vis.exclusive,
+            "areas": active_vis.areas,
             "autoRotate": auto_rotate(services),
         },
         "strip": strip,

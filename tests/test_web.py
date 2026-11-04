@@ -156,6 +156,28 @@ def test_visualizer_routes(client):
     assert renderer.visualizer[0] == 0
     assert client("/visualizer/3")[0] == 200
     assert renderer.visualizer[0] == 3
+    assert client("/visualizer/precipitation")[0] == 200  # by id
+    assert renderer.visualizer[1].id == "precipitation"
+    for unknown in ("nope", "99"):
+        assert client(f"/visualizer/{unknown}")[0] == 404
+    assert renderer.visualizer[1].id == "precipitation"
+
+
+def test_home_page_chips_choose_by_id(client):
+    body = client("/")[1]
+    assert 'aria-pressed="true" data-call="/visualizer/flight_category"' in body
+    assert 'data-call="/visualizer/wind_direction"' in body
+
+
+def test_default_visualizer_by_id_or_number(client):
+    config = client.services.config
+    assert client("/config/edit/visualizer.active/wind")[0] == 200
+    assert config.data.visualizer.active == "wind"
+    assert client("/config/edit/visualizer.active/3")[0] == 200  # Home Assistant before ids sends the number
+    assert config.data.visualizer.active == "wind_direction"
+    assert client("/config/edit/visualizer.active/nope")[0] == 400
+    assert '<option value="wind_direction" selected>Wind Direction</option>' in client("/config")[1]
+    assert client.json("/api/status", auth=False)["config"]["visualizer.active"] == "wind_direction"
 
 
 def test_brightness(client):
@@ -298,9 +320,9 @@ def test_api_advisories_without_them(services):
 def test_live_says_when_the_map_draws_the_advisory_areas(client):
     renderer = client.services.renderer
     assert client.json("/api/live")["visualizer"]["areas"] is None
-    renderer.visualizer = [v.NAME for v in renderer.visualizers].index("Advisories")
+    renderer.visualizer = "advisories"
     assert client.json("/api/live")["visualizer"]["areas"] == "advisories"
-    renderer.visualizer = [v.NAME for v in renderer.visualizers].index("TFR")
+    renderer.visualizer = "tfr"
     assert client.json("/api/live")["visualizer"]["areas"] == "tfrs"
 
 
@@ -464,17 +486,22 @@ def test_turning_on_the_test_pattern_runs_it(client, monkeypatch):
 def test_choose_visualizers_for_auto_rotate(client):
     app = client.services
     body = client("/config")[1]
-    assert 'data-rotate="Wind" checked' in body and 'data-rotate="Flight Category" checked' in body
-    assert 'data-rotate="Rainbow"' not in body  # exclusive ones are never in the rotation
-    assert 'data-rotate="Precipitation" checked' in body
+    assert 'data-rotate="wind" checked' in body and 'data-rotate="flight_category" checked' in body
+    assert 'data-rotate="rainbow"' not in body  # exclusive ones are never in the rotation
+    assert 'data-rotate="precipitation" checked' in body
     assert "Rainbow and Chase are always left out" in body
 
-    # (the paths are as the server decodes them)
-    assert client('/config/edit/visualizer.auto_rotate.skip/["Wind","Wind Gusts"]')[0] == 200
-    assert app.config.data.visualizer.auto_rotate.skip == ["Wind", "Wind Gusts"]
+    # (the paths are as the server decodes them); ids, as the page sends them
+    assert client('/config/edit/visualizer.auto_rotate.skip/["wind","wind_gusts"]')[0] == 200
+    assert app.config.data.visualizer.auto_rotate.skip == ["wind", "wind_gusts"]
     body = client("/config")[1]
-    assert 'data-rotate="Wind" checked' not in body and 'data-rotate="Wind"' in body
-    assert client.json("/api/status", auth=False)["config"]["visualizer.auto_rotate.skip"] == ["Wind", "Wind Gusts"]
+    assert 'data-rotate="wind" checked' not in body and 'data-rotate="wind"' in body
+    assert client.json("/api/status", auth=False)["config"]["visualizer.auto_rotate.skip"] == ["wind", "wind_gusts"]
+
+    # names, as API.md showed them before ids, are saved as ids
+    assert client('/config/edit/visualizer.auto_rotate.skip/["Wind Direction"]')[0] == 200
+    assert app.config.data.visualizer.auto_rotate.skip == ["wind_direction"]
+    assert client('/config/edit/visualizer.auto_rotate.skip/["Nope"]')[0] == 400
 
     assert client("/config/edit/visualizer.auto_rotate.skip/[]")[0] == 200  # [] = leave none out
     assert app.config.data.visualizer.auto_rotate.skip == []
@@ -584,7 +611,7 @@ def services():
     data = {"KHOU": metar("VFR", lightning=True), "KIAH": metar("IFR"), "KDKR": {}}
     metars = SimpleNamespace(data=data, lastFetchTime=datetime(2026, 10, 24, 12, 55), missing_stations=lambda: ["KDKR"])
     sun = SunTimes("Houston", SUN)
-    renderer = Renderer(FakeStrip(4), metars, config, [flightcategory, rainbow], sun)
+    renderer = Renderer(FakeStrip(4), metars, config, [flightcategory.VISUALIZER, rainbow.VISUALIZER], sun)
     display = SimpleNamespace(screen={"kind": "message", "title": "MAP"}, on=True)
     return SimpleNamespace(config=config, metars=metars, sun=sun, renderer=renderer, display=display)
 
@@ -593,7 +620,9 @@ def test_status(services):
     status = api.status(services, "10.0.0.2")
     assert status["version"] == __version__ and status["ip"] == "10.0.0.2"
     assert status["visualizer"]["active"] == 0 and status["visualizer"]["name"] == "Flight Category"
+    assert status["visualizer"]["id"] == "flight_category"
     assert [v["name"] for v in status["visualizers"]] == ["Flight Category", "Rainbow"]
+    assert [(v["index"], v["id"]) for v in status["visualizers"]] == [(0, "flight_category"), (1, "rainbow")]
     assert status["visualizers"][1]["exclusive"] is True
     assert status["config"]["display_screen.delay"] == 5.0
     assert status["suntimes"]["dawn"] == SUN["dawn"].isoformat()
@@ -647,6 +676,7 @@ def test_live_whole_strip_visualizer(services):
     assert live["strip"]["effect"] == "rainbow"
     assert live["visualizer"] == {
         "active": 1,
+        "id": "rainbow",
         "name": "Rainbow",
         "exclusive": True,
         "areas": None,
@@ -659,7 +689,7 @@ def test_live_wind_barbs(services):
     assert [led["wind"] for led in api.live(services)["leds"]] == [None, None, None]  # Flight Category
     services.metars.data["KIAH"].update(windDir="VRB", windSpeed=4)
     for vis in (wind, windgusts, wind_direction):
-        services.renderer = Renderer(FakeStrip(4), services.metars, services.config, [vis], services.sun)
+        services.renderer = Renderer(FakeStrip(4), services.metars, services.config, [vis.VISUALIZER], services.sun)
         # KHOU 100° at 5 kt; KIAH variable and KDKR (no report) get no barb
         assert [led["wind"] for led in api.live(services)["leds"]] == [{"dir": 100.0, "kt": 5}, None, None]
 

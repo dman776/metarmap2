@@ -6,15 +6,8 @@ Wind Direction: colors each airport by the compass direction its wind blows from
 import metarmap.lib.colors as colors_lib
 from metarmap.models import Look, Metar
 from metarmap.visualizers import style
-from metarmap.visualizers.visualizer import legend_item
+from metarmap.visualizers.visualizer import Visualizer, legend_item
 
-NAME = "Wind Direction"
-DESCRIPTION = (
-    "Display the direction the wind blows from: red from the north, then orange, yellow, green, cyan, "
-    "blue, purple and magenta around the compass."
-)
-EXCLUSIVE = False
-BARBS = True  # the Map page draws each airport's wind barb
 
 # clockwise from north, 45° each, centered on the heading (north is 338-22°)
 SECTORS = [
@@ -79,3 +72,14 @@ def legend(settings):
         style.missing_legend("wind direction"),
         style.no_report_legend(),
     ]
+
+
+VISUALIZER = Visualizer(
+    id="wind_direction",
+    name="Wind Direction",
+    description="Display the direction the wind blows from: red from the north, then orange, yellow, green, cyan, "
+    "blue, purple and magenta around the compass.",
+    legend=legend,
+    look=look,
+    barbs=True,  # the Map page draws each airport's wind barb
+)

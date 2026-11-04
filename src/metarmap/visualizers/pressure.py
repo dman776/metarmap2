@@ -6,10 +6,8 @@ import metarmap.lib.colors as colors_lib
 from metarmap.models import Look, Metar
 from metarmap.visualizers import style
 from metarmap.visualizers.style import Band
+from metarmap.visualizers.visualizer import Visualizer
 
-NAME = "Pressure"
-DESCRIPTION = "Display the atmospheric pressure (inHg)."
-EXCLUSIVE = False
 
 STANDARD_PRESSURE = 29.92
 
@@ -31,3 +29,12 @@ def look(metar: Metar, settings) -> Look:
     if not metar.get("altimHg"):  # missing from the report (read as 0)
         return style.missing()
     return Look.solid(style.band_for(metar["altimHg"], BANDS, settings))
+
+
+VISUALIZER = Visualizer(
+    id="pressure",
+    name="Pressure",
+    description="Display the atmospheric pressure (inHg).",
+    legend=legend,
+    look=look,
+)

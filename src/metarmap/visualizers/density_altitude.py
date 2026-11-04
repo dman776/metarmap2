@@ -9,10 +9,8 @@ import metarmap.lib.colors as colors_lib
 from metarmap.models import Look, Metar
 from metarmap.visualizers import style
 from metarmap.visualizers.style import Band
+from metarmap.visualizers.visualizer import Visualizer
 
-NAME = "Density Altitude"
-DESCRIPTION = 'Display the density altitude above the field elevation (how much higher the airport "feels").'
-EXCLUSIVE = False
 
 STANDARD_PRESSURE = 29.92
 
@@ -65,3 +63,12 @@ def look(metar: Metar, settings) -> Look:
     density_altitude = calculate_density_altitude(metar["altimHg"], metar["elevation_m"], metar["tempC"])
     above = density_altitude - meters_to_feet(metar["elevation_m"])
     return Look.solid(style.band_for(above, BANDS, settings))
+
+
+VISUALIZER = Visualizer(
+    id="density_altitude",
+    name="Density Altitude",
+    description='Display the density altitude above the field elevation (how much higher the airport "feels").',
+    legend=legend,
+    look=look,
+)

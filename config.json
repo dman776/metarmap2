@@ -44,8 +44,7 @@
         "locate_active": true
     },
     "visualizer": {
-        "active": 0,
-        "numbering": 4,
+        "active": "flight_category",
         "auto_rotate": {
             "enabled": false,
             "delay_seconds": 60,

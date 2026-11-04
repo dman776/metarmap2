@@ -6,11 +6,8 @@ import metarmap.lib.colors as colors_lib
 from metarmap.models import Look, Metar
 from metarmap.visualizers import style
 from metarmap.visualizers.style import Band
+from metarmap.visualizers.visualizer import Visualizer
 
-NAME = "Wind"
-DESCRIPTION = "Display the current wind speed."
-EXCLUSIVE = False
-BARBS = True  # the Map page draws each airport's wind barb
 
 # also the gust colors in Wind Gusts
 BANDS = [
@@ -36,3 +33,13 @@ def look(metar: Metar, settings) -> Look:
     if metar.get("windSpeed") is None:
         return style.missing()
     return Look.solid(color_for(metar["windSpeed"], settings))
+
+
+VISUALIZER = Visualizer(
+    id="wind",
+    name="Wind",
+    description="Display the current wind speed.",
+    legend=legend,
+    look=look,
+    barbs=True,  # the Map page draws each airport's wind barb
+)

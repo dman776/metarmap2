@@ -73,8 +73,8 @@
             </div>
             %include("legend.tpl", legend=active['legend'])
             <div class="chip-row" role="group" aria-label="Choose a visualizer">
-                % for i, name in enumerate(visualizers):
-                <button class="chip" type="button" aria-pressed="{{'true' if i == active['index'] else 'false'}}" data-call="/visualizer/{{i}}" data-then="home">{{name}}</button>
+                % for v in visualizers:
+                <button class="chip" type="button" aria-pressed="{{'true' if v['id'] == active['id'] else 'false'}}" data-call="/visualizer/{{v['id']}}" data-then="home">{{v['name']}}</button>
                 % end
             </div>
         </div>

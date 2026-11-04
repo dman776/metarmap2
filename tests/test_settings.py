@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from metarmap.settings import Settings
+from metarmap.settings import NUMBERED, Settings
 
 REPO = Path(__file__).parent.parent
 
@@ -63,7 +63,9 @@ def test_save_and_load(tmp_path):
         ("lightning.animation", True, True),
         ("display_screen.delay", "7.5", 7.5),
         ("display_screen.delay", "5", 5),
-        ("visualizer.active", "3", 3),
+        ("visualizer.active", "3", "wind_direction"),  # by number
+        ("visualizer.active", "tfr", "tfr"),
+        ("visualizer.auto_rotate.skip", '["Wind", "chase", "1", "wind"]', ["wind", "chase"]),  # names, ids, numbers
         ("visualizer.auto_rotate.delay_seconds", "120", 120),
         ("geo.map.zoom", "7", 7),
         ("geo.map.zoom", "7.25", 7.25),
@@ -94,6 +96,8 @@ def test_set_unknown_setting(key):
         ("lightning.animation", "maybe"),
         ("visualizer.active", "two"),
         ("visualizer.active", "1.5"),
+        ("visualizer.active", "99"),
+        ("visualizer.auto_rotate.skip", '["Wind", "nope"]'),
         ("display_screen.delay", "soon"),
         ("geo.map.center", "not a list"),
     ],
@@ -130,7 +134,12 @@ def test_config_edit_writes_file(tmp_path):
         config.edit("no.such.setting", "1")
 
 
-# ---- visualizer numbering -----------------------------------------------------------------------------------------
+# ---- visualizers saved as numbers, before ids ---------------------------------------------------------------------
+
+
+def ids(*numbers):
+    """The ids of visualizers by their number in the last numbering (4)."""
+    return tuple(NUMBERED[n][0] for n in numbers)
 
 
 # numbering 1: before Wind Direction (in at 3); 2: before Advisories (in at 11); 3: before TFR (in at 12). So Rainbow
@@ -139,8 +148,10 @@ def test_config_edit_writes_file(tmp_path):
 def test_an_older_file_keeps_its_visualizer(active, now):
     """A file from before Wind Direction, Advisories and TFR keeps showing the same visualizer."""
     settings = Settings.from_dict({"visualizer": {"active": active}})
-    assert (settings.visualizer.active, settings.visualizer.numbering) == (now, 4)
-    assert Settings.from_dict(settings.to_dict()).visualizer.active == now  # once only
+    assert (settings.visualizer.active,) == ids(now)
+    saved = settings.to_dict()
+    assert "numbering" not in saved["visualizer"]
+    assert Settings.from_dict(saved).visualizer.active == ids(now)[0]  # once only
 
 
 @pytest.mark.parametrize(
@@ -154,17 +165,42 @@ def test_an_older_file_keeps_its_visualizer(active, now):
         (3, 11, 11),
         (3, 12, 13),
         (3, 13, 14),  # before TFR: Advisories 11, Rainbow 12, Chase 13
+        (4, 12, 12),  # the last numbering: as it is
     ],
 )
 def test_a_file_from_before_advisories_or_tfr_keeps_its_visualizer(numbering, active, now):
     """Advisories went in at 11 and TFR at 12, after Dewpoint Spread: Rainbow and Chase moved up each time."""
     settings = Settings.from_dict({"visualizer": {"active": active, "numbering": numbering}})
-    assert (settings.visualizer.active, settings.visualizer.numbering) == (now, 4)
+    assert (settings.visualizer.active,) == ids(now)
+    assert "numbering" not in settings.visualizer._extra
 
 
-def test_a_current_file_is_not_renumbered():
-    assert Settings.from_dict({"visualizer": {"active": 12, "numbering": 4}}).visualizer.active == 12
-    assert Settings.from_dict({}).visualizer.active == 0
+def test_a_number_past_the_list_is_the_default():
+    assert Settings.from_dict({"visualizer": {"active": 40, "numbering": 4}}).visualizer.active == "flight_category"
+
+
+def test_no_visualizer_saved_is_the_default():
+    assert Settings.from_dict({}).visualizer.active == "flight_category"
+
+
+def test_an_unknown_id_is_the_default(caplog):
+    assert Settings.from_dict({"visualizer": {"active": "nope"}}).visualizer.active == "flight_category"
+    assert "Invalid visualizer.active" in caplog.text
+
+
+def test_skipped_names_become_ids():
+    data = {"visualizer": {"auto_rotate": {"skip": ["Wind", "Dewpoint Spread", "tfr", "Nope"]}}}
+    # an unknown name makes the list invalid: auto-rotate then leaves nothing out, rather than a guess
+    assert Settings.from_dict(data).visualizer.auto_rotate.skip == []
+    data["visualizer"]["auto_rotate"]["skip"].remove("Nope")
+    assert Settings.from_dict(data).visualizer.auto_rotate.skip == ["wind", "dewpoint_spread", "tfr"]
+
+
+def test_every_numbered_visualizer_still_exists():
+    """NUMBERED is the past (numbering 4): visualizers can be added or renamed since, but an id is never removed."""
+    from metarmap import visualizers
+
+    assert {vid for vid, _ in NUMBERED} <= set(visualizers.BY_ID)
 
 
 # ---- rules ------------------------------------------------------------------------------------------------------

@@ -31,7 +31,7 @@ def index(services, site):
         cats=views.CATEGORIES,
         **views.summary(s),
         active=views.visualizer(services.renderer),
-        visualizers=views.visualizer_names(services.renderer),
+        visualizers=views.visualizer_choices(services.renderer),
         brightness=services.renderer.pixels().brightness,
         schedule=views.brightness_schedule(
             services.sun.times,
@@ -103,7 +103,7 @@ def config(services, site):
         site,
         "config.tpl",
         d=services.config.data,
-        visualizers=views.visualizer_names(services.renderer),
+        visualizers=views.visualizer_choices(services.renderer),
         rotation=views.rotation(services.renderer, services.config.data.visualizer.auto_rotate.skip),
         map_settings=settings,
         sectionals=site.sectionals,

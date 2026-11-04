@@ -284,7 +284,7 @@
         channel.addEventListener('change', function () { branchRow.hidden = channel.value !== 'branch'; });
     }
 
-    // Config > Visualizer: the unticked visualizers are saved as a list of names (visualizer.auto_rotate.skip)
+    // Config > Visualizer: the unticked visualizers are saved as a list of ids (visualizer.auto_rotate.skip)
     const rotateBoxes = document.querySelectorAll('[data-rotate]');
     rotateBoxes.forEach(function (box) {
         box.addEventListener('change', async function () {

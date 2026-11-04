@@ -7,16 +7,8 @@ it's dim white.
 import metarmap.lib.colors as colors_lib
 from metarmap.models import Look, Metar
 from metarmap.visualizers import style
-from metarmap.visualizers.visualizer import legend_item
+from metarmap.visualizers.visualizer import Visualizer, legend_item
 
-NAME = "TFR"
-DESCRIPTION = (
-    "Display the TFR each airport is in or near: VIP red, hazards orange, security magenta, special blue, "
-    "air shows and sports yellow, drone gatherings cyan. Solid inside, dim nearby, breathing when it "
-    "starts within 24 hours; none is dim white."
-)
-EXCLUSIVE = False
-AREAS = "tfrs"  # the Map page draws the TFRs (/api/tfrs)
 
 # type -> (color, legend label); in the order of metarmap.tfr.TYPES
 COLORS = {
@@ -91,3 +83,15 @@ def look(metar: Metar, settings) -> Look:
     if first["upcoming"]:
         return Look.pulse(c, period=style.LIGHT_PERIOD, low=style.LIGHT_LOW)
     return Look.solid(c if first["inside"] else style.dim(c))
+
+
+VISUALIZER = Visualizer(
+    id="tfr",
+    name="TFR",
+    description="Display the TFR each airport is in or near: VIP red, hazards orange, security magenta, special blue, "
+    "air shows and sports yellow, drone gatherings cyan. Solid inside, dim nearby, breathing when it "
+    "starts within 24 hours; none is dim white.",
+    legend=legend,
+    look=look,
+    areas="tfrs",  # the Map page draws the TFRs (/api/tfrs)
+)

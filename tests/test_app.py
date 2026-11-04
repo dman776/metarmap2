@@ -22,8 +22,8 @@ def jobs(app):
 
 
 def test_build_wires_the_parts_together(make_app):
-    app = make_app(**{"visualizer.active": 2})
-    assert app.renderer.visualizer[0] == 2
+    app = make_app(**{"visualizer.active": "wind_gusts"})
+    assert app.renderer.visualizer == (2, visualizers.BY_ID["wind_gusts"])
     assert app.renderer.visualizers == list(visualizers.ALL)
     assert app.display is not None
     assert app.display._renderer is app.renderer  # the OLED pulses the LED of the airport on screen
@@ -78,9 +78,9 @@ def test_auto_rotate(make_app):
 
 
 def test_auto_rotate_leaves_out_the_skipped(make_app):
-    app = make_app(**{"visualizer.auto_rotate.skip": '["Wind", "Wind Gusts"]'})
+    app = make_app(**{"visualizer.auto_rotate.skip": '["wind", "wind_gusts"]'})
     app_module.rotate_visualizer(app)
-    assert app.renderer.visualizer[1].NAME == "Wind Direction"  # after Flight Category, past Wind and Wind Gusts
+    assert app.renderer.visualizer[1].id == "wind_direction"  # after Flight Category, past Wind and Wind Gusts
 
 
 # ---- following config changes ---------------------------------------------------------------------------------

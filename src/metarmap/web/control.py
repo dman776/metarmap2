@@ -112,8 +112,12 @@ def add_routes(app, services, site, auth, updates=None):
 
     updates.on_done = installed
 
-    def visualizer(visnum):
-        renderer.visualizer = int(visnum)
+    def visualizer(key):
+        """/visualizer/wind_direction, or by number: /visualizer/3."""
+        try:
+            renderer.visualizer = key
+        except LookupError:
+            bottle.abort(404, f"No visualizer {key!r}")
         return pages.index(services, site)
 
     def visualizer_next():
@@ -289,7 +293,7 @@ def add_routes(app, services, site, auth, updates=None):
         renderer.clear()
         utils.restart()
 
-    app.route("/visualizer/<visnum>", "GET", visualizer)
+    app.route("/visualizer/<key>", "GET", visualizer)
     app.route("/visualizer/next", "GET", visualizer_next)
     app.route("/visualizer/previous", "GET", visualizer_previous)
     app.route("/visualizer/auto_rotate/<state>", "GET", auto_rotate)
