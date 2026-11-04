@@ -9,23 +9,19 @@ import pytest
 from metarmap import metar
 from metarmap.models import Report, SkyLayer
 
-# what parse_report() and parse_raw() gave before they returned a Report (recorded from the dicts they built then)
+# what parse_report() and parse_raw() gave as dicts, before they returned a Report: to_api() must give the same
 GOLDEN = json.loads((Path(__file__).parent / "fixtures" / "reports_golden.json").read_text())
 NOW = datetime.fromisoformat(GOLDEN["now"])
 
 
-def as_api(parsed):
-    return {k: v.isoformat() if isinstance(v, datetime) else v for k, v in parsed.items()}
-
-
 @pytest.mark.parametrize("case", GOLDEN["reports"], ids=lambda c: c["input"]["icaoId"])
 def test_a_fetched_report_has_the_same_api_fields(case):
-    assert as_api(metar.parse_report(case["input"])) == case["expected"]
+    assert metar.parse_report(case["input"]).to_api() == case["expected"]
 
 
 @pytest.mark.parametrize("case", GOLDEN["raw"], ids=lambda c: c["input"][:24])
 def test_a_mock_report_has_the_same_api_fields(case):
-    assert as_api(metar.parse_raw(case["input"], NOW)) == case["expected"]
+    assert metar.parse_raw(case["input"], NOW).to_api() == case["expected"]
 
 
 def test_api_fields():

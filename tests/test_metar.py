@@ -9,6 +9,7 @@ import requests
 
 from metarmap import metar
 from metarmap.clock import FakeClock
+from metarmap.models import SkyLayer
 
 # the fixture and GOOD reports are from 2026-10-24 14:53Z-17:53Z
 CLOCK = FakeClock(datetime(2026, 10, 24, 18, 0, tzinfo=timezone.utc))
@@ -94,8 +95,8 @@ def test_variable_wind_direction(houston):
     assert houston.data["KBPT"]["windDir"] == "VRB"
 
 
-def test_missing_stations_get_empty_data(houston):
-    assert houston.data["KDKR"] == {}
+def test_missing_stations_get_no_report(houston):
+    assert houston.data["KDKR"] is None
     assert "" not in houston.data
     assert houston.missing_stations() == ["KDKR"]
     assert "KDKR" not in houston.stations()
@@ -116,14 +117,14 @@ def test_single_report_response(make_config):
     m = metar.METAR(make_config("KTST", "KOTH"), clock=CLOCK)
     m._process(response(report("KTST", **GOOD)))
     assert m.data["KTST"]["windSpeed"] == 9
-    assert m.data["KOTH"] == {}
+    assert m.data["KOTH"] is None
 
 
 @pytest.mark.parametrize("content", [b"[]", b"", b"  \n"])  # no reports; the API can answer with no body
 def test_empty_responses(make_config, content):
     m = metar.METAR(make_config("KTST"), clock=CLOCK)
     m._process(content)
-    assert m.data == {"KTST": {}}
+    assert m.data == {"KTST": None}
     assert m.missing_stations() == ["KTST"]
 
 
@@ -131,7 +132,7 @@ def test_malformed_report_only_affects_its_airport(make_config):
     m = metar.METAR(make_config("KONE", "KBAD", "KTWO"), clock=CLOCK)
     bad = report("KBAD", rawOb="KBAD junk", obsTime="garbage", temp="M05")
     m._process(response(report("KONE", **GOOD), bad, report("KTWO", **GOOD)))
-    assert m.data["KBAD"] == {}
+    assert m.data["KBAD"] is None
     assert "KBAD" in m.missing_stations()
     assert m.data["KONE"]["tempC"] == 28
     assert m.data["KTWO"]["tempC"] == 28  # parsed even though it came after the bad one
@@ -298,13 +299,13 @@ def test_process_is_a_plain_function(fixture_bytes):
     )
     assert list(data) == ["KHOU", "KDKR", "KIAH"]
     assert reporting == ["KHOU", "KIAH"] and missing == ["KDKR"]
-    assert data["KIAH"]["windSpeed"] == 10 and data["KDKR"] == {}
+    assert data["KIAH"].wind_speed == 10 and data["KDKR"] is None
 
 
 def test_reports_too_old_count_as_missing(fixture_bytes):
     later = CLOCK.now() + metar.MAX_REPORT_AGE + timedelta(minutes=1)
     data, reporting, missing = metar.process(fixture_bytes("metars_houston.json"), ["KHOU"], later)
-    assert (data, reporting, missing) == ({"KHOU": {}}, [], ["KHOU"])
+    assert (data, reporting, missing) == ({"KHOU": None}, [], ["KHOU"])
 
 
 # ---- reading the JSON API's fields ------------------------------------------------------------------------------
@@ -328,11 +329,11 @@ def test_altimeter_from_hectopascals_without_an_a_group():
 def test_vertical_visibility_is_in_hundreds_of_feet():
     d = parse(vertVis=2, cover="OVX", clouds=[{"cover": "OVX", "base": 200}])
     assert d["vertVisFt"] == 200
-    assert d["skyConditions"] == [{"cover": "OVX", "cloudBaseFt": 200}]
+    assert d.sky_conditions == (SkyLayer("OVX", 200),)
 
 
 def test_a_clear_sky_has_no_layers_only_a_cover():
-    assert parse(cover="CLR", clouds=[])["skyConditions"] == [{"cover": "CLR", "cloudBaseFt": 0}]
+    assert parse(cover="CLR", clouds=[]).sky_conditions == (SkyLayer("CLR"),)
 
 
 def test_wind_direction_is_text_like_before():
@@ -370,7 +371,7 @@ def test_parse_raw_a_us_report():
     assert m["flightCategory"] == "VFR"  # from the visibility and ceiling: 9 SM, clear
     assert (m["windDir"], m["windSpeed"], m["windGustSpeed"], m["windGust"]) == ("80", 3, 0, False)
     assert (m["visibilitySM"], m["vis"], m["visibilityMore"]) == (9.0, 9, False)
-    assert m["skyConditions"] == [{"cover": "CLR", "cloudBaseFt": 0}]
+    assert m.sky_conditions == (SkyLayer("CLR"),)
     assert (m["tempC"], m["dewpointC"], m["altimHg"]) == (21, 18, 30.14)
     assert m["obsTime"] == datetime(2026, 10, 27, 23, 53, tzinfo=timezone.utc)
     assert m["raw"] == KDWH and m["obs"] == "" and m["lightning"] is False
@@ -381,13 +382,13 @@ def test_parse_raw_a_storm():
     assert m["flightCategory"] == "IFR"  # ceiling 800 ft
     assert (m["windSpeed"], m["windGustSpeed"], m["windGust"]) == (12, 25, True)
     assert m["visibilitySM"] == 1.5 and m["obs"] == "+TSRA BR" and m["lightning"] is True
-    assert m["skyConditions"] == [{"cover": "BKN", "cloudBaseFt": 800}, {"cover": "OVC", "cloudBaseFt": 1500}]
+    assert m.sky_conditions == (SkyLayer("BKN", 800), SkyLayer("OVC", 1500))
 
 
 def test_parse_raw_obscured_and_below_zero():
     m = metar.parse_raw("KXXX 272300Z 00000KT M1/4SM FG VV002 M02/M03 A3001", NOW)
     assert m["flightCategory"] == "LIFR" and m["vertVisFt"] == 200 and m["obs"] == "FG"
-    assert m["skyConditions"] == [{"cover": "OVX", "cloudBaseFt": 0}] and (m["tempC"], m["dewpointC"]) == (-2, -3)
+    assert m.sky_conditions == (SkyLayer("OVX"),) and (m.temp_c, m.dewpoint_c) == (-2, -3)
 
 
 def test_parse_raw_metric():
@@ -433,10 +434,10 @@ def test_a_mock_replaces_the_fetched_report(make_config):
     kdwh = m.data["KDWH"]
     assert kdwh["raw"] == KDWH and kdwh["flightCategory"] == "VFR" and kdwh["mock"] is True
     assert (kdwh["latitude"], kdwh["longitude"], kdwh["name"]) == (30.06, -95.55, "Houston/D W Hooks")  # the station's
-    assert "mock" not in m.data["KHOU"]
+    assert m.data["KHOU"].mock is False
     m._config.airports[0]._extra.pop(metar.MOCK_KEY)
     m.apply_mocks()
-    assert m.data["KDWH"]["flightCategory"] == "LIFR" and "mock" not in m.data["KDWH"]  # the real one again
+    assert m.data["KDWH"].flight_category == "LIFR" and m.data["KDWH"].mock is False  # the real one again
 
 
 def test_mocks_need_dev_mode(make_config):

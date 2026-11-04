@@ -140,7 +140,7 @@ def airports(services, site):
 def raw(services):
     data = services.metars.data
     buf = io.StringIO()
-    buf.write("".join(f"<b>{s}</b>: {data[s].get('raw', 'N/A')}<br />" for s in data.keys()))
+    buf.write("".join(f"<b>{s}</b>: {(data[s] or {}).get('raw', 'N/A')}<br />" for s in data.keys()))
     buf.write(f"<pre><code>{pprint.pformat(data, indent=4)}</code></pre>")
     return buf.getvalue()
 

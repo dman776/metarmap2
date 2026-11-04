@@ -32,7 +32,7 @@ def status(services, ip):
     for index, airport in enumerate(services.config.airports):
         if not airport.code:
             continue
-        m = metars.data.get(airport.code, {})
+        m = metars.data.get(airport.code) or {}
         airports.append(
             {
                 "code": airport.code,

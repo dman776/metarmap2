@@ -10,7 +10,7 @@ from metarmap import advisories
 from metarmap.advisories import Advisories
 from metarmap.lib import colors as colors_lib
 from metarmap.metar import with_advisories
-from metarmap.models import Look
+from metarmap.models import Look, Report
 from metarmap.settings import Settings
 from metarmap.visualizers import advisories as vis
 from metarmap.visualizers import style
@@ -306,22 +306,22 @@ def test_with_advisories():
     found, _, _ = make(airmets=[gairmet("IFR", *HOUSTON)], sigmets=[sigmet("CONV", *HOUSTON)])
     found.fetch()
     data = {
-        "KIAH": {"raw": "...", "latitude": 29.98, "longitude": -95.34},
-        "KDFW": {"raw": "...", "latitude": "32.9", "longitude": "-97.04"},
-        "KXXX": {"raw": "..."},
+        "KIAH": Report(raw="...", latitude=29.98, longitude=-95.34),
+        "KDFW": Report(raw="...", latitude=32.9, longitude=-97.04),
+        "KXXX": Report(raw="..."),
     }
     result = with_advisories(data, found)
-    assert (result["KIAH"]["airmets"], result["KIAH"]["sigmets"]) == (["IFR"], ["CONV"])
-    assert (result["KDFW"]["airmets"], result["KDFW"]["sigmets"]) == ([], [])
-    assert (result["KXXX"]["airmets"], result["KXXX"]["sigmets"]) == (None, None)  # no position
-    assert "airmets" not in data["KIAH"]  # the fetched reports are left as they were
+    assert (result["KIAH"].airmets, result["KIAH"].sigmets) == (["IFR"], ["CONV"])
+    assert (result["KDFW"].airmets, result["KDFW"].sigmets) == ([], [])
+    assert (result["KXXX"].airmets, result["KXXX"].sigmets) == (None, None)  # no position
+    assert data["KIAH"].airmets is None  # the fetched reports are left as they were
 
 
-def test_an_airport_without_a_report_stays_empty():
-    """Every visualizer shows {} as "METAR not available"; hazard lists would make it look like a report."""
+def test_an_airport_without_a_report_stays_none():
+    """Every visualizer shows None as "METAR not available"; hazard lists would make it look like a report."""
     found, _, _ = make(airmets=[gairmet("IFR", *HOUSTON)])
     found.fetch()
-    assert with_advisories({"KDKR": {}}, found) == {"KDKR": {}}
+    assert with_advisories({"KDKR": None}, found) == {"KDKR": None}
 
 
 # ---- the visualizer -------------------------------------------------------------------------------------------
