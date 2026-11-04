@@ -1,24 +1,15 @@
+import fnmatch
 import functools
 import json
 import re
 import threading
+import traceback
 from datetime import datetime, timezone
+from typing import Callable, List, Sequence, Union
 
 from metarmap.lib.safe_logging import safe_log
 from metarmap.metar import MOCK_KEY, parse_raw
-from metarmap.settings import (
-    BRANCH_NAME,
-    LED_ORDERS,
-    LED_PINS,
-    LIGHTNING_COLORS,
-    TFR_NEARBY_NM,
-    TRAFFIC_SECONDS,
-    UPDATE_CHANNELS,
-    Airport,
-    Settings,
-    parse_value,
-    valid_quiet_time,
-)
+from metarmap.settings import Airport, Settings, parse_value
 
 MAX_LEDS = 1000
 ICAO = re.compile(r"^[A-Z0-9]{3,4}$")
@@ -26,14 +17,32 @@ NO_AIRPORT = "-"  # in a URL, stands for an empty code or name
 
 
 def locked(method):
-    """Runs a change under the config's lock: web requests arrive in parallel, and each change saves config.json."""
+    """
+    Runs a change under the config's lock: web requests arrive in parallel, and each change saves config.json.
+    When the outermost locked call ends, the lock is released and then the changes it made are published (see
+    Config.subscribe), so a subscriber can read or change the config, and a nested call publishes nothing itself.
+    """
 
     @functools.wraps(method)
     def run(self, *args, **kwargs):
-        with self._lock:
-            return method(self, *args, **kwargs)
+        changes = []
+        try:
+            with self._lock:
+                self._depth += 1
+                try:
+                    return method(self, *args, **kwargs)
+                finally:
+                    self._depth -= 1
+                    if not self._depth:
+                        changes, self._pending = self._pending, []
+        finally:
+            self._publish(changes)
 
     return run
+
+
+# what Config.subscribe() takes: one pattern or several, e.g. "led.count", "led.quiet_hours.*" or "*"
+Patterns = Union[str, Sequence[str]]
 
 
 class Config(object):
@@ -43,13 +52,48 @@ class Config(object):
 
     Older maps kept the airports in a separate airports.json; read() moves them into config.json once and leaves
     airports.json as a backup.
+
+    Every change is published as the keys that changed (subscribe()): a setting's dotted path ("led.pin"), or for
+    the airport list airports.code, airports.name, airports.display, airports.order (moved), airports.mock and
+    airports.other (keys of their own, set by the older by-code edits). led.count and led.virtual_count also add
+    or remove airports. A change that leaves a value as it was isn't published.
     """
 
     def __init__(self, file):
         self._file = file
         self._lock = threading.RLock()
+        self._depth = 0  # how deep in locked calls the thread holding the lock is
+        self._pending: List[str] = []  # keys changed by the locked call in progress
+        self._subscribers = []  # (patterns, callback)
         self._data = Settings()
         self.read()
+
+    # ---- change events ---------------------------------------------------------------------------------------
+
+    def subscribe(self, patterns: Patterns, callback: Callable[[List[str]], None]):
+        """
+        Calls callback(keys) after each change that touches a key matching one of `patterns` (shell-style: "led.*",
+        "*"), with the matching keys, once per change. Subscribers run in the thread that made the change, in the
+        order they subscribed; one that fails is logged and the others still run.
+        """
+        self._subscribers.append(((patterns,) if isinstance(patterns, str) else tuple(patterns), callback))
+
+    def _changed(self, key):
+        if key not in self._pending:
+            self._pending.append(key)
+
+    def _publish(self, changes):
+        if not changes:
+            return
+        for patterns, callback in list(self._subscribers):
+            keys = [k for k in changes if any(fnmatch.fnmatchcase(k, p) for p in patterns)]
+            if not keys:
+                continue
+            try:
+                callback(keys)
+            except Exception as e:
+                # the change is saved already; one part failing to follow it shouldn't stop the others
+                safe_log(f"after changing {', '.join(keys)}: {e}\n{traceback.format_exc()}")
 
     def read(self):
         with open(self._file) as f:
@@ -85,42 +129,19 @@ class Config(object):
     def edit(self, key, value):
         """
         Saves one setting by its dotted path, e.g. edit("display_screen.delay", "5").
-        Raises KeyError for an unknown setting and ValueError for a value of the wrong type.
+        Raises KeyError for an unknown setting and ValueError for a value its type or Rule (settings.py) doesn't
+        allow.
         """
         if key == "led.count":
             return self.set_led_count(value)
         if key == "led.virtual_count":
             return self.set_virtual_count(value)
-        if key == "dev_mode":
-            raise ValueError("dev_mode is only changed by editing config.json")
-        if key == "visualizer.numbering":
-            raise ValueError("visualizer.numbering is kept by the map")
-        if key == "update.channel":
-            channel = str(value).strip("\"'")
-            if channel not in UPDATE_CHANNELS:
-                raise ValueError(f"update.channel: {value!r} is not one of {', '.join(UPDATE_CHANNELS)}")
-            if channel == "branch" and not self._data.dev_mode:
-                raise ValueError("update.channel: branch needs dev_mode in config.json")
-        if key == "update.branch" and not BRANCH_NAME.match(str(value)):
-            raise ValueError(f"update.branch: {value!r} isn't a branch name")
-        if key in ("led.quiet_hours.start", "led.quiet_hours.end"):
-            if not valid_quiet_time(value):
-                raise ValueError(f"{key}: expected local time in 24-hour HH:MM format")
-        if key == "led.pin" and str(value).strip("\"'") not in {str(pin) for pin in LED_PINS}:
-            raise ValueError(f"led.pin: {value!r} is not one of {', '.join(map(str, LED_PINS))}")
-        if key == "led.order" and str(value).strip("\"'") not in LED_ORDERS:
-            raise ValueError(f"led.order: {value!r} is not one of {', '.join(LED_ORDERS)}")
-        if key == "lightning.color" and str(value).strip("\"'") not in LIGHTNING_COLORS:
-            raise ValueError(f"lightning.color: {value!r} is not one of {', '.join(LIGHTNING_COLORS)}")
-        if key == "tfr.nearby_nm":
-            low, high = TFR_NEARBY_NM
-            if not low <= parse_value(value, float, key) <= high:
-                raise ValueError(f"{key}: {value!r} is not between {low} and {high} NM")
-        if key == "geo.map.traffic_seconds":
-            low, high = TRAFFIC_SECONDS
-            if not low <= parse_value(value, float, key) <= high:
-                raise ValueError(f"{key}: {value!r} is not between {low} and {high} seconds (adsb.fi's limit)")
-        self._data.set(key, value)
+        rule = self._data.rule(key)
+        if rule is not None and not rule.editable:
+            raise ValueError(rule.message)
+        old = self._data.get(key)
+        if self._data.set(key, value) != old:
+            self._changed(key)
         self.write()
 
     @locked
@@ -129,9 +150,13 @@ class Config(object):
         Sets the web UI's user name and (unless None or empty) password, saved together.
         The user name is stored in lower case, which is how logins are compared.
         """
-        self._data.web_server.user = parse_user(user)
-        if password:
+        user = parse_user(user)
+        if user != self._data.web_server.user:
+            self._data.web_server.user = user
+            self._changed("web_server.user")
+        if password and password != self._data.web_server.password:
             self._data.web_server.password = password
+            self._changed("web_server.password")
         self.write()
 
     @property
@@ -169,7 +194,9 @@ class Config(object):
             del airports[count:old]
         else:
             airports[old:old] = [Airport() for _ in range(count - old)]
-        self._data.led.count = count
+        if count != old:
+            self._data.led.count = count
+            self._changed("led.count")
         self.write()
 
     @locked
@@ -185,7 +212,9 @@ class Config(object):
                 f"led.virtual_count: {count} is not between 0 and {MAX_LEDS - self._data.led.count} "
                 f"({MAX_LEDS} airports in all, with the LEDs)"
             )
-        self._data.led.virtual_count = count
+        if count != self._data.led.virtual_count:
+            self._data.led.virtual_count = count
+            self._changed("led.virtual_count")
         del self._data.airports[self._data.led.count + count :]
         self.write()  # read() adds the new ones
 
@@ -200,16 +229,25 @@ class Config(object):
         if key == "code":
             code = parse_code(value)
             if code != airport.code:
-                airport.name = ""  # the old name was the old airport's; fill_names() gives the new one
-                airport._extra.pop(MOCK_KEY, None)  # and so was its mock METAR
-            airport.code = code
+                airport.code = code
+                self._changed("airports.code")
+                if airport.name:
+                    airport.name = ""  # the old name was the old airport's; fill_names() gives the new one
+                    self._changed("airports.name")
+                if airport._extra.pop(MOCK_KEY, None) is not None:  # and so was its mock METAR
+                    self._changed("airports.mock")
         elif key == "name":
-            airport.name = "" if value == NO_AIRPORT else str(value)
+            self._set(airport, "name", "" if value == NO_AIRPORT else str(value))
         elif key == "display":
-            airport.display = parse_value(value, bool, "display")
+            self._set(airport, "display", parse_value(value, bool, "display"))
         else:
             raise ValueError(f"unknown airport setting: {key}")
         self.write()
+
+    def _set(self, airport, name, value):
+        if getattr(airport, name) != value:
+            setattr(airport, name, value)
+            self._changed(f"airports.{name}")
 
     @locked
     def set_mock_metar(self, pixel, text):
@@ -226,9 +264,12 @@ class Config(object):
             raise ValueError("this LED has no airport")
         if text:
             parse_raw(text, datetime.now(timezone.utc))  # raises ValueError if it isn't a METAR
-            airport._extra[MOCK_KEY] = text
-        else:
-            airport._extra.pop(MOCK_KEY, None)
+        if airport._extra.get(MOCK_KEY) != (text or None):
+            if text:
+                airport._extra[MOCK_KEY] = text
+            else:
+                airport._extra.pop(MOCK_KEY, None)
+            self._changed("airports.mock")
         self.write()
 
     @locked
@@ -243,6 +284,7 @@ class Config(object):
                 airport.name = names[airport.code]
                 filled += 1
         if filled:
+            self._changed("airports.name")
             self.write()
         return filled
 
@@ -250,7 +292,10 @@ class Config(object):
     def move_airport(self, src, dst):
         """Moves the airport on LED `src` to LED `dst`; the ones in between shift by one."""
         airports = self.airports
-        airports.insert(self._pixel(dst), airports.pop(self._pixel(src)))
+        src, dst = self._pixel(src), self._pixel(dst)
+        if src != dst:
+            airports.insert(dst, airports.pop(src))
+            self._changed("airports.order")
         self.write()
 
     def _pixel(self, pixel):
@@ -276,7 +321,11 @@ class Config(object):
             raise ValueError(f"{MOCK_KEY} is set on the Airports page (dev_mode) or in config.json")
         else:
             # anything else is kept with the airport, as airports.json did
-            self.airports[pixel]._extra[key] = value == "true" if value in ("true", "false") else value
+            extra = self.airports[pixel]._extra
+            value = value == "true" if value in ("true", "false") else value
+            if extra.get(key, object()) != value:
+                extra[key] = value
+                self._changed("airports.other")
             self.write()
 
     def _find(self, code):

@@ -3,6 +3,7 @@
 from collections import Counter
 from datetime import datetime, timedelta
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -80,6 +81,134 @@ def test_auto_rotate_leaves_out_the_skipped(make_app):
     app = make_app(**{"visualizer.auto_rotate.skip": '["Wind", "Wind Gusts"]'})
     app_module.rotate_visualizer(app)
     assert app.renderer.visualizer[1].NAME == "Wind Direction"  # after Flight Category, past Wind and Wind Gusts
+
+
+# ---- following config changes ---------------------------------------------------------------------------------
+
+
+def spy(monkeypatch, obj, name, calls, label=None):
+    """Records a call of obj.name in `calls` (as `label`, default the name) instead of running it."""
+    monkeypatch.setattr(obj, name, lambda *args, **kwargs: calls.append(label or name))
+
+
+@pytest.fixture
+def quiet_app(make_app, monkeypatch):
+    """A map whose reactions are recorded instead of run: (app, calls)."""
+    app = make_app(**{"display_screen.enabled": False})
+    calls = []
+    spy(monkeypatch, app.renderer, "refresh", calls)
+    spy(monkeypatch, app.display, "restart", calls, "display.restart")
+    spy(monkeypatch, app_module, "refetch_metars", calls)
+    # threads app.py starts (test pattern, fetch) are recorded, not started; only app.py's, not every thread's
+    thread = SimpleNamespace(start=lambda: calls.append("thread"))
+    monkeypatch.setattr(app_module, "threading", SimpleNamespace(Thread=lambda *args, **kwargs: thread))
+    return app, calls
+
+
+def test_led_count_resizes_the_strip_then_refreshes(quiet_app, monkeypatch):
+    app, calls = quiet_app
+    monkeypatch.setattr(app.renderer, "resize", lambda count: calls.append(f"resize {count}"))
+    app.config.edit("led.count", "10")
+    assert calls == ["resize 10", "refresh", "display.restart"]
+
+
+def test_tfr_distance_reprocesses_the_metars(quiet_app, monkeypatch):
+    app, calls = quiet_app
+    spy(monkeypatch, app.metars, "apply_mocks", calls)
+    spy(monkeypatch, app.renderer, "update_data", calls)
+    app.config.edit("tfr.nearby_nm", "25")
+    assert calls == ["apply_mocks", "update_data", "refresh"]
+
+
+def test_names_and_logins_leave_the_leds_alone(quiet_app):
+    app, calls = quiet_app
+    app.config.set_airport(0, "name", "Somewhere Else")
+    app.config.set_login("pilot", "secret")
+    assert calls == []
+
+
+def test_auto_rotate_is_rescheduled(quiet_app):
+    app, _ = quiet_app
+    assert app.scheduler.get_jobs("rotate_visualizer") == []
+    app.config.edit("visualizer.auto_rotate.enabled", "true")
+    assert len(app.scheduler.get_jobs("rotate_visualizer")) == 1
+    app.config.edit("visualizer.auto_rotate.delay_seconds", "45")
+    (job,) = app.scheduler.get_jobs("rotate_visualizer")
+    assert job.interval == 45
+
+
+def test_quiet_hours_are_rescheduled(quiet_app, monkeypatch):
+    app, calls = quiet_app
+    spy(monkeypatch, app.renderer, "adjust_brightness_for_time", calls, "adjust")
+    app.config.edit("led.quiet_hours.enabled", "true")
+    assert len(app.scheduler.get_jobs("quiet_hours")) == 2
+    assert calls == ["refresh", "adjust"]
+
+
+def test_only_the_brightness_in_use_changes_now(quiet_app, monkeypatch):
+    app, calls = quiet_app
+    spy(monkeypatch, app.renderer, "adjust_brightness_for_time", calls, "adjust")
+    monkeypatch.setattr(app.renderer, "scheduled_level", lambda: "normal")
+    app.config.edit("led.brightness.dimmed", "0.2")
+    assert "adjust" not in calls
+    app.config.edit("led.brightness.normal", "0.6")
+    assert calls[-1] == "adjust"
+
+
+def test_turning_inittest_on_shows_the_test_pattern(quiet_app):
+    app, calls = quiet_app
+    app.config.edit("led.inittest", "false")
+    assert "thread" not in calls
+    app.config.edit("led.inittest", "true")
+    assert calls[-1] == "thread"
+
+
+def test_update_channel_checks_for_releases(quiet_app, monkeypatch):
+    app, calls = quiet_app
+    spy(monkeypatch, app.releases, "check_soon", calls)
+    app.config.edit("update.channel", "latest")
+    assert calls[-1] == "check_soon"
+
+
+def test_display_screen_enabled_turns_the_oled_on_and_off(quiet_app, monkeypatch):
+    app, calls = quiet_app
+    spy(monkeypatch, app.display, "turn_on", calls)
+    spy(monkeypatch, app.display, "turn_off", calls)
+    app.config.edit("display_screen.enabled", "true")
+    app.config.edit("display_screen.enabled", "false")
+    assert calls == ["refresh", "turn_on", "refresh", "turn_off"]
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        lambda c: c.set_airport(0, "display", "true"),
+        lambda c: c.move_airport(0, 1),
+        lambda c: c.edit("led.virtual_count", "2"),
+    ],
+)
+def test_airport_list_changes_restart_the_oled(quiet_app, change):
+    app, calls = quiet_app
+    change(app.config)
+    assert calls == ["refresh", "display.restart"]
+
+
+def test_a_new_code_gets_its_name_and_metar(quiet_app, monkeypatch):
+    app, calls = quiet_app
+    monkeypatch.setattr(app.metars, "name_for", lambda code: {"KDWH": "Hooks Meml"}.get(code, ""))
+    app.config.set_airport(0, "code", "KDWH")
+    assert app.config.airports[0].name == "Hooks Meml"
+    assert calls == ["refresh", "display.restart", "thread"]  # the fetch runs in the background
+
+
+def test_refetch_metars(make_app, monkeypatch):
+    app = make_app()
+    calls = []
+    monkeypatch.setattr(app.metars, "fetch", lambda: calls.append("fetch") or True)
+    monkeypatch.setattr(app.renderer, "update_data", lambda metars: calls.append("update_data"))
+    monkeypatch.setattr(app_module, "fill_names", lambda a: calls.append("fill_names"))
+    app_module.refetch_metars(app)
+    assert calls == ["fetch", "update_data", "fill_names"]
 
 
 # ---- scheduled jobs -------------------------------------------------------------------------------------------

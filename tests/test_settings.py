@@ -165,3 +165,111 @@ def test_a_file_from_before_advisories_or_tfr_keeps_its_visualizer(numbering, ac
 def test_a_current_file_is_not_renumbered():
     assert Settings.from_dict({"visualizer": {"active": 12, "numbering": 4}}).visualizer.active == 12
     assert Settings.from_dict({}).visualizer.active == 0
+
+
+# ---- rules ------------------------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "key, value, error",
+    [
+        ("led.pin", "7", "led.pin: '7' is not one of 18, 12, 13, 21, 10"),
+        ("led.order", "BGR", "led.order: 'BGR' is not one of GRB, RGB"),
+        ("lightning.color", "purple", "lightning.color: 'purple' is not one of yellow, white"),
+        ("tfr.nearby_nm", "51", "tfr.nearby_nm: '51' is not between 0 and 50 NM"),
+        (
+            "geo.map.traffic_seconds",
+            "1",
+            "geo.map.traffic_seconds: '1' is not between 2 and 60 seconds (adsb.fi's limit)",
+        ),
+        ("led.quiet_hours.start", "7:00", "led.quiet_hours.start: expected local time in 24-hour HH:MM format"),
+        ("update.branch", "-x", "update.branch: '-x' isn't a branch name"),
+        ("update.channel", "nightly", "update.channel: 'nightly' is not one of releases, latest, branch"),
+        ("update.channel", "branch", "update.channel: branch needs dev_mode in config.json"),
+    ],
+)
+def test_set_checks_the_rule(key, value, error):
+    s = Settings()
+    before = s.get(key)
+    with pytest.raises(ValueError) as e:
+        s.set(key, value)
+    assert str(e.value) == error
+    assert s.get(key) == before
+
+
+@pytest.mark.parametrize(
+    "key, value, stored",
+    [
+        ("led.pin", "13", 13),
+        ("led.order", "RGB", "RGB"),
+        ("tfr.nearby_nm", "0", 0),
+        ("geo.map.traffic_seconds", "60", 60),
+        ("led.quiet_hours.end", "06:30", "06:30"),
+        ("update.branch", "feature/x", "feature/x"),
+    ],
+)
+def test_set_accepts_what_the_rule_allows(key, value, stored):
+    s = Settings()
+    assert s.set(key, value) == stored
+    assert s.get(key) == stored
+
+
+def test_branch_channel_with_dev_mode():
+    s = Settings()
+    s.dev_mode = True
+    assert s.set("update.channel", "branch") == "branch"
+
+
+def test_settings_set_allows_what_only_config_json_changes():
+    # the web UI can't (Config.edit refuses it); code and tests can
+    s = Settings()
+    assert s.set("dev_mode", "true") is True
+    assert s.rule("dev_mode").editable is False
+
+
+def test_rule_of_a_setting_without_one():
+    assert Settings().rule("geo.city") is None
+    with pytest.raises(KeyError):
+        Settings().rule("geo.nothing")
+
+
+@pytest.mark.parametrize(
+    "section, key, value, default",
+    [
+        ("led", "pin", 7, 18),
+        ("led", "order", "BGR", "GRB"),
+        ("lightning", "color", "purple", "yellow"),
+        ("tfr", "nearby_nm", 500, 10),
+        ("tfr", "nearby_nm", "far", 10),
+    ],
+)
+def test_a_value_its_rule_rejects_is_reset_on_load(section, key, value, default, caplog):
+    data = Settings().to_dict()
+    data[section][key] = value
+    s = Settings.from_dict(data)
+    assert getattr(getattr(s, section), key) == default
+    assert f"Invalid {section}.{key} in config.json" in caplog.text
+
+
+def test_a_nested_value_is_reset_on_load():
+    data = Settings().to_dict()
+    data["geo"]["map"]["traffic_seconds"] = 0.5
+    assert Settings.from_dict(data).geo.map.traffic_seconds == 5
+
+
+def test_a_valid_value_of_the_wrong_type_is_converted_on_load():
+    data = Settings().to_dict()
+    data["led"]["pin"] = "12"
+    data["geo"]["map"]["traffic_seconds"] = "30"
+    s = Settings.from_dict(data)
+    assert (s.led.pin, s.geo.map.traffic_seconds) == (12, 30)
+
+
+def test_load_leaves_rules_that_depend_on_other_settings_alone(caplog):
+    # update.channel "branch" without dev_mode works as releases (update_channel()); kept for when dev_mode is back
+    data = Settings().to_dict()
+    data["update"]["channel"] = "branch"
+    s = Settings.from_dict(data)
+    assert s.update.channel == "branch"
+    assert s.update_channel() == "releases"
+    assert "Invalid" not in caplog.text

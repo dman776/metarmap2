@@ -12,7 +12,54 @@ import os
 import re
 import typing
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any, Callable, Dict, List, Optional, Tuple
+
+
+@dataclass(frozen=True)
+class Rule:
+    """
+    What a setting accepts, beyond its type: checked when the web UI edits it (Settings.set) and when config.json
+    loads (Settings.from_dict, where a value it rejects is logged and replaced by the default).
+
+    choices:  the only values allowed
+    between:  (lowest, highest), inclusive
+    pattern:  a regular expression the whole value must match
+    message:  the error for a pattern mismatch, formatted with key and value (the value as it was sent)
+    unit:     after the range in a `between` error, e.g. " NM"
+    check:    check(value, settings) -> an error or None, for a rule that depends on other settings; edits only
+    editable: False: the web UI can't change it (Config.edit refuses it), and `message` says why
+    """
+
+    choices: Optional[Tuple[Any, ...]] = None
+    between: Optional[Tuple[float, float]] = None
+    pattern: Optional[re.Pattern] = None
+    message: str = ""
+    unit: str = ""
+    check: Optional[Callable[[Any, Any], Optional[str]]] = None
+    editable: bool = True
+
+    def problem(self, key, sent, value, settings=None) -> Optional[str]:
+        """Why `value` (converted from `sent`) isn't allowed, or None. Without settings (loading), skips `check`."""
+        if self.choices is not None and value not in self.choices:
+            return f"{key}: {sent!r} is not one of {', '.join(map(str, self.choices))}"
+        if self.between is not None:
+            low, high = self.between
+            if not low <= value <= high:
+                return f"{key}: {sent!r} is not between {low} and {high}{self.unit}"
+        if self.pattern is not None and not (isinstance(value, str) and self.pattern.fullmatch(value)):
+            return self.message.format(key=key, value=sent)
+        if self.check is not None and settings is not None:
+            return self.check(value, settings)
+        return None
+
+
+def setting(default, **rule):
+    """A field with a Rule, e.g. pin: int = setting(18, choices=LED_PINS)."""
+    return field(default=default, metadata={"rule": Rule(**rule)})
+
+
+def rule_of(f) -> Optional[Rule]:
+    return f.metadata.get("rule")
 
 
 @dataclass
@@ -40,6 +87,7 @@ LED_PINS = (18, 12, 13, 21, 10)
 # the order the strip wants its colors in; the wrong one swaps red and green
 LED_ORDERS = ("GRB", "RGB")
 QUIET_TIME = re.compile(r"^(?:[01][0-9]|2[0-3]):[0-5][0-9]$")
+QUIET_TIME_MESSAGE = "{key}: expected local time in 24-hour HH:MM format"
 
 
 def valid_quiet_time(value):
@@ -54,16 +102,16 @@ TRAFFIC_SECONDS = (2, 60)
 @dataclass
 class QuietHours(_Section):
     enabled: bool = False
-    start: str = "23:00"  # local time, 24-hour HH:MM
-    end: str = "05:00"
+    start: str = setting("23:00", pattern=QUIET_TIME, message=QUIET_TIME_MESSAGE)  # local time, 24-hour HH:MM
+    end: str = setting("05:00", pattern=QUIET_TIME, message=QUIET_TIME_MESSAGE)
 
 
 @dataclass
 class Led(_Section):
     count: int = 50  # LEDs on the strip
     virtual_count: int = 0  # airports after the strip's: on the web map and in Home Assistant only, no LED
-    pin: int = 18
-    order: str = "GRB"
+    pin: int = setting(18, choices=LED_PINS)
+    order: str = setting("GRB", choices=LED_ORDERS)
     brightness: Brightness = field(default_factory=Brightness)
     quiet_hours: QuietHours = field(default_factory=QuietHours)
     inittest: bool = True
@@ -80,7 +128,7 @@ class MapPage(_Section):
     view: str = "airports"  # airports | chart | custom
     # live traffic (adsb.fi), shown when a viewer ticks it on the Map page: how often it's fetched, and whether
     # aircraft on the ground are shown too
-    traffic_seconds: float = 5  # TRAFFIC_SECONDS: adsb.fi allows one request a second
+    traffic_seconds: float = setting(5, between=TRAFFIC_SECONDS, unit=" seconds (adsb.fi's limit)")
     traffic_ground: bool = False
 
 
@@ -108,7 +156,7 @@ class AutoRotate(_Section):
 class VisualizerSettings(_Section):
     active: int = 0  # a number in visualizers.ALL
     # which list `active` counts in; a file without it is from before Wind Direction (see renumber_visualizers)
-    numbering: int = 4
+    numbering: int = setting(4, editable=False, message="visualizer.numbering is kept by the map")
     auto_rotate: AutoRotate = field(default_factory=AutoRotate)
     # the slow red blink of an airport whose report lacks what the visualizer shows; off: its LED stays dark
     missing_data_blink: bool = True
@@ -123,7 +171,7 @@ LIGHTNING_COLORS = ("yellow", "white")
 @dataclass
 class Lightning(_Section):
     animation: bool = True
-    color: str = "yellow"  # one of LIGHTNING_COLORS
+    color: str = setting("yellow", choices=LIGHTNING_COLORS)
 
 
 # tfr.nearby_nm: the most a TFR can be from an airport and still show on its LED (0: inside only)
@@ -132,7 +180,8 @@ TFR_NEARBY_NM = (0, 50)
 
 @dataclass
 class TfrSettings(_Section):
-    nearby_nm: float = 10  # the TFR visualizer shows TFRs this close to an airport too (dim); 0: inside only
+    # the TFR visualizer shows TFRs this close to an airport too (dim); 0: inside only
+    nearby_nm: float = setting(10, between=TFR_NEARBY_NM, unit=" NM")
 
 
 UPDATE_CHANNELS = ("releases", "latest", "branch")
@@ -141,12 +190,18 @@ UPDATE_CHANNELS = ("releases", "latest", "branch")
 BRANCH_NAME = re.compile(r"^(?!-)(?!.*\.\.)[A-Za-z0-9._/-]+$")
 
 
+def branch_needs_dev_mode(channel, settings):
+    if channel == "branch" and not settings.dev_mode:
+        return "update.channel: branch needs dev_mode in config.json"
+    return None
+
+
 @dataclass
 class UpdateSettings(_Section):
     # releases: Update installs the newest release tag; latest: the newest commit, released or not (for testing);
     # branch: the newest commit of `branch` on GitHub, only with dev_mode (otherwise it's taken as releases)
-    channel: str = "releases"
-    branch: str = ""
+    channel: str = setting("releases", choices=UPDATE_CHANNELS, check=branch_needs_dev_mode)
+    branch: str = setting("", pattern=BRANCH_NAME, message="{key}: {value!r} isn't a branch name")
 
 
 @dataclass
@@ -170,7 +225,7 @@ class Settings(_Section):
     update: UpdateSettings = field(default_factory=UpdateSettings)
     # for developing the map: Config > Software can update from any branch on GitHub. Edited in config.json by
     # hand only; the web UI can't change it
-    dev_mode: bool = False
+    dev_mode: bool = setting(False, editable=False, message="dev_mode is only changed by editing config.json")
     # in LED order: airports[0] is the first LED; the led.virtual_count virtual airports come after the strip's
     airports: List[Airport] = field(default_factory=list)
 
@@ -189,6 +244,7 @@ class Settings(_Section):
             )
             quiet.enabled, quiet.start, quiet.end = False, QuietHours.start, QuietHours.end
         renumber_visualizers(settings, data)
+        _check_rules(settings, "")
         settings._extra.pop("color", None)  # the LED colors live in the code now (3.1.2); an older file's are dropped
         return settings
 
@@ -226,27 +282,75 @@ class Settings(_Section):
         channel = self.update.channel
         return "releases" if channel == "branch" and not self.dev_mode else channel
 
+    def rule(self, key: str) -> Optional[Rule]:
+        """A setting's Rule, or None if it has none. Raises KeyError for an unknown setting."""
+        return rule_of(self._field(key)[1])
+
+    def get(self, key: str) -> Any:
+        """One setting by its dotted path, e.g. get("led.pin"). Raises KeyError for an unknown setting."""
+        section, f, _ = self._field(key)
+        return getattr(section, f.name)
+
     def set(self, key: str, value: Any) -> Any:
         """
         Sets one setting by its dotted path, e.g. set("geo.map.chart", "Houston").
-        Text values (as they arrive from a URL) are converted to the setting's type.
+        Text values (as they arrive from a URL) are converted to the setting's type, then checked against its Rule.
         Raises KeyError for an unknown setting and ValueError for a value that doesn't fit.
         Returns the stored value.
         """
+        section, f, kind = self._field(key)
+        rule = rule_of(f)
+        converted = _convert(value, kind, key)
+        problem = rule.problem(key, value, converted, self) if rule is not None else None
+        if problem:
+            raise ValueError(problem)
+        setattr(section, f.name, converted)
+        return converted
+
+    def _field(self, key):
+        """The section holding a single setting, its dataclass field and its type. KeyError if there isn't one."""
         *path, name = key.split(".")
         section = self
         for part in path:
             section = getattr(section, part, None)
             if not dataclasses.is_dataclass(section) or part.startswith("_"):
                 raise KeyError(key)
-        hints = typing.get_type_hints(type(section))
-        if name.startswith("_") or name not in {f.name for f in dataclasses.fields(section)}:
+        fields = {f.name: f for f in dataclasses.fields(section)}
+        if name.startswith("_") or name not in fields:
             raise KeyError(key)
-        if dataclasses.is_dataclass(getattr(section, name)) or _is_section_list(hints[name]):
+        kind = typing.get_type_hints(type(section))[name]
+        if dataclasses.is_dataclass(getattr(section, name)) or _is_section_list(kind):
             raise KeyError(f"{key} is a group of settings, not a single setting")
-        converted = _convert(value, hints[name], key)
-        setattr(section, name, converted)
-        return converted
+        return section, fields[name], kind
+
+
+def _check_rules(section, prefix):
+    """
+    Loading: a hand-edited value its Rule rejects (or of the wrong type) is logged and replaced by the default, so
+    the rest of the map can rely on every loaded setting being valid. Rules that depend on other settings (check)
+    and settings the web UI can't edit are left alone.
+    """
+    hints = typing.get_type_hints(type(section))
+    for f in dataclasses.fields(section):
+        if f.name.startswith("_"):
+            continue
+        value, key = getattr(section, f.name), prefix + f.name
+        if dataclasses.is_dataclass(value):
+            _check_rules(value, key + ".")
+            continue
+        rule = rule_of(f)
+        if rule is None or not rule.editable or value == f.default:
+            continue
+        try:
+            converted = _convert(value, hints[f.name], key)
+            problem = rule.problem(key, value, converted)
+        except (TypeError, ValueError) as e:
+            problem = str(e)
+        if problem:
+            logging.getLogger(__name__).warning("Invalid %s in config.json (%s); using %r", key, problem, f.default)
+            setattr(section, f.name, f.default)
+        else:
+            setattr(section, f.name, converted)
 
 
 def _from_dict(cls, data):

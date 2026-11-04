@@ -307,8 +307,10 @@ def test_precipitation_thunderstorm_stays_yellow_with_white_lightning(settings):
     assert frames[:3] == (C[colors_lib.WHITE],) * 3 and frames[3] == style.LIGHTNING
 
 
-def test_unknown_lightning_color_is_yellow(settings):
-    settings.lightning.color = "purple"  # hand-edited config.json
+def test_unknown_lightning_color_in_config_json_is_yellow():
+    data = Settings().to_dict()
+    data["lightning"]["color"] = "purple"  # hand-edited config.json: reset when it loads
+    settings = Settings.from_dict(data)
     assert lit(flightcategory, settings, flightCategory="VFR", lightning=True).colors[0] == style.LIGHTNING
     assert "yellow flashes" in style.lightning_legend(settings)["detail"]
 

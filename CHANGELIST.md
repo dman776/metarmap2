@@ -1,3 +1,16 @@
+### Unreleased
+
+- **Settings follow their own rules** (inside the code; the web UI and the API work as before):
+  - What each setting accepts (the LED pins and color orders, the lightning colors, the TFR distance, the traffic
+    interval, quiet hours times, the update channel and branch) is part of the settings themselves (`settings.py`),
+    with the same error messages
+  - A hand-edited `config.json` value a setting doesn't accept is logged and replaced by its default when the map
+    starts, as quiet hours times already were (e.g. `led.pin` 7 becomes 18)
+  - Every change to the settings or the airports is announced, and the map follows it from one list in `app.py`
+    (the LEDs, the OLED, auto-rotate and quiet hours timers, the update check, a new airport's name and METAR).
+    Saving a value it already had no longer redoes those; one of them failing is logged and no longer fails the
+    page
+
 ### dman776 3.1.5 (2026-11-03)
 
 - **Current brightness schedule highlight** (Home): highlight the active sun-brightness period rather than the next

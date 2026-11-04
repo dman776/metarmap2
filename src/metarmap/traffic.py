@@ -17,7 +17,6 @@ import requests
 
 from metarmap import __version__
 from metarmap.lib.safe_logging import safe_log
-from metarmap.settings import TRAFFIC_SECONDS
 
 API_URL = "https://opendata.adsb.fi/api/v3/lat/{lat:.4f}/lon/{lon:.4f}/dist/{dist}"
 USER_AGENT = f"metarmap/{__version__} (+https://github.com/dman776/metarmap2)"
@@ -204,13 +203,8 @@ class Traffic:
         self._error = None
 
     def interval(self):
-        """geo.map.traffic_seconds, kept within TRAFFIC_SECONDS (config.json can be edited by hand)."""
-        low, high = TRAFFIC_SECONDS
-        try:
-            seconds = float(self._settings().traffic_seconds)
-        except (TypeError, ValueError):
-            return low
-        return min(high, max(low, seconds))
+        """geo.map.traffic_seconds (within TRAFFIC_SECONDS: its Rule checks it, also in a hand-edited config.json)."""
+        return float(self._settings().traffic_seconds)
 
     def due(self, now):
         return self._tried is None or now - self._tried >= max(self.interval(), self._backoff)
