@@ -40,7 +40,7 @@ class Renderer(object):
     Runs the LED animations for the active visualizer.
 
     strip: a NeoPixel strip or metarmap.leds.strip.FakeStrip
-    metars: anything with a .data dict of airport -> METAR (metar.METAR)
+    metars: anything with a .data dict of airport -> Report or None (metar.Reports)
     config: settings, including the airport on each LED (config.data.airports)
     sun: today's sun times, for the scheduled brightness
     """

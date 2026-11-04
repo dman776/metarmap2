@@ -1,11 +1,11 @@
 """
-Data models shared across the map: METAR data, flight categories and LED looks.
+Data models shared across the map: parsed METARs (Report), flight categories and LED looks.
 """
 
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, TypedDict
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 import metarmap.lib.colors as colors_lib
 
@@ -20,36 +20,6 @@ class FlightCategory(str, Enum):
     MVFR = "MVFR"
     IFR = "IFR"
     LIFR = "LIFR"
-
-
-class SkyCondition(TypedDict):
-    cover: str
-    cloudBaseFt: int
-
-
-class Metar(TypedDict, total=False):
-    """
-    One airport's parsed METAR, as produced by metar.METAR.
-    An airport with no report is an empty dict.
-    """
-
-    raw: str
-    elevation_m: int
-    flightCategory: Optional[str]
-    windDir: str  # degrees as text, "VRB", or "" when not reported
-    windSpeed: int
-    windGustSpeed: int
-    windGust: bool
-    vis: int  # statute miles, rounded
-    obs: str  # weather codes, e.g. "-RA BR"
-    tempC: Optional[int]
-    dewpointC: Optional[int]
-    altimHg: float
-    lightning: bool
-    skyConditions: List[SkyCondition]
-    obsTime: Optional[datetime]
-    latitude: str
-    longitude: str
 
 
 @dataclass(frozen=True)

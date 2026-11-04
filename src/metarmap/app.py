@@ -27,7 +27,7 @@ from metarmap.config import Config
 from metarmap.display import Display
 from metarmap.leds.strip import open_strip
 from metarmap.lib import utils
-from metarmap.metar import METAR
+from metarmap.metar import Reports
 from metarmap.oled.screen import open_screen
 from metarmap.releases import CHECK_HOURS, ReleaseCheck
 from metarmap.renderer import Renderer
@@ -49,7 +49,7 @@ class App:
 
     config: Config
     sun: SunTimes
-    metars: METAR
+    metars: Reports
     renderer: Renderer
     display: Display  # always built; its loop runs while display_screen.enabled is on
     scheduler: schedule.Scheduler
@@ -76,7 +76,7 @@ def build(config_file=CONFIG_FILE, strip=None, screen=None, clock: Clock = None,
     if fetch:
         advisories.fetch()
     tfrs = Tfrs(nearby=lambda: config.data.tfr.nearby_nm)
-    metars = METAR(config, fetch=fetch, clock=clock, advisories=advisories, tfrs=tfrs)
+    metars = Reports(config, fetch=fetch, clock=clock, advisories=advisories, tfrs=tfrs)
 
     if strip is None:
         strip = open_strip(config.data.led)  # the NeoPixel strip on the Pi; an in-memory strip anywhere else

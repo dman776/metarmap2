@@ -48,7 +48,7 @@ GOOD = dict(
 
 @pytest.fixture
 def houston(make_config, fixture_bytes):
-    m = metar.METAR(make_config(*HOUSTON), clock=CLOCK)
+    m = metar.Reports(make_config(*HOUSTON), clock=CLOCK)
     m._process(fixture_bytes("metars_houston.json"))
     return m
 
@@ -81,7 +81,7 @@ def test_newest_report_wins_whatever_the_order(make_config):
     newer = report("KTST", **{**GOOD, "obsTime": at("2026-10-24T15:53:00Z"), "rawOb": "newer"})
     middle = report("KTST", **{**GOOD, "obsTime": at("2026-10-24T14:53:00Z"), "rawOb": "middle"})
     for order in [(older, newer, middle), (newer, middle, older), (middle, older, newer)]:
-        m = metar.METAR(make_config("KTST"), clock=CLOCK)
+        m = metar.Reports(make_config("KTST"), clock=CLOCK)
         m._process(response(*order))
         assert m.data["KTST"].raw == "newer"
 
@@ -114,7 +114,7 @@ def test_an_airport_on_two_leds_is_fetched_once(make_config):
 
 
 def test_single_report_response(make_config):
-    m = metar.METAR(make_config("KTST", "KOTH"), clock=CLOCK)
+    m = metar.Reports(make_config("KTST", "KOTH"), clock=CLOCK)
     m._process(response(report("KTST", **GOOD)))
     assert m.data["KTST"].wind_speed == 9
     assert m.data["KOTH"] is None
@@ -122,14 +122,14 @@ def test_single_report_response(make_config):
 
 @pytest.mark.parametrize("content", [b"[]", b"", b"  \n"])  # no reports; the API can answer with no body
 def test_empty_responses(make_config, content):
-    m = metar.METAR(make_config("KTST"), clock=CLOCK)
+    m = metar.Reports(make_config("KTST"), clock=CLOCK)
     m._process(content)
     assert m.data == {"KTST": None}
     assert m.missing_stations() == ["KTST"]
 
 
 def test_malformed_report_only_affects_its_airport(make_config):
-    m = metar.METAR(make_config("KONE", "KBAD", "KTWO"), clock=CLOCK)
+    m = metar.Reports(make_config("KONE", "KBAD", "KTWO"), clock=CLOCK)
     bad = report("KBAD", rawOb="KBAD junk", obsTime="garbage", temp="M05")
     m._process(response(report("KONE", **GOOD), bad, report("KTWO", **GOOD)))
     assert m.data["KBAD"] is None
@@ -139,7 +139,7 @@ def test_malformed_report_only_affects_its_airport(make_config):
 
 
 def test_sparse_report_uses_defaults(make_config):
-    m = metar.METAR(make_config("KTST"), clock=CLOCK)
+    m = metar.Reports(make_config("KTST"), clock=CLOCK)
     m._process(response(report("KTST", rawOb="KTST 241453Z AUTO")))
     d = m.data["KTST"]
     assert d.flight_category is None
@@ -148,14 +148,14 @@ def test_sparse_report_uses_defaults(make_config):
 
 
 def test_lightning_flag(make_config):
-    m = metar.METAR(make_config("KTST"), clock=CLOCK)
+    m = metar.Reports(make_config("KTST"), clock=CLOCK)
     m._process(response(report("KTST", **{**GOOD, "rawOb": "KTST 241453Z 14009KT 10SM TS LTG DSNT"})))
     assert m.data["KTST"].lightning is True
 
 
 def test_data_is_replaced_not_mutated(make_config):
-    """Readers (the OLED loop, the web server) must never see a half-filled dict."""
-    m = metar.METAR(make_config("KTST"), clock=CLOCK)
+    """Readers (the OLED loop, the web server) must never see half-filled data."""
+    m = metar.Reports(make_config("KTST"), clock=CLOCK)
     old = {"KTST": Report(raw="old")}
     m.data = old
     m._process(response(report("KTST", **GOOD)))
@@ -188,7 +188,7 @@ def test_fetch_success(monkeypatch, make_config, fixture_bytes):
 
     monkeypatch.setattr(metar.requests, "get", fake_get)
 
-    m = metar.METAR(make_config(*HOUSTON), clock=CLOCK)
+    m = metar.Reports(make_config(*HOUSTON), clock=CLOCK)
     assert m.last_fetch_ok is None
     assert m.fetch() is True and m.last_fetch_ok is True
     assert m.data["KIAH"].wind_speed == 10
@@ -207,7 +207,7 @@ def test_fetch_success(monkeypatch, make_config, fixture_bytes):
 )
 def test_fetch_errors_are_contained(monkeypatch, make_config, fake_get):
     monkeypatch.setattr(metar.requests, "get", fake_get)
-    m = metar.METAR(make_config("KTST"), clock=CLOCK)
+    m = metar.Reports(make_config("KTST"), clock=CLOCK)
     m.data = {"KTST": Report(raw="previous")}
     assert m.fetch() is False  # must not raise: it runs on the scheduler in the main loop
     assert m.last_fetch_ok is False
@@ -218,14 +218,14 @@ def test_fetch_errors_are_contained(monkeypatch, make_config, fake_get):
 def test_fetch_calls_callback_even_on_error(monkeypatch, make_config):
     monkeypatch.setattr(metar.requests, "get", lambda url, **kw: FakeResponse(status=500))
     called = []
-    metar.METAR(make_config("KTST"), clock=CLOCK).fetch(callback=lambda: called.append(True))
+    metar.Reports(make_config("KTST"), clock=CLOCK).fetch(callback=lambda: called.append(True))
     assert called == [True]
 
 
 @pytest.mark.parametrize("hours_old, reporting", [(1, True), (4.9, True), (5.1, False), (24 * 8, False)])
 def test_old_reports_count_as_not_reporting(make_config, hours_old, reporting):
     observed = datetime(2026, 10, 24, 18, 0, tzinfo=timezone.utc) - timedelta(hours=hours_old)
-    m = metar.METAR(make_config("KTST"), clock=CLOCK)
+    m = metar.Reports(make_config("KTST"), clock=CLOCK)
     m._process(response(report("KTST", **{**GOOD, "obsTime": int(observed.timestamp())})))
     assert bool(m.data["KTST"]) is reporting
     assert ("KTST" in m.missing_stations()) is not reporting
@@ -256,7 +256,7 @@ def stations_api(monkeypatch, fixture_bytes, stations=STATIONS, fail=False):
 
 def test_airports_without_a_report_are_looked_up(monkeypatch, make_config, fixture_bytes):
     asked = stations_api(monkeypatch, fixture_bytes)
-    m = metar.METAR(make_config("KHOU", "KDKR", "KEFD", "KXXX", ""), clock=CLOCK)
+    m = metar.Reports(make_config("KHOU", "KDKR", "KEFD", "KXXX", ""), clock=CLOCK)
     m.fetch()
     assert asked == [["KHOU", "KDKR", "KEFD", "KXXX"]]  # every airport once (for its name), in one request
     assert m.position("KDKR") == (31.307, -95.404)
@@ -274,7 +274,7 @@ def test_airports_without_a_report_are_looked_up(monkeypatch, make_config, fixtu
 
 def test_a_failed_lookup_is_tried_again(monkeypatch, make_config, fixture_bytes):
     stations_api(monkeypatch, fixture_bytes, fail=True)
-    m = metar.METAR(make_config("KDKR"), clock=CLOCK)
+    m = metar.Reports(make_config("KDKR"), clock=CLOCK)
     assert m.fetch() is True  # the METARs still count as fetched
     assert m.position("KDKR") is None and m.locate_failed is True
     asked = stations_api(monkeypatch, fixture_bytes)
@@ -286,7 +286,7 @@ def test_a_failed_lookup_is_tried_again(monkeypatch, make_config, fixture_bytes)
 def test_a_failed_metar_fetch_skips_the_lookup(monkeypatch, make_config):
     asked = []
     monkeypatch.setattr(metar.requests, "get", lambda url, **kw: asked.append(url) or FakeResponse(status=502))
-    metar.METAR(make_config("KDKR"), clock=CLOCK).fetch()
+    metar.Reports(make_config("KDKR"), clock=CLOCK).fetch()
     assert len(asked) == 1
 
 
@@ -349,7 +349,7 @@ def test_trailing_space_and_name():
 
 def test_name_for_one_code(monkeypatch, make_config, fixture_bytes):
     asked = stations_api(monkeypatch, fixture_bytes)
-    m = metar.METAR(make_config("KDKR"), clock=CLOCK)
+    m = metar.Reports(make_config("KDKR"), clock=CLOCK)
     assert m.name_for("KEFD") == "Houston/Ellington Arpt"
     assert m.name_for("KEFD") == "Houston/Ellington Arpt"
     assert asked == [["KEFD"]]  # looked up once
@@ -357,7 +357,7 @@ def test_name_for_one_code(monkeypatch, make_config, fixture_bytes):
 
 
 def test_name_for_without_network(make_config):
-    assert metar.METAR(make_config("KDKR"), clock=CLOCK).name_for("KEFD") == ""  # no error
+    assert metar.Reports(make_config("KDKR"), clock=CLOCK).name_for("KEFD") == ""  # no error
 
 
 # ---- mock METARs (dev_mode): a raw report typed on the Airports page ---------------------------------------------
@@ -412,7 +412,7 @@ def mocked(make_config, dev_mode=True, mock=KDWH, code="KDWH"):
     cfg = make_config(code, "KHOU")
     cfg.data = SimpleNamespace(dev_mode=dev_mode)
     cfg.airports[0]._extra[metar.MOCK_KEY] = mock
-    return metar.METAR(cfg, clock=FakeClock(NOW))
+    return metar.Reports(cfg, clock=FakeClock(NOW))
 
 
 def test_a_mock_replaces_the_fetched_report(make_config):

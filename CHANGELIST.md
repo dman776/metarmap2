@@ -1,3 +1,11 @@
+### Unreleased
+
+- **A parsed METAR is a `Report`** (inside the code; the web UI, the API and Home Assistant work as before):
+  - Each airport's report is a frozen dataclass (`models.Report`, with `SkyLayer` for the clouds) with snake_case
+    fields, instead of a dict with the API's camelCase keys; an airport with no report is `None` instead of `{}`
+  - `Report.to_api()` gives the field names `/api/status` uses, and a test checks they're the same as before
+  - The class that fetches them is `metar.Reports` (was `metar.METAR`)
+
 ### dman776 3.2.0 (2026-11-03)
 
 - **Settings follow their own rules** (inside the code; the web UI and the API work as before):

@@ -45,7 +45,7 @@ def airport_codes(airports):
     return list(dict.fromkeys(a.code for a in airports if a.code))
 
 
-# ---- parsing (no state: the METAR class below fetches and keeps the results) ------------------------------------
+# ---- parsing (no state: the Reports class below fetches and keeps the results) ------------------------------------
 
 
 def latest_reports(content):
@@ -334,14 +334,14 @@ def with_tfrs(data, tfrs):
     return result
 
 
-class METAR(object):
+class Reports:
     """
-    Object to control and handle METARs.
+    Fetches the METARs and keeps each airport's Report (None when it isn't reporting) in .data, by code.
     """
 
     def __init__(self, cfg, fetch=False, clock: Clock = None, advisories=None, tfrs=None):
         """
-        Creates a new METAR class. advisories: metarmap.advisories.Advisories, whose hazards are added to each report
+        advisories: metarmap.advisories.Advisories, whose hazards are added to each report
         (with_advisories); None for none. tfrs: metarmap.tfr.Tfrs, the same for TFRs (with_tfrs).
         """
 

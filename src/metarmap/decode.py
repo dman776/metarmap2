@@ -1,7 +1,7 @@
 """
 A METAR in plain English, for the Map page's Decoded tab: one {"label", "text"} line per item the report has.
 
-Works on the Report (models.Report) metar.METAR builds for each airport. Weather codes follow the FAA's METAR key
+Works on the Report (models.Report) metar.Reports keeps for each airport. Weather codes follow the FAA's METAR key
 (FMH-1, chapter 12: intensity, descriptor, then precipitation, obscuration or other phenomena).
 """
 
