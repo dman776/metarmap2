@@ -46,7 +46,7 @@ def locked(method):
 Patterns = Union[str, Sequence[str]]
 
 
-class Config(object):
+class Config:
     """
     The map's settings, including its airports (one per LED, in LED order, then the virtual ones), saved in
     config.json.

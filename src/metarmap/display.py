@@ -28,7 +28,7 @@ def watchdog_limit(delay: float) -> float:
     return max(60, 4 * delay + 10)
 
 
-class Display(object):
+class Display:
     """
     Runs the OLED loop in a background thread.
 
