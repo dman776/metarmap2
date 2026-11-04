@@ -1,8 +1,0 @@
-# Runtime dependencies (kept in sync with pyproject.toml).
-# On the Raspberry Pi also install the hardware drivers: pip install -e ".[pi]"
-adafruit-circuitpython-led-animation>=2.6
-astral>=2.2
-bottle>=0.12
-requests>=2.25
-schedule>=1.1
-tzdata
