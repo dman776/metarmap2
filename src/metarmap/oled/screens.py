@@ -48,6 +48,12 @@ def wind_text(data: Report):
     return "{0}@{1:02d}{2}".format(wind_dir, speed, gust)
 
 
+def visibility_text(data: Report):
+    if data.visibility_sm is None:
+        return None
+    return "{0}SM".format(data.vis)
+
+
 def temp_text(celsius):
     if celsius is None:
         return None
@@ -86,7 +92,7 @@ def screen_for(station, data: Optional[Report], page, tz=None, virtual=False):
     if page == 1:
         lines = [
             {"icon": "wind", "text": safe_text(wind_text, data)},
-            {"icon": "visibility", "text": safe_text(lambda d: "{0}SM".format(d.vis), data)},
+            {"icon": "visibility", "text": safe_text(visibility_text, data)},
             {"icon": "pressure", "text": safe_text(lambda d: "{0:2.2f}".format(d.altimeter_inhg), data)},
         ]
     else:

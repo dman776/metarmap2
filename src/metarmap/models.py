@@ -37,8 +37,8 @@ class SkyLayer:
 class Report:
     """
     One airport's parsed METAR (metar.parse_report, or metar.parse_raw for a mock). An airport with no report has
-    None instead. Values a report leaves out are None, except the ones read as 0 or "" (wind, altimeter, weather),
-    as aviationweather.gov's own fields are.
+    None instead. Values a report leaves out are None (the OLED shows "--"), except the text ones ("" for no wind
+    direction or weather); the API (to_api) still sends 0 for a missing wind speed, visibility or altimeter.
     """
 
     raw: str = ""
@@ -46,7 +46,7 @@ class Report:
     elevation_m: int = 0
     flight_category: Optional[str] = None  # FlightCategory's values; None when the station doesn't report one
     wind_dir: str = ""  # degrees as text ("80"), "VRB", or "" when not reported
-    wind_speed: int = 0  # knots
+    wind_speed: Optional[int] = None  # knots; 0 is calm
     wind_gust_speed: int = 0  # knots, 0 for no gusts
     visibility_sm: Optional[float] = None  # statute miles, exact (0.25)
     visibility_more: bool = False  # "10+": more than visibility_sm
@@ -54,7 +54,7 @@ class Report:
     weather: str = ""  # weather codes, e.g. "-RA BR"
     temp_c: Optional[int] = None
     dewpoint_c: Optional[int] = None
-    altimeter_inhg: float = 0.0  # 0 when not reported
+    altimeter_inhg: Optional[float] = None
     lightning: bool = False  # LTG in the report
     sky_conditions: Tuple[SkyLayer, ...] = ()
     obs_time: Optional[datetime] = None  # UTC
@@ -86,7 +86,7 @@ class Report:
             "elevation_m": self.elevation_m,
             "flightCategory": self.flight_category,
             "windDir": self.wind_dir,
-            "windSpeed": self.wind_speed,
+            "windSpeed": self.wind_speed or 0,
             "windGustSpeed": self.wind_gust_speed,
             "windGust": self.wind_gust,
             "vis": self.vis,
@@ -96,7 +96,7 @@ class Report:
             "obs": self.weather,
             "tempC": self.temp_c,
             "dewpointC": self.dewpoint_c,
-            "altimHg": self.altimeter_inhg,
+            "altimHg": self.altimeter_inhg or 0.0,
             "lightning": self.lightning,
             "skyConditions": [layer.to_api() for layer in self.sky_conditions],
             "obsTime": self.obs_time.isoformat() if self.obs_time else None,

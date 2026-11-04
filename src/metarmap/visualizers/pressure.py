@@ -28,7 +28,7 @@ def legend(settings):
 def look(metar: Optional[Report], settings) -> Look:
     if not metar:
         return style.no_report()
-    if not metar.altimeter_inhg:  # missing from the report (read as 0)
+    if not metar.altimeter_inhg:  # missing from the report
         return style.missing()
     return Look.solid(style.band_for(metar.altimeter_inhg, BANDS, settings))
 

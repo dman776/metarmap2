@@ -26,7 +26,7 @@ def gust_spread(metar: Report) -> int:
     """Knots the gusts are above the wind; 0 when it isn't gusting."""
     if not metar.wind_gust:
         return 0
-    return max(0, (metar.wind_gust_speed or 0) - metar.wind_speed)
+    return max(0, (metar.wind_gust_speed or 0) - (metar.wind_speed or 0))
 
 
 def legend(settings):

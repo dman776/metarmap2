@@ -54,7 +54,6 @@ def test_not_reporting():
 
 def test_only_what_the_report_has():
     assert lines(Report(raw="METAR KXXX", temp_c=-2, lightning=True)) == [
-        ("Wind", "Calm"),  # no wind in the report is read as 0, as aviationweather.gov's JSON leaves it out
         ("Temperature", "-2°C / 28°F"),
         ("Lightning", "Lightning observed"),
     ]
@@ -158,6 +157,8 @@ def test_parsed_reports_have_what_decode_needs():
     parsed = parse_report(
         {
             "rawOb": "METAR KTST 241753Z 00000KT 1/2SM FG VV003",
+            "wdir": 0,
+            "wspd": 0,
             "visib": 0.5,
             "wxString": "FG",
             "vertVis": 3,
@@ -222,11 +223,11 @@ def test_summary_only_what_the_report_has():
         )
     ) == [
         "VFR: ceiling above 3,000 ft and visibility over 5 miles",
-        "Calm wind",
+        "Calm wind",  # reported as 0: calm, not missing
         "Clear skies",
         "Density altitude 2,900 ft (field elevation 984 ft)",
     ]
-    assert decode.summary(Report(temp_c=-5, dewpoint_c=-12)) == ["Calm wind"]  # cold but dry: no icing
+    assert decode.summary(Report(temp_c=-5, dewpoint_c=-12)) == []  # cold but dry: no icing; no wind reported
 
 
 @pytest.mark.parametrize(

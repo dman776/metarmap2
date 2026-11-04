@@ -126,7 +126,7 @@ def parse_report(metar) -> Report:
         elevation_m=int(round(num("elev", 0))),
         flight_category=metar.get("fltCat"),
         wind_dir="" if wind_dir is None else str(wind_dir),  # degrees, or "VRB"
-        wind_speed=int(num("wspd", 0)),
+        wind_speed=int(num("wspd")) if num("wspd") is not None else None,
         wind_gust_speed=int(num("wgst", 0)),
         visibility_sm=parse_visibility(metar.get("visib")),
         visibility_more="+" in str(metar.get("visib") or ""),  # "10+": more than 10 miles
@@ -146,12 +146,12 @@ def parse_report(metar) -> Report:
 def altimeter_inhg(raw, hectopascals):
     """
     The altimeter setting in inHg: as the report gives it (A3023 -> 30.23), which is exact; otherwise converted
-    from the JSON's hectopascals (rounded to 0.1 hPa, so it can be 0.01 inHg off); 0 if neither.
+    from the JSON's hectopascals (rounded to 0.1 hPa, so it can be 0.01 inHg off); None if neither.
     """
     found = ALTIMETER.search(raw.split(" RMK ")[0])
     if found:
         return int(found.group(1)) / 100
-    return round(hectopascals / HPA_PER_INHG, 2) if hectopascals else 0.0
+    return round(hectopascals / HPA_PER_INHG, 2) if hectopascals else None
 
 
 # ---- mock METARs (dev_mode): a report typed on the Airports page replaces the fetched one ---------------------
@@ -200,10 +200,10 @@ def parse_raw(raw, now) -> Report:
         obs_time = observed(int(tokens[0][:2]), int(tokens[0][2:4]), int(tokens[0][4:6]), now)
         tokens = tokens[1:]
 
-    wind_dir, wind_speed, gust = "", 0, 0
+    wind_dir, wind_speed, gust = "", None, 0
     visibility, more, wx, sky, vert_vis = None, False, [], [], None
     temp_c = dewpoint_c = None
-    altim = 0.0
+    altim = None
     i = 0
     while i < len(tokens):
         t = tokens[i]

@@ -143,7 +143,8 @@ def test_sparse_report_uses_defaults(make_config):
     m._process(response(report("KTST", rawOb="KTST 241453Z AUTO")))
     d = m.data["KTST"]
     assert d.flight_category is None
-    assert (d.wind_speed, d.vis, d.altimeter_inhg) == (0, 0, 0)
+    assert (d.wind_speed, d.visibility_sm, d.altimeter_inhg) == (None, None, None)  # not reported, not 0
+    assert (d.to_api()["windSpeed"], d.to_api()["vis"], d.to_api()["altimHg"]) == (0, 0, 0)  # the API: as before
     assert (d.temp_c, d.dewpoint_c, d.obs_time) == (None, None, None)
 
 
@@ -323,7 +324,7 @@ def test_altimeter_comes_from_the_report_text():
 
 def test_altimeter_from_hectopascals_without_an_a_group():
     assert parse(rawOb="EGLL 241450Z 24010KT 9999 FEW030 14/08 Q1013", altim=1013.0).altimeter_inhg == 29.91
-    assert parse(rawOb="KTST 241453Z AUTO", altim=None).altimeter_inhg == 0
+    assert parse(rawOb="KTST 241453Z AUTO", altim=None).altimeter_inhg is None
 
 
 def test_vertical_visibility_is_in_hundreds_of_feet():

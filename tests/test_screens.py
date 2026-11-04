@@ -68,15 +68,15 @@ def test_page2_missing_values_show_dashes():
 
 
 def test_page1_of_a_report_without_wind_visibility_or_altimeter():
-    """The parser reads them as 0 when the report leaves them out, so they show as 0, not dashes."""
+    """What the report leaves out is dashes, not CALM / 0SM / 0.00."""
     screen = screens.screen_for("KTST", Report(flight_category=None), 1)
     assert screen["badge"] == ""
-    assert texts(screen) == ["CALM", "0SM", "0.00"]
+    assert texts(screen) == [screens.MISSING, screens.MISSING, screens.MISSING]
 
 
-def test_page1_values_that_cant_be_shown_are_dashes():
-    screen = screens.screen_for("KTST", Report(wind_speed=None, altimeter_inhg=None), 1)
-    assert texts(screen) == [screens.MISSING, "0SM", screens.MISSING]
+def test_page1_calm_and_zero_visibility_are_shown():
+    screen = screens.screen_for("KTST", Report(wind_speed=0, visibility_sm=0.0, altimeter_inhg=29.92), 1)
+    assert texts(screen) == ["CALM", "0SM", "29.92"]
 
 
 @pytest.mark.parametrize(
