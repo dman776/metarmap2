@@ -1,4 +1,4 @@
-### Unreleased
+### dman776 3.2.0 (2026-11-03)
 
 - **Settings follow their own rules** (inside the code; the web UI and the API work as before):
   - What each setting accepts (the LED pins and color orders, the lightning colors, the TFR distance, the traffic
