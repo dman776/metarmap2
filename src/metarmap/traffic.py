@@ -16,12 +16,11 @@ import time
 
 import requests
 
-from metarmap import __version__
+from metarmap import USER_AGENT
 
 log = logging.getLogger(__name__)
 
 API_URL = "https://opendata.adsb.fi/api/v3/lat/{lat:.4f}/lon/{lon:.4f}/dist/{dist}"
-USER_AGENT = f"metarmap/{__version__} (+https://github.com/dman776/metarmap2)"
 TIMEOUT = 10  # seconds
 MAX_RADIUS_NM = 250  # the most adsb.fi gives around one point
 MARGIN_NM = 25  # around the outermost airports, so aircraft show before they reach them

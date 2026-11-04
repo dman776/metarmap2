@@ -23,7 +23,7 @@ from datetime import datetime, timezone
 
 import requests
 
-from metarmap import __version__
+from metarmap import USER_AGENT
 from metarmap.advisories import inside
 
 log = logging.getLogger(__name__)
@@ -31,7 +31,6 @@ log = logging.getLogger(__name__)
 LIST_URL = "https://tfr.faa.gov/tfrapi/exportTfrList"
 DETAIL_URL = "https://tfr.faa.gov/download/detail_{}.xml"  # 6/4084 -> detail_6_4084.xml
 PAGE_URL = "https://tfr.faa.gov/tfr3/?page=detail_{}"  # the FAA's page for one TFR
-USER_AGENT = f"metarmap/{__version__} (+https://github.com/dman776/metarmap2)"
 TIMEOUT = 30  # seconds
 DETAIL_SPACING = 0.5  # seconds between detail downloads, to be gentle with tfr.faa.gov
 MAX_FLOOR_FT = 18000

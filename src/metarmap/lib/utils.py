@@ -33,32 +33,27 @@ def wheel(pos):
 
 
 def get_location(city):
+    """astral's LocationInfo for a city in its list (case doesn't matter), or None."""
     import astral.geocoder
-    import astral.sun
 
     try:
-        return astral.geocoder.lookup(city, astral.geocoder.database())
+        return astral.geocoder.lookup(str(city), astral.geocoder.database())
     except KeyError:
-        log.warning("Error: Location not recognized, please check list of supported cities and reconfigure")
+        return None
 
 
 def get_sun_times(city_name):
-    import astral.geocoder
+    """
+    Today's {"dawn", "sunrise", "sunset", "dusk"} (and "noon") for a city in astral's list. geo.city's rule keeps
+    config.json's city one it knows; any other raises ValueError.
+    """
     import astral.sun
 
-    try:
-        city = get_location(city_name)
-    except KeyError:
-        log.warning("Error: Location not recognized, please check list of supported cities and reconfigure")
-    else:
-        log.info(str(city))
-        sun = astral.sun.sun(city.observer, date=datetime.now().date(), tzinfo=city.timezone)
-        # DAWN = sun['dawn']
-        # SUNRISE = sun['sunrise']
-        # SUNSET = sun['sunset']
-        # DUSK = sun['dusk']
-    # return DAWN, SUNRISE, SUNSET, DUSK
-    return sun
+    city = get_location(city_name)
+    if city is None:
+        raise ValueError(f"{city_name!r} is not a city the sun times know (astral's list)")
+    log.info(str(city))
+    return astral.sun.sun(city.observer, date=datetime.now().date(), tzinfo=city.timezone)
 
 
 def find_in_list(akey, avalue, alist):

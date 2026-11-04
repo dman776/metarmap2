@@ -35,7 +35,7 @@ FADE_STEPS = 12  # at most; about 20 a second
 FADE_MIN_STEP = 0.0011
 
 
-class Renderer(object):
+class Renderer:
     """
     Runs the LED animations for the active visualizer.
 

@@ -7,10 +7,9 @@ What each page says comes from metarmap.oled.screens; drawing is done by a scree
 
 import logging
 import threading
+from datetime import timezone
 from typing import Optional
-
-import pytz
-from pytz import timezone
+from zoneinfo import ZoneInfo
 
 from metarmap.config import Config
 from metarmap.lib import utils
@@ -28,7 +27,7 @@ def watchdog_limit(delay: float) -> float:
     return max(60, 4 * delay + 10)
 
 
-class Display(object):
+class Display:
     """
     Runs the OLED loop in a background thread.
 
@@ -57,7 +56,7 @@ class Display(object):
 
     def _local_timezone(self):
         location = utils.get_location(self._config.data.geo.city)
-        return timezone(location.timezone) if location else pytz.utc
+        return ZoneInfo(location.timezone) if location else timezone.utc
 
     def _new_thread(self):
         return threading.Thread(target=self.loop, args=(self.event,), name="display", daemon=True)

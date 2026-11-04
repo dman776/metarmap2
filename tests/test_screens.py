@@ -2,17 +2,17 @@
 
 from dataclasses import replace
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from types import SimpleNamespace
 
 import pytest
-import pytz
 
 from conftest import airports
 from metarmap.models import Report, SkyLayer
 from metarmap.oled import screens
 from metarmap.oled.screen import GLYPHS
 
-CENTRAL = pytz.timezone("America/Chicago")
+CENTRAL = ZoneInfo("America/Chicago")
 
 KHOU = Report(
     flight_category="VFR",

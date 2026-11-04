@@ -88,6 +88,15 @@ def visualizer_ids(values, key):
     return ids
 
 
+def known_city(value, key):
+    """A city astral's list has (case doesn't matter), for the sun times and the OLED's time zone."""
+    from metarmap.lib import utils  # here, not at the top: utils is slow to import and the settings load first
+
+    if utils.get_location(value) is None:
+        raise ValueError(f"{key}: {value!r} is not a city the sun times know (astral's list)")
+    return value
+
+
 def rule_of(f) -> Optional[Rule]:
     return f.metadata.get("rule")
 
@@ -164,7 +173,7 @@ class MapPage(_Section):
 
 @dataclass
 class Geo(_Section):
-    city: str = "Houston"
+    city: str = setting("Houston", parse=known_city)
     map: MapPage = field(default_factory=MapPage)
 
 
