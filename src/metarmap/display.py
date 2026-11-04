@@ -5,8 +5,8 @@ What each page says comes from metarmap.oled.screens; drawing is done by a scree
 (metarmap.oled.screen.SSD1306Screen on the Pi, FakeScreen elsewhere).
 """
 
+import logging
 import threading
-import traceback
 from typing import Optional
 
 import pytz
@@ -14,9 +14,10 @@ from pytz import timezone
 
 from metarmap.config import Config
 from metarmap.lib import utils
-from metarmap.lib.safe_logging import safe_log
 from metarmap.clock import Clock
 from metarmap.oled.screens import airports_to_show, message_screen, pages_for, screen_for
+
+log = logging.getLogger(__name__)
 
 
 def watchdog_limit(delay: float) -> float:
@@ -108,7 +109,7 @@ class Display(object):
             self.stop(False)
             self._thread.join(timeout)
             if self._thread.is_alive():
-                safe_log("display thread did not stop; starting a new one anyway")
+                log.warning("display thread did not stop; starting a new one anyway")
             self.event = threading.Event()
             self._thread = self._new_thread()
             self.start()
@@ -136,7 +137,7 @@ class Display(object):
                         self._renderer.locate(pixel)  # a virtual airport: on the web map only
                     except Exception as e:
                         # a failed LED pulse shouldn't cost the airport its pages
-                        safe_log(f"locate {airport}: {e}")
+                        log.warning(f"locate {airport}: {e}")
                 try:
                     self.show_airport(
                         airport,
@@ -147,7 +148,7 @@ class Display(object):
                     )
                 except Exception as e:
                     # never let one airport stop the loop
-                    safe_log(f"loop: {airport}: {e}\n{traceback.format_exc()}")
+                    log.exception(f"loop: {airport}: {e}")
                     self._clock.wait(event, 1)
             if not airports:
                 self.last_change = self._clock.time()
@@ -181,4 +182,4 @@ class Display(object):
             self._screen = screen
         except Exception as e:
             # e.g. an I2C error; keep going with the next page
-            safe_log(f"draw {screen.get('title')}: {e}")
+            log.warning(f"draw {screen.get('title')}: {e}")

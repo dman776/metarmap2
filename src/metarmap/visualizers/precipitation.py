@@ -8,12 +8,14 @@ clouds...), freezing precipitation and ice, snow, rain, drizzle, unknown precipi
 and dust. Two kinds in one group (e.g. -RASN) alternate.
 """
 
+import logging
 import metarmap.lib.colors as colors_lib
-import metarmap.lib.safe_logging as safe_logging
 from metarmap.decode import parse_weather
 from metarmap.models import Look, Metar
 from metarmap.visualizers import style
 from metarmap.visualizers.visualizer import Visualizer, legend_item
+
+log = logging.getLogger(__name__)
 
 
 MIXED_PERIOD = 2.0  # seconds per alternation of two kinds of precipitation
@@ -76,7 +78,7 @@ def look_for_weather(obs, settings) -> Look:
         return Look.off()  # nothing to report ("NSW": no significant weather)
     groups = parse_weather(obs)
     if not groups:
-        safe_logging.safe_log(f"unknown weather codes: {obs}")
+        log.info(f"unknown weather codes: {obs}")
         return style.missing()
 
     storm = next((g for g in groups if g.descriptor == "TS"), None)

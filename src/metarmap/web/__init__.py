@@ -6,6 +6,7 @@ and display); serve() runs it in a background thread. The routes are in pages, a
 is built in views.
 """
 
+import logging
 import socketserver
 import threading
 from wsgiref.simple_server import WSGIRequestHandler, WSGIServer, make_server
@@ -13,9 +14,10 @@ from wsgiref.simple_server import WSGIRequestHandler, WSGIServer, make_server
 import bottle
 from bottle import auth_basic
 
-from metarmap.lib.safe_logging import safe_log
 from metarmap.web import api, control, pages, views
 from metarmap.web.site import Site, my_ip
+
+log = logging.getLogger(__name__)
 
 
 def create_app(services, ip=None, updates=None) -> bottle.Bottle:
@@ -54,6 +56,6 @@ class RequestHandler(WSGIRequestHandler):
 def serve(app, host, port) -> ThreadingServer:
     """Runs the web app in a background thread. Stop it with shutdown(); server_port is the port it listens on."""
     server = make_server(host, port, app, ThreadingServer, RequestHandler)
-    safe_log(f"localhost = {host}:{server.server_port}")
+    log.info(f"localhost = {host}:{server.server_port}")
     threading.Thread(target=server.serve_forever, name="web", daemon=True).start()
     return server

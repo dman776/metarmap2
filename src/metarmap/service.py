@@ -11,6 +11,7 @@ The old file is kept next to it as metarmap.service.controller-py.bak. The new s
 start of the service (or reboot); the running map isn't restarted.
 """
 
+import logging
 import os
 import shlex
 import shutil
@@ -18,7 +19,8 @@ import subprocess
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from metarmap.lib.safe_logging import safe_log
+log = logging.getLogger(__name__)
+
 
 REPO = Path(__file__).resolve().parents[2]  # the git checkout: src/metarmap/service.py -> repo
 INSTALLED = (Path("/etc/systemd/system/metarmap.service"), Path("/lib/systemd/system/metarmap.service"))
@@ -84,10 +86,10 @@ def starts(text, repo, run) -> bool:
             timeout=120,
         )
     except (OSError, subprocess.SubprocessError) as e:
-        safe_log(f"{command[0]} can't run: {e}")
+        log.warning(f"{command[0]} can't run: {e}")
         return False
     if done.returncode != 0:
-        safe_log(f"{command[0]} can't import the map: {done.stderr.strip()}")
+        log.warning(f"{command[0]} can't import the map: {done.stderr.strip()}")
     return done.returncode == 0
 
 
@@ -110,10 +112,10 @@ def migrate(paths=INSTALLED, repo=REPO, run=subprocess.run, root=None) -> List[P
             continue  # already switched
         reason = why_not(old, repo)
         if reason:
-            safe_log(f"leaving {path} as it is: {reason}")
+            log.warning(f"leaving {path} as it is: {reason}")
             continue
         if not replaced and not starts(new, repo, run):
-            safe_log(f"leaving {path} as it is: the new service wouldn't start")
+            log.warning(f"leaving {path} as it is: the new service wouldn't start")
             return []
         shutil.copy2(path, path.with_name(path.name + BACKUP_SUFFIX))
         tmp = path.with_name(path.name + ".new")
@@ -127,9 +129,9 @@ def migrate(paths=INSTALLED, repo=REPO, run=subprocess.run, root=None) -> List[P
         if done.returncode != 0:
             for path in replaced:
                 shutil.copy2(path.with_name(path.name + BACKUP_SUFFIX), path)
-            safe_log(f"systemctl daemon-reload failed ({done.stderr.strip()}); put the old service file back")
+            log.warning(f"systemctl daemon-reload failed ({done.stderr.strip()}); put the old service file back")
             return []
-        safe_log(
+        log.info(
             f"switched {', '.join(map(str, replaced))} to `python3 -m metarmap`; "
             f"the old file is saved as *{BACKUP_SUFFIX}"
         )

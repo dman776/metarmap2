@@ -6,9 +6,10 @@ brightness. On the Pi that's a real neopixel.NeoPixel; anywhere else it's a Fake
 memory, so the whole map (and its web UI) can run on a laptop.
 """
 
+import logging
 from typing import List, Sequence
 
-from metarmap.lib.safe_logging import safe_log
+log = logging.getLogger(__name__)
 
 
 class FakeStrip(list):
@@ -48,6 +49,6 @@ def open_strip(led):
         pin = getattr(board, f"D{led.pin}")
         order = getattr(neopixel, led.order)
     except (ImportError, NotImplementedError, AttributeError) as e:
-        safe_log(f"no LED hardware ({type(e).__name__}: {e}); using an in-memory strip")
+        log.info(f"no LED hardware ({type(e).__name__}: {e}); using an in-memory strip")
         return FakeStrip(led.count, brightness=led.brightness.normal)
     return neopixel.NeoPixel(pin, led.count, brightness=led.brightness.normal, pixel_order=order, auto_write=False)

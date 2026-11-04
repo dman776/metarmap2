@@ -2,12 +2,11 @@
 Drives the LED strip: turns the active visualizer's looks into animations and runs them.
 """
 
+import logging
 import threading
 import time
-import traceback
 from contextlib import contextmanager
 
-import metarmap.lib.safe_logging as safe_logging
 from metarmap.clock import Clock
 from metarmap.leds.animations import animation_for
 from metarmap.models import Look
@@ -20,6 +19,8 @@ from adafruit_led_animation.helper import PixelSubset
 from adafruit_led_animation.animation.pulse import Pulse
 from adafruit_led_animation.animation.rainbowcomet import RainbowComet
 from adafruit_led_animation.color import WHITE
+
+log = logging.getLogger(__name__)
 
 # The animations decide when each effect moves on (the fastest changes every 0.1 s); between frames the loop rests,
 # instead of asking them "is it time yet?" thousands of times a second, which used a whole CPU core.
@@ -128,11 +129,11 @@ class Renderer(object):
                         break
                 time.sleep(FRAME_SECONDS)  # outside the lock, so locate() and the web UI can get in
         except Exception as e:
-            safe_logging.safe_log("render error: " + str(e))
+            log.warning("render error: " + str(e))
             time.sleep(FRAME_SECONDS)  # the main loop calls render() again at once: no hot loop of errors
 
     def update_data(self, metars):
-        safe_logging.safe_log("updating data in the renderer")
+        log.info("updating data in the renderer")
         self._metars = metars
         self._rebuild()
 
@@ -187,7 +188,7 @@ class Renderer(object):
                 return
             self.animate_once(Pulse(self._pix[int(pixnum)], speed=0.1, period=1, color=WHITE), False)
         except Exception as e:
-            safe_logging.safe_log(f"locate {pixnum}: {e}\n{traceback.format_exc()}")
+            log.exception(f"locate {pixnum}: {e}")
 
     # ---- visualizers ------------------------------------------------------------------------------------------
 
@@ -293,7 +294,7 @@ class Renderer(object):
         return level_at(self._clock.now(), self._sun.times)
 
     def adjust_brightness_for_time(self):
-        safe_logging.safe_log("adjust brightness for time")
+        log.info("adjust brightness for time")
         self.brightness(self.brightness_for(self._clock.now()))
 
     def test_pattern(self):
