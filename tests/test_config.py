@@ -319,3 +319,169 @@ def test_a_new_code_clears_the_old_name(config):
     config.set_airport(1, "name", "Bush")
     config.set_airport(1, "code", "kiah")  # the same code: the name stays
     assert config.airports[1].name == "Bush"
+
+
+# ---- change events ----------------------------------------------------------------------------------------------
+
+
+def listen(config, patterns="*"):
+    """Every publish a subscriber to `patterns` gets, as a list of key lists."""
+    heard = []
+    config.subscribe(patterns, heard.append)
+    return heard
+
+
+def test_an_edit_publishes_its_key(config):
+    heard = listen(config)
+    config.edit("led.pin", "13")
+    assert heard == [["led.pin"]]
+
+
+def test_an_edit_that_changes_nothing_publishes_nothing(config):
+    heard = listen(config)
+    config.edit("led.pin", str(config.data.led.pin))
+    assert heard == []
+
+
+def test_a_rejected_edit_publishes_nothing(config):
+    heard = listen(config)
+    with pytest.raises(ValueError):
+        config.edit("led.pin", "7")
+    with pytest.raises(KeyError):
+        config.edit("led.nothing", "1")
+    assert heard == []
+
+
+@pytest.mark.parametrize("key", ["dev_mode", "visualizer.numbering"])
+def test_settings_only_config_json_changes_are_refused(config, key):
+    with pytest.raises(ValueError):
+        config.edit(key, "true" if key == "dev_mode" else "1")
+
+
+def test_patterns(config):
+    exact, quiet, several = (
+        listen(config, "led.pin"),
+        listen(config, "led.quiet_hours.*"),
+        listen(config, ("tfr.nearby_nm", "led.quiet_hours.end")),
+    )
+    config.edit("led.pin", "13")
+    config.edit("led.quiet_hours.start", "22:00")
+    config.edit("led.quiet_hours.end", "06:00")
+    config.edit("tfr.nearby_nm", "20")
+    assert exact == [["led.pin"]]
+    assert quiet == [["led.quiet_hours.start"], ["led.quiet_hours.end"]]
+    assert several == [["led.quiet_hours.end"], ["tfr.nearby_nm"]]
+
+
+def test_subscribers_run_in_order(config):
+    order = []
+    config.subscribe("*", lambda keys: order.append("first"))
+    config.subscribe("*", lambda keys: order.append("second"))
+    config.edit("led.pin", "13")
+    assert order == ["first", "second"]
+
+
+def test_one_change_with_several_keys_is_one_publish(config):
+    heard = listen(config)
+    config.set_airport(0, "code", "KDWH")  # KHOU had a name, which goes with it
+    assert heard == [["airports.code", "airports.name"]]
+
+
+def test_a_nested_change_publishes_once(config):
+    heard = listen(config)
+    config.edit_airport("KIAH", "KDWH")  # edit_airport -> set_airport, both locked
+    assert heard == [["airports.code"]]
+
+
+def test_subscribers_run_after_the_lock_is_released(config):
+    import threading
+
+    seen = []
+
+    def check(keys):
+        # another thread can take the lock: the change is finished and saved
+        t = threading.Thread(target=lambda: seen.append(config._lock.acquire(timeout=1) and config._lock.release()))
+        t.start()
+        t.join()
+        seen.append(json.loads(open(config._file).read())["led"]["pin"])
+
+    config.subscribe("led.pin", check)
+    config.edit("led.pin", "13")
+    assert seen == [None, 13]  # acquire() worked (release() returns None), and the file has the new pin
+
+
+def test_a_subscriber_can_change_the_config(config):
+    config.subscribe("led.pin", lambda keys: config.edit("led.order", "RGB"))
+    heard = listen(config, "led.order")
+    config.edit("led.pin", "13")
+    assert config.data.led.order == "RGB"
+    assert heard == [["led.order"]]
+
+
+def test_a_failing_subscriber_is_logged_and_the_others_run(config, monkeypatch):
+    logged, heard = [], []
+    monkeypatch.setattr("metarmap.config.safe_log", logged.append)
+
+    def fail(keys):
+        raise RuntimeError("boom")
+
+    config.subscribe("*", fail)
+    config.subscribe("*", heard.append)
+    config.edit("led.pin", "13")
+    assert config.data.led.pin == 13
+    assert heard == [["led.pin"]]
+    assert "after changing led.pin: boom" in logged[0]
+
+
+@pytest.mark.parametrize(
+    "change, keys",
+    [
+        (lambda c: c.set_airport(1, "code", "KDWH"), ["airports.code"]),
+        (lambda c: c.set_airport(0, "name", "Houston Hobby"), ["airports.name"]),
+        (lambda c: c.set_airport(1, "display", "true"), ["airports.display"]),
+        (lambda c: c.move_airport(0, 2), ["airports.order"]),
+        (lambda c: c.fill_names({"KIAH": "Bush"}), ["airports.name"]),
+        (lambda c: c.edit_airport_property("KHOU", "visits", "3"), ["airports.other"]),
+        (lambda c: c.set_led_count(5), ["led.count"]),
+        (lambda c: c.set_virtual_count(2), ["led.virtual_count"]),
+        (lambda c: c.edit("led.count", "3"), ["led.count"]),
+        (lambda c: c.set_login("Pilot", "secret"), ["web_server.user", "web_server.password"]),
+    ],
+)
+def test_airport_and_other_changes_publish(config, change, keys):
+    heard = listen(config)
+    change(config)
+    assert heard == [keys]
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        lambda c: c.set_airport(0, "code", "KHOU"),
+        lambda c: c.set_airport(0, "name", "Hobby"),
+        lambda c: c.set_airport(0, "display", "true"),
+        lambda c: c.move_airport(1, 1),
+        lambda c: c.fill_names({"KHOU": "Not used: Hobby has a name"}),
+        lambda c: c.set_led_count(4),
+        lambda c: c.set_virtual_count(0),
+        lambda c: c.set_login("metar"),
+    ],
+)
+def test_airport_changes_that_change_nothing_publish_nothing(config, change):
+    heard = listen(config)
+    change(config)
+    assert heard == []
+
+
+def test_mock_metars_publish(config):
+    config.data.dev_mode = True
+    heard = listen(config)
+    metar = "METAR KHOU 272353Z 18010KT 10SM CLR 25/15 A3000"
+    config.set_mock_metar(0, metar)
+    config.set_mock_metar(0, metar)  # the same again: nothing changes
+    config.set_mock_metar(0, "")
+    assert heard == [["airports.mock"], ["airports.mock"]]
+    config.set_mock_metar(0, metar)
+    heard.clear()
+    config.set_airport(0, "code", "KDWH")  # the mock was the old airport's
+    assert heard == [["airports.code", "airports.name", "airports.mock"]]

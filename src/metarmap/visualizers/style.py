@@ -91,8 +91,8 @@ def has_lightning(metar) -> bool:
 
 
 def lightning_color(settings):
-    """lightning.color's name and LED color; yellow for a name the map doesn't know (a hand-edited config.json)."""
-    name = settings.lightning.color if settings.lightning.color in LIGHTNING_COLORS else "yellow"
+    """lightning.color's name and LED color (one of settings.LIGHTNING_COLORS: its Rule checks it)."""
+    name = settings.lightning.color
     return name, LIGHTNING_COLORS[name]
 
 

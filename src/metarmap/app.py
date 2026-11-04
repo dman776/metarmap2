@@ -7,6 +7,7 @@ run() starts the web server and the OLED loop and drives the LEDs until stopped.
 """
 
 import argparse
+import fnmatch
 import signal
 import sys
 import threading
@@ -55,12 +56,6 @@ class App:
     advisories: Optional[Advisories] = None  # G-AIRMETs and SIGMETs, for Advisories (fetched with the METARs)
     tfrs: Optional[Tfrs] = None  # TFRs, for the TFR visualizer (fetched in the background with the METARs)
 
-    def schedule_rotation(self):
-        schedule_rotation(self)
-
-    def schedule_quiet_hours(self):
-        schedule_quiet_hours(self)
-
 
 # ---- building ------------------------------------------------------------------------------------------------
 
@@ -103,6 +98,7 @@ def build(config_file=CONFIG_FILE, strip=None, screen=None, clock: Clock = None,
     app = App(config, sun, metars, renderer, display, schedule.Scheduler(), releases, traffic, advisories, tfrs)
     fill_names(app)
     schedule_jobs(app)
+    wire_config(app)
     if fetch:
         fetch_tfrs(app)  # in the background: the first list has a few dozen details to fetch
     return app
@@ -127,6 +123,83 @@ def schedule_rotation(app: App):
     rotate = app.config.data.visualizer.auto_rotate
     if rotate.enabled:
         app.scheduler.every(rotate.delay_seconds).seconds.do(rotate_visualizer, app).tag("rotate_visualizer")
+
+
+# ---- following config changes ----------------------------------------------------------------------------------
+
+# changes that don't change what the LEDs show
+NOT_ON_LEDS = ("airports.name", "web_server.*")
+# changes to what the OLED loop shows, or in which order; it starts over with the new list (names aren't on it)
+OLED_AIRPORTS = (
+    "airports.code",
+    "airports.display",
+    "airports.order",
+    "airports.mock",
+    "led.count",
+    "led.virtual_count",
+)
+
+
+def wire_config(app: App):
+    """
+    What each config change does right away, so none needs a restart. Config publishes the keys that changed
+    (config.Config.subscribe); the web routes only change the config. In order: a reaction that needs another's
+    result comes after it (the strip is resized and the METARs reprocessed before the LEDs are refreshed).
+    """
+    on = app.config.subscribe
+    renderer = app.renderer
+
+    # the in-memory strip changes now; a NeoPixel strip after a restart
+    on("led.count", lambda keys: renderer.resize(app.config.data.led.count))
+    # reprocessed: the TFRs near each airport, measured with the new distance; a mock METAR in place of the real one
+    on(("tfr.nearby_nm", "airports.mock"), lambda keys: show_tfrs(app))
+    on("*", lambda keys: renderer.refresh() if any(not _matches(k, NOT_ON_LEDS) for k in keys) else None)
+    on("visualizer.auto_rotate.*", lambda keys: schedule_rotation(app))
+    on("led.quiet_hours.*", lambda keys: (schedule_quiet_hours(app), renderer.adjust_brightness_for_time()))
+    # the level in use now changes now; the others at their time
+    on("led.brightness.*", lambda keys: brightness_changed(app, keys))
+    # shows what it looks like, without a restart
+    on("led.inittest", lambda keys: show_test_pattern(app) if app.config.data.led.inittest else None)
+    on(("update.channel", "update.branch"), lambda keys: check_releases(app))  # "Update available" follows it
+    on("display_screen.enabled", lambda keys: display_enabled(app))
+    on(OLED_AIRPORTS, lambda keys: app.display.restart(timeout=15))
+    on("airports.code", lambda keys: airport_codes_changed(app))
+
+
+def _matches(key, patterns):
+    return any(fnmatch.fnmatchcase(key, p) for p in patterns)
+
+
+def brightness_changed(app: App, keys):
+    if any(k.rsplit(".", 1)[1] == app.renderer.scheduled_level() for k in keys):
+        app.renderer.adjust_brightness_for_time()
+
+
+def show_test_pattern(app: App):
+    threading.Thread(target=app.renderer.test_pattern, name="test-pattern", daemon=True).start()
+
+
+def display_enabled(app: App):
+    """display_screen.enabled: the OLED turns on or off now."""
+    app.display.turn_on() if app.config.data.display_screen.enabled else app.display.turn_off()
+
+
+def airport_codes_changed(app: App):
+    """
+    A new airport code: its name now (looked up if need be), so the Airports page shows it when it reloads; its
+    METAR in the background.
+    """
+    unnamed = {a.code for a in app.config.airports if a.code and not a.name}
+    app.config.fill_names({code: app.metars.name_for(code) for code in unnamed})
+    threading.Thread(target=refetch_metars, args=(app,), name="fetch", daemon=True).start()
+
+
+def refetch_metars(app: App):
+    """Only the METARs (an airport changed), not the advisories and TFRs that update_data() also fetches."""
+    with app.renderer.dimmed():
+        app.metars.fetch()
+    app.renderer.update_data(app.metars)
+    fill_names(app)
 
 
 # ---- scheduled jobs ------------------------------------------------------------------------------------------

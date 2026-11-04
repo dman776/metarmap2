@@ -11,7 +11,7 @@ import time
 import bottle
 
 from metarmap import system
-from metarmap.config import parse_code, parse_user
+from metarmap.config import parse_user
 from metarmap.lib import utils, versions
 from metarmap.lib.safe_logging import safe_log
 from metarmap.web import pages
@@ -129,7 +129,6 @@ def add_routes(app, services, site, auth, updates=None):
         if state not in ("on", "off"):
             bottle.abort(400, "Use /visualizer/auto_rotate/on or /visualizer/auto_rotate/off")
         config.edit("visualizer.auto_rotate.enabled", "true" if state == "on" else "false")
-        services.schedule_rotation()
         return pages.index(services, site)
 
     def brightness(level):
@@ -163,75 +162,29 @@ def add_routes(app, services, site, auth, updates=None):
             bottle.abort(400, f"Unknown setting: {key}")
         except ValueError as e:
             bottle.abort(400, str(e))
-        if key == "led.count":  # the in-memory strip changes now; a NeoPixel strip after a restart
-            renderer.resize(config.data.led.count)
-        if key == "tfr.nearby_nm":  # the TFRs near each airport, measured again with the new distance
-            services.metars.apply_mocks()
-        renderer.refresh()
-        if key.startswith("visualizer.auto_rotate."):  # the new timer starts now, no restart needed
-            services.schedule_rotation()
-        if key.startswith("led.quiet_hours."):
-            services.schedule_quiet_hours()
-            renderer.adjust_brightness_for_time()
-        if key.startswith("led.brightness.") and key.rsplit(".", 1)[1] == renderer.scheduled_level():
-            renderer.adjust_brightness_for_time()  # the level in use now changes now; the others at their time
-        if key == "led.inittest" and config.data.led.inittest:  # shows what it looks like, without a restart
-            threading.Thread(target=renderer.test_pattern, name="test-pattern", daemon=True).start()
-        if key in ("update.channel", "update.branch") and releases is not None:  # "Update available" follows it
-            releases.check_soon()
-        if key == "display_screen.enabled":  # the OLED turns on or off now, no restart needed
-            services.display.turn_on() if config.data.display_screen.enabled else services.display.turn_off()
         return pages.config(services, site)
 
-    def airports_changed(fetch=False):
-        # show the change on the LEDs and the OLED; a new airport code needs its METAR
-        renderer.refresh()
-        if services.display:
-            services.display.restart(timeout=15)
-        if fetch:
-            threading.Thread(target=fetch_metars, name="fetch", daemon=True).start()
-        return bottle.redirect("/config/airports")
-
-    def fetch_metars():
-        with renderer.dimmed():
-            services.metars.fetch()
-        renderer.update_data(services.metars)
-        config.fill_names(services.metars.station_names())
-
-    def name_new_code(code):
-        """A changed airport gets its new airport's name now, so the page shows it when it reloads."""
-        name = services.metars.name_for(code)
-        if name:
-            config.fill_names({code: name})
-
-    def edit_airports(change, fetch=False):
-        """Runs one airport change; unknown LEDs and airports are 404s, bad values 400s."""
+    def edit_airports(change):
+        """
+        Runs one airport change; unknown LEDs and airports are 404s, bad values 400s. The LEDs, the OLED and a new
+        airport's name and METAR follow it (app.wire_config).
+        """
         try:
             change()
         except (IndexError, KeyError) as e:
             bottle.abort(404, f"No such LED or airport: {e}")
         except ValueError as e:
             bottle.abort(400, str(e))
-        return airports_changed(fetch)
+        return bottle.redirect("/config/airports")
 
     def set_airport(pixel, key, value):
-        def change():
-            config.set_airport(pixel, key, value)
-            new_code = config.airports[int(pixel)].code
-            if key == "code" and new_code:
-                name_new_code(new_code)
-
-        return edit_airports(change, fetch=key == "code")
+        return edit_airports(lambda: config.set_airport(pixel, key, value))
 
     def move_airport(src, dst):
         return edit_airports(lambda: config.move_airport(src, dst))
 
     def edit_airport(oldkey, newkey):
-        def change():
-            config.edit_airport(oldkey, newkey)
-            name_new_code(parse_code(newkey))
-
-        return edit_airports(change, fetch=True)
+        return edit_airports(lambda: config.edit_airport(oldkey, newkey))
 
     def edit_airport_property(airport, key, value):
         return edit_airports(lambda: config.edit_airport_property(airport, key, value))
@@ -259,10 +212,6 @@ def add_routes(app, services, site, auth, updates=None):
             bottle.abort(400, str(e))
         except IndexError:
             bottle.abort(404, f"No LED {data.get('pixel')}")
-        services.metars.apply_mocks()
-        renderer.update_data(services.metars)
-        if services.display:
-            services.display.restart(timeout=15)
         code = config.airports[pixel].code
         shown = services.metars.data.get(code) or {}
         return as_json(
