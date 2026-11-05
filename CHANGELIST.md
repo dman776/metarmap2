@@ -1,3 +1,12 @@
+### Unreleased
+
+- **One palette for the LED colors** (inside the code; every LED looks as before):
+  - `lib/colors.py` writes its colors in ordinary RGB (`RED = (255, 0, 0)`) and gives the LEDs their (green, red,
+    blue) order in one place, `color(NAME)`
+  - No color is written as a raw tuple anywhere else: the flight category colors (LIFR is `DARK_MAGENTA`),
+    precipitation, lightning, chase, rainbow, the startup sequences and the renderer use named colors
+  - Five color names and four helpers nothing used are gone
+
 ### dman776 26.11.04 (2026-11-04)
 
 - **Calendar version numbers**: releases from now on are named by date, `vYY.MM.DD` (`v26.11.04`), with `.1`, `.2`...

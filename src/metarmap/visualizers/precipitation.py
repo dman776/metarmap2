@@ -22,16 +22,16 @@ log = logging.getLogger(__name__)
 
 MIXED_PERIOD = 2.0  # seconds per alternation of two kinds of precipitation
 
-# in the strip's GRB order (see lib/colors.py)
-RAIN = (0, 0, 255)  # blue
-SNOW = (255, 255, 255)  # white
-ICE = (255, 0, 255)  # cyan
-HAZARD = (0, 255, 255)  # magenta
-UNKNOWN = (126, 255, 0)  # orange
-FOG = (15, 15, 15)  # gray
-SMOKE = (75, 75, 75)  # gray
-HAZE = (5, 5, 5)  # dark gray
-MIST = (0, 0, 15)  # dark blue
+RAIN = colors_lib.color(colors_lib.BLUE)
+SNOW = colors_lib.color(colors_lib.WHITE)
+ICE = colors_lib.color(colors_lib.CYAN)
+HAZARD = colors_lib.color(colors_lib.MAGENTA)
+UNKNOWN = colors_lib.color(colors_lib.ORANGE)
+# the obscurations are shades of gray, and mist a very dim blue
+FOG = style.dim(colors_lib.color(colors_lib.GRAY), 0.3)
+SMOKE = style.dim(colors_lib.color(colors_lib.GRAY), 1.5)  # brighter than gray
+HAZE = style.dim(colors_lib.color(colors_lib.GRAY), 0.1)
+MIST = style.dim(RAIN, 0.06)
 
 # kinds of weather, most significant first: (kind, METAR codes, color)
 KINDS = [
@@ -128,7 +128,7 @@ def legend(settings):
         legend_item(
             "Weather codes the map doesn't know",
             "Slow red blink",
-            colors_lib.get_colors()[colors_lib.RED],
+            colors_lib.color(colors_lib.RED),
             effect="blink",
             period=style.MISSING_PERIOD,
         ),

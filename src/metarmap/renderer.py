@@ -7,6 +7,7 @@ import threading
 import time
 from contextlib import contextmanager
 
+import metarmap.lib.colors as colors_lib
 from metarmap.clock import Clock
 from metarmap.leds import intro
 from metarmap.leds.animations import animation_for
@@ -175,7 +176,7 @@ class Renderer:
         return True
 
     def clear(self):
-        self._pixels.fill((0, 0, 0))
+        self._pixels.fill(colors_lib.color(colors_lib.OFF))
         self._pixels.show()
 
     def animate_once(self, effect, clear=True):

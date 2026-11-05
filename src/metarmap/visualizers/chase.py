@@ -6,17 +6,18 @@ import metarmap.lib.colors as colors_lib
 from metarmap.models import Look
 from metarmap.visualizers.visualizer import Visualizer, legend_item
 
+BLUE = colors_lib.color(colors_lib.BLUE)
+
 
 def legend(settings):
-    c = colors_lib.get_colors()
     return [
-        legend_item("All LEDs", "Blue, lighting in sequence", c[colors_lib.BLUE], effect="chase", period=1),
+        legend_item("All LEDs", "Blue, lighting in sequence", BLUE, effect="chase", period=1),
     ]
 
 
 def strip_look(settings) -> Look:
     # one lit LED, then the rest of the strip dark, so it walks every LED in turn
-    return Look.chase([0, 0, 255], step=0.1, size=1, spacing=settings.led.count - 1)
+    return Look.chase(BLUE, step=0.1, size=1, spacing=settings.led.count - 1)
 
 
 VISUALIZER = Visualizer(

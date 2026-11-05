@@ -9,6 +9,7 @@ of the two reported, the real category could be worse than the estimate, never b
 
 from typing import Optional
 
+import metarmap.lib.colors as colors_lib
 from metarmap.decode import estimate_category
 from metarmap.models import FlightCategory as Category, Look, Report
 from metarmap.visualizers import style
@@ -17,14 +18,13 @@ from metarmap.visualizers.visualizer import Visualizer, legend_item
 
 ESTIMATE_PERIOD = 4.0  # seconds per breath of an estimated category
 
-# in the strip's GRB order (see lib/colors.py)
 COLORS = {
-    Category.VFR: (255, 0, 0),  # green
-    Category.MVFR: (0, 0, 255),  # blue
-    Category.IFR: (0, 255, 0),  # red
-    Category.LIFR: (0, 125, 125),  # purple
+    Category.VFR: colors_lib.color(colors_lib.GREEN),
+    Category.MVFR: colors_lib.color(colors_lib.BLUE),
+    Category.IFR: colors_lib.color(colors_lib.RED),
+    Category.LIFR: colors_lib.color(colors_lib.DARK_MAGENTA),  # purple
 }
-OFF = (0, 0, 0)
+OFF = colors_lib.color(colors_lib.OFF)
 
 
 def legend(settings):

@@ -8,13 +8,12 @@ from metarmap.visualizers.visualizer import Visualizer, legend_item
 
 
 def legend(settings):
-    c = colors_lib.get_colors()
     return [
         legend_item(
             "All LEDs",
             "Cycle through the colors of the rainbow",
             *(
-                c[n]
+                colors_lib.color(n)
                 for n in (
                     colors_lib.RED,
                     colors_lib.ORANGE,
