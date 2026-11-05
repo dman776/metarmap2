@@ -1,5 +1,9 @@
 ### Unreleased
 
+- **Config page groups**: settings that belong to a switch sit indented under it, with a line down their left side,
+  and are hidden while it's off: Startup sequence (Sequence, and Sweep direction only for Sweep), Quiet hours,
+  the OLED's Enabled, Lightning animation, Auto-rotate and, for the Branch update channel, the branch. The three
+  brightness sliders are grouped under a Brightness heading
 - **The update code has its own module** (inside the code; updating works as before): `run_update()`, `run_git()`,
   `install_newest_release()` and `restart()` moved from `lib/utils.py` to `update.py`, next to `releases.py`, which
   checks what's newest. `install.sh` calls it from there
