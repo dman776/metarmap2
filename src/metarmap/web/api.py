@@ -6,7 +6,7 @@ See API.md; the field names are part of the API.
 
 import json
 import time
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import bottle
 
@@ -15,6 +15,9 @@ from metarmap.decode import decode, summary
 from metarmap.models import Report
 from metarmap.visualizers import advisories as advisories_vis, tfr as tfr_vis, visualizer, wind_direction
 from metarmap.web import views
+
+if TYPE_CHECKING:  # app.py imports the web, so only for the type checker
+    from metarmap.app import App
 
 # each airport's report fields in /api/status (Report.to_api()'s names), in this order
 STATUS_FIELDS = (
@@ -33,7 +36,7 @@ STATUS_FIELDS = (
 )
 
 
-def status(services, ip):
+def status(services: "App", ip):
     """
     Read-only snapshot of the map state.
     """
@@ -105,7 +108,7 @@ def status(services, ip):
         },
         "display": {"enabled": cfg.display_screen.enabled, "on": cfg.display_screen.enabled and services.display.on},
         "suntimes": {k: iso(suntimes.get(k)) for k in ("dawn", "sunrise", "sunset", "dusk")},
-        "build": getattr(getattr(services, "releases", None), "build", None),
+        "build": services.releases.build if services.releases else None,
         "update": update_state(services),
         "lastFetchTime": iso(metars.lastFetchTime),
         "missingStations": metars.missing_stations(),
@@ -113,9 +116,9 @@ def status(services, ip):
     }
 
 
-def update_state(services):
+def update_state(services: "App"):
     """What's newest on GitHub (see metarmap.releases); null for a map without the check."""
-    releases = getattr(services, "releases", None)
+    releases = services.releases
     if releases is None:
         return None
     state = releases.state()
@@ -139,20 +142,15 @@ def wind_barb(metar: Optional[Report]):
     return {"dir": direction, "kt": speed}
 
 
-def auto_rotate(services):
+def auto_rotate(services: "App"):
     """Auto-rotate: whether it's on, its delay, and when it next changes the visualizer (Unix time; None when off)."""
+    from metarmap.app import next_rotation  # here: app.py imports the web
+
     rotate = services.config.data.visualizer.auto_rotate
-    scheduler = getattr(services, "scheduler", None)
-    runs = [j.next_run for j in scheduler.get_jobs("rotate_visualizer")] if scheduler is not None else []
-    runs = [r for r in runs if r is not None]
-    return {
-        "enabled": rotate.enabled,
-        "seconds": rotate.delay_seconds,
-        "next": min(runs).timestamp() if runs else None,  # schedule's times are the map's local time
-    }
+    return {"enabled": rotate.enabled, "seconds": rotate.delay_seconds, "next": next_rotation(services)}
 
 
-def live(services, now=None):
+def live(services: "App", now=None):
     """
     What the physical map is doing right now: every LED's effect, the OLED screen and the last locate pulse.
     """
@@ -172,7 +170,7 @@ def live(services, now=None):
     for s in views.stations(
         services.config.airports,
         services.metars.data,
-        getattr(services.metars, "position", None),
+        services.metars.position,
         services.config.data.led.count,
     ):
         m = services.metars.data.get(s["code"])
@@ -214,7 +212,7 @@ def live(services, now=None):
     }
 
 
-def metar(services, code):
+def metar(services: "App", code):
     """
     One airport's METAR, raw and decoded (the Map page's popup). None if the airport isn't on the map.
     """
@@ -232,15 +230,15 @@ def metar(services, code):
     }
 
 
-def traffic(services):
+def traffic(services: "App"):
     """Live traffic around the airports (see metarmap.traffic); None for a map without it."""
-    found = getattr(services, "traffic", None)
+    found = services.traffic
     return found.snapshot() if found is not None else None
 
 
-def advisories(services):
+def advisories(services: "App"):
     """The G-AIRMET and SIGMET areas below 18,000 ft (metarmap.advisories), each with its color, for the Map page."""
-    found = getattr(services, "advisories", None)
+    found = services.advisories
     if found is None:
         return None
     state = found.state()
@@ -248,9 +246,9 @@ def advisories(services):
     return state
 
 
-def tfrs(services):
+def tfrs(services: "App"):
     """The TFRs in effect or starting within 24 hours (metarmap.tfr), each with its type's color, for the Map page."""
-    found = getattr(services, "tfrs", None)
+    found = services.tfrs
     if found is None:
         return None
     state = found.state()
@@ -263,7 +261,7 @@ def as_json(data):
     return json.dumps(data)
 
 
-def add_routes(app, services, site):
+def add_routes(app, services: "App", site):
     app.route("/api/status", "GET", lambda: as_json(status(services, site.ip)))
     app.route("/api/live", "GET", lambda: as_json(live(services)))
     app.route(

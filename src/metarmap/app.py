@@ -128,6 +128,12 @@ def schedule_rotation(app: App):
         app.scheduler.every(rotate.delay_seconds).seconds.do(rotate_visualizer, app).tag("rotate_visualizer")
 
 
+def next_rotation(app: App) -> Optional[float]:
+    """When auto-rotate next changes the visualizer (Unix time), or None when it's off."""
+    runs = [job.next_run for job in app.scheduler.get_jobs("rotate_visualizer") if job.next_run is not None]
+    return min(runs).timestamp() if runs else None  # schedule's times are the map's local time
+
+
 # ---- following config changes ----------------------------------------------------------------------------------
 
 # changes that don't change what the LEDs show
