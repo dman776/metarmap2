@@ -1,4 +1,4 @@
-### Unreleased
+### dman776 26.11.04 (2026-11-04)
 
 - **Calendar version numbers**: releases from now on are named by date, `vYY.MM.DD` (`v26.11.04`), with `.1`, `.2`...
   for another the same day. The update check, the Update button, the release picker and `install.sh` read both
