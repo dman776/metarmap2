@@ -9,6 +9,8 @@
   checks what's newest. `install.sh` calls it from there
   - Four helpers nothing used are gone from `lib/utils.py` (the old color `wheel` and three list and proportion
     functions)
+  - The city lookups behind the sun times and the OLED's time zone (`get_location()`, `get_sun_times()`) moved
+    from `lib/utils.py` to `sun.py`, which uses them
 - **A slow aviationweather.gov no longer holds up startup**: the map fetches the G-AIRMETs and SIGMETs in the
   background, as it already did the TFRs, and the Advisories visualizer shows them when they come (the log says how
   long they took). One restart had waited 21 seconds for them

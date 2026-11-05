@@ -1,8 +1,12 @@
 """
-Today's dawn, sunrise, sunset and dusk, and the LED brightness they set.
+Today's dawn, sunrise, sunset and dusk, and the LED brightness they set; the configured city (geo.city) they're
+for, which also gives the OLED its time zone.
 """
 
-from metarmap.lib import utils
+import logging
+from datetime import datetime
+
+log = logging.getLogger(__name__)
 
 # the brightness level (a led.brightness setting) that starts at each sun time
 LEVEL_AT = {"dawn": "dimmed", "sunrise": "normal", "sunset": "dimmed", "dusk": "off"}
@@ -16,7 +20,31 @@ class SunTimes:
         self.times = times or {}
 
     def reload(self):
-        self.times = utils.get_sun_times(self.city)
+        self.times = get_sun_times(self.city)
+
+
+def get_location(city):
+    """astral's LocationInfo for a city in its list (case doesn't matter), or None."""
+    import astral.geocoder  # here, not at the top: it takes a second to import on a Pi
+
+    try:
+        return astral.geocoder.lookup(str(city), astral.geocoder.database())
+    except KeyError:
+        return None
+
+
+def get_sun_times(city_name):
+    """
+    Today's {"dawn", "sunrise", "sunset", "dusk"} (and "noon") for a city in astral's list. geo.city's rule keeps
+    config.json's city one it knows; any other raises ValueError.
+    """
+    import astral.sun
+
+    city = get_location(city_name)
+    if city is None:
+        raise ValueError(f"{city_name!r} is not a city the sun times know (astral's list)")
+    log.info(str(city))
+    return astral.sun.sun(city.observer, date=datetime.now().date(), tzinfo=city.timezone)
 
 
 def level_at(now, times):

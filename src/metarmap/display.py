@@ -12,7 +12,7 @@ from typing import Optional
 from zoneinfo import ZoneInfo
 
 from metarmap.config import Config
-from metarmap.lib import utils
+from metarmap.sun import get_location
 from metarmap.clock import Clock
 from metarmap.oled.screens import airports_to_show, message_screen, pages_for, screen_for
 
@@ -55,7 +55,7 @@ class Display:
         self.locate_thread: Optional[threading.Thread] = None  # a delayed pulse, waiting or running
 
     def _local_timezone(self):
-        location = utils.get_location(self._config.data.geo.city)
+        location = get_location(self._config.data.geo.city)
         return ZoneInfo(location.timezone) if location else timezone.utc
 
     def _new_thread(self):
