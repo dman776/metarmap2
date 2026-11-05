@@ -24,13 +24,18 @@ class SunTimes:
 
 
 def get_location(city):
-    """astral's LocationInfo for a city in its list (case doesn't matter), or None."""
+    """
+    astral's LocationInfo for a city in its list (case doesn't matter), or None: for a name it doesn't have, and
+    for one of its group names (Europe, US, UTC...), which it answers with the group's cities instead of a city.
+    """
     import astral.geocoder  # here, not at the top: it takes a second to import on a Pi
+    from astral import LocationInfo
 
     try:
-        return astral.geocoder.lookup(str(city), astral.geocoder.database())
+        found = astral.geocoder.lookup(str(city), astral.geocoder.database())
     except KeyError:
         return None
+    return found if isinstance(found, LocationInfo) else None
 
 
 def get_sun_times(city_name):
