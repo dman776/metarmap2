@@ -278,6 +278,7 @@ def test_rule_of_a_setting_without_one():
         ("tfr", "nearby_nm", 500, 10),
         ("tfr", "nearby_nm", "far", 10),
         ("geo", "city", "Houstn", "Houston"),  # a city the sun times don't know would stop the map at startup
+        ("geo", "city", "Europe", "Houston"),  # nor would one of astral's group names, which is no city
     ],
 )
 def test_a_value_its_rule_rejects_is_reset_on_load(section, key, value, default, caplog):
@@ -318,8 +319,9 @@ def test_any_city_the_sun_times_know_is_kept():
     assert Settings.from_dict(data).geo.city == "london"
 
 
-def test_setting_a_city_the_sun_times_dont_know_is_refused():
+@pytest.mark.parametrize("name", ["Houstn", "Europe", "us"])
+def test_setting_a_city_the_sun_times_dont_know_is_refused(name):
     s = Settings()
     with pytest.raises(ValueError, match="not a city the sun times know"):
-        s.set("geo.city", "Houstn")
+        s.set("geo.city", name)
     assert s.geo.city == "Houston"

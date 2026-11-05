@@ -1,5 +1,10 @@
 ### Unreleased
 
+- **`geo.city` can't be one of astral's group names any more**: `Europe`, `US`, `UTC`, `Asia`, `Africa`, `America`,
+  `Atlantic`, `Australia`, `Brazil`, `Etc`, `Indian` and `Pacific` passed the check added in 26.11.04 (they're in
+  astral's list) but aren't cities, so the map stopped at startup with an `AttributeError`. A hand-edited one is now
+  reset to Houston when the map starts, setting one through `/config/edit/geo.city` is refused, and `install.sh`
+  asks for another city
 - **One palette for the LED colors** (inside the code; every LED looks as before):
   - `lib/colors.py` writes its colors in ordinary RGB (`RED = (255, 0, 0)`) and gives the LEDs their (green, red,
     blue) order in one place, `color(NAME)`

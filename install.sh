@@ -84,7 +84,8 @@ EOF
 }
 
 known_city() {
-    "$PYTHON" -c 'import sys, astral.geocoder as g; g.lookup(sys.argv[1], g.database())' "$1" 2>/dev/null
+    # a city, not one of astral's group names (Europe, US...), which lookup() answers with a dict of cities
+    "$PYTHON" -c 'import sys, astral.geocoder as g; from astral import LocationInfo; sys.exit(not isinstance(g.lookup(sys.argv[1], g.database()), LocationInfo))' "$1" 2>/dev/null
 }
 
 # ---- checks ---------------------------------------------------------------------------------------------------
