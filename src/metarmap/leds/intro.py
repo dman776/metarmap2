@@ -10,13 +10,14 @@ import math
 import random
 from typing import List, Optional, Sequence, Tuple
 
+import metarmap.lib.colors as colors_lib
 from metarmap.models import Look
 
 SECONDS = 3.0  # the whole sequence
 FADE_SECONDS = 0.5  # each LED's fade from dark to its color
 
-OFF = (0, 0, 0)
-WHITE = (255, 255, 255)
+OFF = colors_lib.color(colors_lib.OFF)
+WHITE = colors_lib.color(colors_lib.WHITE)
 
 # led.init_sequence's choices, with their names on the Config page
 NAMES = {  # in settings.INIT_SEQUENCES' order

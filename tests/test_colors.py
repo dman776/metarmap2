@@ -72,3 +72,28 @@ def test_the_palette_reads_as_rgb():
     for name, rgb in colors.PALETTE.items():
         if max(rgb) >= 90:  # to_css lifts dimmer ones so they show on screen
             assert colors.to_css(colors.color(name)) == "#{:02x}{:02x}{:02x}".format(*rgb), name
+
+
+def test_the_visualizers_named_colors_are_the_tuples_they_replaced():
+    """Each was a raw (green, red, blue) tuple in its visualizer; the named colors give the same LEDs."""
+    from metarmap.leds import animations, intro
+    from metarmap.models import FlightCategory as Category
+    from metarmap.visualizers import flightcategory, precipitation, style
+
+    assert flightcategory.COLORS == {
+        Category.VFR: (255, 0, 0),
+        Category.MVFR: (0, 0, 255),
+        Category.IFR: (0, 255, 0),
+        Category.LIFR: (0, 125, 125),
+    }
+    p = precipitation
+    assert (p.RAIN, p.SNOW, p.ICE, p.HAZARD, p.UNKNOWN) == (
+        (0, 0, 255),
+        (255, 255, 255),
+        (255, 0, 255),
+        (0, 255, 255),
+        (126, 255, 0),
+    )
+    assert (p.FOG, p.SMOKE, p.HAZE, p.MIST) == ((15, 15, 15), (75, 75, 75), (5, 5, 5), (0, 0, 15))
+    assert style.LIGHTNING_COLORS == {"yellow": (255, 255, 0), "white": (255, 255, 255)}
+    assert flightcategory.OFF == animations.OFF == intro.OFF == (0, 0, 0) and intro.WHITE == (255, 255, 255)

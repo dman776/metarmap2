@@ -34,7 +34,7 @@ MISSING_PERIOD = 2.0
 
 
 def named(name):
-    return colors_lib.get_colors()[name]
+    return colors_lib.color(name)
 
 
 def dim(color: Sequence[int], factor: float = DIM):
@@ -73,9 +73,9 @@ def by_intensity(color, intensity=MODERATE) -> Look:
 #
 # A double flicker, like real lightning: flash, the airport's look, flash, then its look until the next one.
 
-LIGHTNING = (255, 255, 0)  # yellow, in the strip's GRB order (see lib/colors.py); also Precipitation's thunderstorm
+LIGHTNING = colors_lib.color(colors_lib.YELLOW)  # also Precipitation's thunderstorm
 # lightning.color: the flash's color by name (settings.LIGHTNING_COLORS)
-LIGHTNING_COLORS = {"yellow": LIGHTNING, "white": (255, 255, 255)}
+LIGHTNING_COLORS = {"yellow": LIGHTNING, "white": colors_lib.color(colors_lib.WHITE)}
 LIGHTNING_STEP = 0.05  # seconds per frame
 LIGHTNING_EVERY = 2.0  # seconds from one flicker to the next
 FLICKER = (True, True, True, False, False, True, True, True)  # 0.15 s flash, 0.1 s back, 0.15 s flash
@@ -98,7 +98,7 @@ def lightning_color(settings):
 
 def color_at(look: Look, t: float):
     """The color an LED with `look` shows t seconds in (as the renderer and the web map draw it)."""
-    black = (0, 0, 0)
+    black = colors_lib.color(colors_lib.OFF)
     if look.effect == "blink":
         first = math.floor(t / (look.period / 2)) % 2 == 0
         return look.colors[0] if first else (look.colors[1] if len(look.colors) > 1 else black)

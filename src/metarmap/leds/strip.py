@@ -9,6 +9,10 @@ memory, so the whole map (and its web UI) can run on a laptop.
 import logging
 from typing import List, Sequence
 
+import metarmap.lib.colors as colors_lib
+
+OFF = colors_lib.color(colors_lib.OFF)
+
 log = logging.getLogger(__name__)
 
 
@@ -16,7 +20,7 @@ class FakeStrip(list):
     """An in-memory LED strip. Each item is the color last set for that LED."""
 
     def __init__(self, count: int, brightness: float = 1.0):
-        super().__init__([(0, 0, 0)] * count)
+        super().__init__([OFF] * count)
         self.n = count
         self.brightness = brightness
         self.auto_write = False
@@ -30,7 +34,7 @@ class FakeStrip(list):
 
     def resize(self, count: int) -> None:
         """Changes the number of LEDs. New ones start dark. (A real strip's length is fixed until a restart.)"""
-        self[:] = self[:count] + [(0, 0, 0)] * (count - len(self))
+        self[:] = self[:count] + [OFF] * (count - len(self))
         self.n = count
 
     @property

@@ -11,9 +11,10 @@ from adafruit_led_animation.animation.pulse import Pulse
 from adafruit_led_animation.animation.rainbow import Rainbow
 from adafruit_led_animation.animation.solid import Solid
 
+import metarmap.lib.colors as colors_lib
 from metarmap.models import Look
 
-OFF = (0, 0, 0)
+OFF = colors_lib.color(colors_lib.OFF)
 PULSE_SPEED = 0.1  # seconds between pulse/rainbow frames
 PULSE_STEPS = 20  # brightness steps in a pulse that never goes dark
 
