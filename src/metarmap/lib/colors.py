@@ -1,3 +1,9 @@
+"""
+The map's colors. The palette is written in ordinary RGB, (red, green, blue), the way colors are usually written.
+The LED strip wants (green, red, blue): color() and get_colors() give that order, and everything that goes to the
+LEDs comes from them, so nothing else needs to know it. to_css() turns a strip color back into CSS for the web UI.
+"""
+
 RED = "RED"
 LIGHT_RED = "LIGHT RED"
 DARK_RED = "DARK RED"
@@ -12,37 +18,53 @@ YELLOW = "YELLOW"
 DARK_YELLOW = "DARK YELLOW"
 WHITE = "WHITE"
 MAGENTA = "MAGENTA"
+DARK_MAGENTA = "DARK MAGENTA"
 CYAN = "CYAN"
 PURPLE = "PURPLE"
 ORANGE = "ORANGE"
 OFF = "OFF"
 
+# (red, green, blue)
+PALETTE = {
+    RED: (255, 0, 0),
+    DARK_RED: (20, 0, 0),
+    LIGHT_RED: (255, 105, 180),
+    GREEN: (0, 255, 0),
+    DARK_GREEN: (0, 20, 0),
+    BLUE: (0, 0, 255),
+    LIGHT_BLUE: (51, 255, 255),
+    MAGENTA: (255, 0, 255),
+    DARK_MAGENTA: (125, 0, 125),  # LIFR
+    CYAN: (0, 255, 255),
+    OFF: (0, 0, 0),
+    DARK_GRAY: (1, 1, 1),
+    GRAY: (50, 50, 50),
+    LIGHT_GRAY: (128, 128, 128),
+    YELLOW: (255, 255, 0),
+    DARK_YELLOW: (20, 20, 0),
+    WHITE: (255, 255, 255),
+    PURPLE: (148, 0, 211),
+    ORANGE: (255, 126, 0),
+}
+
+
+def strip_order(rgb):
+    """An (red, green, blue) color in the LED strip's order, (green, red, blue)."""
+    r, g, b = rgb
+    return g, r, b
+
+
+COLORS = {name: strip_order(rgb) for name, rgb in PALETTE.items()}  # in the strip's order
+
+
+def color(name):
+    """A palette color by name, in the strip's order: color(RED) is (0, 255, 0)."""
+    return COLORS[name]
+
 
 def get_colors() -> dict:
-    """
-    Returns the GRB colors based on the config.
-    """
-
-    return {
-        RED: (0, 255, 0),
-        DARK_RED: (0, 20, 0),
-        LIGHT_RED: (105, 255, 180),
-        GREEN: (255, 0, 0),
-        DARK_GREEN: (20, 0, 0),
-        BLUE: (0, 0, 255),
-        LIGHT_BLUE: (255, 51, 255),
-        MAGENTA: (0, 255, 255),
-        CYAN: (255, 0, 255),
-        OFF: (0, 0, 0),
-        DARK_GRAY: (1, 1, 1),
-        GRAY: (50, 50, 50),
-        LIGHT_GRAY: (128, 128, 128),
-        YELLOW: (255, 255, 0),
-        DARK_YELLOW: (20, 20, 0),
-        WHITE: (255, 255, 255),
-        PURPLE: (0, 148, 211),
-        ORANGE: (126, 255, 0),
-    }
+    """Every palette color by name, in the strip's order."""
+    return dict(COLORS)
 
 
 def clamp(minimum, value, maximum):
@@ -191,8 +213,8 @@ def get_brightness_adjusted_color(color_to_render: list, brightness_adjustment: 
 
 def to_css(color) -> str:
     """
-    Converts a GRB color (as returned by get_colors() and stored in config.json)
-    to a CSS hex string for the web UI legend.
+    Converts a color in the strip's (green, red, blue) order, as color() gives it, to a CSS hex string for the
+    web UI.
     Very dim colors are lifted so they stay visible on screen.
 
     >>> to_css((255, 0, 0))
