@@ -1,5 +1,6 @@
 """Tests for building and running the whole map (metarmap.app) on an in-memory strip and screen."""
 
+import threading
 from collections import Counter
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -457,3 +458,30 @@ def test_names_are_filled_after_a_fetch(make_app, monkeypatch):
     monkeypatch.setattr(app.metars, "station_names", lambda: {first.code: "Somewhere Muni"})
     app_module.update_data(app)
     assert app.config.airports[0].name == "Somewhere Muni"
+
+
+def test_startup_doesnt_wait_for_the_advisories(tmp_path, monkeypatch):
+    """A slow aviationweather.gov (21 s once) held up the map; the advisories now come in the background."""
+    from metarmap import advisories, metar, tfr
+    from metarmap.leds.strip import FakeStrip
+    from metarmap.oled.screen import FakeScreen
+
+    release, fetched = threading.Event(), threading.Event()
+
+    def slow_fetch(self):
+        release.wait(10)
+        fetched.set()
+        return True
+
+    shown = threading.Event()
+    monkeypatch.setattr(advisories.Advisories, "fetch", slow_fetch)
+    monkeypatch.setattr(tfr.Tfrs, "fetch_soon", lambda self, then=None: None)
+    monkeypatch.setattr(metar.Reports, "fetch", lambda self, callback=None: True)
+    monkeypatch.setattr(app_module, "show_areas", lambda app: shown.set())
+    (tmp_path / "config.json").write_text((REPO / "config.json").read_text())
+
+    app_module.build(str(tmp_path / "config.json"), strip=FakeStrip(50), screen=FakeScreen())
+
+    assert not fetched.is_set()  # built while the advisories are still on their way
+    release.set()
+    assert shown.wait(5)  # then the LEDs show them
