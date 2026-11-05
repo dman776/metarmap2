@@ -66,7 +66,7 @@ def legend_item(label, detail, *colors, effect="solid", period=None, low=None):
     Args:
         label (str): what the entry represents (ie. "VFR", "5-10 kts")
         detail (str): how the LED looks (ie. "Green", "Purple to blue")
-        colors: GRB colors; two or more colors are drawn as a gradient. None/empty = LED off
+        colors: (green, red, blue) colors (lib/colors.py); two or more are drawn as a gradient. None/empty = LED off
         effect (str): solid, blink, pulse, flash (first color with flashes of the second), alternate (two colors in
             turn), chase or off
         period (float): seconds per blink/pulse cycle, if any

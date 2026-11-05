@@ -9,7 +9,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 import metarmap.lib.colors as colors_lib
 
-# A color as stored in config.json and lib/colors.py: (green, red, blue), each 0-255
+# A color as the LEDs take it, from lib/colors.py's color(): (green, red, blue), each 0-255
 Color = Tuple[int, int, int]
 
 
