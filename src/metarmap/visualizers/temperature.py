@@ -5,7 +5,7 @@ Temperature: colors each airport by its temperature, in a few bands from cold to
 from typing import Optional
 
 import metarmap.lib.colors as colors_lib
-import metarmap.lib.utils as utils
+from metarmap.lib.units import celsius_to_fahrenheit
 from metarmap.models import Look, Report
 from metarmap.visualizers import style
 from metarmap.visualizers.style import Band
@@ -33,7 +33,7 @@ def look(metar: Optional[Report], settings) -> Look:
         return style.no_report()
     if metar.temp_c is None:
         return style.missing()
-    return Look.solid(style.band_for(utils.celsius_to_fahrenheit(metar.temp_c), BANDS, settings))
+    return Look.solid(style.band_for(celsius_to_fahrenheit(metar.temp_c), BANDS, settings))
 
 
 VISUALIZER = Visualizer(

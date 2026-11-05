@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from fractions import Fraction
 from typing import TYPE_CHECKING, Optional, Sequence, Tuple
 
-from metarmap.lib import utils
+from metarmap.lib.units import celsius_to_fahrenheit
 
 if TYPE_CHECKING:  # models imports nothing from here, but metar imports both
     from metarmap.models import Report, SkyLayer
@@ -305,7 +305,7 @@ def clouds(layers: Sequence["SkyLayer"], vert_vis_ft=None):
 def temperature(celsius):
     if celsius is None:
         return None
-    return f"{celsius}°C / {utils.celsius_to_fahrenheit(celsius):.0f}°F"
+    return f"{celsius}°C / {celsius_to_fahrenheit(celsius):.0f}°F"
 
 
 def dewpoint(celsius, temperature_c=None):

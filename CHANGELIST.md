@@ -11,6 +11,8 @@
     functions)
   - The city lookups behind the sun times and the OLED's time zone (`get_location()`, `get_sun_times()`) moved
     from `lib/utils.py` to `sun.py`, which uses them
+  - `lib/utils.py` is gone: Celsius to Fahrenheit is in `lib/units.py`, and the startup ping in `app.py`, its only
+    user
 - **A slow aviationweather.gov no longer holds up startup**: the map fetches the G-AIRMETs and SIGMETs in the
   background, as it already did the TFRs, and the Advisories visualizer shows them when they come (the log says how
   long they took). One restart had waited 21 seconds for them

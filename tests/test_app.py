@@ -485,3 +485,18 @@ def test_startup_doesnt_wait_for_the_advisories(tmp_path, monkeypatch):
     assert not fetched.is_set()  # built while the advisories are still on their way
     release.set()
     assert shown.wait(5)  # then the LEDs show them
+
+
+def test_pingable(monkeypatch):
+    import subprocess
+
+    asked = []
+
+    def ping(cmd, **kwargs):
+        asked.append(cmd)
+        return subprocess.CompletedProcess(cmd, 0 if cmd[-1] == "8.8.8.8" else 2)
+
+    monkeypatch.setattr(app_module.subprocess, "run", ping)
+    assert app_module.pingable("8.8.8.8") is True
+    assert app_module.pingable("10.255.255.1") is False
+    assert asked[0] == ["ping", "-c", "1", "8.8.8.8"]
