@@ -15,9 +15,11 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import pytest
+import schedule
 
 from metarmap import __version__
 from metarmap import app as app_module
+from metarmap.app import App
 from metarmap.advisories import Advisories
 from metarmap.tfr import Tfrs
 from metarmap.leds.strip import FakeStrip
@@ -650,11 +652,17 @@ def services():
     ]
     config = SimpleNamespace(data=settings, airports=settings.airports)
     data = {"KHOU": metar("VFR", lightning=True), "KIAH": metar("IFR"), "KDKR": None}
-    metars = SimpleNamespace(data=data, lastFetchTime=datetime(2026, 10, 24, 12, 55), missing_stations=lambda: ["KDKR"])
+    metars = SimpleNamespace(
+        data=data,
+        lastFetchTime=datetime(2026, 10, 24, 12, 55),
+        missing_stations=lambda: ["KDKR"],
+        position=lambda code: None,
+    )
     sun = SunTimes("Houston", SUN)
     renderer = Renderer(FakeStrip(4), metars, config, [flightcategory.VISUALIZER, rainbow.VISUALIZER], sun)
     display = SimpleNamespace(screen={"kind": "message", "title": "MAP"}, on=True)
-    return SimpleNamespace(config=config, metars=metars, sun=sun, renderer=renderer, display=display)
+    # a map without the update check, traffic, advisories or TFRs
+    return App(config, sun, metars, renderer, display, schedule.Scheduler())
 
 
 def test_status(services):

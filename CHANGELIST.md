@@ -1,5 +1,11 @@
 ### Unreleased
 
+- **The web code and the rest of the map** (inside the code; the web UI and the API work as before):
+  - The web modules' `services` is typed as the map's `App`, and reads its parts directly instead of guessing
+    whether each one is there (`getattr(services, "releases", None)` and five more)
+  - When auto-rotate next changes the visualizer comes from `app.next_rotation()`, so `/api/live` no longer reads
+    the scheduler's jobs
+  - `GET /fetch` runs the same refetch as the map (`app.refetch_metars()`) instead of a copy of its steps
 - **Config page groups**: settings that belong to a switch sit indented under it, with a line down their left side,
   and are hidden while it's off: Startup sequence (Sequence, and Sweep direction only for Sweep), Quiet hours,
   the OLED's Enabled, Lightning animation, Auto-rotate and, for the Branch update channel, the branch. The three

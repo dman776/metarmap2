@@ -8,6 +8,7 @@ import logging
 import subprocess
 import threading
 import time
+from typing import TYPE_CHECKING
 
 import bottle
 
@@ -16,6 +17,9 @@ from metarmap.config import parse_user
 from metarmap import update
 from metarmap.lib import versions
 from metarmap.web import pages
+
+if TYPE_CHECKING:  # app.py imports the web, so only for the type checker
+    from metarmap.app import App
 
 log = logging.getLogger(__name__)
 
@@ -99,9 +103,9 @@ def as_json(data, status=200):
     return json.dumps(data)
 
 
-def add_routes(app, services, site, auth, updates=None):
+def add_routes(app, services: "App", site, auth, updates=None):
     renderer, config = services.renderer, services.config
-    releases = getattr(services, "releases", None)
+    releases = services.releases
     updates = updates or Updates()
     updates.channel = lambda: config.data.update_channel()
     updates.branch = lambda: config.data.update.branch
@@ -161,10 +165,9 @@ def add_routes(app, services, site, auth, updates=None):
         return ""
 
     def fetch():
-        with renderer.dimmed():
-            services.metars.fetch()
-        renderer.update_data(services.metars)
-        config.fill_names(services.metars.station_names())
+        from metarmap.app import refetch_metars  # here: app.py imports the web
+
+        refetch_metars(services)  # as the map does when an airport changes: dimmed, then the LEDs and the names
         return pages.index(services, site)
 
     def edit_config(key, value):

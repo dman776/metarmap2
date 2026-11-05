@@ -4,6 +4,7 @@ The web UI's pages. Each page function gathers its template's data from the map'
 
 import io
 import pprint
+from typing import TYPE_CHECKING
 
 from metarmap import system
 from metarmap.config import MAX_LEDS
@@ -12,17 +13,20 @@ from metarmap.settings import LED_ORDERS, LED_PINS, LIGHTNING_COLORS, TRAFFIC_SE
 from metarmap.web import views
 from metarmap.web.site import render
 
+if TYPE_CHECKING:  # app.py imports the web, so only for the type checker
+    from metarmap.app import App
 
-def stations(services):
+
+def stations(services: "App"):
     return views.stations(
         services.config.airports,
         services.metars.data,
-        getattr(services.metars, "position", None),
+        services.metars.position,
         services.config.data.led.count,
     )
 
 
-def index(services, site):
+def index(services: "App", site):
     s = stations(services)
     return render(
         site,
@@ -45,14 +49,14 @@ def index(services, site):
     )
 
 
-def metars(services, site):
+def metars(services: "App", site):
     s = stations(services)
     return render(
         site, "metars.tpl", stations=s, fetched=services.metars.lastFetchTime, cats=views.CATEGORIES, **views.summary(s)
     )
 
 
-def map_page(services, site):
+def map_page(services: "App", site):
     settings = views.map_settings(services.config.data.geo.map, site.sectionals, stations(services))
     return render(
         site,
@@ -63,7 +67,7 @@ def map_page(services, site):
     )
 
 
-def remote(services, site):
+def remote(services: "App", site):
     """A remote control for the map, laid out for an iPad in kiosk mode."""
     s = stations(services)
     return render(
@@ -80,12 +84,12 @@ def remote(services, site):
     )
 
 
-def legend(services, site):
+def legend(services: "App", site):
     """The active visualizer's legend on its own: the Map page swaps it in when the visualizer changes."""
     return render(site, "legend.tpl", legend=views.visualizer(services.renderer)["legend"])
 
 
-def debug(services, site):
+def debug(services: "App", site):
     renderer = services.renderer
     return render(
         site,
@@ -98,7 +102,7 @@ def debug(services, site):
     )
 
 
-def config(services, site):
+def config(services: "App", site):
     settings = views.map_settings(services.config.data.geo.map, site.sectionals, stations(services))
     return render(
         site,
@@ -121,7 +125,7 @@ def config(services, site):
     )
 
 
-def airports(services, site):
+def airports(services: "App", site):
     config = services.config
     count, virtual = config.data.led.count, config.data.led.virtual_count
     leds = views.leds(config.airports, count)
@@ -140,7 +144,7 @@ def airports(services, site):
     )
 
 
-def raw(services):
+def raw(services: "App"):
     data = services.metars.data
     buf = io.StringIO()
     buf.write("".join(f"<b>{s}</b>: {data[s].raw if data[s] else 'N/A'}<br />" for s in data.keys()))
@@ -148,11 +152,11 @@ def raw(services):
     return buf.getvalue()
 
 
-def raw_code(services, code):
+def raw_code(services: "App", code):
     return "<b>" + code + "</b>: " + services.metars.data[code].raw + "<br />"
 
 
-def add_routes(app, services, site, auth):
+def add_routes(app, services: "App", site, auth):
     app.route("/", "GET", lambda: index(services, site))
     app.route("/metars", "GET", lambda: metars(services, site))
     app.route("/map", "GET", lambda: map_page(services, site))

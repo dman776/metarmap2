@@ -79,6 +79,16 @@ def test_auto_rotate(make_app):
     assert app.renderer.visualizer[0] == 1
 
 
+def test_next_rotation(make_app):
+    """When auto-rotate next changes the visualizer, for /api/live; None while it's off."""
+    import time
+
+    app = make_app(**{"visualizer.auto_rotate.enabled": True, "visualizer.auto_rotate.delay_seconds": 30})
+    assert app_module.next_rotation(app) == pytest.approx(time.time() + 30, abs=5)
+    app.config.edit("visualizer.auto_rotate.enabled", "false")
+    assert app_module.next_rotation(app) is None
+
+
 def test_auto_rotate_leaves_out_the_skipped(make_app):
     app = make_app(**{"visualizer.auto_rotate.skip": '["wind", "wind_gusts"]'})
     app_module.rotate_visualizer(app)
