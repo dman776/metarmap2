@@ -72,9 +72,7 @@ def build(config_file=CONFIG_FILE, strip=None, screen=None, clock: Clock = None,
     sun.reload()
 
     log.info("Get weather for all airports...")
-    advisories = Advisories()
-    if fetch:
-        advisories.fetch()
+    advisories = Advisories()  # fetched in the background below: the map doesn't wait for them
     tfrs = Tfrs(nearby=lambda: config.data.tfr.nearby_nm)
     metars = Reports(config, fetch=fetch, clock=clock, advisories=advisories, tfrs=tfrs)
 
@@ -102,7 +100,10 @@ def build(config_file=CONFIG_FILE, strip=None, screen=None, clock: Clock = None,
     schedule_jobs(app)
     wire_config(app)
     if fetch:
-        fetch_tfrs(app)  # in the background: the first list has a few dozen details to fetch
+        # in the background, so a slow aviationweather.gov or FAA doesn't hold up the map; the LEDs show them when
+        # they come (the first TFR list has a few dozen details to fetch)
+        fetch_advisories_soon(app)
+        fetch_tfrs(app)
     return app
 
 
@@ -154,7 +155,7 @@ def wire_config(app: App):
     # the in-memory strip changes now; a NeoPixel strip after a restart
     on("led.count", lambda keys: renderer.resize(app.config.data.led.count))
     # reprocessed: the TFRs near each airport, measured with the new distance; a mock METAR in place of the real one
-    on(("tfr.nearby_nm", "airports.mock"), lambda keys: show_tfrs(app))
+    on(("tfr.nearby_nm", "airports.mock"), lambda keys: show_areas(app))
     on("*", lambda keys: renderer.refresh() if any(not _matches(k, NOT_ON_LEDS) for k in keys) else None)
     on("visualizer.auto_rotate.*", lambda keys: schedule_rotation(app))
     on("led.quiet_hours.*", lambda keys: (schedule_quiet_hours(app), renderer.adjust_brightness_for_time()))
@@ -225,13 +226,27 @@ def fetch_advisories(app: App):
         app.metars.apply_mocks()  # reapplied now, in case the METAR fetch after this fails
 
 
+def fetch_advisories_soon(app: App):
+    """At startup: the G-AIRMETs and SIGMETs in the background; the LEDs show them when they come."""
+
+    def fetch():
+        started = time.monotonic()
+        if app.advisories.fetch():
+            log.info(f"advisories fetched in {time.monotonic() - started:.1f}s")
+            show_areas(app)
+
+    if app.advisories is not None:
+        threading.Thread(target=fetch, name="advisories", daemon=True).start()
+
+
 def fetch_tfrs(app: App):
     """Fetches the TFRs in the background; the LEDs show them when it's done."""
     if app.tfrs is not None:
-        app.tfrs.fetch_soon(then=lambda: show_tfrs(app))
+        app.tfrs.fetch_soon(then=lambda: show_areas(app))
 
 
-def show_tfrs(app: App):
+def show_areas(app: App):
+    """The reports again, with the advisory and TFR areas each airport is in (or near), on the LEDs."""
     app.metars.apply_mocks()  # adds them to each report
     app.renderer.update_data(app.metars)
 

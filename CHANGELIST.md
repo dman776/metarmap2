@@ -1,5 +1,8 @@
 ### Unreleased
 
+- **A slow aviationweather.gov no longer holds up startup**: the map fetches the G-AIRMETs and SIGMETs in the
+  background, as it already did the TFRs, and the Advisories visualizer shows them when they come (the log says how
+  long they took). One restart had waited 21 seconds for them
 - **Startup sequences**: besides the rainbow Comet, the map can fade in to the visualizer from where each airport
   is, over 3 seconds:
   - **Center out** from the middle of the box around the airports to its edges, and **Edges in** the other way
