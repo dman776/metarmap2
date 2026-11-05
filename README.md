@@ -311,6 +311,18 @@ The code is the `metarmap` package in `src/metarmap/`:
 
 See [CHANGELIST.md](CHANGELIST.md).
 
+### Versions
+
+Releases are named by the date they're made, `vYY.MM.DD` (`v26.11.04`), with `.1`, `.2`... for another release
+the same day (`v26.11.04.1`). Releases up to `v3.2.0` used the older numbers; they sort below every date and can
+still be installed. A map on `3.2.0` or older only sees three-number releases, so the first release of a day is
+always a plain date.
+
+To make a release: set `__version__` in `src/metarmap/__init__.py` to the version (`"26.11.04"`), name the
+CHANGELIST's `### Unreleased` heading after it, commit, then tag it (`git tag v26.11.04`), push the tag and create
+the GitHub release from it. Python's packaging tools show the version without the zeros (`26.11.4`); the map shows
+it as written.
+
 ## Credits
 
 METARMap2 started from [prueker/METARMap](https://github.com/prueker/METARMap), Philip Rueker's Raspberry Pi METAR

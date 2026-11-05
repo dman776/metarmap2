@@ -447,6 +447,11 @@ def test_install_sh_is_valid_bash():
         ("v2.8.4", (2, 8, 4)),
         ("2.8.4", (2, 8, 4)),
         ("v10.0.12", (10, 0, 12)),
+        ("v26.11.04", (26, 11, 4)),  # calendar versions: YY.MM.DD
+        ("26.11.04", (26, 11, 4)),
+        ("v26.11.04.1", (26, 11, 4, 1)),  # another release the same day
+        ("v26.11.04-rc1", None),
+        ("v26.11.04.1.2", None),
         ("v2.9.0-rc1", None),
         ("nightly", None),
         ("v2.8", None),
@@ -460,6 +465,47 @@ def test_parse_version(text, version):
 
 def test_releases_newest_first():
     assert versions.releases(["v1.9.0", "nightly", "v1.10.0", "2.0.0", "v2.1.0-rc1"]) == ["2.0.0", "v1.10.0", "v1.9.0"]
+
+
+def test_calendar_versions_come_after_the_old_ones():
+    tags = ["v3.2.0", "v26.11.05", "v26.11.04.1", "v3.1.2", "v26.11.04", "v26.12.01", "v27.01.02"]
+    assert versions.releases(tags) == [
+        "v27.01.02",
+        "v26.12.01",
+        "v26.11.05",
+        "v26.11.04.1",
+        "v26.11.04",
+        "v3.2.0",
+        "v3.1.2",
+    ]
+    # a map on 3.2.0 sees the first calendar release as newer; it's three numbers, which 3.2.0's own check reads too
+    assert versions.is_newer("v26.11.04", "3.2.0") and len(versions.parse("v26.11.04")) == 3
+    assert versions.is_newer("v26.11.04.1", "26.11.04") and not versions.is_newer("v26.11.04", "26.11.04.1")
+    assert versions.same("v26.11.04", "26.11.04") and versions.same("v26.11.04", "26.11.4")  # padding doesn't matter
+    assert versions.is_newer("26.11.04", "v3.2.0")  # so on 26.11.04, the release picker marks v3.2.0 as older
+
+
+def test_a_3_2_0_map_moves_on_to_calendar_versions(repos):
+    """The jump from v3.2.0: the first dated release installs, then that day's .1, on the map's real git clone."""
+    release(repos, "v3.2.0", code="3.2.0")
+    update.run_update(str(repos.pi), current="1.0.0")
+    assert code(repos) == "VERSION = '3.2.0'\n"
+    release(repos, "v26.11.04", code="26.11.04")
+    result = update.run_update(str(repos.pi), current="3.2.0")
+    assert result.ok and result.target == "v26.11.04" and code(repos) == "VERSION = '26.11.04'\n"
+    release(repos, "v26.11.04.1", code="26.11.04.1")
+    result = update.run_update(str(repos.pi), current="26.11.04")
+    assert result.ok and result.target == "v26.11.04.1"
+    again = update.run_update(str(repos.pi), current="26.11.04.1")
+    assert again.message == "Already on the newest release (v26.11.04.1)"
+
+
+def test_a_map_on_3_2_0_or_older_sees_the_first_dated_release():
+    """What 3.2.0 and older read as a release: exactly three numbers. A plain date is; a .1 release isn't, yet."""
+    import re
+
+    old = re.compile(r"^v?(\d+)\.(\d+)\.(\d+)$")  # versions.py up to 3.2.0
+    assert old.match("v26.11.04") and not old.match("v26.11.04.1")
 
 
 def test_is_newer():
