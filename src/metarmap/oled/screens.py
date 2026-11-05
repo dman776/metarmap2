@@ -15,7 +15,7 @@ A screen is a dict:
 
 from typing import Optional
 
-import metarmap.lib.utils as utils
+from metarmap.lib.units import celsius_to_fahrenheit
 from metarmap.decode import estimate_category
 from metarmap.models import Report
 
@@ -57,7 +57,7 @@ def visibility_text(data: Report):
 def temp_text(celsius):
     if celsius is None:
         return None
-    return "{0}\N{DEGREE SIGN}C / {1:.0f}\N{DEGREE SIGN}F".format(celsius, utils.celsius_to_fahrenheit(celsius))
+    return "{0}\N{DEGREE SIGN}C / {1:.0f}\N{DEGREE SIGN}F".format(celsius, celsius_to_fahrenheit(celsius))
 
 
 def time_text(obs, tz):

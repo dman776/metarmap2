@@ -90,9 +90,9 @@ def visualizer_ids(values, key):
 
 def known_city(value, key):
     """A city astral's list has (case doesn't matter), for the sun times and the OLED's time zone."""
-    from metarmap.lib import utils  # here, not at the top: utils is slow to import and the settings load first
+    from metarmap.sun import get_location  # here, not at the top: the settings load before anything else
 
-    if utils.get_location(value) is None:
+    if get_location(value) is None:
         raise ValueError(f"{key}: {value!r} is not a city the sun times know (astral's list)")
     return value
 

@@ -10,6 +10,7 @@ import argparse
 import fnmatch
 import logging
 import signal
+import subprocess
 import sys
 import threading
 import time
@@ -26,7 +27,6 @@ from metarmap.clock import Clock
 from metarmap.config import Config
 from metarmap.display import STARTUP_LOCATE_DELAY, Display
 from metarmap.leds.strip import open_strip
-from metarmap.lib import utils
 from metarmap.metar import Reports
 from metarmap.oled.screen import open_screen
 from metarmap.releases import CHECK_HOURS, ReleaseCheck
@@ -404,9 +404,14 @@ def shutdown(app: App, web_app, web_server):
     web_app.close()
 
 
+def pingable(host):
+    """Whether one ping to `host` gets an answer."""
+    return subprocess.run(["ping", "-c", "1", host], capture_output=True).returncode == 0
+
+
 def wait_for_internet():
     log.info("Testing to see if internet (8.8.8.8) is reachable...")
-    while utils.is_pingable("8.8.8.8") != 0:
+    while not pingable("8.8.8.8"):
         log.info(".")
         time.sleep(1)
     log.info("done.")
