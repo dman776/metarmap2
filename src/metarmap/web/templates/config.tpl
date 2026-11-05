@@ -83,7 +83,32 @@
                 % end
             </select>
         </div>
-        % switch('led.inittest', d.led.inittest, 'Test pattern on startup', 'A rainbow along the strip when the map starts. Turning it on runs it once now.')
+        % switch('led.inittest', d.led.inittest, 'Startup sequence', 'Play the sequence below when the map starts. Turning it on plays it once now.')
+        <div class="set">
+            <div>
+                <label class="t" for="led-init-sequence">Sequence</label>
+                <div class="d">Comet runs a rainbow along the strip. The others fade the map in to the visualizer, from where each airport is. Changing it plays it once now.</div>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center">
+                <select id="led-init-sequence" data-key="led.init_sequence">
+                    % for value, name in init_sequences.items():
+                    <option value="{{value}}"{{!' selected' if value == d.led.init_sequence else ''}}>{{name}}</option>
+                    % end
+                </select>
+                <button class="btn" type="button" data-call="/led/init_sequence/play" data-then="none">Play now</button>
+            </div>
+        </div>
+        <div class="set">
+            <div>
+                <label class="t" for="led-init-sweep-from">Sweep direction</label>
+                <div class="d">Where Sweep starts on the map. Only Sweep uses it.</div>
+            </div>
+            <select id="led-init-sweep-from" data-key="led.init_sweep_from">
+                % for side, name in sweep_sides.items():
+                <option value="{{side}}"{{!' selected' if side == d.led.init_sweep_from else ''}}>{{name}}</option>
+                % end
+            </select>
+        </div>
         % switch('led.dim_on_refresh', d.led.dim_on_refresh, 'Dim while updating', 'The LEDs fade down for a moment while new METARs download.')
         % slider('led.brightness.normal', d.led.brightness.normal, 'Daytime brightness', 'Sunrise to sunset.')
         % slider('led.brightness.dimmed', d.led.brightness.dimmed, 'Dawn / dusk brightness', 'Dawn to sunrise, sunset to dusk.')

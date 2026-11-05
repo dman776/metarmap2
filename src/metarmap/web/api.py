@@ -93,6 +93,8 @@ def status(services, ip):
             "display_screen.locate_active": cfg.display_screen.locate_active,
             "display_screen.delay": cfg.display_screen.delay,
             "led.inittest": cfg.led.inittest,
+            "led.init_sequence": cfg.led.init_sequence,
+            "led.init_sweep_from": cfg.led.init_sweep_from,
             "led.dim_on_refresh": cfg.led.dim_on_refresh,
             "led.brightness.normal": cfg.led.brightness.normal,
             "led.brightness.dimmed": cfg.led.brightness.dimmed,

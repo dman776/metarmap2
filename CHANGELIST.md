@@ -1,5 +1,16 @@
 ### Unreleased
 
+- **Startup sequences**: besides the rainbow Comet, the map can fade in to the visualizer from where each airport
+  is, over 3 seconds:
+  - **Center out** from the middle of the box around the airports to its edges, and **Edges in** the other way
+  - **Sweep** across the map from one of 8 sides (`led.init_sweep_from`: west to east, northwest to southeast...)
+  - **Radar sweep**: a beam turning clockwise from north
+  - **Sparkle in**: one LED at a time, in random order
+  - Config > Physical display: the switch is now "Startup sequence" (still `led.inittest`, so Home Assistant's
+    switch works as before), with a Sequence select (`led.init_sequence`, Comet by default), a Sweep direction and
+    **Play now**. Changing either plays it once. A visualizer that drives the whole strip (Rainbow, Chase) fades
+    in white, then starts. New `GET /led/init_sequence/play`
+
 - **A parsed METAR is a `Report`** (inside the code; the web UI, the API and Home Assistant work as before):
   - Each airport's report is a frozen dataclass (`models.Report`, with `SkyLayer` for the clouds) with snake_case
     fields, instead of a dict with the API's camelCase keys; an airport with no report is `None` instead of `{}`

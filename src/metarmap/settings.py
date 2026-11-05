@@ -125,6 +125,9 @@ class Brightness(_Section):
 LED_PINS = (18, 12, 13, 21, 10)
 # the order the strip wants its colors in; the wrong one swaps red and green
 LED_ORDERS = ("GRB", "RGB")
+# the startup sequences (led.init_sequence; leds/intro.py plays them) and the sides Sweep can start from
+INIT_SEQUENCES = ("comet", "center_out", "edges_in", "sweep", "radar", "sparkle")
+SWEEP_SIDES = ("W", "NW", "N", "NE", "E", "SE", "S", "SW")
 QUIET_TIME = re.compile(r"^(?:[01][0-9]|2[0-3]):[0-5][0-9]$")
 QUIET_TIME_MESSAGE = "{key}: expected local time in 24-hour HH:MM format"
 
@@ -153,7 +156,9 @@ class Led(_Section):
     order: str = setting("GRB", choices=LED_ORDERS)
     brightness: Brightness = field(default_factory=Brightness)
     quiet_hours: QuietHours = field(default_factory=QuietHours)
-    inittest: bool = True
+    inittest: bool = True  # play the startup sequence when the map starts
+    init_sequence: str = setting("comet", choices=INIT_SEQUENCES)
+    init_sweep_from: str = setting("W", choices=SWEEP_SIDES)  # where Sweep starts: W goes west to east
     dim_on_refresh: bool = True  # the LEDs dim while METARs are fetched, a sign of an update
 
 

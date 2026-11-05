@@ -130,7 +130,7 @@ def schedule_rotation(app: App):
 # ---- following config changes ----------------------------------------------------------------------------------
 
 # changes that don't change what the LEDs show
-NOT_ON_LEDS = ("airports.name", "web_server.*")
+NOT_ON_LEDS = ("airports.name", "web_server.*", "led.init_*")
 # changes to what the OLED loop shows, or in which order; it starts over with the new list (names aren't on it)
 OLED_AIRPORTS = (
     "airports.code",
@@ -162,6 +162,7 @@ def wire_config(app: App):
     on("led.brightness.*", lambda keys: brightness_changed(app, keys))
     # shows what it looks like, without a restart
     on("led.inittest", lambda keys: show_test_pattern(app) if app.config.data.led.inittest else None)
+    on(("led.init_sequence", "led.init_sweep_from"), lambda keys: show_test_pattern(app))  # try one: it plays now
     on(("update.channel", "update.branch"), lambda keys: check_releases(app))  # "Update available" follows it
     on("display_screen.enabled", lambda keys: display_enabled(app))
     on(OLED_AIRPORTS, lambda keys: app.display.restart(timeout=15))

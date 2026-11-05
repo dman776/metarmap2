@@ -20,6 +20,8 @@
             "end": "05:00"
         },
         "inittest": true,
+        "init_sequence": "comet",
+        "init_sweep_from": "W",
         "dim_on_refresh": true
     },
     "geo": {
