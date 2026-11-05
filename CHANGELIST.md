@@ -1,5 +1,9 @@
 ### Unreleased
 
+- **Calendar version numbers**: releases from now on are named by date, `vYY.MM.DD` (`v26.11.04`), with `.1`, `.2`...
+  for another the same day. The update check, the Update button, the release picker and `install.sh` read both
+  kinds; the older `v1.1.0` to `v3.2.0` releases sort below every date and can still be installed. A map on 3.2.0
+  sees the first dated release as an update (README: Versions)
 - **The web code and the rest of the map** (inside the code; the web UI and the API work as before):
   - The web modules' `services` is typed as the map's `App`, and reads its parts directly instead of guessing
     whether each one is there (`getattr(services, "releases", None)` and five more)
