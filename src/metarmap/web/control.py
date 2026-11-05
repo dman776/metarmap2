@@ -13,7 +13,8 @@ import bottle
 
 from metarmap import system
 from metarmap.config import parse_user
-from metarmap.lib import utils, versions
+from metarmap import update
+from metarmap.lib import versions
 from metarmap.web import pages
 
 log = logging.getLogger(__name__)
@@ -36,7 +37,7 @@ class Updates:
     """The update started from the web UI. It runs in the background; the UI polls its progress."""
 
     def __init__(self, run_update=None):
-        self._run_update = run_update or utils.run_update
+        self._run_update = run_update or update.run_update
         self._lock = threading.Lock()
         self.job = None
         self.channel = lambda: "releases"  # the update channel now (the web app sets it from the config)
@@ -284,7 +285,7 @@ def add_routes(app, services, site, auth, updates=None):
 
     def update_now():
         """The older GET /update (Home Assistant's button): updates and answers with the log."""
-        result = utils.run_update(channel=config.data.update_channel(), branch=config.data.update.branch)
+        result = update.run_update(channel=config.data.update_channel(), branch=config.data.update.branch)
         if result.ok:
             installed(result)
         return "".join(line + "<br />" for line in result.log)
@@ -298,7 +299,7 @@ def add_routes(app, services, site, auth, updates=None):
         if services.display:
             services.display.stop()
         renderer.clear()
-        utils.restart()
+        update.restart()
 
     app.route("/visualizer/<key>", "GET", visualizer)
     app.route("/visualizer/next", "GET", visualizer_next)

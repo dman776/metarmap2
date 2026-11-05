@@ -75,9 +75,9 @@ EOF
 newest_release() {
     PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$REPO/src" python3 - "$REPO" <<'EOF'
 import sys
-from metarmap.lib import utils
+from metarmap import update
 
-ok, message, changed = utils.install_newest_release(sys.argv[1])
+ok, message, changed = update.install_newest_release(sys.argv[1])
 print(message)
 sys.exit((10 if changed else 0) if ok else 1)
 EOF
