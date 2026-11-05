@@ -1,5 +1,5 @@
 """
-Tests for the self-update (lib/utils.run_update): installs the newest release tag (or, on the latest channel, the
+Tests for the self-update (lib/update.run_update): installs the newest release tag (or, on the latest channel, the
 newest commit), or a release picked by hand, keeps the config files, and runs git as the owner of the folder rather
 than root. Also the check behind "Update available" (metarmap.releases) and release versions (lib/versions).
 """
@@ -10,7 +10,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from metarmap.lib import utils, versions
+from metarmap import update
+from metarmap.lib import versions
 from metarmap.releases import ReleaseCheck, github_url, read_build
 
 
@@ -80,7 +81,7 @@ def test_installs_the_newest_release_and_keeps_config(repos):
     commit(repos, "1.1", "Release v1.1.0", config={"from": "new release"})
     release(repos, "v1.1.0", code=None)
 
-    log = utils.update(str(repos.pi), current="1.0.0")
+    log = update.update(str(repos.pi), current="1.0.0")
 
     assert code(repos) == "VERSION = '1.1'\n"
     assert json.loads((repos.pi / "config.json").read_text()) == {"from": "user"}
@@ -91,7 +92,7 @@ def test_installs_the_newest_release_and_keeps_config(repos):
 def test_a_newer_commit_that_isnt_released_isnt_installed(repos):
     release(repos, "v1.1.0", code="1.1")
     commit(repos, "work in progress")
-    result = utils.run_update(str(repos.pi), current="1.0.0")
+    result = update.run_update(str(repos.pi), current="1.0.0")
     assert result.ok and result.changed and result.target == "v1.1.0"
     assert code(repos) == "VERSION = '1.1'\n"
     assert result.message == "Installed v1.1.0"
@@ -100,24 +101,24 @@ def test_a_newer_commit_that_isnt_released_isnt_installed(repos):
 def test_newest_by_version_not_by_date(repos):
     release(repos, "v1.10.0", code="1.10")
     release(repos, "v1.9.0", code="1.9")  # a fix to an older line, made later
-    assert utils.run_update(str(repos.pi), current="1.0.0").target == "v1.10.0"
+    assert update.run_update(str(repos.pi), current="1.0.0").target == "v1.10.0"
 
 
 def test_pre_releases_and_other_tags_are_skipped(repos):
     release(repos, "v1.1.0", code="1.1")
     release(repos, "v2.0.0-rc1", code="2.0 rc")
     release(repos, "nightly", code="nightly")
-    result = utils.run_update(str(repos.pi), current="1.0.0")
+    result = update.run_update(str(repos.pi), current="1.0.0")
     assert result.target == "v1.1.0" and code(repos) == "VERSION = '1.1'\n"
 
 
 def test_tags_without_the_v_are_releases_too(repos):
     release(repos, "1.1.0", code="1.1")
-    assert utils.run_update(str(repos.pi), current="1.0.0").target == "1.1.0"
+    assert update.run_update(str(repos.pi), current="1.0.0").target == "1.1.0"
 
 
 def test_already_on_the_newest_release(repos):
-    result = utils.run_update(str(repos.pi), current="1.0.0")
+    result = update.run_update(str(repos.pi), current="1.0.0")
     assert result.ok and not result.changed
     assert result.message == "Already on the newest release (v1.0.0)"
 
@@ -127,7 +128,7 @@ def test_never_goes_backwards(repos):
     commit(repos, "1.1 work")
     git(repos.pi, "pull")
     before = head(repos.pi)
-    result = utils.run_update(str(repos.pi), current="1.1.0")
+    result = update.run_update(str(repos.pi), current="1.1.0")
     assert result.ok and not result.changed and head(repos.pi) == before
     assert result.message == "Already on the newest release (v1.0.0)"
 
@@ -140,14 +141,14 @@ def test_no_releases_yet(tmp_path):
     git(pi, "add", "-A")
     git(pi, "commit", "-m", "first")
     git(pi, "push", "-u", "origin", "main")
-    result = utils.run_update(str(pi), current="1.0.0")
+    result = update.run_update(str(pi), current="1.0.0")
     assert not result.ok and result.errors == ["There are no releases on GitHub yet"]
 
 
 def test_progress_and_result(repos):
     release(repos, "v1.1.0", code="1.1")
     steps = []
-    result = utils.run_update(
+    result = update.run_update(
         str(repos.pi), progress=lambda fraction, label: steps.append((fraction, label)), current="1.0.0"
     )
     assert result.ok and result.changed
@@ -163,12 +164,12 @@ def test_failed_download_is_reported_and_config_kept(repos):
     (repos.pi / "config.json").write_text(json.dumps({"from": "user"}))
     git(repos.pi, "remote", "set-url", "origin", str(repos.origin) + "-missing")
 
-    log = utils.update(str(repos.pi), current="1.0.0")
+    log = update.update(str(repos.pi), current="1.0.0")
 
     assert "update FAILED" in log
     assert "git fetch --tags --force origin failed" in log
     assert json.loads((repos.pi / "config.json").read_text()) == {"from": "user"}
-    result = utils.run_update(str(repos.pi), current="1.0.0")
+    result = update.run_update(str(repos.pi), current="1.0.0")
     assert not result.ok and not result.changed
     assert result.errors  # git's own error message, shown in the web UI
 
@@ -178,36 +179,36 @@ def test_failed_download_is_reported_and_config_kept(repos):
 
 def test_pick_an_older_release(repos):
     release(repos, "v1.1.0", code="1.1")
-    utils.run_update(str(repos.pi), current="1.0.0")
+    update.run_update(str(repos.pi), current="1.0.0")
     (repos.pi / "config.json").write_text(json.dumps({"from": "user"}))
 
-    result = utils.run_update(str(repos.pi), version="v1.0.0", current="1.1.0")
+    result = update.run_update(str(repos.pi), version="v1.0.0", current="1.1.0")
 
     assert result.ok and result.changed and result.target == "v1.0.0"
     assert code(repos) == "VERSION = 1\n"
     assert json.loads((repos.pi / "config.json").read_text()) == {"from": "user"}
     assert result.message == "Installed v1.0.0"
     # and forward again
-    assert utils.run_update(str(repos.pi), current="1.0.0").target == "v1.1.0"
+    assert update.run_update(str(repos.pi), current="1.0.0").target == "v1.1.0"
     assert code(repos) == "VERSION = '1.1'\n"
 
 
 def test_pick_a_release_on_the_latest_channel(repos):
     release(repos, "v1.1.0", code="1.1")
     commit(repos, "newer")
-    result = utils.run_update(str(repos.pi), channel="latest", version="v1.1.0")
+    result = update.run_update(str(repos.pi), channel="latest", version="v1.1.0")
     assert result.target == "v1.1.0" and code(repos) == "VERSION = '1.1'\n"
 
 
 def test_pick_the_release_already_running(repos):
-    utils.run_update(str(repos.pi), version="v1.0.0")
-    result = utils.run_update(str(repos.pi), version="v1.0.0")
+    update.run_update(str(repos.pi), version="v1.0.0")
+    result = update.run_update(str(repos.pi), version="v1.0.0")
     assert result.ok and not result.changed and result.message == "Already on v1.0.0"
 
 
 def test_pick_a_release_that_isnt_on_github(repos):
     before = head(repos.pi)
-    result = utils.run_update(str(repos.pi), version="v9.9.9")
+    result = update.run_update(str(repos.pi), version="v9.9.9")
     assert not result.ok and result.errors == ["v9.9.9 isn't a release on GitHub"] and head(repos.pi) == before
 
 
@@ -216,12 +217,12 @@ def test_pick_a_release_that_isnt_on_github(repos):
 
 def test_latest_installs_the_newest_commit(repos):
     commit(repos, "unreleased")
-    result = utils.run_update(str(repos.pi), channel="latest")
+    result = update.run_update(str(repos.pi), channel="latest")
     assert result.ok and result.changed and code(repos) == "VERSION = 'unreleased'\n"
     assert result.target == head(repos.pi)[:7]
     assert result.message == f"Installed the newest commit ({head(repos.pi)[:7]})"
     assert (
-        utils.run_update(str(repos.pi), channel="latest").message
+        update.run_update(str(repos.pi), channel="latest").message
         == f"Already on the newest commit ({head(repos.pi)[:7]})"
     )
 
@@ -229,9 +230,9 @@ def test_latest_installs_the_newest_commit(repos):
 def test_latest_after_a_release_was_installed(repos):
     """A release leaves the map on a tag, not a branch; the latest channel goes back to the branch."""
     release(repos, "v1.1.0", code="1.1")
-    utils.run_update(str(repos.pi), current="1.0.0")
+    update.run_update(str(repos.pi), current="1.0.0")
     commit(repos, "after 1.1")
-    result = utils.run_update(str(repos.pi), channel="latest")
+    result = update.run_update(str(repos.pi), channel="latest")
     assert result.ok and code(repos) == "VERSION = 'after 1.1'\n"
     branch = subprocess.run(["git", "branch", "--show-current"], cwd=repos.pi, capture_output=True, text=True)
     assert branch.stdout.strip() == "main"
@@ -259,25 +260,25 @@ def current_branch(repo):
 def test_branch_installs_its_newest_commit(repos):
     (repos.pi / "config.json").write_text(json.dumps({"from": "user"}))
     push_branch(repos, "feature/radar", "radar")
-    result = utils.run_update(str(repos.pi), channel="branch", branch="feature/radar")
+    result = update.run_update(str(repos.pi), channel="branch", branch="feature/radar")
     assert result.ok and result.changed and code(repos) == "VERSION = 'radar'\n"
     assert current_branch(repos.pi) == "feature/radar"
     assert result.message == f"Installed the newest commit of feature/radar ({head(repos.pi)[:7]})"
     assert json.loads((repos.pi / "config.json").read_text()) == {"from": "user"}
     assert (
-        utils.run_update(str(repos.pi), channel="branch", branch="feature/radar").message
+        update.run_update(str(repos.pi), channel="branch", branch="feature/radar").message
         == f"Already on the newest commit of feature/radar ({head(repos.pi)[:7]})"
     )
 
 
 def test_branch_follows_a_force_push(repos):
     push_branch(repos, "work", "first try")
-    utils.run_update(str(repos.pi), channel="branch", branch="work")
+    update.run_update(str(repos.pi), channel="branch", branch="work")
     git(repos.dev, "checkout", "work")
     git(repos.dev, "reset", "--hard", "HEAD~1")
     commit_on(repos, "second try")
     git(repos.dev, "push", "--force", "origin", "work")
-    assert utils.run_update(str(repos.pi), channel="branch", branch="work").ok
+    assert update.run_update(str(repos.pi), channel="branch", branch="work").ok
     assert code(repos) == "VERSION = 'second try'\n"
 
 
@@ -291,7 +292,7 @@ def test_branch_follows_a_force_push(repos):
 )
 def test_branch_errors(repos, branch, error):
     before = head(repos.pi)
-    result = utils.run_update(str(repos.pi), channel="branch", branch=branch)
+    result = update.run_update(str(repos.pi), channel="branch", branch=branch)
     assert not result.ok and result.errors == [error] and head(repos.pi) == before
 
 
@@ -306,7 +307,7 @@ def test_check_branch_channel(repos):
         clock=lambda: 0,
     ).check()
     assert state["branches"] == ["main", "work"] and state["badge"] == "New commit on work"
-    utils.run_update(str(repos.pi), channel="branch", branch="work")
+    update.run_update(str(repos.pi), channel="branch", branch="work")
     state = ReleaseCheck(
         str(repos.pi),
         channel=lambda: "branch",
@@ -323,7 +324,7 @@ def test_check_lists_no_branches_without_dev_mode(repos):
 
 
 def test_unknown_channel(repos):
-    result = utils.run_update(str(repos.pi), channel="nightly")
+    result = update.run_update(str(repos.pi), channel="nightly")
     assert not result.ok and result.errors == ["Unknown update channel 'nightly'"]
 
 
@@ -336,7 +337,7 @@ def test_a_fresh_clone_goes_to_the_newest_release(repos):
     git(repos.pi, "pull")  # what `git clone` gives: the newest commit of the branch
     assert code(repos) == "VERSION = 'unfinished work'\n"
 
-    ok, message, changed = utils.install_newest_release(str(repos.pi))
+    ok, message, changed = update.install_newest_release(str(repos.pi))
 
     assert (ok, message, changed) == (True, "Installed v1.1.0", True)
     assert code(repos) == "VERSION = '1.1'\n"
@@ -349,7 +350,7 @@ def test_a_fresh_clone_goes_to_the_newest_release(repos):
 
 
 def test_a_clone_that_is_already_at_the_newest_release(repos):
-    ok, message, changed = utils.install_newest_release(str(repos.pi))  # the clone is at v1.0.0's commit
+    ok, message, changed = update.install_newest_release(str(repos.pi))  # the clone is at v1.0.0's commit
     assert ok and not changed and message == "Already on v1.0.0"
 
 
@@ -358,7 +359,7 @@ def test_a_release_picked_by_hand_stays(repos):
     release(repos, "v1.1.0", code="1.1")
     git(repos.pi, "fetch", "--tags")
     git(repos.pi, "checkout", "v1.0.0")
-    assert utils.install_newest_release(str(repos.pi)) == (True, "Already on release v1.0.0", False)
+    assert update.install_newest_release(str(repos.pi)) == (True, "Already on release v1.0.0", False)
     assert code(repos) == "VERSION = 1\n"
 
 
@@ -367,7 +368,7 @@ def test_a_map_on_the_latest_channel_stays_on_the_newest_commit(repos):
     commit(repos, "unfinished work")
     git(repos.pi, "pull")
     (repos.pi / "config.json").write_text(json.dumps({"update": {"channel": "latest"}}))
-    ok, message, changed = utils.install_newest_release(str(repos.pi))
+    ok, message, changed = update.install_newest_release(str(repos.pi))
     assert (ok, changed) == (True, False) and "Latest commit" in message
     assert code(repos) == "VERSION = 'unfinished work'\n"
 
@@ -378,7 +379,7 @@ def test_install_leaves_a_branch_map_alone_in_dev_mode(repos, dev_mode, stays):
     commit(repos, "unfinished work")
     git(repos.pi, "pull")
     (repos.pi / "config.json").write_text(json.dumps({"update": {"channel": "branch"}, "dev_mode": dev_mode}))
-    ok, message, changed = utils.install_newest_release(str(repos.pi))
+    ok, message, changed = update.install_newest_release(str(repos.pi))
     assert ok and changed is not stays
     assert code(repos) == ("VERSION = 'unfinished work'\n" if stays else "VERSION = '1.1'\n")
 
@@ -390,7 +391,7 @@ def test_changes_to_the_code_are_not_thrown_away(repos):
     commit(repos, "unfinished work")
     git(repos.pi, "pull")
     (repos.pi / "code.py").write_text("my own edit")
-    ok, message, changed = utils.install_newest_release(str(repos.pi))
+    ok, message, changed = update.install_newest_release(str(repos.pi))
     assert (ok, changed) == (True, False) and "changes to the code" in message
     assert code(repos) == "my own edit"
 
@@ -400,7 +401,7 @@ def test_a_changed_config_doesnt_stop_it_and_is_kept(repos):
     commit(repos, "unfinished work")
     git(repos.pi, "pull")
     (repos.pi / "config.json").write_text(json.dumps({"from": "user"}))
-    assert utils.install_newest_release(str(repos.pi)) == (True, "Installed v1.1.0", True)
+    assert update.install_newest_release(str(repos.pi)) == (True, "Installed v1.1.0", True)
     assert json.loads((repos.pi / "config.json").read_text()) == {"from": "user"}
 
 
@@ -412,17 +413,17 @@ def test_no_releases_yet_is_not_ok(tmp_path):
     git(pi, "add", "-A")
     git(pi, "commit", "-m", "first")
     git(pi, "push", "-u", "origin", "main")
-    assert utils.install_newest_release(str(pi)) == (False, "There are no releases on GitHub yet", False)
+    assert update.install_newest_release(str(pi)) == (False, "There are no releases on GitHub yet", False)
 
 
 def test_a_folder_that_is_not_a_git_clone_is_not_ok(tmp_path):
-    ok, message, changed = utils.install_newest_release(str(tmp_path))
+    ok, message, changed = update.install_newest_release(str(tmp_path))
     assert not ok and not changed and message
 
 
 def test_github_cant_be_reached_is_not_ok(repos):
     git(repos.pi, "remote", "set-url", "origin", str(repos.origin) + "-missing")
-    ok, message, changed = utils.install_newest_release(str(repos.pi))
+    ok, message, changed = update.install_newest_release(str(repos.pi))
     assert not ok and not changed and message
 
 
@@ -528,6 +529,28 @@ def test_after_an_update_the_badge_says_restart():
     assert releases.badge() == "Restart to use v1.1.0"
 
 
+# ---- restarting into the new code --------------------------------------------------------------------------------
+
+
+def test_restart_runs_the_package_from_its_own_folder(monkeypatch):
+    """The new `python -m metarmap` finds the package wherever the map was started from (PYTHONPATH = its src)."""
+    import os
+    import sys
+
+    runs = []
+    monkeypatch.setattr(update.os, "execve", lambda path, argv, env: runs.append((path, argv, env)))
+    monkeypatch.setenv("PYTHONPATH", "/elsewhere")
+    monkeypatch.setattr(sys, "argv", ["metarmap", "--port", "8080"])
+
+    update.restart()
+
+    ((path, argv, env),) = runs
+    src, rest = env["PYTHONPATH"].split(os.pathsep, 1)
+    assert os.path.isfile(os.path.join(src, "metarmap", "update.py"))  # the folder that holds the package
+    assert rest == "/elsewhere"  # what was there stays
+    assert argv == [sys.executable, "-m", "metarmap", "--port", "8080"] and path == sys.executable
+
+
 # ---- running as root (the map's service) ------------------------------------------------------------------------
 
 
@@ -535,19 +558,19 @@ def test_after_an_update_the_badge_says_restart():
 def as_root(monkeypatch, tmp_path):
     """Pretend the map runs as root in a folder owned by pi (uid 1000); record what would be run and chown'd."""
     calls = SimpleNamespace(run=[], lchown=[], chown=[])
-    monkeypatch.setattr(utils.os, "geteuid", lambda: 0)
-    monkeypatch.setattr(utils, "_repo_owner", lambda repo: (1000, 1000))
+    monkeypatch.setattr(update.os, "geteuid", lambda: 0)
+    monkeypatch.setattr(update, "_repo_owner", lambda repo: (1000, 1000))
     import pwd
 
     monkeypatch.setattr(pwd, "getpwuid", lambda uid: SimpleNamespace(pw_dir="/home/pi", pw_name="pi"))
-    monkeypatch.setattr(utils.os, "lchown", lambda path, uid, gid: calls.lchown.append((path, uid, gid)))
-    monkeypatch.setattr(utils.os, "chown", lambda path, uid, gid: calls.chown.append((path, uid, gid)))
+    monkeypatch.setattr(update.os, "lchown", lambda path, uid, gid: calls.lchown.append((path, uid, gid)))
+    monkeypatch.setattr(update.os, "chown", lambda path, uid, gid: calls.chown.append((path, uid, gid)))
 
     def fake_run(cmd, **kwargs):
         calls.run.append((cmd, kwargs))
         return subprocess.CompletedProcess(cmd, 0, stdout="origin/main" if "symbolic-ref" in cmd else "ok", stderr="")
 
-    monkeypatch.setattr(utils.subprocess, "run", fake_run)
+    monkeypatch.setattr(update.subprocess, "run", fake_run)
 
     repo = tmp_path / "map"
     (repo / "sub").mkdir(parents=True)
@@ -559,7 +582,7 @@ def as_root(monkeypatch, tmp_path):
 
 
 def test_git_runs_as_the_folder_owner(as_root):
-    log = utils.update(str(as_root.repo), channel="latest")
+    log = update.update(str(as_root.repo), channel="latest")
     commands = [cmd[3:] for cmd, _ in as_root.run]
     assert [c for c in commands if c[0] != "rev-parse"] == [
         ["fetch", "origin"],
@@ -575,7 +598,7 @@ def test_git_runs_as_the_folder_owner(as_root):
 
 
 def test_root_owned_files_are_given_back(as_root):
-    utils.update(str(as_root.repo), channel="latest")
+    update.update(str(as_root.repo), channel="latest")
     changed = {path for path, uid, gid in as_root.lchown}
     # every path in the folder belongs to the test user, not uid 1000, so all of them are handed over
     assert str(as_root.repo / "sub" / "file.py") in changed
@@ -587,9 +610,9 @@ def test_root_owned_files_are_given_back(as_root):
 def test_no_user_switch_when_not_root(monkeypatch, tmp_path):
     runs = []
     monkeypatch.setattr(
-        utils.subprocess, "run", lambda cmd, **kw: runs.append(kw) or subprocess.CompletedProcess(cmd, 0, "", "")
+        update.subprocess, "run", lambda cmd, **kw: runs.append(kw) or subprocess.CompletedProcess(cmd, 0, "", "")
     )
-    utils.update(str(tmp_path))
+    update.update(str(tmp_path))
     assert runs and all("user" not in kw for kw in runs)
 
 
@@ -598,7 +621,7 @@ def test_no_user_switch_when_not_root(monkeypatch, tmp_path):
 
 def build(repos, version="1.0.0"):
     git(repos.pi, "fetch", "--tags")  # the map's clone was made before the fixture tagged v1.0.0
-    return read_build(lambda *args: utils.run_git(str(repos.pi), *args), version)
+    return read_build(lambda *args: update.run_git(str(repos.pi), *args), version)
 
 
 def test_on_a_release(repos):
@@ -655,13 +678,13 @@ def test_no_release_tags(tmp_path):
     (tmp_path / "map" / "code.py").write_text("x")
     git(tmp_path / "map", "add", "-A")
     git(tmp_path / "map", "commit", "-m", "first")
-    b = read_build(lambda *args: utils.run_git(str(tmp_path / "map"), *args), "1.0.0")
+    b = read_build(lambda *args: update.run_git(str(tmp_path / "map"), *args), "1.0.0")
     assert b["tag"] is None and b["pill"] == "Unreleased: no release tag"
     assert b["describe"] == b["commit"] and b["chip"] == f"v1.0.0 · {b['commit']}"
 
 
 def test_not_a_git_checkout(tmp_path):
-    assert read_build(lambda *args: utils.run_git(str(tmp_path), *args), "1.0.0") is None
+    assert read_build(lambda *args: update.run_git(str(tmp_path), *args), "1.0.0") is None
     assert read_build(lambda *args: None, "1.0.0") is None  # a git that can't run
 
 

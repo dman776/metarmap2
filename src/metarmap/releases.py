@@ -17,7 +17,8 @@ import time
 from datetime import datetime, timezone
 
 from metarmap import __version__
-from metarmap.lib import utils, versions
+from metarmap import update
+from metarmap.lib import versions
 
 log = logging.getLogger(__name__)
 
@@ -130,7 +131,7 @@ class ReleaseCheck:
         self._branch = branch
         self._dev_mode = dev_mode
         self.current = current
-        self._git = git or (lambda *args: utils.run_git(self._repo, *args, timeout=CHECK_TIMEOUT))
+        self._git = git or (lambda *args: update.run_git(self._repo, *args, timeout=CHECK_TIMEOUT))
         self._clock = clock
         self._lock = threading.Lock()
         self._found = {"releases": [], "branches": [], "available": None, "checked": None, "error": None}

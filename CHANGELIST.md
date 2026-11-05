@@ -1,5 +1,10 @@
 ### Unreleased
 
+- **The update code has its own module** (inside the code; updating works as before): `run_update()`, `run_git()`,
+  `install_newest_release()` and `restart()` moved from `lib/utils.py` to `update.py`, next to `releases.py`, which
+  checks what's newest. `install.sh` calls it from there
+  - Four helpers nothing used are gone from `lib/utils.py` (the old color `wheel` and three list and proportion
+    functions)
 - **A slow aviationweather.gov no longer holds up startup**: the map fetches the G-AIRMETs and SIGMETs in the
   background, as it already did the TFRs, and the Advisories visualizer shows them when they come (the log says how
   long they took). One restart had waited 21 seconds for them

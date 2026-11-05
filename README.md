@@ -302,7 +302,7 @@ The code is the `metarmap` package in `src/metarmap/`:
   (`visualizers/visualizer.py`); `visualizers.ALL` lists them in the web UI's order
 - `web/`: the web UI and API. `create_app()` builds it; the routes are in `pages.py`, `api.py` and `control.py`,
   and `views.py` prepares what each page shows (templates in `web/templates/`, files in `web/static/`)
-- `releases.py`: what's newest on GitHub (the "Update available" check); `lib/utils.py`'s `run_update()` installs it
+- `releases.py`: what's newest on GitHub (the "Update available" check); `update.py`'s `run_update()` installs it
 - `service.py`: switches an older installed `metarmap.service` (one that runs `controller.py`) to the current one
 
 `install.sh` sets up a Pi; `metarmap.service` is the systemd service it installs.
