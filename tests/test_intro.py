@@ -120,3 +120,12 @@ def test_target_colors():
     assert intro.target(Look.solid((1, 2, 3))) == (1, 2, 3)
     assert intro.target(Look.blink((4, 5, 6))) == (4, 5, 6)
     assert intro.target(Look.off()) == (0, 0, 0)
+
+
+def test_fades_out_from_each_color_by_the_end():
+    sources = [(10, 200, 40), (255, 255, 255)]
+    starts = [0.0, 1.0]
+    assert intro.colors_out_at(0, starts, sources) == sources
+    halfway = intro.colors_out_at(intro.FADE_SECONDS / 2, starts, sources)
+    assert 0 < halfway[0][1] < 200 and halfway[1] == (255, 255, 255)  # the first fading, the last not started
+    assert intro.colors_out_at(intro.SECONDS, starts, sources) == [(0, 0, 0), (0, 0, 0)]

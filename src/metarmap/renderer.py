@@ -361,10 +361,38 @@ class Renderer:
         else:
             self.fade_in(sequence)
 
+    def fade_out(self):
+        """
+        Takes the map dark with the startup sequence (led.init_sequence), when quiet hours begin: the same path, from
+        each LED's color to dark (Radar's beam sweeps the colors off clockwise from north). Comet runs the other way
+        along the strip and leaves it dark.
+        """
+        sequence = self._config.data.led.init_sequence
+        if sequence == "comet":
+            self.animate_once(RainbowComet(self._pixels, speed=0.05, tail_length=5, reverse=True, bounce=False))
+            return
+        count = min(self._config.data.led.count, len(self._pixels))
+        with self._lock:
+            sources = [tuple(self._pixels[i]) for i in range(count)]  # what each LED shows now
+        self._play_sequence(sequence, lambda t, starts: intro.colors_out_at(t, starts, sources))
+
     def fade_in(self, sequence):
         """
         Fades the LEDs in to the visualizer's colors over intro.SECONDS, each starting when the sequence says. A
         visualizer that drives the whole strip (Rainbow, Chase) fades in white, then starts.
+        """
+        count = min(self._config.data.led.count, len(self._pixels))
+        if self._strip_look is not None:
+            targets = [intro.WHITE] * count
+        else:
+            targets = [intro.target(look) for look in self._looks[:count]]
+            targets += [intro.OFF] * (count - len(targets))
+        self._play_sequence(sequence, lambda t, starts: intro.colors_at(t, starts, targets))
+
+    def _play_sequence(self, sequence, colors_at):
+        """
+        Plays a sequence over intro.SECONDS: colors_at(t, starts) gives every LED's color t seconds in, starts being
+        when each LED's fade begins (intro.start_times, from where its airport is).
         """
         settings = self._config.data
         count = min(settings.led.count, len(self._pixels))
@@ -372,11 +400,6 @@ class Renderer:
         position = getattr(self._metars, "position", None)  # metar.Reports; a test's data may not have it
         positions = [position(code) if code and position else None for code in codes]
         positions += [None] * (count - len(positions))  # LEDs past the airports
-        if self._strip_look is not None:
-            targets = [intro.WHITE] * count
-        else:
-            targets = [intro.target(look) for look in self._looks[:count]]
-            targets += [intro.OFF] * (count - len(targets))
         starts = intro.start_times(sequence, positions, settings.led.init_sweep_from)
         never = threading.Event()  # the clock's wait, so a test's fake clock runs it at once
         with self._lock:
@@ -385,7 +408,7 @@ class Renderer:
                 begin = self._clock.time()
                 while True:
                     t = self._clock.time() - begin
-                    for i, color in enumerate(intro.colors_at(t, starts, targets)):
+                    for i, color in enumerate(colors_at(t, starts)):
                         self._pixels[i] = color
                     self._pixels.show()
                     if t >= intro.SECONDS:
