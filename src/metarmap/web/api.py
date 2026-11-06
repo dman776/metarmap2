@@ -152,6 +152,13 @@ def auto_rotate(services: "App"):
     return {"enabled": rotate.enabled, "seconds": rotate.delay_seconds, "next": next_rotation(services)}
 
 
+def fetch_schedule(services: "App"):
+    """When METARs are next fetched, that wait's length, and when they were last fetched (Unix times)."""
+    from metarmap.app import next_fetch  # here: app.py imports the web
+
+    return next_fetch(services)
+
+
 def live(services: "App", now=None):
     """
     What the physical map is doing right now: every LED's effect, the OLED screen and the last locate pulse.
@@ -207,6 +214,7 @@ def live(services: "App", now=None):
             "legendInUse": renderer.legend_in_use(),
             "legendInUseOnly": services.config.data.visualizer.legend_in_use_only,
         },
+        "fetch": fetch_schedule(services),
         "strip": strip,
         "leds": leds,
         "locate": renderer.last_locate,

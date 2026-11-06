@@ -94,6 +94,13 @@ footer.foot { border-top: 1px solid #1c2734; padding: 20px 24px; text-align: cen
 .btn.danger:hover { background: #2a1416; }
 .btn.icon { width: 48px; padding: 0; flex: none; }
 .btn svg, .chip svg { flex: none; }
+/* Home's Fetch METARs: a ring counting down to the next fetch, as the Remote's auto-rotate ring */
+.fetch-ring { transform: rotate(-90deg); }
+.fetch-ring circle { fill: none; stroke-width: 5; }
+.fetch-ring .track { stroke: currentColor; opacity: .25; }
+.fetch-ring .left { stroke: currentColor; stroke-linecap: round; transition: stroke-dasharray .25s linear; }
+.fetch-time { min-width: 4ch; font: 600 13px var(--mono); font-variant-numeric: tabular-nums; opacity: .8; }
+.fetch-time:empty { display: none; }
 .chip { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--control); background: transparent; color: var(--text-2); font: 500 13px var(--sans); cursor: pointer; }
 .chip:hover { border-color: #4a5d74; color: var(--text); }
 .chip[aria-pressed="true"] { background: #2a2210; border-color: var(--accent); color: var(--accent); }

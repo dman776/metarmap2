@@ -213,6 +213,67 @@
         setInterval(tick, 30000);
     }
 
+    // Home's Fetch METARs: a ring and m:ss counting down to the next fetch (the map's, or a retry's), from
+    // /api/live's fetch. Once the fetch has come (fetch.fetched is newer than this page's), the page reloads.
+    const fetchRing = document.getElementById('fetch-ring');
+    if (fetchRing) {
+        const POLL_MS = 15000;
+        const DUE_POLL_MS = 2000;  // after the countdown ends, until the fetch has come
+        const ringLeft = document.getElementById('fetch-ring-left');
+        const ringTime = document.getElementById('fetch-time');
+        const icon = document.querySelector('.fetch-icon');
+        const pageFetched = fetched && fetched.dataset.fetched ? parseInt(fetched.dataset.fetched, 10) : null;
+        let fetchAt = null;  // when the next fetch comes, in this browser's time (ms)
+        let fetchSeconds = 0;
+        let timer = null;
+
+        const showRing = function (on) {
+            // the attribute: an <svg> has no .hidden property
+            fetchRing.toggleAttribute('hidden', !on);
+            icon.toggleAttribute('hidden', on);
+            if (!on) ringTime.textContent = '';
+        };
+        const tickFetch = function () {
+            if (fetchAt === null) return;
+            const left = Math.max(0, Math.ceil((fetchAt - Date.now()) / 1000));
+            ringTime.textContent = Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0');
+            const part = fetchSeconds > 0 ? Math.min(100, 100 * left / fetchSeconds) : 0;
+            ringLeft.setAttribute('stroke-dasharray', part.toFixed(1) + ' 100');
+            if (left === 0 && timer !== null && !timer.due) {  // due: look often until the fetch has come
+                clearTimeout(timer.id);
+                timer = {id: setTimeout(pollFetch, DUE_POLL_MS), due: true};
+            }
+        };
+        const pollFetch = async function () {
+            let due = false;
+            try {
+                const res = await fetch('/api/live', {cache: 'no-store'});
+                if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+                const live = await res.json();
+                const f = live.fetch;
+                if (f && f.fetched !== null && (pageFetched === null || f.fetched > pageFetched + 1)) {
+                    window.location.reload();  // new METARs: show them
+                    return;
+                }
+                if (!f || f.next === null) {
+                    fetchAt = null;
+                } else {
+                    const at = Date.now() + Math.max(0, f.next - live.now) * 1000;
+                    if (fetchAt === null || Math.abs(at - fetchAt) > 1500) fetchAt = at;  // no jump with each poll
+                    fetchSeconds = f.seconds || 0;
+                    due = f.next <= live.now;
+                }
+                showRing(fetchAt !== null);
+            } catch (err) {
+                console.error('[home] fetch countdown failed', err);
+            }
+            timer = {id: setTimeout(pollFetch, due ? DUE_POLL_MS : POLL_MS), due: due};
+            tickFetch();
+        };
+        pollFetch();
+        setInterval(tickFetch, 250);
+    }
+
     // brightness slider
     const brt = document.getElementById('brightness');
     if (brt) {

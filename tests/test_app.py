@@ -124,6 +124,39 @@ def test_display_turned_off_at_startup(make_app):
     assert not app.display.is_alive()
 
 
+def test_next_fetch(make_app):
+    """The Home page's countdown: the regular fetch every 10 minutes, and when METARs were last fetched."""
+    import time
+
+    app = make_app()
+    f = app_module.next_fetch(app)
+    assert f["next"] == pytest.approx(time.time() + 600, abs=5)
+    assert f["seconds"] == 600
+    assert f["fetched"] is None  # not fetched in tests
+    app.metars.lastFetchTime = datetime(2026, 11, 6, 12, 0)
+    assert app_module.next_fetch(app)["fetched"] == datetime(2026, 11, 6, 12, 0).timestamp()
+
+
+def test_next_fetch_counts_down_to_a_retry_first(make_app):
+    import time
+
+    app = make_app()
+    app.metars.last_fetch_ok = False
+    app_module.retry_soon(app)
+    f = app_module.next_fetch(app)
+    assert f["seconds"] == 60
+    assert f["next"] == pytest.approx(time.time() + 60, abs=5)
+
+
+def test_a_fetch_by_hand_restarts_the_wait(make_app):
+    app = make_app()
+    (job,) = app.scheduler.get_jobs("fetch")
+    job.next_run = datetime.now() + timedelta(seconds=30)  # nearly due
+    app_module.schedule_fetch(app)
+    (job,) = app.scheduler.get_jobs("fetch")  # still one
+    assert 595 <= (job.next_run - datetime.now()).total_seconds() <= 600
+
+
 def test_auto_rotate(make_app):
     app = make_app(**{"visualizer.auto_rotate.enabled": True, "visualizer.auto_rotate.delay_seconds": 30})
     (job,) = app.scheduler.get_jobs("rotate_visualizer")

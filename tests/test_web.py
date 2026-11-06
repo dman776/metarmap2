@@ -10,6 +10,7 @@ import os
 import re
 import subprocess
 import threading
+import time
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
@@ -634,8 +635,22 @@ def test_fetch(client, monkeypatch):
     app = client.services
     code = app.config.airports[0].code
     monkeypatch.setattr(app.metars, "fetch", lambda: setattr(app.metars, "data", {code: metar("IFR")}))
+    (job,) = app.scheduler.get_jobs("fetch")
+    job.next_run = datetime.now() + timedelta(seconds=30)  # the regular fetch nearly due
     assert client("/fetch")[0] == 200
     assert app.renderer.looks[0] == Look.solid(flightcategory.COLORS["IFR"])
+    (job,) = app.scheduler.get_jobs("fetch")
+    assert (job.next_run - datetime.now()).total_seconds() >= 595  # a whole 10 minutes from the fetch by hand
+
+
+def test_live_says_when_the_next_fetch_is(client):
+    f = client.json("/api/live")["fetch"]
+    assert f["seconds"] == 600 and f["next"] > time.time() + 590
+
+
+def test_the_fetch_button_has_a_countdown(client):
+    page = client("/")[1]
+    assert 'id="fetch-ring"' in page and 'id="fetch-time"' in page
 
 
 # ---- the API, against fake services with known data ----------------------------------------------------------

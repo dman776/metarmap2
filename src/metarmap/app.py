@@ -109,7 +109,7 @@ def build(config_file=CONFIG_FILE, strip=None, screen=None, clock: Clock = None,
 
 def schedule_jobs(app: App):
     s = app.scheduler
-    s.every(METAR_MINUTES).minutes.do(update_data, app)
+    schedule_fetch(app)
     if needs_retry(app):  # the fetch or lookup at startup failed
         retry_soon(app)
     s.every().day.at("00:00").do(load_suntimes, app)  # new sun times every day, to dim the map at the right times
@@ -120,6 +120,34 @@ def schedule_jobs(app: App):
     schedule_rotation(app)
     # a visualizer picked by hand (or the previous/next buttons) gets the full auto-rotate delay before the next change
     app.renderer.subscribe(lambda: schedule_rotation(app))
+
+
+def schedule_fetch(app: App):
+    """
+    The regular fetch every METAR_MINUTES, the wait starting now: at startup, and after a fetch by hand (/fetch), so
+    the next one is a whole interval later instead of maybe a minute.
+    """
+    app.scheduler.clear("fetch")
+    app.scheduler.every(METAR_MINUTES).minutes.do(update_data, app).tag("fetch")
+
+
+UNIT_SECONDS = {"seconds": 1, "minutes": 60, "hours": 3600}  # a schedule job's unit, in seconds
+
+
+def next_fetch(app: App) -> dict:
+    """
+    When METARs are next fetched (Unix time; None if nothing is scheduled) and that job's interval in seconds: the
+    regular fetch, or a retry after a failed one if that comes first. With when they were last fetched, for the Home
+    page's countdown.
+    """
+    jobs = [j for tag in ("fetch", "retry") for j in app.scheduler.get_jobs(tag) if j.next_run is not None]
+    soonest = min(jobs, key=lambda j: j.next_run, default=None)
+    fetched = app.metars.lastFetchTime
+    return {
+        "next": soonest.next_run.timestamp() if soonest else None,  # schedule's times are the map's local time
+        "seconds": soonest.interval * UNIT_SECONDS[soonest.unit] if soonest else None,
+        "fetched": fetched.timestamp() if fetched else None,
+    }
 
 
 def schedule_rotation(app: App):

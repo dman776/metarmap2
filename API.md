@@ -155,6 +155,7 @@ What the physical map is doing right now. The Map page polls it every second. No
   "visualizer": { "active": 0, "id": "flight_category", "name": "Flight Category", "exclusive": false, "areas": null,
                   "autoRotate": { "enabled": true, "seconds": 60, "next": 1792854560.0 },
                   "legendInUse": ["VFR", "IFR", "lightning"], "legendInUseOnly": false },
+  "fetch": { "next": 1792854900.0, "seconds": 600, "fetched": 1792854300.2 },
   "strip": null,
   "leds": [
     { "code": "KLBX", "pixel": 4, "name": "", "virtual": false, "lat": 29.11, "lon": -95.46, "flightCategory": "IFR",
@@ -178,6 +179,7 @@ What the physical map is doing right now. The Map page polls it every second. No
 | `leds[].wind` | While a wind visualizer runs (Wind, Wind Gusts, Wind Direction): the airport's wind for its barb on the Map page, `{"dir": 270.0, "kt": 12}` (the direction it blows from, and the sustained speed). `null` when it's calm, variable (`VRB`), has no direction or no report, and for every other visualizer. |
 | `leds[].virtual` | A virtual airport: no LED on the strip, so the Map page draws it in a dashed circle. |
 | `visualizer.areas` | Which areas the Map page draws while the visualizer runs: `advisories` (Advisories, from `/api/advisories`), `tfrs` (TFR, from `/api/tfrs`), else `null` |
+| `fetch` | The METAR fetch: `next` is when it next happens (Unix time, compare it with `now`; `null` if none is scheduled), `seconds` how long that wait is (600 for the regular fetch every 10 minutes; 60 for a retry after a failed fetch, which comes first), `fetched` when METARs were last fetched (`null` before the first). `GET /fetch` restarts the 10-minute wait. The Home page's Fetch METARs button counts down with it, and reloads once the next fetch has come |
 | `visualizer.autoRotate` | Auto-rotate: `enabled` and `seconds` are its settings (`visualizer.auto_rotate`); `next` is when it next changes the visualizer (Unix time, compare it with `now`), `null` while it's off. Picking a visualizer by hand (`/visualizer/...`) starts the wait again, so `next` moves a whole delay ahead |
 | `visualizer.legendInUse` | The `key`s of the legend entries the LEDs (and virtual airports) show now, in the legend's order (see `/api/status`'s `visualizer.legend`); `null` for a whole-strip visualizer (Rainbow, Chase), whose legend is always shown whole. Follows the LEDs: a fetch, an airport change or a different visualizer changes it |
 | `visualizer.legendInUseOnly` | The `visualizer.legend_in_use_only` setting: whether the web pages list only those entries |
@@ -353,7 +355,7 @@ These endpoints change the map immediately. Except for auto-rotate, nothing they
 | `GET /visualizer/auto_rotate/on`, `GET /visualizer/auto_rotate/off` | Turn auto-rotate on or off (the Remote page's switch). Saved, as `visualizer.auto_rotate.enabled`, though it needs no login: it changes only that setting. The timer starts again now. |
 | `GET /locate/<pixel>` | Pulse one LED white. Ignored while an exclusive visualizer is running. |
 | `GET /led/init_sequence/play` | Play the startup sequence (`led.init_sequence`) once now, whether or not `led.inittest` is on. Returns at once. |
-| `GET /fetch` | Fetch METARs from aviationweather.gov now. **The request does not return until the fetch finishes**, which can take up to about 30 seconds; other requests are answered in the meantime. |
+| `GET /fetch` | Fetch METARs from aviationweather.gov now. **The request does not return until the fetch finishes**, which can take up to about 30 seconds; other requests are answered in the meantime. The next regular fetch is then a whole 10 minutes later (`/api/live`'s `fetch.next`). |
 
 With auto-rotate on, a visualizer picked with `/visualizer/<id>`, `next` or `previous` is shown for the whole auto-rotate delay before the next change.
 
