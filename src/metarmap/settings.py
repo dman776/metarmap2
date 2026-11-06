@@ -195,6 +195,8 @@ class AutoRotate(_Section):
     delay_seconds: int = 60
     # the ids of the visualizers auto-rotate leaves out (names and numbers are taken too, and saved as ids)
     skip: List[str] = setting(default_factory=list, parse=visualizer_ids)
+    # leaves out a visualizer while every LED and virtual airport would be off with it (Precipitation on a dry day)
+    skip_dark: bool = False
 
 
 @dataclass

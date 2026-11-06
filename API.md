@@ -48,6 +48,7 @@ Returns a read-only snapshot of the map's state as `application/json`. No authen
     "visualizer.auto_rotate.enabled": false,
     "visualizer.auto_rotate.delay_seconds": 60,
     "visualizer.auto_rotate.skip": [],
+    "visualizer.auto_rotate.skip_dark": false,
     "visualizer.missing_data_blink": true,
     "visualizer.estimated_category_breathing": true,
     "lightning.animation": true,
@@ -422,6 +423,7 @@ Settings that apply right away:
 - `visualizer.auto_rotate.enabled`
 - `visualizer.auto_rotate.delay_seconds` (the new delay starts counting when it's saved)
 - `visualizer.auto_rotate.skip`: the visualizers auto-rotate leaves out, as a JSON list of ids, e.g. `/config/edit/visualizer.auto_rotate.skip/%5B%22wind%22%2C%22wind_gusts%22%5D` for `["wind","wind_gusts"]` (`[]` leaves none out). Names and numbers are taken too, and saved as ids; an unknown one is a 400. Exclusive visualizers (`"exclusive": true` in `/api/status`) are always left out. The previous/next buttons still go to every visualizer.
+- `visualizer.auto_rotate.skip_dark`: auto-rotate also leaves out a visualizer while it would show nothing: every LED and virtual airport off (e.g. Precipitation on a dry day, or Advisories with none in effect). A red "METAR not available" blink counts as showing something. If every other visualizer is dark, the current one stays
 
 Map page settings (apply the next time the Map page is opened):
 - `geo.map.background`: `sectional`, `satellite` or `radar`

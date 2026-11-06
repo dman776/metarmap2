@@ -340,7 +340,8 @@ def check_releases(app: App):
 
 
 def rotate_visualizer(app: App):
-    app.renderer.visualizer_next(skip_exclusive=True, skip=app.config.data.visualizer.auto_rotate.skip)
+    rotate = app.config.data.visualizer.auto_rotate
+    app.renderer.visualizer_next(skip_exclusive=True, skip=rotate.skip, skip_dark=rotate.skip_dark)
 
 
 def watch_display(app: App):

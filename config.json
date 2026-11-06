@@ -50,7 +50,8 @@
         "auto_rotate": {
             "enabled": false,
             "delay_seconds": 60,
-            "skip": []
+            "skip": [],
+            "skip_dark": false
         },
         "missing_data_blink": true,
         "estimated_category_breathing": true,

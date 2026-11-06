@@ -146,6 +146,49 @@ def test_auto_rotate_leaves_out_the_skipped(make_app):
     assert app.renderer.visualizer[1].id == "wind_direction"  # after Flight Category, past Wind and Wind Gusts
 
 
+def dark_for(monkeypatch, *ids):
+    """Every airport's look is off with the visualizers `ids`; the others show something (solid white)."""
+    from metarmap.models import Look
+    from metarmap.visualizers import visualizer
+
+    monkeypatch.setattr(
+        visualizer,
+        "looks",
+        lambda vis, codes, data, settings: [
+            Look.off() if vis.id in ids else Look.solid((255, 255, 255)) for _ in codes
+        ],
+    )
+
+
+def test_auto_rotate_skips_the_dark(make_app, monkeypatch):
+    app = make_app(**{"visualizer.auto_rotate.skip_dark": True})
+    dark_for(monkeypatch, "wind", "wind_gusts")
+    app_module.rotate_visualizer(app)
+    assert app.renderer.visualizer[1].id == "wind_direction"  # past Wind and Wind Gusts, with nothing to show
+
+
+def test_auto_rotate_shows_the_dark_with_skip_dark_off(make_app, monkeypatch):
+    app = make_app()
+    dark_for(monkeypatch, "wind", "wind_gusts")
+    app_module.rotate_visualizer(app)
+    assert app.renderer.visualizer[1].id == "wind"
+
+
+def test_auto_rotate_stays_when_every_other_visualizer_is_dark(make_app, monkeypatch):
+    app = make_app(**{"visualizer.auto_rotate.skip_dark": True})
+    dark_for(monkeypatch, *(v.id for v in visualizers.ALL if v.id != "flight_category"))
+    app_module.rotate_visualizer(app)
+    assert app.renderer.visualizer[1].id == "flight_category"
+
+
+def test_skip_dark_leaves_the_buttons_alone(make_app, monkeypatch):
+    """Next and previous still go to every visualizer, dark or not."""
+    app = make_app(**{"visualizer.auto_rotate.skip_dark": True})
+    dark_for(monkeypatch, "wind")
+    app.renderer.visualizer_next()
+    assert app.renderer.visualizer[1].id == "wind"
+
+
 # ---- following config changes ---------------------------------------------------------------------------------
 
 
