@@ -1,5 +1,8 @@
 ### Unreleased
 
+- **Auto-rotate waits after a visualizer is picked by hand**: choosing one (Home, Map, Remote, Home Assistant or
+  `/visualizer/...`) or using previous/next starts the auto-rotate delay again, so it's shown for the whole delay
+  instead of being replaced whenever the timer was due. The Remote's countdown starts over with it
 - **`geo.city` can't be one of astral's group names any more**: `Europe`, `US`, `UTC`, `Asia`, `Africa`, `America`,
   `Atlantic`, `Australia`, `Brazil`, `Etc`, `Indian` and `Pacific` passed the check added in 26.11.04 (they're in
   astral's list) but aren't cities, so the map stopped at startup with an `AttributeError`. A hand-edited one is now

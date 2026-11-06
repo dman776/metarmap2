@@ -118,10 +118,15 @@ def schedule_jobs(app: App):
     s.every(WATCHDOG_SECONDS).seconds.do(watch_display, app)
     s.every(CHECK_HOURS).hours.do(check_releases, app)
     schedule_rotation(app)
+    # a visualizer picked by hand (or the previous/next buttons) gets the full auto-rotate delay before the next change
+    app.renderer.subscribe(lambda: schedule_rotation(app))
 
 
 def schedule_rotation(app: App):
-    """Schedules auto-rotate from the settings; called again when they change, so they need no restart."""
+    """
+    Schedules auto-rotate from the settings, starting the wait now; called again when they change, so they need no
+    restart, and when the visualizer changes, so one picked by hand is shown for the whole delay.
+    """
     app.scheduler.clear("rotate_visualizer")
     rotate = app.config.data.visualizer.auto_rotate
     if rotate.enabled:

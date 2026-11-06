@@ -64,6 +64,7 @@ class Renderer:
         self._animations = []
         self._animationloop: AnimateOnce = None
         self.last_locate = None  # {"pixel": n, "at": epoch seconds} of the last locate() pulse
+        self._subscribers = []  # called when the visualizer changes: see subscribe()
         # the main loop and other threads (OLED locate, web) both drive the LEDs; only one at a time
         self._lock = threading.RLock()
         self.adjust_brightness_for_time()
@@ -221,9 +222,20 @@ class Renderer:
     def visualizer(self, key):
         """Switches to a visualizer by its id ("wind") or number (3, "3"). Raises LookupError if there's none."""
         number = index_of(key, self._visualizers)
+        changed = number != self.active_visualizer
         self._vis = self._visualizers[number]
         self.active_visualizer = number
         self._rebuild()
+        if changed:
+            for callback in list(self._subscribers):
+                callback()
+
+    def subscribe(self, callback):
+        """
+        Calls callback() after the visualizer changes to another one: picked, next, previous or auto-rotate (not
+        refresh(), which rebuilds the same one). Runs in the thread that changed it.
+        """
+        self._subscribers.append(callback)
 
     def refresh(self):
         self.visualizer = self.active_visualizer

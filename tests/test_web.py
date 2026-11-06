@@ -1478,6 +1478,19 @@ def test_remote_controls_need_no_login(client):
         assert client(path, auth=False)[0] == 200, path
 
 
+@pytest.mark.parametrize("path", ["/visualizer/next", "/visualizer/previous", "/visualizer/wind", "/visualizer/3"])
+def test_a_visualizer_picked_by_hand_restarts_the_auto_rotate_countdown(client, path):
+    """Home, Map, Remote and Home Assistant all pick through these: the new one shows for the whole delay."""
+    app = client.services
+    client("/visualizer/auto_rotate/on", auth=False)
+    (job,) = app.scheduler.get_jobs("rotate_visualizer")
+    job.next_run = datetime.now() + timedelta(seconds=2)  # nearly time to rotate
+    assert client(path, auth=False)[0] == 200
+    live = client.json("/api/live", auth=False)
+    delay = app.config.data.visualizer.auto_rotate.delay_seconds
+    assert delay - 1 <= live["visualizer"]["autoRotate"]["next"] - live["now"] <= delay
+
+
 def test_remote_auto_rotate_switch(client):
     app = client.services
     assert 'id="auto-rotate" class="switch" type="checkbox">' in client("/remote", auth=False)[1]
