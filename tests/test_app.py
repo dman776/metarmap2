@@ -248,7 +248,7 @@ def test_quiet_hours_are_rescheduled(quiet_app, monkeypatch):
     spy(monkeypatch, app.renderer, "adjust_brightness_for_time", calls, "adjust")
     app.config.edit("led.quiet_hours.enabled", "true")
     assert len(app.scheduler.get_jobs("quiet_hours")) == 2
-    assert calls == ["refresh", "adjust"]
+    assert calls == ["refresh", "adjust", "display.restart"]  # the OLED goes blank (or comes back) now too
 
 
 def test_only_the_brightness_in_use_changes_now(quiet_app, monkeypatch):

@@ -1,5 +1,8 @@
 ### Unreleased
 
+- **The OLED screen follows quiet hours**: with `led.quiet_hours` on, the screen is blank from the start time to the
+  end time, like the LEDs, and the airports come back at the end. Turning quiet hours on or off, or changing the
+  times, applies to the screen at once. The Home page's screen preview is blank meanwhile
 - **The app is named MetarMap2**: the web header, the browser tab titles (`Home · MetarMap2`), the Remote page's logo,
   the README, API.md and the systemd service's description. The service is still `metarmap.service` and the package
   `metarmap`, so updates and `python -m metarmap` work as before

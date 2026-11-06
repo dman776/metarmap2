@@ -1,5 +1,6 @@
 """
-The OLED loop: rotates through the airports set to show on the screen, two pages each.
+The OLED loop: rotates through the airports set to show on the screen, two pages each. During quiet hours
+(led.quiet_hours) the screen is blank, like the LEDs.
 
 What each page says comes from metarmap.oled.screens; drawing is done by a screen driver
 (metarmap.oled.screen.SSD1306Screen on the Pi, FakeScreen elsewhere).
@@ -12,7 +13,7 @@ from typing import Optional
 from zoneinfo import ZoneInfo
 
 from metarmap.config import Config
-from metarmap.sun import get_location
+from metarmap.sun import get_location, quiet_hours_active
 from metarmap.clock import Clock
 from metarmap.oled.screens import airports_to_show, message_screen, pages_for, screen_for
 
@@ -20,6 +21,9 @@ log = logging.getLogger(__name__)
 
 # at startup, seconds the LEDs show the visualizer before the first "Highlight active airport" pulse (app.run)
 STARTUP_LOCATE_DELAY = 2.0
+# during quiet hours, how often the loop looks whether they're over (well inside the watchdog's 60 s; turning quiet
+# hours off or changing them restarts the loop, so that's at once)
+QUIET_CHECK_SECONDS = 30
 
 
 def watchdog_limit(delay: float) -> float:
@@ -142,6 +146,10 @@ class Display:
             for pixel, airport in airports:
                 if event.is_set():
                     return
+                if self.quiet():
+                    if not self._wait_out_quiet_hours(event):
+                        return
+                    break  # quiet hours are over: from the first airport again
                 if self._renderer is not None and self._config.data.display_screen.locate_active:
                     if self._locate_delay > 0:
                         self._locate_later(pixel, airport, self._locate_delay, event)
@@ -164,6 +172,24 @@ class Display:
                 self.last_change = self._clock.time()
                 self._clock.wait(event, 5)  # nothing to show; don't spin
 
+    def quiet(self) -> bool:
+        """Whether it's quiet hours now (led.quiet_hours): the screen stays blank."""
+        return quiet_hours_active(self._clock.now(), self._config.data.led.quiet_hours)
+
+    def _wait_out_quiet_hours(self, event) -> bool:
+        """Blanks the screen until quiet hours are over. Returns False if the loop was stopped meanwhile."""
+        with self.lock:
+            try:
+                self._device.clear()
+            except Exception as e:
+                log.warning(f"clear for quiet hours: {e}")
+            self._screen = None
+        while self.quiet():
+            self.last_change = self._clock.time()  # waiting on purpose, not stuck: the watchdog leaves it be
+            if self._clock.wait(event, QUIET_CHECK_SECONDS):
+                return False
+        return True
+
     def _locate(self, pixel, airport):
         try:
             self._renderer.locate(pixel)  # a virtual airport: on the web map only
@@ -183,6 +209,8 @@ class Display:
 
     def show_airport(self, airport, metar, delay, event, virtual=False):
         for page in pages_for(metar):
+            if self.quiet():
+                return  # the loop blanks the screen before the next airport
             if not self.show_page(screen_for(airport, metar, page, self._tz, virtual), delay, event):
                 return
 

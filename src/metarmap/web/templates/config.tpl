@@ -125,7 +125,7 @@
         % slider('led.brightness.dimmed', d.led.brightness.dimmed, 'Dawn / dusk', 'Dawn to sunrise, sunset to dusk.')
         % slider('led.brightness.off', d.led.brightness.off, 'Night', 'Dusk to dawn.')
         </div>
-        % switch('led.quiet_hours.enabled', d.led.quiet_hours.enabled, 'Quiet hours', 'Force physical LED brightness to 0% between two times, regardless of sunrise or sunset.')
+        % switch('led.quiet_hours.enabled', d.led.quiet_hours.enabled, 'Quiet hours', 'Force physical LED brightness to 0% between two times, regardless of sunrise or sunset. The OLED screen is blank then too.')
         <div class="sub" data-when="led-quiet_hours-enabled"{{!'' if d.led.quiet_hours.enabled else ' hidden'}}>
         <div class="set">
             <div><label class="t" for="quiet-hours-start">Start quiet hours</label><div class="d">Local Raspberry Pi time.</div></div>
