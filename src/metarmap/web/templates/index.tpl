@@ -14,9 +14,12 @@
         </p>
     </div>
     <div class="actions">
-        <button class="btn primary" type="button" data-call="/fetch">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
+        <button class="btn primary fetch-btn" type="button" data-call="/fetch">
+            <svg class="fetch-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
+            <!-- the countdown to the next fetch (app.js), in place of the icon once the map says when -->
+            <svg class="fetch-ring" id="fetch-ring" width="18" height="18" viewBox="0 0 36 36" aria-hidden="true" hidden><circle class="track" cx="18" cy="18" r="15"/><circle class="left" id="fetch-ring-left" cx="18" cy="18" r="15" pathLength="100" stroke-dasharray="100 100"/></svg>
             Fetch METARs
+            <span class="fetch-time" id="fetch-time" role="timer" aria-label="Next fetch"></span>
         </button>
         % release = get('release')
         % newer = release and release['available'] and not release['installed']

@@ -1,5 +1,11 @@
 ### Unreleased
 
+- **Home's Fetch METARs button counts down to the next fetch**: a ring (as on the Remote's auto-rotate) and the time
+  left, in place of the button's icon. After a failed fetch it counts down to the retry (every minute). When the fetch
+  has come, the page reloads with the new METARs
+  - Fetch METARs by hand restarts the 10-minute wait, so the next regular fetch is a whole interval later instead of
+    maybe a minute
+  - `/api/live` has `fetch`: `next` (Unix time), `seconds` (the wait's length) and `fetched` (the last fetch)
 - **Quiet hours play the startup sequence**: with the startup sequence on (`led.inittest`), the map goes dark at the
   start of quiet hours with the same sequence: the darkness follows its path, e.g. Radar's beam sweeps the colors off
   clockwise from north, Sweep from the same side, Sparkle LED by LED. Comet runs the other way along the strip and

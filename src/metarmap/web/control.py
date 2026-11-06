@@ -165,9 +165,10 @@ def add_routes(app, services: "App", site, auth, updates=None):
         return ""
 
     def fetch():
-        from metarmap.app import refetch_metars  # here: app.py imports the web
+        from metarmap.app import refetch_metars, schedule_fetch  # here: app.py imports the web
 
         refetch_metars(services)  # as the map does when an airport changes: dimmed, then the LEDs and the names
+        schedule_fetch(services)  # the next regular fetch a whole interval from now
         return pages.index(services, site)
 
     def edit_config(key, value):
