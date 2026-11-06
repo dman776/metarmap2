@@ -1,4 +1,4 @@
-# METARMap2
+# MetarMap2
 
 A Raspberry Pi turns a wall map into a live weather display: an LED at each airport shows its current conditions from
 [aviationweather.gov](https://aviationweather.gov) (VFR green, MVFR blue, IFR red, LIFR purple, and more). An
@@ -7,7 +7,7 @@ set up the map from your phone.
 
 Written from the ground up with a web UI, an API and a Home Assistant integration (see [Credits](#credits)).
 
-![The METARMap2 map on a wall: an FAA sectional chart with an LED at each airport](docs/images/physical_map.jpg)
+![The MetarMap2 map on a wall: an FAA sectional chart with an LED at each airport](docs/images/physical_map.jpg)
 
 ## Features
 
@@ -116,7 +116,7 @@ The original project's write-ups cover the build in detail:
 
 ## Try it on your computer
 
-You don't need a Raspberry Pi, LEDs or an OLED screen to try METARMap2. On your own computer it runs with in-memory
+You don't need a Raspberry Pi, LEDs or an OLED screen to try MetarMap2. On your own computer it runs with in-memory
 stand-ins for the LED strip and the screen, and the web UI works as it does on a Pi, with live METARs: the Map page
 shows each airport's LED, colors and effects included, over an FAA chart, and a copy of the OLED screen.
 
@@ -337,7 +337,7 @@ it as written.
 
 ## Credits
 
-METARMap2 started from [prueker/METARMap](https://github.com/prueker/METARMap), Philip Rueker's Raspberry Pi METAR
+MetarMap2 started from [prueker/METARMap](https://github.com/prueker/METARMap), Philip Rueker's Raspberry Pi METAR
 map, with portions by [@lostlocalhost](https://github.com/lostlocalhost) and
 [John Marzulli](https://github.com/JohnMarzulli/categorical-sectional). It has since been
 rewritten from scratch, with a web UI, an API, a Home Assistant integration and more, and shares little, if any, of
