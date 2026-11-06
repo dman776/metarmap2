@@ -30,6 +30,8 @@ DETAILS = {
     colors_lib.CYAN: "Cyan",
 }
 NONE = colors_lib.GRAY
+# legend entries' keys, beside each type's (its label): their labels change with tfr.nearby_nm
+NEARBY, UPCOMING, NO_TFR = "nearby", "upcoming", "no_tfr"
 
 
 def color(tfr_type):
@@ -48,7 +50,11 @@ def nearby_nm(settings):
 def legend(settings):
     reach = nearby_nm(settings)
     red = color("VIP")
-    nearby = [legend_item(f"Within {reach:g} NM of a TFR", "Dim, in its type's color", style.dim(red))] if reach else []
+    nearby = (
+        [legend_item(f"Within {reach:g} NM of a TFR", "Dim, in its type's color", style.dim(red), key=NEARBY)]
+        if reach
+        else []
+    )
     return [
         *[legend_item(label, DETAILS[name], style.named(name)) for name, label in COLORS.values()],
         *nearby,
@@ -59,15 +65,10 @@ def legend(settings):
             effect="pulse",
             period=style.LIGHT_PERIOD,
             low=style.LIGHT_LOW,
+            key=UPCOMING,
         ),
-        legend_item(f"No TFR within {reach:g} NM" if reach else "No TFR", "Dim white", style.named(NONE)),
-        legend_item(
-            "No TFR list yet, or the airport's position isn't known",
-            "Slow red blink",
-            style.named(colors_lib.RED),
-            effect="blink",
-            period=style.MISSING_PERIOD,
-        ),
+        legend_item(f"No TFR within {reach:g} NM" if reach else "No TFR", "Dim white", style.named(NONE), key=NO_TFR),
+        style.missing_legend("", label="No TFR list yet, or the airport's position isn't known"),
         style.no_report_legend(),
     ]
 
@@ -79,12 +80,15 @@ def look(metar: Optional[Report], settings) -> Look:
     if tfrs is None:
         return style.missing()
     if not tfrs:
-        return Look.solid(style.named(NONE))
+        return Look.solid(style.named(NONE)).tagged(NO_TFR)
     first = tfrs[0]  # the most important: in effect before upcoming, inside before nearby, then by type
     c = color(first["type"])
+    kind = COLORS[first["type"]][1]  # its type's legend entry
     if first["upcoming"]:
-        return Look.pulse(c, period=style.LIGHT_PERIOD, low=style.LIGHT_LOW)
-    return Look.solid(c if first["inside"] else style.dim(c))
+        return Look.pulse(c, period=style.LIGHT_PERIOD, low=style.LIGHT_LOW).tagged(kind, UPCOMING)
+    if first["inside"]:
+        return Look.solid(c).tagged(kind)
+    return Look.solid(style.dim(c)).tagged(kind, NEARBY)
 
 
 VISUALIZER = Visualizer(

@@ -19,7 +19,7 @@
 <div id="map" class="live-map" role="region" aria-label="Map of airport LEDs"></div>
 
 <div id="legend-source" hidden>
-    %include("legend.tpl", legend=active['legend'])
+    %include("legend.tpl", legend=active['legend'], filtered=active['filtered'])
 </div>
 
 <p class="muted" style="margin: 0; font-size: 13px">LEDs are drawn at full brightness. The map itself is at {{int(round(brightness * 100))}}% right now. A white ring marks the airport on the OLED screen.</p>

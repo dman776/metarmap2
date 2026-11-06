@@ -227,6 +227,18 @@
         page.classList.toggle('offline', !ok);
     }
 
+    // visualizer.legend_in_use_only: the legend lists only the entries the LEDs show now (/api/live's legendInUse);
+    // the others stay in the page, hidden, so they come back when an LED shows them. Not while the legend on screen
+    // is still the previous visualizer's.
+    function filterLegend(list, vis, shownIndex) {
+        if (!list || vis.active !== shownIndex) return;
+        const used = vis.legendInUseOnly && vis.legendInUse && vis.legendInUse.length ? vis.legendInUse : null;
+        const rows = list.querySelectorAll('li[data-key]');
+        for (let i = 0; i < rows.length; i++) {
+            rows[i].hidden = used !== null && used.indexOf(rows[i].dataset.key) < 0;
+        }
+    }
+
     async function poll() {
         try {
             const res = await fetch('/api/live', {cache: 'no-store'});
@@ -234,6 +246,7 @@
             const live = await res.json();
             online(true);
             followVisualizer(live.visualizer.active);
+            filterLegend(legend.querySelector('.legend'), live.visualizer, shown);
             showRotation(live.visualizer.autoRotate, live.now);
             showBrightness(live.brightness);
             showOled(live.display);

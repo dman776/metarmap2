@@ -53,7 +53,8 @@
             "skip": []
         },
         "missing_data_blink": true,
-        "estimated_category_breathing": true
+        "estimated_category_breathing": true,
+        "legend_in_use_only": false
     },
     "lightning": {
         "animation": true,

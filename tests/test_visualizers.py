@@ -13,6 +13,7 @@ from metarmap.visualizers.visualizer import Visualizer
 from metarmap.settings import LIGHTNING_COLORS, Settings
 from metarmap import decode, visualizers
 from metarmap.visualizers import (
+    advisories,
     ceiling,
     chase,
     density_altitude,
@@ -23,6 +24,7 @@ from metarmap.visualizers import (
     spread,
     style,
     temperature,
+    tfr,
     visibility,
     visualizer,
     wind,
@@ -138,6 +140,153 @@ def test_every_module_declares_its_visualizer():
     for v in ALL:
         module = importlib.import_module(v.look.__module__ if v.look else v.strip_look.__module__)
         assert module.VISUALIZER is v
+
+
+# ---- which legend entries a look shows (Look.legend) -------------------------------------------------------------
+
+
+def sample_reports():
+    """Reports that take every visualizer down each of its paths: values in every band, every kind of weather..."""
+
+    def sky(*layers):
+        return tuple(SkyLayer(cover, base) for cover, base in layers)
+
+    reports = [None, Report()]  # no report; a report with nothing in it
+    reports += [metar(flight_category=category) for category in ("VFR", "MVFR", "IFR", "LIFR", None)]
+    reports += [
+        metar(flight_category=None, visibility_sm=10.0, sky_conditions=sky(("CLR", 0))),  # estimated VFR
+        metar(flight_category=None, visibility_sm=0.5, sky_conditions=sky(("OVC", 200))),  # estimated LIFR
+    ]
+    reports += [
+        metar(wind_speed=kt, wind_gust_speed=(kt or 0) + gust)
+        for kt in (0, 5, 12, 20, 30, None)
+        for gust in (0, 8, 15, 25)
+    ]
+    reports += [
+        metar(wind_dir=d, wind_speed=8) for d in ("0", "45", "90", "135", "180", "225", "270", "315", "VRB", "")
+    ]
+    reports += [
+        metar(temp_c=t, dewpoint_c=None if t is None else t - spread)
+        for t in (-20, 0, 15, 30, 40, None)
+        for spread in (0, 2, 5, 12)
+    ]
+    reports += [metar(altimeter_inhg=inhg) for inhg in (28.5, 29.5, 29.92, 30.4, 31.0, None, 0)]
+    reports += [metar(visibility_sm=miles) for miles in (0.25, 1, 2, 4, 7, 10, None)]
+    reports += [metar(elevation_m=m, temp_c=t) for m in (0, 1500, 3000) for t in (0, 30, 45)]
+    reports += [
+        metar(sky_conditions=sky(*layers), vert_vis_ft=vv)
+        for layers in (
+            (("OVC", 200),),
+            (("BKN", 800),),
+            (("BKN", 2000),),
+            (("OVC", 5000),),
+            (("SCT", 3000),),
+            (("OVX", 0),),
+            (),
+        )
+        for vv in (300, None)
+    ]
+    weather = [
+        "",
+        "NSW",
+        "-RA",
+        "RA",
+        "+RA",
+        "VCSH",
+        "-DZ",
+        "-SN",
+        "SN",
+        "+SN",
+        "FZRA",
+        "PL",
+        "+TSRA",
+        "TS",
+        "VCTS",
+        "SQ",
+        "UP",
+        "FG",
+        "FU",
+        "HZ",
+        "BR",
+        "-RASN",
+        "ZZZZ",
+        "SH",
+        "-RA BR",
+    ]
+    reports += [metar(weather=wx) for wx in weather]
+    reports += [metar(weather=wx, lightning=True) for wx in ("", "-RA", "TS")]
+    reports += [
+        metar(tfrs=[{"type": kind, "inside": inside, "upcoming": upcoming}])
+        for kind in tfr.COLORS
+        for inside, upcoming in ((True, False), (False, False), (True, True))
+    ]
+    reports += [metar(tfrs=[]), metar(tfrs=None)]
+    reports += [metar(airmets=[hazard]) for hazard in advisories.COLORS]
+    reports += [metar(airmets=list(h)) for h in (("IFR", "ICE"), ("IFR", "ICE", "LLWS"), ("TURB-LO", "TURB-HI"), ())]
+    reports += [metar(airmets=None), *(metar(airmets=[], sigmets=[s]) for s in advisories.SIGMET_COLORS)]
+    return reports
+
+
+@pytest.mark.parametrize("v", [v for v in ALL if v.look is not None], ids=lambda v: v.id)
+@pytest.mark.parametrize("missing_blink, lightning, breathing", [(True, True, True), (False, False, False)])
+def test_every_look_names_its_legend_entries(v, missing_blink, lightning, breathing):
+    """Every look says which legend entries it shows, and they're all in the visualizer's legend."""
+    settings = Settings()
+    settings.visualizer.missing_data_blink = missing_blink
+    settings.lightning.animation = lightning
+    settings.visualizer.estimated_category_breathing = breathing
+    keys = [item["key"] for item in visualizer.legend(v, settings)]
+    assert len(keys) == len(set(keys)), "each legend entry has its own key"
+    for report in sample_reports():
+        look = visualizer.look(v, report, settings)
+        assert look.legend, f"{v.id}: no legend entry for {report}"
+        assert set(look.legend) <= set(keys), f"{v.id}: {look.legend} not all in the legend, for {report}"
+
+
+@pytest.mark.parametrize(
+    "v, fields, keys",
+    [
+        (flightcategory, {"flight_category": "MVFR"}, ("MVFR",)),
+        (flightcategory, {"flight_category": None, "visibility_sm": 4.0}, ("MVFR", "estimated")),
+        (flightcategory, {"flight_category": None}, ("missing",)),
+        (precipitation, {"weather": "-SN"}, ("snow", "light")),
+        (precipitation, {"weather": "+TSRA"}, ("thunderstorm", "rain", "heavy", "lightning")),
+        (precipitation, {"weather": "-RASN"}, ("mixed", "snow", "rain")),  # snow outranks rain
+        (precipitation, {"weather": "VCTS"}, ("thunderstorm", "vicinity", "lightning")),
+        (precipitation, {"weather": "NSW"}, ("no_weather",)),
+        (precipitation, {"weather": "ZZZZ"}, ("missing",)),
+        (precipitation, {"weather": "-RA", "lightning": True}, ("rain", "light", "lightning")),
+        (wind, {"wind_speed": 12}, ("10-14 kt",)),
+        (wind_direction, {"wind_dir": "VRB", "wind_speed": 4}, ("Variable",)),
+        (wind_direction, {"wind_dir": "270", "wind_speed": 4}, ("West",)),
+        (tfr, {"tfrs": [{"type": "VIP", "inside": False, "upcoming": False}]}, (tfr.COLORS["VIP"][1], "nearby")),
+        (tfr, {"tfrs": [{"type": "VIP", "inside": True, "upcoming": True}]}, (tfr.COLORS["VIP"][1], "upcoming")),
+        (advisories, {"airmets": ["IFR", "ICE"]}, ("mixed", advisories.COLORS["IFR"][1], advisories.COLORS["ICE"][1])),
+        (advisories, {"airmets": [], "sigmets": ["CONV"]}, (advisories.SIGMET_COLORS["CONV"][1],)),
+    ],
+)
+def test_a_look_names_what_it_shows(v, fields, keys, settings):
+    assert visualizer.look(v.VISUALIZER, metar(**fields), settings).legend == keys
+
+
+def test_no_report_is_its_entry(settings):
+    assert visualizer.look(flightcategory.VISUALIZER, None, settings).legend == ("no_report",)
+
+
+def test_missing_data_turned_off_is_still_its_entry(settings):
+    settings.visualizer.missing_data_blink = False
+    look = visualizer.look(wind.VISUALIZER, metar(wind_speed=None), settings)
+    assert look.effect == "off" and look.legend == ("missing",)
+    (item,) = [i for i in visualizer.legend(wind.VISUALIZER, settings) if i["key"] == "missing"]
+    assert item["detail"] == "Off"
+
+
+def test_in_use_is_in_the_legends_order(settings):
+    looks = [
+        visualizer.look(flightcategory.VISUALIZER, metar(flight_category=c), settings) for c in ("IFR", "VFR", "IFR")
+    ]
+    assert visualizer.in_use(flightcategory.VISUALIZER, looks, settings) == ["VFR", "IFR"]
+    assert visualizer.in_use(rainbow.VISUALIZER, [], settings) is None  # a whole-strip look: all of it
 
 
 # ---- flight category ----------------------------------------------------------------------------------------

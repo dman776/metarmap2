@@ -164,6 +164,7 @@
         </div>
         % switch('visualizer.missing_data_blink', d.visualizer.missing_data_blink, 'Missing data blink', 'Slow red blink on an airport whose report lacks what the visualizer shows, such as no flight category, visibility or sky condition. Off leaves its LED dark.')
         % switch('visualizer.estimated_category_breathing', d.visualizer.estimated_category_breathing, 'Estimated flight category breathing', 'Estimated flight categories breathe slowly. Off shows them in a steady color, like a reported one (the OLED still shows VFR*).')
+        % switch('visualizer.legend_in_use_only', d.visualizer.legend_in_use_only, 'Only show legend items in use', 'The legends on Home, Map and Remote list only what the LEDs are showing now, e.g. just VFR and MVFR. Off lists everything the visualizer can show.')
         % switch('lightning.animation', d.lightning.animation, 'Lightning animation', 'Two quick flashes on airports with lightning or a thunderstorm, in every weather visualizer.')
         <div class="sub" data-when="lightning-animation"{{!'' if d.lightning.animation else ' hidden'}}>
         <div class="set">

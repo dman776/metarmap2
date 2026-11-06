@@ -41,6 +41,7 @@ SIGMET_COLORS = {
 }
 COLOR_NAMES = {colors_lib.RED: "Red", colors_lib.CYAN: "Cyan", colors_lib.YELLOW: "Yellow", colors_lib.ORANGE: "Orange"}
 NONE = colors_lib.GRAY
+MIXED, NO_ADVISORY = "mixed", "no_advisory"  # legend entries' keys; the others' are their labels
 
 
 def color(hazard, kind="AIRMET"):
@@ -60,6 +61,11 @@ def colors_for(hazards):
         if c not in found:
             found.append(c)
     return found
+
+
+def labels_for(hazards):
+    """The legend entries (labels) of an airport's AIRMET hazards, in the order of colors_for()."""
+    return list(dict.fromkeys(COLORS[hazard][1] for hazard in hazards))
 
 
 def sigmet_look(c) -> Look:
@@ -95,15 +101,10 @@ def legend(settings):
             color("ICE"),
             effect="alternate",
             period=MIXED_PERIOD,
+            key=MIXED,
         ),
-        legend_item("No advisory below 18,000 ft", "Dim white", style.named(NONE)),
-        legend_item(
-            "No G-AIRMETs yet, or the airport's position isn't known",
-            "Slow red blink",
-            style.named(colors_lib.RED),
-            effect="blink",
-            period=style.MISSING_PERIOD,
-        ),
+        legend_item("No advisory below 18,000 ft", "Dim white", style.named(NONE), key=NO_ADVISORY),
+        style.missing_legend("", label="No G-AIRMETs yet, or the airport's position isn't known"),
         style.no_report_legend(),
     ]
 
@@ -113,16 +114,18 @@ def look(metar: Optional[Report], settings) -> Look:
         return style.no_report()
     sigmets = metar.sigmets or []
     if sigmets:  # the most serious one
-        return sigmet_look(color(sigmets[0], "SIGMET"))
+        return sigmet_look(color(sigmets[0], "SIGMET")).tagged(SIGMET_COLORS[sigmets[0]][1])
     hazards = metar.airmets
     if hazards is None:
         return style.missing()
-    colors = colors_for(hazards)
+    colors, labels = colors_for(hazards), labels_for(hazards)
     if not colors:
-        return Look.solid(style.named(NONE))
+        return Look.solid(style.named(NONE)).tagged(NO_ADVISORY)
     if len(colors) == 1:
-        return Look.solid(colors[0])
-    return Look.blink(colors[0], period=MIXED_PERIOD, background=colors[1])
+        return Look.solid(colors[0]).tagged(*labels)
+    # the two colors shown alternate; with more hazards, only the first two are on the LED
+    shown = dict.fromkeys(COLORS[hazard][1] for hazard in hazards if color(hazard) in colors[:2])
+    return Look.blink(colors[0], period=MIXED_PERIOD, background=colors[1]).tagged(MIXED, *shown)
 
 
 VISUALIZER = Visualizer(

@@ -13,7 +13,7 @@ import bottle
 from metarmap import __version__
 from metarmap.decode import decode, summary
 from metarmap.models import Report
-from metarmap.visualizers import advisories as advisories_vis, tfr as tfr_vis, visualizer, wind_direction
+from metarmap.visualizers import advisories as advisories_vis, tfr as tfr_vis, wind_direction
 from metarmap.web import views
 
 if TYPE_CHECKING:  # app.py imports the web, so only for the type checker
@@ -77,7 +77,7 @@ def status(services: "App", ip):
             "name": active_vis.name,
             "exclusive": active_vis.exclusive,
             "description": active_vis.description,
-            "legend": visualizer.legend(active_vis, cfg),
+            "legend": services.renderer.legend(),
         },
         "visualizers": [
             {"index": i, "id": v.id, "name": v.name, "exclusive": v.exclusive}
@@ -90,6 +90,7 @@ def status(services: "App", ip):
             "visualizer.auto_rotate.skip": cfg.visualizer.auto_rotate.skip,
             "visualizer.missing_data_blink": cfg.visualizer.missing_data_blink,
             "visualizer.estimated_category_breathing": cfg.visualizer.estimated_category_breathing,
+            "visualizer.legend_in_use_only": cfg.visualizer.legend_in_use_only,
             "lightning.animation": cfg.lightning.animation,
             "lightning.color": cfg.lightning.color,
             "display_screen.enabled": cfg.display_screen.enabled,
@@ -200,6 +201,10 @@ def live(services: "App", now=None):
             "exclusive": active_vis.exclusive,
             "areas": active_vis.areas,
             "autoRotate": auto_rotate(services),
+            # the legend entries (keys) the LEDs show now, null for a whole-strip look; the pages hide the others when
+            # legendInUseOnly (visualizer.legend_in_use_only)
+            "legendInUse": renderer.legend_in_use(),
+            "legendInUseOnly": services.config.data.visualizer.legend_in_use_only,
         },
         "strip": strip,
         "leds": leds,

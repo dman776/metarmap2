@@ -33,7 +33,7 @@ def look(metar: Optional[Report], settings) -> Look:
         return style.no_report()
     if metar.temp_c is None:
         return style.missing()
-    return Look.solid(style.band_for(celsius_to_fahrenheit(metar.temp_c), BANDS, settings))
+    return style.band_look(celsius_to_fahrenheit(metar.temp_c), BANDS, settings)
 
 
 VISUALIZER = Visualizer(

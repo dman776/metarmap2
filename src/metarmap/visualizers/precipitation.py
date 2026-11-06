@@ -21,6 +21,8 @@ log = logging.getLogger(__name__)
 
 
 MIXED_PERIOD = 2.0  # seconds per alternation of two kinds of precipitation
+# legend entries' keys: each kind's is its name in KINDS ("rain"), and these
+THUNDERSTORM, MIXED, NO_WEATHER = "thunderstorm", "mixed", "no_weather"
 
 RAIN = colors_lib.color(colors_lib.BLUE)
 SNOW = colors_lib.color(colors_lib.WHITE)
@@ -77,7 +79,7 @@ def look(metar: Optional[Report], settings) -> Look:
 def look_for_weather(obs, settings) -> Look:
     """How the LED looks for a METAR's weather codes, e.g. "-RA BR"."""
     if not obs or obs.strip() == "NSW":
-        return Look.off()  # nothing to report ("NSW": no significant weather)
+        return Look.off().tagged(NO_WEATHER)  # nothing to report ("NSW": no significant weather)
     groups = parse_weather(obs)
     if not groups:
         log.info(f"unknown weather codes: {obs}")
@@ -89,32 +91,38 @@ def look_for_weather(obs, settings) -> Look:
     if storm is not None:
         storm_kinds = kinds_in(storm)
         if storm_kinds:  # e.g. +TSRA: heavy rain
-            return style.by_intensity(COLOR[storm_kinds[0]], intensity_of(storm))
-        return style.by_intensity(style.LIGHTNING, intensity_of(storm))  # TS: yellow; VCTS: dim yellow
+            return style.by_intensity(COLOR[storm_kinds[0]], intensity_of(storm), THUNDERSTORM, storm_kinds[0])
+        # TS: yellow; VCTS: dim yellow
+        return style.by_intensity(style.LIGHTNING, intensity_of(storm), THUNDERSTORM)
 
     if not ranked:  # e.g. only a descriptor we don't show, like "SH" on its own
-        return Look.off()
+        return Look.off().tagged(NO_WEATHER)
     kinds, group = ranked[0]
     if len(kinds) > 1 and RANK[kinds[1]] < RANK["unknown"]:  # two kinds of precipitation at once, e.g. -RASN
-        return Look.blink(COLOR[kinds[0]], period=MIXED_PERIOD, background=COLOR[kinds[1]])
-    return style.by_intensity(COLOR[kinds[0]], intensity_of(group))
+        return Look.blink(COLOR[kinds[0]], period=MIXED_PERIOD, background=COLOR[kinds[1]]).tagged(
+            MIXED, kinds[0], kinds[1]
+        )
+    return style.by_intensity(COLOR[kinds[0]], intensity_of(group), kinds[0])
 
 
 def legend(settings):
     return [
-        legend_item("Rain", "Blue", RAIN),
-        legend_item("Drizzle", "Dim blue", style.dim(RAIN, 0.5)),
-        legend_item("Snow", "White", SNOW),
-        legend_item("Freezing rain or drizzle, ice pellets, hail", "Cyan", ICE),
+        legend_item("Rain", "Blue", RAIN, key="rain"),
+        legend_item("Drizzle", "Dim blue", style.dim(RAIN, 0.5), key="drizzle"),
+        legend_item("Snow", "White", SNOW, key="snow"),
+        legend_item("Freezing rain or drizzle, ice pellets, hail", "Cyan", ICE, key="ice"),
         legend_item(
-            "Thunderstorm", "With rain, snow...: their color. Without: yellow (dim if nearby)", style.LIGHTNING
+            "Thunderstorm",
+            "With rain, snow...: their color. Without: yellow (dim if nearby)",
+            style.LIGHTNING,
+            key=THUNDERSTORM,
         ),
-        legend_item("Squalls, funnel cloud, sand or dust storm, volcanic ash", "Magenta", HAZARD),
-        legend_item("Unknown precipitation", "Orange", UNKNOWN),
-        legend_item("Fog", "Gray", FOG),
-        legend_item("Smoke", "Gray", SMOKE),
-        legend_item("Haze, dust, sand", "Dark gray", HAZE),
-        legend_item("Mist", "Dark blue", MIST),
+        legend_item("Squalls, funnel cloud, sand or dust storm, volcanic ash", "Magenta", HAZARD, key="hazard"),
+        legend_item("Unknown precipitation", "Orange", UNKNOWN, key="unknown"),
+        legend_item("Fog", "Gray", FOG, key="fog"),
+        legend_item("Smoke", "Gray", SMOKE, key="smoke"),
+        legend_item("Haze, dust, sand", "Dark gray", HAZE, key="haze"),
+        legend_item("Mist", "Dark blue", MIST, key="mist"),
         *style.intensity_legend(RAIN, "rain"),
         legend_item(
             "Two kinds at once (e.g. rain and snow)",
@@ -123,15 +131,11 @@ def legend(settings):
             SNOW,
             effect="alternate",
             period=MIXED_PERIOD,
+            key=MIXED,
         ),
-        legend_item("No weather reported", "Off"),
-        legend_item(
-            "Weather codes the map doesn't know",
-            "Slow red blink",
-            colors_lib.color(colors_lib.RED),
-            effect="blink",
-            period=style.MISSING_PERIOD,
-        ),
+        legend_item("No weather reported", "Off", key=NO_WEATHER),
+        style.missing_legend("", label="Weather codes the map doesn't know"),
+        style.no_report_legend(),
     ]
 
 

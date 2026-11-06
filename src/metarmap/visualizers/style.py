@@ -26,6 +26,12 @@ from metarmap.visualizers.visualizer import legend_item
 
 LIGHT, MODERATE, HEAVY, VICINITY = "-", "", "+", "VC"
 
+# the keys of the legend entries every visualizer shares (Look.tagged, legend_item(key=...))
+NO_REPORT = "no_report"
+MISSING = "missing"
+LIGHTNING_KEY = "lightning"
+INTENSITY_KEYS = {LIGHT: "light", HEAVY: "heavy", VICINITY: "vicinity"}  # moderate is the kind's own entry
+
 LIGHT_PERIOD = 4.0  # seconds per breath
 LIGHT_LOW = 0.3  # a breath's dimmest point
 HEAVY_PERIOD = 1.0  # seconds per blink
@@ -42,12 +48,12 @@ def dim(color: Sequence[int], factor: float = DIM):
 
 
 def no_report() -> Look:
-    return Look.off()
+    return Look.off().tagged(NO_REPORT)
 
 
 def missing() -> Look:
     """The airport reported, but not the value this visualizer shows. Off with visualizer.missing_data_blink off."""
-    return Look.blink(named(colors_lib.RED), period=MISSING_PERIOD)
+    return Look.blink(named(colors_lib.RED), period=MISSING_PERIOD).tagged(MISSING)
 
 
 def is_missing_legend(item) -> bool:
@@ -59,14 +65,17 @@ def is_missing_legend(item) -> bool:
     )
 
 
-def by_intensity(color, intensity=MODERATE) -> Look:
+def by_intensity(color, intensity=MODERATE, *keys) -> Look:
+    """`color` breathing, solid, blinking or dim by intensity; showing the entries `keys` and the intensity's."""
     if intensity == LIGHT:
-        return Look.pulse(color, period=LIGHT_PERIOD, low=LIGHT_LOW)
-    if intensity == HEAVY:
-        return Look.blink(color, period=HEAVY_PERIOD, background=dim(color))
-    if intensity == VICINITY:
-        return Look.solid(dim(color))
-    return Look.solid(color)
+        look = Look.pulse(color, period=LIGHT_PERIOD, low=LIGHT_LOW)
+    elif intensity == HEAVY:
+        look = Look.blink(color, period=HEAVY_PERIOD, background=dim(color))
+    elif intensity == VICINITY:
+        look = Look.solid(dim(color))
+    else:
+        look = Look.solid(color)
+    return look.tagged(*keys, INTENSITY_KEYS.get(intensity))
 
 
 # ---- lightning ----------------------------------------------------------------------------------------------
@@ -125,7 +134,7 @@ def with_lightning(look: Look, settings) -> Look:
         else:
             color = tuple(color_at(look, n * LIGHTNING_STEP))
             frames.append(dim(color) if color == flash else color)
-    return Look.cycle(frames, step=LIGHTNING_STEP)
+    return Look.cycle(frames, step=LIGHTNING_STEP).tagged(*look.legend, LIGHTNING_KEY)
 
 
 def lightning_legend(settings):
@@ -137,6 +146,7 @@ def lightning_legend(settings):
         flash,
         effect="flash",
         period=LIGHTNING_EVERY,
+        key=LIGHTNING_KEY,
     )
 
 
@@ -144,12 +154,17 @@ def lightning_legend(settings):
 
 
 def no_report_legend(label="METAR not available"):
-    return legend_item(label, "Off")
+    return legend_item(label, "Off", key=NO_REPORT)
 
 
-def missing_legend(what):
+def missing_legend(what, label=None):
     return legend_item(
-        f"No {what} in the report", "Slow red blink", named(colors_lib.RED), effect="blink", period=MISSING_PERIOD
+        label or f"No {what} in the report",
+        "Slow red blink",
+        named(colors_lib.RED),
+        effect="blink",
+        period=MISSING_PERIOD,
+        key=MISSING,
     )
 
 
@@ -157,7 +172,15 @@ def intensity_legend(color, example):
     """How light, heavy and nearby look, shown with one color (e.g. rain's). Moderate is solid, which is how each
     kind's own entry already shows it, so it has no entry here."""
     return [
-        legend_item(f"Light ({example})", "Breathing", color, effect="pulse", period=LIGHT_PERIOD, low=LIGHT_LOW),
+        legend_item(
+            f"Light ({example})",
+            "Breathing",
+            color,
+            effect="pulse",
+            period=LIGHT_PERIOD,
+            low=LIGHT_LOW,
+            key=INTENSITY_KEYS[LIGHT],
+        ),
         legend_item(
             f"Heavy ({example})",
             "Fast blink, bright and dim",
@@ -165,8 +188,9 @@ def intensity_legend(color, example):
             dim(color),
             effect="alternate",
             period=HEAVY_PERIOD,
+            key=INTENSITY_KEYS[HEAVY],
         ),
-        legend_item(f"In the vicinity ({example})", "Dim", dim(color)),
+        legend_item(f"In the vicinity ({example})", "Dim", dim(color), key=INTENSITY_KEYS[VICINITY]),
     ]
 
 
@@ -197,6 +221,12 @@ class Band:
 def band_for(value, bands, settings):
     """The color of the band `value` falls in."""
     return next(band for band in bands if band.holds(value)).color_for(settings)
+
+
+def band_look(value, bands, settings) -> Look:
+    """The band `value` falls in, in its color, showing its legend entry (band_legend)."""
+    band = next(band for band in bands if band.holds(value))
+    return Look.solid(band.color_for(settings)).tagged(band.label)
 
 
 def band_legend(bands, settings):

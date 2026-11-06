@@ -183,6 +183,18 @@
         }
     }
 
+    // visualizer.legend_in_use_only: the legend lists only the entries the LEDs show now (/api/live's legendInUse);
+    // the others stay in the page, hidden, so they come back when an LED shows them. Not while the legend on screen
+    // is still the previous visualizer's.
+    function filterLegend(list, vis, shownIndex) {
+        if (!list || vis.active !== shownIndex) return;
+        const used = vis.legendInUseOnly && vis.legendInUse && vis.legendInUse.length ? vis.legendInUse : null;
+        const rows = list.querySelectorAll('li[data-key]');
+        for (let i = 0; i < rows.length; i++) {
+            rows[i].hidden = used !== null && used.indexOf(rows[i].dataset.key) < 0;
+        }
+    }
+
     // ---- fullscreen: the browser's fullscreen, or the whole window where there's none (iPhone) ---------------
     const mapEl = document.getElementById('map');
     const canFullscreen = !!(mapEl.requestFullscreen || mapEl.webkitRequestFullscreen);
@@ -1075,6 +1087,7 @@
             syncLeds(live.leds);
             strip = live.strip;
             followVisualizer(live.visualizer);
+            filterLegend(legendBox && legendBox.querySelector('.legend'), live.visualizer, shownVisualizer);
             syncAreas(live.visualizer.areas);
             setView();
             const screen = live.display.screen;

@@ -207,6 +207,8 @@ class VisualizerSettings(_Section):
     missing_data_blink: bool = True
     # an estimated flight category breathes slowly; off: it shows in a steady color
     estimated_category_breathing: bool = True
+    # the legends on Home, Map and Remote list only what the LEDs are showing now (e.g. only VFR and MVFR)
+    legend_in_use_only: bool = False
 
 
 # lightning.color: the colors the lightning flashes can be (style.LIGHTNING_COLORS has each one's LED color)

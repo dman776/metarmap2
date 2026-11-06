@@ -730,7 +730,45 @@ def test_live_whole_strip_visualizer(services):
         "exclusive": True,
         "areas": None,
         "autoRotate": {"enabled": False, "seconds": 60, "next": None},
+        "legendInUse": None,  # a whole-strip look: its legend is always shown whole
+        "legendInUseOnly": False,
     }
+
+
+def test_the_legend_entries_in_use(services):
+    """KHOU is VFR with lightning, KIAH IFR, and KDKR has no report: the entries the LEDs show, in legend order."""
+    in_use = ["VFR", "IFR", "lightning", "no_report"]
+    vis = api.live(services)["visualizer"]
+    assert vis["legendInUse"] == in_use and vis["legendInUseOnly"] is False
+    legend = api.status(services, "")["visualizer"]["legend"]
+    assert [item["key"] for item in legend if item["inUse"]] == in_use
+    assert {"MVFR", "LIFR", "estimated", "missing"} <= {item["key"] for item in legend if not item["inUse"]}
+
+
+def test_whole_strip_legend_is_all_in_use(services):
+    services.renderer.visualizer = "rainbow"
+    assert all(item["inUse"] for item in api.status(services, "")["visualizer"]["legend"])
+
+
+def legend_rows(body):
+    """The legend rows in a page, as {key: hidden}."""
+    return {key: hidden == " hidden" for key, hidden in re.findall(r'<li data-key="([^"]+)"( hidden)?>', body)}
+
+
+@pytest.mark.parametrize("page", ["/", "/map", "/remote"])
+def test_legend_in_use_only(client, page):
+    """No METARs fetched: every airport is "METAR not available", the only entry in use."""
+    rows = legend_rows(client(page)[1])
+    assert rows and not any(rows.values())  # off: everything
+    assert client("/config/edit/visualizer.legend_in_use_only/true")[0] == 200
+    rows = legend_rows(client(page)[1])
+    assert rows["no_report"] is False and rows["VFR"] is True and rows["MVFR"] is True
+    assert client.json("/api/live", auth=False)["visualizer"]["legendInUseOnly"] is True
+
+
+def test_legend_in_use_only_switch_on_the_config_page(client):
+    assert 'data-key="visualizer.legend_in_use_only"' in client("/config")[1]
+    assert client.json("/api/status", auth=False)["config"]["visualizer.legend_in_use_only"] is False
 
 
 def test_live_wind_barbs(services):

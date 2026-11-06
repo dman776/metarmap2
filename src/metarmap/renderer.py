@@ -91,6 +91,18 @@ class Renderer:
         """The current look of each LED, in airport order."""
         return list(self._looks)
 
+    def legend_in_use(self):
+        """The keys of the active visualizer's legend entries the LEDs show now (virtual airports too); None while one
+        look drives the whole strip."""
+        return visualizer.in_use(self._vis, self._looks, self._config.data)
+
+    def legend(self):
+        """The active visualizer's legend, each entry with inUse: whether an LED shows it now (always, for a whole
+        strip look, and for every entry while nothing is shown, e.g. no airports)."""
+        used = self.legend_in_use()
+        items = visualizer.legend(self._vis, self._config.data)
+        return [{**item, "inUse": not used or item["key"] in used} for item in items]
+
     @property
     def strip_look(self):
         return self._strip_look

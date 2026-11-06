@@ -99,9 +99,17 @@ def summary(stations):
 
 
 def visualizer(renderer):
-    """The active visualizer."""
+    """
+    The active visualizer. Its legend's entries say whether an LED shows them now (inUse); `filtered`: the pages
+    hide the others (visualizer.legend_in_use_only).
+    """
     index, vis = renderer.visualizer
-    return {"index": index, **visualizer_info(vis, renderer.config.data)}
+    return {
+        "index": index,
+        **visualizer_info(vis, renderer.config.data),
+        "legend": renderer.legend(),
+        "filtered": renderer.config.data.visualizer.legend_in_use_only,
+    }
 
 
 def visualizer_choices(renderer):

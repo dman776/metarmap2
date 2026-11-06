@@ -60,7 +60,7 @@ class Visualizer:
         return self.strip_look is not None
 
 
-def legend_item(label, detail, *colors, effect="solid", period=None, low=None):
+def legend_item(label, detail, *colors, effect="solid", period=None, low=None, key=None):
     """
     One entry of a visualizer legend, shown in the web UI.
     Args:
@@ -71,9 +71,12 @@ def legend_item(label, detail, *colors, effect="solid", period=None, low=None):
             turn), chase or off
         period (float): seconds per blink/pulse cycle, if any
         low (float): a pulse's dimmest point (0.3: never dark)
+        key (str): what a Look's legend names this entry by (Look.tagged); the label unless that changes with the
+            settings or is shared by several visualizers (style.MISSING, ...)
     """
     css = [colors_lib.to_css(c) for c in colors if c is not None]
     return {
+        "key": key if key is not None else label,
         "label": label,
         "detail": detail,
         "colors": css,
@@ -112,7 +115,7 @@ def look(vis, metar, settings) -> Look:
 
     base = vis.look(metar, settings)
     if not settings.visualizer.missing_data_blink and base == style.missing():
-        base = Look.off()
+        base = Look.off().tagged(*base.legend)  # still the "missing" entry, which then says Off
     return (
         style.with_lightning(base, settings) if shows_lightning(vis, settings) and style.has_lightning(metar) else base
     )
@@ -130,8 +133,22 @@ def legend(vis, settings) -> List[dict]:
         at = next((n for n, item in enumerate(items) if item["effect"] == "off"), len(items))
         items.insert(at, style.lightning_legend(settings))
     if not settings.visualizer.missing_data_blink:
-        items = [legend_item(item["label"], "Off") if style.is_missing_legend(item) else item for item in items]
+        items = [
+            legend_item(item["label"], "Off", key=item["key"]) if style.is_missing_legend(item) else item
+            for item in items
+        ]
     return items
+
+
+def in_use(vis, looks, settings) -> Optional[List[str]]:
+    """
+    The keys of the legend entries the LEDs (`looks`, one per airport) are showing, in the legend's order; None for a
+    visualizer with one look for the whole strip, whose legend is always shown whole.
+    """
+    if vis.look is None:
+        return None
+    shown = {key for look in looks for key in look.legend}
+    return [item["key"] for item in legend(vis, settings) if item["key"] in shown]
 
 
 def info(vis, settings) -> dict:

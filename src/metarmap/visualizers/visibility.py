@@ -30,7 +30,7 @@ def look(metar: Optional[Report], settings) -> Look:
     miles = metar.visibility_sm
     if miles is None:
         return style.missing()
-    return Look.solid(style.band_for(miles, BANDS, settings))
+    return style.band_look(miles, BANDS, settings)
 
 
 VISUALIZER = Visualizer(

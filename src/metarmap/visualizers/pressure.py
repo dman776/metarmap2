@@ -30,7 +30,7 @@ def look(metar: Optional[Report], settings) -> Look:
         return style.no_report()
     if not metar.altimeter_inhg:  # missing from the report
         return style.missing()
-    return Look.solid(style.band_for(metar.altimeter_inhg, BANDS, settings))
+    return style.band_look(metar.altimeter_inhg, BANDS, settings)
 
 
 VISUALIZER = Visualizer(
