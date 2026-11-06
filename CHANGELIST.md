@@ -1,5 +1,10 @@
 ### Unreleased
 
+- **Quiet hours play the startup sequence**: with the startup sequence on (`led.inittest`), the map goes dark at the
+  start of quiet hours with the same sequence: the darkness follows its path, e.g. Radar's beam sweeps the colors off
+  clockwise from north, Sweep from the same side, Sparkle LED by LED. Comet runs the other way along the strip and
+  leaves it dark. At the end of quiet hours, the startup sequence lights the map up again. Only at the scheduled
+  times (a settings change switches the LEDs at once, as before), and not while the LEDs are at 0% anyway
 - **The OLED screen follows quiet hours**: with `led.quiet_hours` on, the screen is blank from the start time to the
   end time, like the LEDs, and the airports come back at the end. Turning quiet hours on or off, or changing the
   times, applies to the screen at once. The Home page's screen preview is blank meanwhile

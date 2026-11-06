@@ -555,6 +555,38 @@ def test_a_whole_strip_visualizer_fades_in_white(config, clock):
     assert all(strip[i] == (255, 255, 255) for i in range(5))
 
 
+@pytest.mark.parametrize("sequence", ["comet", "center_out", "edges_in", "sweep", "radar", "sparkle"])
+def test_a_fade_out_ends_dark(config, clock, sequence, monkeypatch):
+    from metarmap import renderer
+
+    monkeypatch.setattr(renderer, "FRAME_SECONDS", 0)
+    config.data.led.init_sequence = sequence
+    r, strip = make(config, clock)
+    r.draw_frame()
+    assert strip[0] == flightcategory.COLORS["VFR"]
+    r.fade_out()
+    assert all(color == (0, 0, 0) for color in strip)
+
+
+def test_a_fade_out_follows_the_same_path(config, clock):
+    """Sweep from the west: halfway through, the western airport is dark and the eastern one still lit."""
+    config.data.led.init_sequence = "sweep"
+    where = {"KHOU": (29.6, -95.3), "KIAH": (30.0, -95.0), "KDKR": (31.3, -95.4), "KGLS": (29.3, -94.0)}
+    strip = FakeStrip(5)
+    metars = SimpleNamespace(data=DATA, position=where.get)
+    r = Renderer(strip, metars, config, [FLIGHT], SunTimes("Houston", SUN), clock=clock)
+    r.draw_frame()
+    seen = []
+    show = strip.show
+    strip.show = lambda: (seen.append((clock.time(), list(strip))), show())
+    r.fade_out()
+    begin = seen[0][0]
+    halfway = next(colors for at, colors in seen if at - begin >= 1.5)
+    assert halfway[0] == (0, 0, 0)  # KHOU, the farthest west, is dark
+    assert halfway[4] == flightcategory.COLORS["LIFR"]  # KGLS, the farthest east, still shows its color
+    assert seen[-1][1] == [(0, 0, 0)] * 5
+
+
 def test_brightness_follows_the_clock(config):
     clock = FakeClock(SUN["dawn"] + timedelta(minutes=5))
     r, strip = make(config, clock)

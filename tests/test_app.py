@@ -42,11 +42,64 @@ def test_quiet_hours_jobs(make_app):
         }
     )
 
-    assert jobs(app)["adjust_brightness_for_time"] == 2
+    assert jobs(app)["quiet_hours_boundary"] == 2
     assert {job.at_time.strftime("%H:%M") for job in app.scheduler.get_jobs("quiet_hours")} == {
         "22:00",
         "07:00",
     }
+
+
+@pytest.fixture
+def boundary(make_app, monkeypatch):
+    """A map at a quiet-hours boundary, recording what the renderer plays: (app, calls, set_quiet)."""
+    app = make_app()
+    calls = []
+    quiet = {"now": False}
+    monkeypatch.setattr(app.renderer, "quiet_hours_active", lambda: quiet["now"])
+    spy(monkeypatch, app.renderer, "fade_out", calls)
+    spy(monkeypatch, app.renderer, "test_pattern", calls)
+    adjust = app.renderer.adjust_brightness_for_time
+    monkeypatch.setattr(
+        app.renderer, "adjust_brightness_for_time", lambda: (calls.append("adjust"), adjust(), None)[-1]
+    )
+    return app, calls, lambda value: quiet.update(now=value)
+
+
+def test_quiet_hours_begin_with_the_sequence_taking_the_map_dark(boundary):
+    app, calls, set_quiet = boundary
+    app.config.data.led.inittest = True
+    set_quiet(True)
+    app_module.quiet_hours_boundary(app)
+    assert calls == ["fade_out", "adjust"]  # dark the way it lights up, then 0%
+
+
+def test_quiet_hours_end_with_the_startup_sequence(boundary):
+    app, calls, set_quiet = boundary
+    app.config.data.led.inittest = True
+    set_quiet(False)
+    app_module.quiet_hours_boundary(app)
+    assert calls == ["adjust", "test_pattern"]  # brightness back, then the map lights up
+
+
+@pytest.mark.parametrize("quiet", [True, False])
+def test_quiet_hours_without_the_startup_sequence_just_switch(boundary, quiet):
+    app, calls, set_quiet = boundary
+    app.config.data.led.inittest = False
+    set_quiet(quiet)
+    app_module.quiet_hours_boundary(app)
+    assert calls == ["adjust"]
+
+
+@pytest.mark.parametrize("quiet", [True, False])
+def test_no_sequence_while_the_leds_are_at_zero(boundary, quiet, monkeypatch):
+    """At night with led.brightness.off at 0%, there's nothing to see."""
+    app, calls, set_quiet = boundary
+    app.config.data.led.inittest = True
+    app.renderer.brightness(0.0)
+    monkeypatch.setattr(app.renderer, "brightness_for", lambda now: 0.0)
+    set_quiet(quiet)
+    app_module.quiet_hours_boundary(app)
+    assert calls == ["adjust"]
 
 
 def test_jobs(make_app):

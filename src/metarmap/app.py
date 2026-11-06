@@ -324,7 +324,25 @@ def schedule_quiet_hours(app: App):
     night = app.config.data.led.quiet_hours
     if night.enabled and night.start != night.end:
         for at in (night.start, night.end):
-            app.scheduler.every().day.at(at).do(app.renderer.adjust_brightness_for_time).tag("quiet_hours")
+            app.scheduler.every().day.at(at).do(quiet_hours_boundary, app).tag("quiet_hours")
+
+
+def quiet_hours_boundary(app: App):
+    """
+    Quiet hours' start or end time. With the startup sequence on (led.inittest), the map goes dark with it at the
+    start (Renderer.fade_out) and lights up with it at the end. Not when the LEDs are at 0% anyway (led.brightness.off
+    at night), and not for a settings change, which switches the LEDs at once.
+    """
+    renderer = app.renderer
+    play = app.config.data.led.inittest
+    if renderer.quiet_hours_active():
+        if play and renderer.pixels().brightness > 0:
+            renderer.fade_out()
+        renderer.adjust_brightness_for_time()
+    else:
+        renderer.adjust_brightness_for_time()
+        if play and renderer.pixels().brightness > 0:
+            renderer.test_pattern()
 
 
 def set_brightness(app: App, level):

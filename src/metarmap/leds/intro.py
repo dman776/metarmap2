@@ -4,6 +4,9 @@ from where its airport is, and its color at each moment. The renderer plays them
 
 Each LED fades from dark to its visualizer color over FADE_SECONDS; the starts are spread over the rest of
 SECONDS, so the last LED is lit when the sequence ends. A start is a fraction: 0 at once, 1 last.
+
+When quiet hours begin, the same sequence takes the map dark (colors_out_at): each LED fades from its color to dark
+at the same moment it would fade in, so the darkness follows the same path (Radar's beam clockwise from north).
 """
 
 import math
@@ -118,5 +121,14 @@ def colors_at(t: float, starts: Sequence[float], targets: Sequence[Tuple[int, in
     out = []
     for start, color in zip(starts, targets):
         k = level(t, start)
+        out.append(tuple(int(round(c * k)) for c in color))
+    return out
+
+
+def colors_out_at(t: float, starts: Sequence[float], sources: Sequence[Tuple[int, int, int]]):
+    """Every LED's color at `t` seconds into the sequence taking the map dark: from `sources` (its color) to dark."""
+    out = []
+    for start, color in zip(starts, sources):
+        k = 1 - level(t, start)
         out.append(tuple(int(round(c * k)) for c in color))
     return out

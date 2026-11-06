@@ -83,7 +83,7 @@
                 % end
             </select>
         </div>
-        % switch('led.inittest', d.led.inittest, 'Startup sequence', 'Play a sequence when the map starts. Turning it on plays it once now.')
+        % switch('led.inittest', d.led.inittest, 'Startup sequence', 'Play a sequence when the map starts, and when quiet hours end. When they begin, the same sequence takes the map dark. Turning it on plays it once now.')
         <div class="sub" data-when="led-inittest"{{!'' if d.led.inittest else ' hidden'}}>
         <div class="set">
             <div>
