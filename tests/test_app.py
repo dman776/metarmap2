@@ -79,6 +79,57 @@ def test_auto_rotate(make_app):
     assert app.renderer.visualizer[0] == 1
 
 
+def rotating(make_app, seconds=30):
+    """A map with auto-rotate on, and its rotate job as if it were due in 5 s (most of the delay gone)."""
+    app = make_app(**{"visualizer.auto_rotate.enabled": True, "visualizer.auto_rotate.delay_seconds": seconds})
+    (job,) = app.scheduler.get_jobs("rotate_visualizer")
+    job.next_run = datetime.now() + timedelta(seconds=5)
+    return app
+
+
+def due_in(app):
+    """Seconds until auto-rotate's next change; there's exactly one rotate job."""
+    (job,) = app.scheduler.get_jobs("rotate_visualizer")
+    return (job.next_run - datetime.now()).total_seconds()
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        lambda r: setattr(r, "visualizer", "wind_direction"),
+        lambda r: r.visualizer_next(),
+        lambda r: r.visualizer_previous(),
+    ],
+)
+def test_a_visualizer_changed_by_hand_gets_the_whole_delay(make_app, change):
+    app = rotating(make_app)
+    change(app.renderer)
+    assert 29 <= due_in(app) <= 30
+
+
+def test_the_same_visualizer_keeps_the_timer(make_app):
+    """Picking the one that's showing, or refreshing it after a config change, isn't a change."""
+    app = rotating(make_app)
+    app.renderer.visualizer = app.renderer.visualizer[1].id
+    app.renderer.refresh()
+    assert due_in(app) <= 5
+
+
+def test_auto_rotate_keeps_its_pace(make_app):
+    app = rotating(make_app)
+    (job,) = app.scheduler.get_jobs("rotate_visualizer")
+    job.next_run = datetime.now() - timedelta(seconds=1)
+    app.scheduler.run_pending()
+    assert app.renderer.visualizer[0] == 1
+    assert 29 <= due_in(app) <= 30  # one job, the next change a whole delay away
+
+
+def test_a_change_by_hand_with_auto_rotate_off_schedules_nothing(make_app):
+    app = make_app()
+    app.renderer.visualizer_next()
+    assert app.scheduler.get_jobs("rotate_visualizer") == []
+
+
 def test_next_rotation(make_app):
     """When auto-rotate next changes the visualizer, for /api/live; None while it's off."""
     import time

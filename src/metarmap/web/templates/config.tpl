@@ -196,7 +196,7 @@
                 % end
             </select>
         </div>
-        % switch('visualizer.auto_rotate.enabled', d.visualizer.auto_rotate.enabled, 'Auto-rotate visualizers', 'Cycle through the visualizers on a timer.')
+        % switch('visualizer.auto_rotate.enabled', d.visualizer.auto_rotate.enabled, 'Auto-rotate visualizers', 'Cycle through the visualizers on a timer. Picking one by hand shows it for the whole delay before the next change.')
         <div class="sub" data-when="visualizer-auto_rotate-enabled"{{!'' if d.visualizer.auto_rotate.enabled else ' hidden'}}>
         % slider('visualizer.auto_rotate.delay_seconds', d.visualizer.auto_rotate.delay_seconds, 'Auto-rotate delay', 'Time on each visualizer.', lo=10, hi=600, step=10, fmt='sec')
         <div class="set">

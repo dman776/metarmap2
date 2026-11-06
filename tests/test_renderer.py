@@ -387,6 +387,19 @@ def test_nothing_to_rotate_to_stays_put(config, clock):
     assert r.active_visualizer == 0
 
 
+def test_subscribers_hear_of_a_new_visualizer_only(config, clock):
+    r, _ = make(config, clock)
+    heard = []
+    r.subscribe(lambda: heard.append(r.visualizer[1].id))
+    r.refresh()
+    r.visualizer = 0  # already showing
+    assert heard == []
+    r.visualizer = "wind"
+    r.visualizer_next()
+    r.visualizer_previous()
+    assert heard == ["wind", "precipitation", "wind"]
+
+
 def test_choose_a_visualizer_by_id_or_number(config, clock):
     r, _ = make(config, clock)
     r.visualizer = "precipitation"
