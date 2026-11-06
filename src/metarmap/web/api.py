@@ -88,6 +88,7 @@ def status(services: "App", ip):
             "visualizer.auto_rotate.enabled": cfg.visualizer.auto_rotate.enabled,
             "visualizer.auto_rotate.delay_seconds": cfg.visualizer.auto_rotate.delay_seconds,
             "visualizer.auto_rotate.skip": cfg.visualizer.auto_rotate.skip,
+            "visualizer.auto_rotate.skip_dark": cfg.visualizer.auto_rotate.skip_dark,
             "visualizer.missing_data_blink": cfg.visualizer.missing_data_blink,
             "visualizer.estimated_category_breathing": cfg.visualizer.estimated_category_breathing,
             "visualizer.legend_in_use_only": cfg.visualizer.legend_in_use_only,

@@ -252,18 +252,30 @@ class Renderer:
     def refresh(self):
         self.visualizer = self.active_visualizer
 
-    def visualizer_next(self, skip_exclusive=False, skip=()):
+    def visualizer_next(self, skip_exclusive=False, skip=(), skip_dark=False):
         """
-        Switches to the next visualizer, leaving out the exclusive ones if skip_exclusive and those whose id is in
-        `skip` (auto-rotate). If there's nothing to switch to, the visualizer stays.
+        Switches to the next visualizer, leaving out the exclusive ones if skip_exclusive, those whose id is in
+        `skip`, and, if skip_dark, those that would leave every LED and virtual airport off (auto-rotate). If there's
+        nothing to switch to, the visualizer stays.
         """
         total = len(self._visualizers)
         for step in range(1, total + 1):  # one lap, ending back at the current visualizer
             vnum = (self.active_visualizer + step) % total
             vis = self._visualizers[vnum]
-            if not (skip_exclusive and vis.exclusive) and vis.id not in skip:
-                self.visualizer = vnum
-                return
+            if (skip_exclusive and vis.exclusive) or vis.id in skip:
+                continue
+            if skip_dark and vnum != self.active_visualizer and self._dark(vis):
+                continue
+            self.visualizer = vnum
+            return
+
+    def _dark(self, vis):
+        """Whether `vis` would show nothing now: every airport's look off (a whole-strip look never is)."""
+        settings = self._config.data
+        if visualizer.strip_look(vis, settings) is not None:
+            return False
+        looks = visualizer.looks(vis, [a.code for a in settings.airports], self._metars.data, settings)
+        return all(look.effect == "off" for look in looks)
 
     def visualizer_previous(self):
         self.visualizer = (self.active_visualizer - 1) % len(self._visualizers)

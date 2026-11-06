@@ -766,6 +766,13 @@ def test_legend_in_use_only(client, page):
     assert client.json("/api/live", auth=False)["visualizer"]["legendInUseOnly"] is True
 
 
+def test_skip_dark_switch_on_the_config_page(client):
+    assert 'data-key="visualizer.auto_rotate.skip_dark"' in client("/config")[1]
+    assert client.json("/api/status", auth=False)["config"]["visualizer.auto_rotate.skip_dark"] is False
+    assert client("/config/edit/visualizer.auto_rotate.skip_dark/true")[0] == 200
+    assert client.json("/api/status", auth=False)["config"]["visualizer.auto_rotate.skip_dark"] is True
+
+
 def test_legend_in_use_only_switch_on_the_config_page(client):
     assert 'data-key="visualizer.legend_in_use_only"' in client("/config")[1]
     assert client.json("/api/status", auth=False)["config"]["visualizer.legend_in_use_only"] is False

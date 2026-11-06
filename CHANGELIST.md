@@ -1,5 +1,10 @@
 ### Unreleased
 
+- **Auto-rotate can skip visualizers with nothing to show** (Config > Visualizers, under auto-rotate,
+  `visualizer.auto_rotate.skip_dark`, off by default): a visualizer that would leave every LED and virtual airport
+  off, such as Precipitation on a dry day or Advisories with none in effect, is passed over until it has something
+  to show. A red "METAR not available" blink counts as something. If every other visualizer is dark, the current one
+  stays. The previous/next buttons still go to every visualizer. In `/api/status`'s `config` too
 - **Only show legend items in use** (Config > Visualizers, `visualizer.legend_in_use_only`, off by default): the
   legends on Home, Map and Remote list only what the LEDs are showing now, e.g. just VFR and MVFR, and follow the
   LEDs as they change (a fetch, an airport change, another visualizer). Rainbow and Chase always show their whole
