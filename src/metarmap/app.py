@@ -169,7 +169,15 @@ def wire_config(app: App):
     on(("tfr.nearby_nm", "airports.mock"), lambda keys: show_areas(app))
     on("*", lambda keys: renderer.refresh() if any(not _matches(k, NOT_ON_LEDS) for k in keys) else None)
     on("visualizer.auto_rotate.*", lambda keys: schedule_rotation(app))
-    on("led.quiet_hours.*", lambda keys: (schedule_quiet_hours(app), renderer.adjust_brightness_for_time()))
+    on(
+        "led.quiet_hours.*",
+        # the OLED loop starts over: blank now, or showing again now
+        lambda keys: (
+            schedule_quiet_hours(app),
+            renderer.adjust_brightness_for_time(),
+            app.display.restart(timeout=15),
+        ),
+    )
     # the level in use now changes now; the others at their time
     on("led.brightness.*", lambda keys: brightness_changed(app, keys))
     # shows what it looks like, without a restart

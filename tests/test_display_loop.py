@@ -6,13 +6,13 @@ recovering from errors, and the watchdog.
 import threading
 import time
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import pytest
 
 from conftest import airports
-from metarmap.display import Display, watchdog_limit
+from metarmap.display import QUIET_CHECK_SECONDS, Display, watchdog_limit
 from metarmap.models import Report
 from metarmap.clock import FakeClock
 from metarmap.oled.screen import FakeScreen
@@ -333,3 +333,69 @@ def test_a_turned_off_screen_stays_off():
     config.data.display_screen.enabled = False
     d.restart(timeout=1)
     assert not d.is_alive()
+
+
+# ---- quiet hours ------------------------------------------------------------------------------------------------
+
+
+def quiet_from_now(config, clock, minutes):
+    """Quiet hours from the fake clock's time (in this machine's local time, as the setting is) for `minutes`."""
+    start = clock.now().astimezone()
+    config.data.led.quiet_hours.enabled = True
+    config.data.led.quiet_hours.start = start.strftime("%H:%M")
+    config.data.led.quiet_hours.end = (start + timedelta(minutes=minutes)).strftime("%H:%M")
+
+
+def test_the_screen_is_blank_during_quiet_hours():
+    d, screen, clock, config = make(stop_after=2)
+    screen.current = {"title": "left over"}
+    blank = []
+    clock_wait = clock.wait
+    clock.wait = lambda event, seconds: blank.append((screen.current, d.screen)) or clock_wait(event, seconds)
+    quiet_from_now(config, clock, 10)
+    start = clock.time()
+    run(d)
+    assert blank[0] == (None, None)  # cleared first: the OLED and the Home page's preview
+    assert clock.time() - start >= 9 * 60  # nothing drawn until quiet hours were over
+    assert pages(screen) == [("KHOU", 1), ("KHOU", 2)]  # then from the first airport
+    assert d._renderer.located == [0]  # no locate pulses meanwhile
+
+
+def test_quiet_hours_starting_mid_airport_blank_the_screen():
+    d, screen, clock, config = make()
+
+    def show(_):
+        if len(screen.shown) == 1:  # after KHOU's first page, quiet hours begin
+            quiet_from_now(config, clock, 10)
+        else:
+            d.event.set()
+
+    screen.on_show = show
+    run(d)
+    assert pages(screen) == [("KHOU", 1), ("KHOU", 1)]  # KHOU's second page skipped; after quiet hours, KHOU again
+
+
+def test_the_watchdog_leaves_a_quiet_screen_alone():
+    """Waiting out quiet hours counts as moving on, so a long quiet night isn't taken for a stuck loop."""
+    d, _, clock, config = make()
+    quiet_from_now(config, clock, 120)
+    waits = []
+    clock_wait = clock.wait
+
+    def wait(event, seconds):
+        waits.append(seconds)
+        if len(waits) == 20:  # 10 minutes in
+            event.set()
+        return clock_wait(event, seconds)
+
+    clock.wait = wait
+    run(d)
+    assert waits == [QUIET_CHECK_SECONDS] * 20
+    assert clock.time() - d.last_change <= QUIET_CHECK_SECONDS < watchdog_limit(config.data.display_screen.delay)
+
+
+def test_quiet_hours_off_shows_the_airports():
+    d, screen, _, config = make(stop_after=2)
+    config.data.led.quiet_hours.enabled = False
+    run(d)
+    assert pages(screen) == [("KHOU", 1), ("KHOU", 2)]
