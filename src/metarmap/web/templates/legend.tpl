@@ -17,7 +17,8 @@
         %     style += '; --low: {0}'.format(item['low'])
         %   end
         %   classes = 'led ' + item['effect'] + (' grad' if len(colors) > 1 and item['effect'] not in ('flash', 'alternate') else '')
-        <li><span class="{{classes}}" style="{{style}}" aria-hidden="true"></span><div><b>{{item['label']}}</b><span class="m">{{item['detail']}}</span></div></li>
+        %   hide = defined('filtered') and filtered and not item.get('inUse', True)
+        <li data-key="{{item['key']}}"{{!' hidden' if hide else ''}}><span class="{{classes}}" style="{{style}}" aria-hidden="true"></span><div><b>{{item['label']}}</b><span class="m">{{item['detail']}}</span></div></li>
         % end
     </ul>
 </div>

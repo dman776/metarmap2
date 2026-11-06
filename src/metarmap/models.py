@@ -2,7 +2,7 @@
 Data models shared across the map: parsed METARs (Report), flight categories and LED looks.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
@@ -123,6 +123,10 @@ class Look:
       cycle    - steps through colors, step seconds each
       rainbow  - whole strip, period = seconds per full rainbow
       chase    - whole strip, colors[0] moving size LEDs at a time, spacing apart, step seconds per move
+
+    legend: the keys of the visualizer's legend entries this look shows (e.g. "snow" and "light" for light snow), so
+    the legend can leave out what no LED is showing. Not part of how it looks: two looks that differ only in it are
+    equal.
     """
 
     effect: str
@@ -132,6 +136,11 @@ class Look:
     size: int = 1
     spacing: int = 0
     low: float = 0.0
+    legend: Tuple[str, ...] = field(default=(), compare=False)
+
+    def tagged(self, *keys: str) -> "Look":
+        """The same look, also showing the legend entries `keys` (each once, in order)."""
+        return replace(self, legend=tuple(dict.fromkeys(self.legend + tuple(k for k in keys if k))))
 
     @classmethod
     def off(cls) -> "Look":

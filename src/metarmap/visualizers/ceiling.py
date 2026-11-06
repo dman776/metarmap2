@@ -22,6 +22,9 @@ BANDS = [
 ]
 
 
+NO_CEILING = "No ceiling (clear, few or scattered clouds)"
+
+
 def no_ceiling(settings):
     return style.dim(style.named(colors_lib.WHITE))
 
@@ -29,7 +32,7 @@ def no_ceiling(settings):
 def legend(settings):
     return [
         *style.band_legend(BANDS, settings),
-        style.legend_item("No ceiling (clear, few or scattered clouds)", "Dim white", no_ceiling(settings)),
+        style.legend_item(NO_CEILING, "Dim white", no_ceiling(settings)),
         style.missing_legend("sky condition"),
         style.no_report_legend(),
     ]
@@ -43,8 +46,8 @@ def look(metar: Optional[Report], settings) -> Look:
         return style.missing()
     feet = ceiling_ft(layers, metar.vert_vis_ft)
     if feet is None:
-        return Look.solid(no_ceiling(settings))
-    return Look.solid(style.band_for(feet, BANDS, settings))
+        return Look.solid(no_ceiling(settings)).tagged(NO_CEILING)
+    return style.band_look(feet, BANDS, settings)
 
 
 VISUALIZER = Visualizer(

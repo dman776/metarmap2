@@ -33,9 +33,10 @@ Returns a read-only snapshot of the map's state as `application/json`. No authen
     "exclusive": false,
     "description": "Display the flight category (ie. VFR, MVFR, IFR, LIFR).",
     "legend": [
-      { "label": "VFR", "detail": "Green", "colors": ["#00ff00"], "effect": "solid", "period": null },
-      { "label": "Flight category missing", "detail": "Blinking red (other METAR data is available)",
-        "colors": ["#ff0000"], "effect": "blink", "period": 2 }
+      { "key": "VFR", "label": "VFR", "detail": "Green", "colors": ["#00ff00"], "effect": "solid", "period": null,
+        "inUse": true },
+      { "key": "missing", "label": "Flight category missing", "detail": "Blinking red (other METAR data is available)",
+        "colors": ["#ff0000"], "effect": "blink", "period": 2, "inUse": false }
     ]
   },
   "visualizers": [
@@ -133,7 +134,7 @@ Returns a read-only snapshot of the map's state as `application/json`. No authen
 | `build` | What's running, read when the map started: `tag` is the release it's at or after (`null` if none), `ahead` how many commits after it, `commit` and `sha` the commit, `modified` whether the code was changed on the map itself (`config.json` and `airports.json` don't count). `release` is true on a release exactly; otherwise `pill` says why not ("Unreleased: 3 commits after v2.9.2", "Not tagged: v2.9.3" when `untagged`, "Pre-release: v2.9.0-rc1", "Modified: local changes to v2.9.2", "Unreleased: no release tag"). `chip` is the header's version text and `url` the commit on GitHub (`null` if the map isn't from GitHub). `null` outside a git checkout. |
 | `update` | What's newest on GitHub: `current` is the running version, `commit` the running commit, `channel` is the channel in use (`branch` counts as `releases` without `dev_mode`), `available` the release (or, on the `latest` and `branch` channels, the commit) an update would install, or `null` when up to date; `installed` is what an update installed that needs a restart; `releases` lists the releases that can be installed, newest first; with `dev_mode`, `branches` lists GitHub's branches and `branch` is the one the `branch` channel follows; `checked` is when GitHub was last asked, and `error` why that failed. `null` if the map doesn't check. |
 | `visualizer` | The visualizer that is running now: `active` is its number, `id` its id (see the table under Control). `exclusive` visualizers ignore `/locate`. |
-| `visualizer.legend` | What the LEDs mean for that visualizer. `colors` are CSS hex colors; two or more mean a gradient across the range. `effect` is `solid`, `blink`, `pulse`, `flash` (the first color with flashes of the second), `chase` or `off`. `period` is the seconds per blink or pulse, or `null`. |
+| `visualizer.legend` | What the LEDs mean for that visualizer. `colors` are CSS hex colors; two or more mean a gradient across the range. `effect` is `solid`, `blink`, `pulse`, `flash` (the first color with flashes of the second), `chase` or `off`. `period` is the seconds per blink or pulse, or `null`. `key` names the entry (stable, unlike `label`, which can change with the settings); `inUse` is whether an LED (or a virtual airport) shows it now, always `true` for a whole-strip visualizer (Rainbow, Chase). |
 | `visualizers` | Every visualizer, in index order: `index` is its number and `id` its id, both accepted by `/visualizer/<id>` |
 | `config` | The saved `config.json` values, keyed by the dotted path accepted by `/config/edit` |
 | `display` | The OLED screen: `enabled` is the Config setting (`display_screen.enabled`); `on` is whether it's showing now (false after `/display/off`, or when not enabled) |
@@ -151,7 +152,8 @@ What the physical map is doing right now. The Map page polls it every second. No
   "now": 1792854523.9,
   "brightness": 0.5,
   "visualizer": { "active": 0, "id": "flight_category", "name": "Flight Category", "exclusive": false, "areas": null,
-                  "autoRotate": { "enabled": true, "seconds": 60, "next": 1792854560.0 } },
+                  "autoRotate": { "enabled": true, "seconds": 60, "next": 1792854560.0 },
+                  "legendInUse": ["VFR", "IFR", "lightning"], "legendInUseOnly": false },
   "strip": null,
   "leds": [
     { "code": "KLBX", "pixel": 4, "name": "", "virtual": false, "lat": 29.11, "lon": -95.46, "flightCategory": "IFR",
@@ -176,6 +178,8 @@ What the physical map is doing right now. The Map page polls it every second. No
 | `leds[].virtual` | A virtual airport: no LED on the strip, so the Map page draws it in a dashed circle. |
 | `visualizer.areas` | Which areas the Map page draws while the visualizer runs: `advisories` (Advisories, from `/api/advisories`), `tfrs` (TFR, from `/api/tfrs`), else `null` |
 | `visualizer.autoRotate` | Auto-rotate: `enabled` and `seconds` are its settings (`visualizer.auto_rotate`); `next` is when it next changes the visualizer (Unix time, compare it with `now`), `null` while it's off. Picking a visualizer by hand (`/visualizer/...`) starts the wait again, so `next` moves a whole delay ahead |
+| `visualizer.legendInUse` | The `key`s of the legend entries the LEDs (and virtual airports) show now, in the legend's order (see `/api/status`'s `visualizer.legend`); `null` for a whole-strip visualizer (Rainbow, Chase), whose legend is always shown whole. Follows the LEDs: a fetch, an airport change or a different visualizer changes it |
+| `visualizer.legendInUseOnly` | The `visualizer.legend_in_use_only` setting: whether the web pages list only those entries |
 | `strip` | Set when one effect drives the whole strip instead: `rainbow` (`period`) or `chase` (`step`, `size`, `spacing`). The virtual airports keep their own `look` meanwhile: the same rainbow, or `off` for a chase (a wiring check). |
 | `locate` | The last white locate pulse: LED `pixel` and Unix time `at`. `null` until the first one. A virtual airport's pulse is only shown on the Map page. |
 | `display.on` | Whether the screen is showing; `false` after `/display/off` (then `screen` is `null`) |
@@ -400,6 +404,7 @@ Settings that apply right away:
 - `lightning.animation`: a double flicker every 2 s on airports with lightning (`LTG` in the report) or a thunderstorm (`TS`, `TSRA`, `VCTS`...), over whatever every weather visualizer shows; Rainbow and Chase are unaffected. Off: no flashes anywhere (Precipitation still shows a thunderstorm: its precipitation, else yellow)
 - `visualizer.missing_data_blink`: the slow red blink on an airport whose report lacks what the visualizer shows (no flight category, visibility or sky condition; no wind speed; weather codes the map doesn't know...), in every visualizer. `false`: those LEDs stay dark, and the legends say *Off*. `true` by default
 - `visualizer.estimated_category_breathing`: an estimated flight category (the station reported visibility or clouds, but no category) breathes slowly. `false`: a steady color, like a reported category; the OLED still marks it (`VFR*`). `true` by default
+- `visualizer.legend_in_use_only`: the legends on Home, Map and Remote list only the entries the LEDs are showing now (e.g. only VFR and MVFR), and follow them as they change. `false` (everything the visualizer can show) by default
 - `lightning.color`: the flicker's color, `yellow` (the default) or `white`; anything else is a 400. Precipitation's thunderstorm stays yellow either way (its snow is white)
 - `display_screen.locate_active`
 - `display_screen.delay`

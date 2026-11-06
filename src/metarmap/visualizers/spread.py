@@ -34,7 +34,7 @@ def look(metar: Optional[Report], settings) -> Look:
         return style.no_report()
     if metar.temp_c is None or metar.dewpoint_c is None:
         return style.missing()
-    return Look.solid(style.band_for(metar.temp_c - metar.dewpoint_c, BANDS, settings))
+    return style.band_look(metar.temp_c - metar.dewpoint_c, BANDS, settings)
 
 
 VISUALIZER = Visualizer(

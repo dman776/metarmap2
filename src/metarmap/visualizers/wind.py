@@ -34,7 +34,7 @@ def look(metar: Optional[Report], settings) -> Look:
         return style.no_report()
     if metar.wind_speed is None:
         return style.missing()
-    return Look.solid(color_for(metar.wind_speed, settings))
+    return style.band_look(metar.wind_speed, BANDS, settings)
 
 
 VISUALIZER = Visualizer(

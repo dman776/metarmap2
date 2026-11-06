@@ -200,6 +200,8 @@ Changes save right away. To check the wiring order:
   default), or stays dark
 - whether an estimated flight category breathes or shows a steady color (**Estimated flight category breathing**, on
   by default)
+- whether the legends list only what the LEDs are showing now (**Only show legend items in use**, off by
+  default)
 - lightning: the animation on or off, and its color (yellow or white)
 - the OLED screen
 - the map page's chart

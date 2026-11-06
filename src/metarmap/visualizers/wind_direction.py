@@ -47,19 +47,20 @@ def look(metar: Optional[Report], settings) -> Look:
         return style.no_report()
     direction = heading(metar)
     if metar.wind_speed == 0 or (direction == 0 and not metar.wind_speed):
-        return Look.solid(style.named(CALM))
+        return Look.solid(style.named(CALM)).tagged("Calm")
     if direction == "VRB":
-        return Look.pulse(style.named(VARIABLE), period=style.LIGHT_PERIOD, low=style.LIGHT_LOW)
+        return Look.pulse(style.named(VARIABLE), period=style.LIGHT_PERIOD, low=style.LIGHT_LOW).tagged("Variable")
     if direction is None:
         return style.missing()
-    return Look.solid(style.named(SECTORS[sector(direction)][1]))
+    name, color, _ = SECTORS[sector(direction)]
+    return Look.solid(style.named(color)).tagged(name)
 
 
 def legend(settings):
     items = []
     for i, (name, color, detail) in enumerate(SECTORS):
         low, high = (i * 45 - 22) % 360, i * 45 + 22
-        items.append(legend_item(f"From the {name.lower()} ({low}-{high}°)", detail, style.named(color)))
+        items.append(legend_item(f"From the {name.lower()} ({low}-{high}°)", detail, style.named(color), key=name))
     return [
         *items,
         legend_item("Calm", "Dim white", style.named(CALM)),

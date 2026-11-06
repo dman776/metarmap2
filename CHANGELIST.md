@@ -1,5 +1,14 @@
 ### Unreleased
 
+- **Only show legend items in use** (Config > Visualizers, `visualizer.legend_in_use_only`, off by default): the
+  legends on Home, Map and Remote list only what the LEDs are showing now, e.g. just VFR and MVFR, and follow the
+  LEDs as they change (a fetch, an airport change, another visualizer). Rainbow and Chase always show their whole
+  legend
+  - The map knows exactly which entries are in use: each LED's look names the legend entries it shows (light snow:
+    Snow and Light; an estimated MVFR: MVFR and Estimated; lightning over anything)
+  - `/api/live` has `visualizer.legendInUse` (the entries' keys) and `legendInUseOnly`; `/api/status`'s legend
+    entries have a `key` and `inUse`, so Home Assistant and metarmap2_remote can filter too
+  - Precipitation's legend has the "METAR not available" entry the others have
 - **Auto-rotate waits after a visualizer is picked by hand**: choosing one (Home, Map, Remote, Home Assistant or
   `/visualizer/...`) or using previous/next starts the auto-rotate delay again, so it's shown for the whole delay
   instead of being replaced whenever the timer was due. The Remote's countdown starts over with it

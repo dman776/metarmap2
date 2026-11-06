@@ -62,7 +62,7 @@ def look(metar: Optional[Report], settings) -> Look:
         return style.missing()
     density_altitude = calculate_density_altitude(metar.altimeter_inhg, metar.elevation_m, metar.temp_c)
     above = density_altitude - meters_to_feet(metar.elevation_m)
-    return Look.solid(style.band_for(above, BANDS, settings))
+    return style.band_look(above, BANDS, settings)
 
 
 VISUALIZER = Visualizer(

@@ -18,6 +18,7 @@ from metarmap.visualizers.visualizer import Visualizer, legend_item
 
 ESTIMATE_PERIOD = 4.0  # seconds per breath of an estimated category
 
+ESTIMATED = "estimated"  # the legend entry's key
 COLORS = {
     Category.VFR: colors_lib.color(colors_lib.GREEN),
     Category.MVFR: colors_lib.color(colors_lib.BLUE),
@@ -42,6 +43,7 @@ def legend(settings):
             effect="pulse" if breathing else "solid",
             period=ESTIMATE_PERIOD if breathing else None,
             low=style.LIGHT_LOW if breathing else None,
+            key=ESTIMATED,
         ),
         style.missing_legend("flight category, visibility or sky condition"),
     ]
@@ -59,9 +61,10 @@ def look(metar: Optional[Report], settings) -> Look:
     color = color_for(category)
     if category is None:  # other data is reported, but nothing to tell the flight category from
         return style.missing()
+    keys = (Category(category).value, ESTIMATED if estimated else None)  # its category's entry, and Estimated
     if estimated and settings.visualizer.estimated_category_breathing:
-        return Look.pulse(color, period=ESTIMATE_PERIOD, low=style.LIGHT_LOW)
-    return Look.solid(color)
+        return Look.pulse(color, period=ESTIMATE_PERIOD, low=style.LIGHT_LOW).tagged(*keys)
+    return Look.solid(color).tagged(*keys)
 
 
 def color_for(category):
