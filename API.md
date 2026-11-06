@@ -1,4 +1,4 @@
-# METARMap Web API
+# MetarMap2 Web API
 
 The map runs a [Bottle](https://bottlepy.org) web server on the port set by `web_server.port` in [config.json](config.json) (default `80`).
 Every endpoint uses `GET`. Most endpoints return the web UI's HTML pages. `/api/status` is the only one that returns JSON, so use it to read the map's state from scripts and integrations such as [Home Assistant](https://github.com/dman776/metarmap2_ha).

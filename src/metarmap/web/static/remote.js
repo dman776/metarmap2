@@ -1,4 +1,4 @@
-// METARMap remote: the Remote page's tabs, and keeping it in step with the map, whoever changes it (another remote,
+// MetarMap2 remote: the Remote page's tabs, and keeping it in step with the map, whoever changes it (another remote,
 // auto-rotate, Home Assistant). The buttons themselves are app.js's data-call buttons.
 (function () {
     'use strict';

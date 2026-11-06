@@ -1,4 +1,4 @@
-// METARMap web UI helpers
+// MetarMap2 web UI helpers
 (function () {
     'use strict';
 

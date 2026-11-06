@@ -1,4 +1,4 @@
-// METARMap live map: mirrors the LEDs and the OLED screen of the physical map
+// MetarMap2 live map: mirrors the LEDs and the OLED screen of the physical map
 (function () {
     'use strict';
 

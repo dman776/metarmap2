@@ -1,5 +1,8 @@
 ### Unreleased
 
+- **The app is named MetarMap2**: the web header, the browser tab titles (`Home · MetarMap2`), the Remote page's logo,
+  the README, API.md and the systemd service's description. The service is still `metarmap.service` and the package
+  `metarmap`, so updates and `python -m metarmap` work as before
 - **Auto-rotate can skip visualizers with nothing to show** (Config > Visualizers, under auto-rotate,
   `visualizer.auto_rotate.skip_dark`, off by default): a visualizer that would leave every LED and virtual airport
   off, such as Precipitation on a dry day or Advisories with none in effect, is passed over until it has something
