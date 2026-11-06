@@ -32,6 +32,8 @@ Written from the ground up with a web UI, an API and a Home Assistant integratio
   page. `/remote` is a remote control for a tablet in kiosk mode.
 - **API and Home Assistant**: everything in the web UI also works over HTTP (see [API.md](API.md)); the
   [metarmap2_ha](https://github.com/dman776/metarmap2_ha) integration adds the map to Home Assistant.
+- **A touchscreen remote** (optional): [metarmap2_remote](https://github.com/dman776/metarmap2_remote) is firmware for
+  a small ESP32-S3 touch display that sits beside the map and works like the `/remote` page.
 
 ## Screenshots
 
@@ -89,6 +91,10 @@ airport's LED with the locator.
 ![The remote page's Visualizer tab](docs/images/remote_visualizer.png)
 
 ![The remote page's Locator tab: an airport's button pulses its LED on the map](docs/images/remote_locator.png)
+
+For a dedicated screen instead of a tablet, [metarmap2_remote](https://github.com/dman776/metarmap2_remote) is a
+companion project: firmware for a 2.8" ESP32-S3 touchscreen (the LCDwiki ES3C28P) with the same Visualizer and Locator
+screens, which updates itself from GitHub releases.
 
 ## What you need
 
@@ -238,7 +244,7 @@ git checkout v2.9.0      # the release you want
 Running `./install.sh` after an update also installs any new packages the map needs. On a map that has installed a
 release, `git pull` says it isn't on a branch: `git checkout master` first (or pick **Latest commit** above).
 
-## Web API and Home Assistant
+## Web API, Home Assistant and the touchscreen remote
 
 `GET /api/status` returns the map's state as JSON. The web UI's controls are plain HTTP requests too, so scripts and
 home automation can use them. See **[API.md](API.md)** for every endpoint.
@@ -257,6 +263,10 @@ through this API. It provides:
 - config switches and numbers
 - flight-category sensors
 - a `metarmap.locate` action
+
+The [metarmap2_remote](https://github.com/dman776/metarmap2_remote) firmware uses the same API from a small touchscreen
+on your network: it reads `/api/live` and `/api/status`, and sends `/visualizer/...`, `/brightness/...` and
+`/locate/...`. It doesn't need the map's username and password.
 
 ## Troubleshooting
 
