@@ -233,13 +233,14 @@ case-insensitive; an airport that isn't on the map is a 404. `/api/speak` gives 
 `{code: text}`, in the map's order.
 
 ```
-David Wayne Hooks Memorial. Weather at zero zero five three Zulu. Wind not reported. Visibility one zero. Sky
-condition few clouds at four thousand nine hundred, few clouds at seven thousand five hundred. Temperature two one,
-dew point one six. Altimeter three zero zero five. V F R.
+David Wayne Hooks Memorial. Weather at zero zero five tree Zulu. Wind not reported. Visibility one zero. Sky
+condition few clouds at four thousand niner hundred, few clouds at seven thousand five hundred. Temperature two one,
+dew point one six. Altimeter tree zero zero five. VFR.
 ```
 
 Everything is spelled out as words, so a speech model can't read a number two ways: digit by digit for the wind, the
-time, the temperature and the altimeter, in English for cloud heights and visibility fractions. In order: the
+time, the temperature and the altimeter, in English for cloud heights and visibility fractions. The digits are said
+as pilots and controllers say them: `tree` for 3 and `niner` for 9. In order: the
 airport's name (the map's own, else the station's, with `Rgnl`, `Muni`, `Intl`... written out; else its letters), the
 observation time in Zulu, the wind, the visibility, the weather, `Lightning observed`, the sky (the first broken or
 overcast layer is the `ceiling`), the temperature and dew point (`minus` below zero), the altimeter and the flight

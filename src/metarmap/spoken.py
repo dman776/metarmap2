@@ -1,12 +1,13 @@
 """
 A METAR as it would be read aloud, ATIS style, for text to speech:
 
-    David Wayne Hooks Memorial. Weather at zero zero five three Zulu. Wind not reported. Visibility one zero. Sky
-    condition few clouds at four thousand nine hundred, few clouds at seven thousand five hundred. Temperature two
-    one, dew point one six. Altimeter three zero zero five. V F R.
+    David Wayne Hooks Memorial. Weather at zero zero five tree Zulu. Wind not reported. Visibility one zero. Sky
+    condition few clouds at four thousand niner hundred, few clouds at seven thousand five hundred. Temperature two
+    one, dew point one six. Altimeter tree zero zero five. VFR.
 
 Everything is written as words, so a speech model can't read "10" or "30.05" two ways: digit by digit for winds,
-times, temperatures and the altimeter, in English for cloud heights. What the report leaves out is said to be not
+times, temperatures and the altimeter, in English for cloud heights; a digit is said as pilots say it ("tree",
+"niner"). What the report leaves out is said to be not
 reported (as the LEDs blink red for it), so a listener can tell a missing value from a calm one. Each item is its own
 sentence, which a speech model gives a pause.
 """
@@ -17,7 +18,8 @@ from typing import Optional
 from metarmap import decode
 from metarmap.models import Report
 
-DIGITS = ("zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine")
+# the digits as pilots and controllers say them: "tree" and "niner" can't be heard as "free" or "nein"
+DIGITS = ("zero", "one", "two", "tree", "four", "five", "six", "seven", "eight", "niner")
 ONES = DIGITS + (
     "ten",
     "eleven",
@@ -36,7 +38,7 @@ DENOMINATORS = {2: "half", 3: "third", 4: "quarter", 5: "fifth", 8: "eighth", 16
 COVER = {"FEW": "few clouds", "SCT": "scattered", "BKN": "broken", "OVC": "overcast"}
 CEILING = ("BKN", "OVC")
 CLEAR = ("CLR", "SKC", "CAVOK", "NSC")
-CATEGORY = {"VFR": "V F R", "MVFR": "Marginal V F R", "IFR": "I F R", "LIFR": "Low I F R"}
+CATEGORY = {"VFR": "VFR", "MVFR": "Marginal VFR", "IFR": "IFR", "LIFR": "Low IFR"}
 
 # how a station's name abbreviates words (aviationweather.gov's "Houston/Hobby Arpt"), written out
 ABBREVIATIONS = {
@@ -97,13 +99,13 @@ def airport_name(name: str, code: str = "") -> str:
 
 
 def digits(value) -> str:
-    """Digit by digit: 130 -> "one three zero", "0053" -> "zero zero five three". A sign is dropped."""
+    """Digit by digit: 130 -> "one tree zero", "0053" -> "zero zero five tree". A sign is dropped."""
     text = value if isinstance(value, str) else str(abs(int(value)))
     return " ".join(DIGITS[int(c)] for c in text if c.isdigit())
 
 
 def number(n: int) -> str:
-    """0 to 99 as English: 49 -> "forty nine". Larger ones digit by digit."""
+    """0 to 99 as English, with the digits as pilots say them: 49 -> "forty niner". Larger ones digit by digit."""
     if n < 20:
         return ONES[n]
     if n < 100:
@@ -112,7 +114,7 @@ def number(n: int) -> str:
 
 
 def altitude(feet: int) -> str:
-    """To the nearest hundred feet: 4900 -> "four thousand nine hundred", 800 -> "eight hundred"."""
+    """To the nearest hundred feet: 4900 -> "four thousand niner hundred", 800 -> "eight hundred"."""
     thousands, hundreds = divmod(round(feet, -2), 1000)
     parts = []
     if thousands:
@@ -123,7 +125,7 @@ def altitude(feet: int) -> str:
 
 
 def fraction(part: Fraction) -> str:
-    """A fraction of a mile: 3/4 -> "three quarters", 1/2 -> "one half"."""
+    """A fraction of a mile: 3/4 -> "tree quarters", 1/2 -> "one half"."""
     n, d = part.numerator, part.denominator
     word = DENOMINATORS.get(d)
     if word is None:
@@ -202,7 +204,7 @@ def temperature(metar: Report) -> str:
 
 
 def altimeter(inhg: Optional[float]) -> str:
-    """30.05 as "Altimeter three zero zero five"."""
+    """30.05 as "Altimeter tree zero zero five"."""
     if not inhg:
         return "Altimeter not reported."
     return f"Altimeter {digits(round(inhg * 100))}."
