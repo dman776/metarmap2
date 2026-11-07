@@ -13,7 +13,7 @@ import bottle
 from metarmap import __version__
 from metarmap.decode import decode, summary
 from metarmap.models import Report
-from metarmap.speech import SpeechError
+from metarmap.speech import SpeechError, configured
 from metarmap.spoken import spoken
 from metarmap.visualizers import advisories as advisories_vis, tfr as tfr_vis, wind_direction
 from metarmap.web import views
@@ -225,6 +225,9 @@ def live(services: "App", now=None):
             "on": bool(display and display.on),
             "screen": display.screen if display else None,
         },
+        # spoken weather can be asked for (/api/speak/<code>.audio): on, with a server set. The AWOS buttons and the
+        # touchscreen remote's hold-to-hear follow it
+        "speech": services.speech is not None and configured(services.config.data.speech),
     }
 
 
