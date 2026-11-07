@@ -1,9 +1,12 @@
 """
-The spoken METARs (metarmap.spoken) as audio: /api/speak/<code>.audio.
+The spoken METARs (metarmap.spoken) as audio: /api/speak/<code>.audio. The words are read by a speech server on
+another computer (speech.engine), so the Pi only sends the text and keeps the audio it gets back, as a WAV (16-bit
+mono): it suits a Pi Zero W, which couldn't make speech itself.
 
-The words are read by Piper on another computer, over the Wyoming protocol: Home Assistant's Piper add-on, or any
-wyoming-piper server (speech.wyoming_host, port 10200). The Pi only sends the text and keeps the audio it gets back,
-as a WAV (16-bit mono, at the voice's rate), so it suits a Pi Zero W, which can't run Piper itself.
+  wyoming  Piper, over the Wyoming protocol: Home Assistant's Piper add-on, or any wyoming-piper server
+           (speech.wyoming_host, port 10200). 16 or 22 kHz, by the voice
+  kokoro   Kokoro-FastAPI (speech.kokoro_url, e.g. http://192.168.0.164:8880), over its OpenAI-style speech API:
+           asked for raw PCM (24 kHz) and wrapped in a WAV here, as its own WAVs are written for streaming
 
 Each clip is kept until its text changes (a new METAR), so playing an airport again takes no time.
 """
@@ -18,12 +21,23 @@ import wave
 from collections import OrderedDict
 from typing import Callable, Optional, Tuple
 
+import requests
+
+from metarmap import USER_AGENT
+
 log = logging.getLogger(__name__)
 
 CACHE_CLIPS = 60  # a clip is about 500 KB (15 s at 16-22 kHz): 30 MB at most, kept in memory
 WYOMING_TIMEOUT = 60  # seconds for the whole report: Home Assistant's box may be busy
 WYOMING_VERSION = "1.5.0"  # the protocol version the map speaks (wyoming 1.5 and later understand it)
 MAX_EVENT_BYTES = 4 * 1024 * 1024  # an audio chunk is a few KB; anything this big isn't a Wyoming server
+KOKORO_RATE = 24000  # Kokoro's raw PCM: 16-bit mono at 24 kHz
+KOKORO_TIMEOUT = 60
+
+
+def configured(s) -> bool:
+    """Whether the speech settings name a server for their engine (the Remote's AWOS tab shows then)."""
+    return bool(s.kokoro_url if s.engine == "kokoro" else s.wyoming_host)
 
 
 class SpeechError(Exception):
@@ -40,15 +54,19 @@ class Speech:
     connect: socket.create_connection, or a stand-in in tests.
     """
 
-    def __init__(self, settings: Callable, connect=None):
+    def __init__(self, settings: Callable, connect=None, post=None):
         self._settings = settings
         self._connect = connect or socket.create_connection
+        self._post = post or requests.post
         self._lock = threading.Lock()
         self._cache: "OrderedDict[str, bytes]" = OrderedDict()
 
     def problem(self) -> Optional[str]:
         """Why the map can't speak (what to set up), or None if it can try."""
-        if not self._settings().wyoming_host:
+        s = self._settings()
+        if s.engine == "kokoro":
+            return None if s.kokoro_url else "No Kokoro server: set speech.kokoro_url (e.g. http://192.168.0.164:8880)"
+        if not s.wyoming_host:
             return "No Piper server: set speech.wyoming_host (e.g. Home Assistant's address)"
         return None
 
@@ -58,12 +76,16 @@ class Speech:
         problem = self.problem()
         if problem:
             raise SpeechError(problem, 503)
-        name = hashlib.sha256(f"{s.wyoming_host}:{s.wyoming_port}\n{s.wyoming_voice}\n{text}".encode()).hexdigest()
+        if s.engine == "kokoro":
+            voice = f"kokoro\n{s.kokoro_url}\n{s.kokoro_voice}\n{s.kokoro_speed}"
+        else:
+            voice = f"wyoming\n{s.wyoming_host}:{s.wyoming_port}\n{s.wyoming_voice}"
+        name = hashlib.sha256(f"{voice}\n{text}".encode()).hexdigest()
         with self._lock:
             if name in self._cache:
                 self._cache.move_to_end(name)
                 return self._cache[name]
-        clip = self._synthesize(text, s)
+        clip = self._kokoro(text, s) if s.engine == "kokoro" else self._synthesize(text, s)
         with self._lock:
             self._cache[name] = clip
             while len(self._cache) > CACHE_CLIPS:
@@ -98,6 +120,39 @@ class Speech:
             raise SpeechError(f"Piper at {where} sent no audio")
         log.info(f"speech: {where}, {len(text)} characters, {len(pcm) // 1024} KB")
         return to_wav(bytes(pcm), int(fmt["rate"]), int(fmt["width"]), int(fmt["channels"]))
+
+    def _kokoro(self, text: str, s) -> bytes:
+        """Asks Kokoro-FastAPI for `text` as raw PCM, and wraps it in a WAV."""
+        url = s.kokoro_url.rstrip("/") + "/v1/audio/speech"
+        body = {
+            "model": "kokoro",
+            "input": text,
+            "voice": s.kokoro_voice,
+            "speed": s.kokoro_speed,
+            "response_format": "pcm",
+            "stream": False,
+        }
+        try:
+            response = self._post(url, json=body, headers={"User-Agent": USER_AGENT}, timeout=KOKORO_TIMEOUT)
+        except requests.RequestException as e:
+            raise SpeechError(f"Couldn't reach Kokoro at {s.kokoro_url}: {e}"[:200]) from None
+        if response.status_code != 200:
+            raise SpeechError(f"Kokoro said {response.status_code}: {_kokoro_detail(response)}"[:200])
+        pcm = response.content
+        if len(pcm) < 2:
+            raise SpeechError("Kokoro sent no audio")
+        log.info(f"speech: kokoro {s.kokoro_url}, {len(text)} characters, {len(pcm) // 1024} KB")
+        return to_wav(pcm[: len(pcm) // 2 * 2], KOKORO_RATE, 2, 1)
+
+
+def _kokoro_detail(response) -> str:
+    """Kokoro's reason ({"detail": {"message": ...}}), cut before its list of every voice."""
+    try:
+        detail = response.json().get("detail")
+    except ValueError:
+        return (response.text or "").strip()[:150]
+    message = str(detail.get("message") or detail) if isinstance(detail, dict) else str(detail)
+    return message.split(" Available voices")[0]
 
 
 # ---- Wyoming --------------------------------------------------------------------------------------------------------

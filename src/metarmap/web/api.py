@@ -300,8 +300,8 @@ def as_text(text, code):
 
 
 def as_audio(services: "App", code):
-    """An airport's METAR read aloud (WAV), by the Piper server in speech.wyoming_host. 404: not on the map; 503: no
-    server is set; 502: the server failed or couldn't be reached. The errors are plain text, saying why."""
+    """An airport's METAR read aloud (WAV), by the speech server (speech.engine: Piper over Wyoming, or Kokoro). 404:
+    not on the map; 503: no server is set; 502: the server failed or couldn't be reached. Errors are plain text."""
     text = spoken_report(services, code)
     if text is None:
         bottle.abort(404, f"{code} isn't on the map")

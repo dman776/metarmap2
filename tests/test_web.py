@@ -915,9 +915,6 @@ def test_config_has_a_spoken_weather_section(client):
     assert '<option value="en_US-lessac-medium">' in page
     first = next(a.code for a in client.services.config.airports if a.code)
     assert f'id="speech-test" data-code="{first}"' in page
-    assert 'data-when="speech-host" data-when-filled hidden' in page  # port, voice and Test wait for an address
-    client.services.config.data.speech.wyoming_host = "192.168.0.14"
-    assert 'data-when="speech-host" data-when-filled>' in client("/config")[1]
 
 
 def test_a_dash_empties_the_speech_server_and_voice(client):
@@ -928,6 +925,41 @@ def test_a_dash_empties_the_speech_server_and_voice(client):
     assert client("/config/edit/speech.wyoming_voice/-")[0] == 200
     speech = client.services.config.data.speech  # a save reads config.json back, so look it up now
     assert (speech.wyoming_host, speech.wyoming_voice) == ("", "")
+
+
+def test_kokoro_settings(client):
+    assert client("/config/edit/speech.engine/kokoro")[0] == 200
+    assert client("/config/edit/speech.kokoro_url/192.168.0.164:8880")[0] == 200  # http:// is added
+    assert client.services.config.data.speech.kokoro_url == "http://192.168.0.164:8880"
+    assert client("/config/edit/speech.kokoro_url/http://192.168.0.164:8880/")[0] == 200  # a / is dropped
+    assert client.services.config.data.speech.kokoro_url == "http://192.168.0.164:8880"
+    assert client("/config/edit/speech.kokoro_url/ftp://x")[0] == 400
+    assert client("/config/edit/speech.kokoro_url/-")[0] == 200
+    assert client.services.config.data.speech.kokoro_url == ""
+    assert client("/config/edit/speech.kokoro_voice/bm_george")[0] == 200
+    assert client("/config/edit/speech.kokoro_voice/George!")[0] == 400
+    assert client("/config/edit/speech.kokoro_speed/1.25")[0] == 200
+    assert client("/config/edit/speech.kokoro_speed/5")[0] == 400
+    assert client("/config/edit/speech.engine/espeak")[0] == 400
+
+
+def test_the_awos_tab_follows_the_engine(client):
+    speech = client.services.config.data.speech
+    speech.engine, speech.kokoro_url = "kokoro", "http://192.168.0.164:8880"
+    assert 'id="tab-awos"' in client("/remote")[1]
+    speech.engine = "wyoming"  # and no Home Assistant set
+    assert 'id="tab-awos"' not in client("/remote")[1]
+
+
+def test_config_shows_the_engines_settings(client):
+    page = client("/config")[1]
+    assert '<option value="wyoming" selected>' in page and '<option value="kokoro">' in page
+    assert 'data-when="speech-engine" data-when-value="kokoro" hidden' in page
+    assert '<option value="bm_george">' in page
+    client.services.config.data.speech.engine = "kokoro"
+    page = client("/config")[1]
+    assert 'data-when="speech-engine" data-when-value="wyoming" hidden' in page
+    assert 'data-when="speech-engine" data-when-value="kokoro">' in page
 
 
 def test_speech_settings(client):

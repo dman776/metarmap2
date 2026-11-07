@@ -263,16 +263,38 @@ HOST_NAME = re.compile(r"^$|^[A-Za-z0-9]([A-Za-z0-9.-]{0,252}[A-Za-z0-9])?$")
 PIPER_VOICE = re.compile(r"^$|^[a-z]{2,3}_[A-Z]{2}-[A-Za-z0-9_]+-(x_low|low|medium|high)$")
 
 
+KOKORO_VOICE = re.compile(r"^[a-z]{2}_[a-z0-9_]{1,40}$")
+
+
+def http_url(value, key):
+    """A server's address as http(s)://host[:port], "" (or "-") for none; one without a scheme gets http://."""
+    text = blank(value, key).rstrip("/")
+    if text and "://" not in text:
+        text = "http://" + text
+    return text
+
+
+SERVER_URL = re.compile(r"^$|^https?://[A-Za-z0-9.-]+(:[0-9]{1,5})?$")
+
+
 @dataclass
 class SpeechSettings(_Section):
-    # /api/speak/<code>.audio reads an airport's METAR aloud with Piper on another computer, over the Wyoming protocol:
-    # Home Assistant's Piper add-on (its port, 10200, opened in the add-on's Network settings). "": no speech
+    # /api/speak/<code>.audio reads an airport's METAR aloud, by a speech server on another computer (metarmap.speech)
+    engine: str = setting("wyoming", choices=("wyoming", "kokoro"))
+    # wyoming: Piper over the Wyoming protocol, e.g. Home Assistant's Piper add-on (its port, 10200, opened in the
+    # add-on's Network settings). "": no speech
     wyoming_host: str = setting(
         "", pattern=HOST_NAME, parse=blank, message="{key}: {value!r} isn't a host name or address"
     )
     wyoming_port: int = setting(10200, between=(1, 65535))
     # the Piper voice to ask for, e.g. "en_US-lessac-medium"; "": the server's own
     wyoming_voice: str = setting("", pattern=PIPER_VOICE, parse=blank, message="{key}: {value!r} isn't a Piper voice")
+    # kokoro: Kokoro-FastAPI, e.g. "http://192.168.0.164:8880". "": no speech
+    kokoro_url: str = setting(
+        "", pattern=SERVER_URL, parse=http_url, message="{key}: {value!r} isn't a server address like http://host:8880"
+    )
+    kokoro_voice: str = setting("af_heart", pattern=KOKORO_VOICE, message="{key}: {value!r} isn't a Kokoro voice")
+    kokoro_speed: float = setting(1.0, between=(0.5, 2.0))
 
 
 @dataclass

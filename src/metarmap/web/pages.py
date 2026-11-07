@@ -6,6 +6,7 @@ import io
 import pprint
 from typing import TYPE_CHECKING
 
+from metarmap.speech import configured
 from metarmap import system
 from metarmap.config import MAX_LEDS
 from metarmap.leds import intro
@@ -81,7 +82,7 @@ def remote(services: "App", site):
         brightness=services.renderer.pixels().brightness,
         auto_rotate=services.config.data.visualizer.auto_rotate.enabled,
         oled_on=services.display.on if services.config.data.display_screen.enabled else None,
-        speech=bool(services.config.data.speech.wyoming_host),  # the AWOS tab: only with a Piper server to read aloud
+        speech=configured(services.config.data.speech),  # the AWOS tab: only with a speech server to read aloud
     )
 
 
@@ -122,6 +123,24 @@ SPEECH_VOICES = (
 )
 
 
+# Kokoro's better-rated English voices (its own grades); any other it has can be typed
+KOKORO_VOICES = (
+    "af_heart",
+    "af_bella",
+    "af_nicole",
+    "af_sarah",
+    "af_kore",
+    "af_aoede",
+    "am_michael",
+    "am_fenrir",
+    "am_puck",
+    "bf_emma",
+    "bf_isabella",
+    "bm_george",
+    "bm_fable",
+)
+
+
 def config(services: "App", site):
     settings = views.map_settings(services.config.data.geo.map, site.sectionals, stations(services))
     return render(
@@ -143,6 +162,7 @@ def config(services: "App", site):
         linux_user=system.login_user() if system.can_set_login_password() else None,
         wifi=system.current_wifi(),
         speech_voices=SPEECH_VOICES,
+        kokoro_voices=KOKORO_VOICES,
         first_airport=next((a.code for a in services.config.airports if a.code), ""),  # Spoken weather's Test
     )
 

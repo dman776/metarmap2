@@ -189,11 +189,12 @@
     }
     window.metarmapOutput = showOutput;
 
-    // range inputs with a live label: <input type=range data-label="id" data-format="pct|sec">
+    // range inputs with a live label: <input type=range data-label="id" data-format="pct|sec|x">
     document.querySelectorAll('input[type=range][data-label]').forEach(function (r) {
         const out = document.getElementById(r.dataset.label);
         const fmt = function (v) {
-            return r.dataset.format === 'pct' ? Math.round(v * 100) + '%' : v + ' s';
+            if (r.dataset.format === 'pct') return Math.round(v * 100) + '%';
+            return r.dataset.format === 'x' ? v + '×' : v + ' s';  // x: a speed, 1.25×
         };
         r.addEventListener('input', function () { if (out) out.textContent = fmt(r.value); });
     });

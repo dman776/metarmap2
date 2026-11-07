@@ -4,8 +4,10 @@ import io
 import json
 import socket
 import wave
+from types import SimpleNamespace
 
 import pytest
+import requests
 
 from metarmap import speech as speech_module
 from metarmap.settings import SpeechSettings
@@ -148,3 +150,124 @@ def test_the_cache_keeps_the_newest(monkeypatch):
 def sent_events_of(data):
     kind, info, _ = speech_module.read_wyoming_event(io.BytesIO(data))
     return kind, info
+
+
+# ---- Kokoro (Kokoro-FastAPI) ---------------------------------------------------------------------------------------
+
+
+class FakeKokoro:
+    """Stands in for requests.post: records each request and answers with raw PCM, or what it's told to."""
+
+    def __init__(self, status=200, content=b"\x01\x02" * 1200, body=None, fail=None):
+        self.calls = []
+        self.status, self.content, self.body, self.fail = status, content, body, fail
+
+    def __call__(self, url, json=None, headers=None, timeout=None):
+        self.calls.append(SimpleNamespace(url=url, json=json, headers=headers, timeout=timeout))
+        if self.fail:
+            raise self.fail
+        body = self.body
+
+        def as_json():
+            if body is None:
+                raise ValueError("not JSON")
+            return body
+
+        return SimpleNamespace(status_code=self.status, content=self.content, text=str(body or ""), json=as_json)
+
+
+def make_kokoro(fake=None, **settings):
+    fake = fake or FakeKokoro()
+    s = SpeechSettings(engine="kokoro", kokoro_url="http://192.168.0.164:8880", **settings)
+    return Speech(lambda: s, post=fake), fake, s
+
+
+def test_kokoro_asks_for_raw_audio_and_makes_a_wav():
+    pcm = bytes(range(256)) * 10
+    speech, fake, _ = make_kokoro(FakeKokoro(content=pcm))
+    clip = speech.audio("Hooks. Wind calm.")
+    (call,) = fake.calls
+    assert call.url == "http://192.168.0.164:8880/v1/audio/speech"
+    assert call.json == {
+        "model": "kokoro",
+        "input": "Hooks. Wind calm.",
+        "voice": "af_heart",
+        "speed": 1.0,
+        "response_format": "pcm",
+        "stream": False,
+    }
+    assert call.timeout
+    with wave.open(io.BytesIO(clip)) as w:
+        assert (w.getframerate(), w.getsampwidth(), w.getnchannels()) == (24000, 2, 1)
+        assert w.readframes(w.getnframes()) == pcm
+
+
+def test_kokoro_voice_and_speed_make_new_clips():
+    speech, fake, s = make_kokoro()
+    speech.audio("one")
+    speech.audio("one")
+    assert len(fake.calls) == 1
+    s.kokoro_voice = "bm_george"
+    speech.audio("one")
+    s.kokoro_speed = 1.25
+    speech.audio("one")
+    assert [(c.json["voice"], c.json["speed"]) for c in fake.calls] == [
+        ("af_heart", 1.0),
+        ("bm_george", 1.0),
+        ("bm_george", 1.25),
+    ]
+
+
+def test_a_new_engine_is_a_new_clip():
+    speech, fake, s = make_kokoro()
+    speech.audio("one")
+    s.engine, s.wyoming_host = "wyoming", "192.168.0.14"
+    wyoming = FakeWyoming()
+    speech._connect = wyoming
+    speech.audio("one")
+    assert len(fake.calls) == 1 and len(wyoming.sent) == 1
+
+
+def test_an_odd_byte_is_dropped():
+    speech, _, _ = make_kokoro(FakeKokoro(content=b"\x01\x02\x03"))
+    with wave.open(io.BytesIO(speech.audio("one"))) as w:
+        assert w.getnframes() == 1
+
+
+def test_no_kokoro_server():
+    speech, fake, s = make_kokoro()
+    s.kokoro_url = ""
+    assert "speech.kokoro_url" in speech.problem()
+    with pytest.raises(SpeechError) as e:
+        speech.audio("Hooks.")
+    assert e.value.status == 503 and fake.calls == []
+
+
+@pytest.mark.parametrize(
+    "fake, said",
+    [
+        (
+            FakeKokoro(
+                status=400,
+                body={"detail": {"message": "Voice 'xx_nope' not found. Available voices: af_alloy, af_bella"}},
+            ),
+            "Kokoro said 400: Voice 'xx_nope' not found.",
+        ),
+        (FakeKokoro(status=500, body=None), "Kokoro said 500"),
+        (FakeKokoro(content=b""), "sent no audio"),
+        (FakeKokoro(fail=requests.ConnectionError("refused")), "Couldn't reach Kokoro at http://192.168.0.164:8880"),
+    ],
+)
+def test_kokoro_failures_say_why(fake, said):
+    speech, _, _ = make_kokoro(fake)
+    with pytest.raises(SpeechError) as e:
+        speech.audio("Hooks.")
+    assert said in str(e.value) and e.value.status == 502
+    assert "af_bella" not in str(e.value)  # not its whole voice list
+
+
+def test_configured():
+    assert not speech_module.configured(SpeechSettings())
+    assert speech_module.configured(SpeechSettings(wyoming_host="192.168.0.14"))
+    assert not speech_module.configured(SpeechSettings(engine="kokoro", wyoming_host="192.168.0.14"))
+    assert speech_module.configured(SpeechSettings(engine="kokoro", kokoro_url="http://192.168.0.164:8880"))
