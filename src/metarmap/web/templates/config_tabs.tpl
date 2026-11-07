@@ -1,5 +1,5 @@
 % # the Config tab bar. On /config the tabs switch panels in the page (app.js); Airports is its own page
-% on_airports = active == 'airports'
+% on_airports = active == 'airports' or get('own_page', False)  # a page of its own: the tabs link to /config
 % release = get('release')
 <nav class="tabs" aria-label="Config sections">
     % for key, label in (('physical', 'Physical display'), ('visualizers', 'Visualizers'), ('airports', 'Airports'), ('map', 'Virtual map'), ('system', 'System')):

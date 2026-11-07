@@ -294,6 +294,18 @@ request for every airport) and every half hour to know which airports have one. 
 contractions ("DEPG RY 15L", "TWY EA CLSD"); the map writes those out as words ("departing runway one five left",
 "taxiway Echo Alpha closed") so the voice reads them right. A contraction it doesn't know is read as it's written.
 
+**Read along**: while an ATIS plays, the page shows it line by line, the FAA's text over how it's said, with the
+line being said lit and kept in view: a way to learn to read a D-ATIS. On the Remote page's Info tab (ATIS mode)
+under the airports, and on the METARs page in a panel at the bottom (× closes it and stops the audio). The voice
+doesn't say when it reaches each line, so the map works it out from the lines' lengths: close, not exact.
+
+**Pronunciation** (**Config > System > Spoken weather > Pronunciation**, `speech.tunings`): your own words for what
+the map doesn't say well, such as a fix or a local name (`MNSTR` said "monster"), a typo in the FAA's text
+(`GRO UND` said "ground"), or a word you'd rather hear another way (`RNAV` said "are nav"), for every airport or one.
+Each is matched as whole words, in any case, before the map's own rules, and is said exactly as you write it. The
+page lists the words in your airports' ATIS now that the map reads as written (press one to tune it), and **Try it**
+shows and plays an airport's ATIS with your tunings.
+
 Like the spoken weather, it's for fun, not for flight planning.
 
 ## Web API, Home Assistant and the touchscreen remote

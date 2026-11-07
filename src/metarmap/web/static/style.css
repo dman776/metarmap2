@@ -549,6 +549,32 @@ body.kiosk main.wrap { max-width: none; height: 100vh; height: var(--kiosk-h, 10
 #info:not([data-mode="locate"]) .r-grid.paused .r-apt { opacity: 1; }
 #info[data-mode="atis"] .r-apt[data-atis="false"] { display: none; }
 .r-no-atis { margin: 0; }
+/* an ATIS to read along (app.js's transcript): the FAA's text, then how it's said; the line being said lit */
+.tx { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.tx li { display: grid; gap: 4px; padding: 10px 14px; border-left: 3px solid transparent; border-radius: 8px; transition: background .2s; }
+.tx .tx-raw { font: 500 14px var(--mono); color: var(--text); overflow-wrap: anywhere; }
+.tx .tx-said { font-size: 14px; line-height: 1.4; color: var(--muted); }
+.tx li.current { background: var(--accent-soft); border-left-color: var(--accent); }
+.tx li.current .tx-said { color: var(--text); }
+.r-transcript { padding-bottom: 8px; }
+.tx-sheet { position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 20; max-height: 45vh; overflow-y: auto; box-shadow: 0 12px 40px rgba(0, 0, 0, .55); }
+.tx-sheet .card-head { position: sticky; top: 0; background: var(--surface); z-index: 1; }
+.tx-sheet .card-head .muted { flex: 1; font-size: 13px; }
+.tx-sheet .tx { padding: 8px 10px 12px; }
+/* the Pronunciation page */
+.tn-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) 160px 48px; }
+.tn-row input, .tn-row select { width: 100%; }
+.tn-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.tn-suggest { display: flex; flex-wrap: wrap; gap: 8px; padding: 16px 24px; }
+.tn-empty, .tn-status, .tn-hint { margin: 0; padding: 12px 24px; }
+.tn-status:empty { display: none; }
+#tn-try .tx { padding: 0 12px 16px; }
+@media (max-width: 720px) {
+    .tn-row { grid-template-columns: minmax(0, 1fr) 48px; }
+    .tn-row.head { display: none; }
+    .tn-row .tn-say, .tn-row .tn-airport { grid-column: 1; }
+    .tn-row .tn-remove { grid-row: 1; grid-column: 2; }
+}
 @keyframes r-locate { 50% { background: #fff; color: var(--bg); box-shadow: 0 0 18px rgba(255, 255, 255, .6); } }
 
 /* an iPad on its side: bigger airport tiles */

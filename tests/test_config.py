@@ -488,3 +488,56 @@ def test_mock_metars_publish(config):
     heard.clear()
     config.set_airport(0, "code", "KDWH")  # the mock was the old airport's
     assert heard == [["airports.code", "airports.name", "airports.mock"]]
+
+
+# ---- spoken ATIS tunings (the Pronunciation page) --------------------------------------------------------------
+
+
+def test_tunings_are_saved_as_a_whole_list(config, tmp_path):
+    heard = listen(config, "speech.*")
+    config.set_tunings(
+        [{"text": " mnstr ", "say": " monster ", "airport": ""}, {"text": "trssh", "say": "thresh", "airport": "khou"}]
+    )
+    saved = Config(str(tmp_path / "config.json")).data.speech.tunings  # read back from config.json
+    assert [(t.text, t.say, t.airport) for t in saved] == [("MNSTR", "monster", ""), ("TRSSH", "thresh", "KHOU")]
+    config.set_tunings([{"text": "MNSTR", "say": "monster"}, {"text": "TRSSH", "say": "thresh", "airport": "KHOU"}])
+    assert heard == [["speech.tunings"]]  # the same list again changes nothing
+    config.set_tunings([])
+    assert config.data.speech.tunings == []
+
+
+@pytest.mark.parametrize(
+    "items, said",
+    [
+        ("MNSTR", "a list"),
+        ([{"text": "", "say": "x"}], "tuning 1"),
+        ([{"text": "A" * 41, "say": "x"}], "up to 40"),
+        ([{"text": "<B>", "say": "x"}], "isn't text an ATIS has"),
+        ([{"text": "MNSTR", "say": "  "}], "say MNSTR as what"),
+        ([{"text": "MNSTR", "say": "a § b"}], "say MNSTR as what"),
+        ([{"text": "MNSTR", "say": "x", "airport": "HOUSTON"}], "isn't an airport code"),
+        ([{"text": "MNSTR", "say": "x"}, {"text": "mnstr", "say": "y"}], "tuning 2: MNSTR is there twice"),
+    ],
+)
+def test_tunings_that_cant_be_used(config, items, said):
+    with pytest.raises(ValueError) as e:
+        config.set_tunings(items)
+    assert said in str(e.value)
+    assert config.data.speech.tunings == []
+
+
+def test_hand_edited_tunings_that_cant_be_used_are_left_out(tmp_path):
+    from metarmap.settings import Settings
+
+    settings = Settings.from_dict(
+        {
+            "speech": {
+                "tunings": [
+                    {"text": "mnstr", "say": "monster"},
+                    {"text": "X", "say": ""},
+                    {"text": "MNSTR", "say": "again"},
+                ]
+            }
+        }
+    )
+    assert [(t.text, t.say) for t in settings.speech.tunings] == [("MNSTR", "monster")]

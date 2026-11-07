@@ -17,6 +17,13 @@
   of what's being read for AWOS and ATIS. `/remote#locator`, `#awos` and `#atis` open the Info tab in that mode, and
   the tab and mode last used come back
 - **The METARs page has an ATIS button** beside AWOS, for the airports that publish a digital ATIS
+- **Read the ATIS along** while it plays: line by line, the FAA's text over how it's said, the line being said lit
+  and kept in view. On the Remote page's Info tab (ATIS mode) and in a panel on the METARs page.
+  `/api/atis/<code>/lines` gives the lines
+- **Pronunciation** (Config > System > Spoken weather > Pronunciation, `speech.tunings`): words and phrases of an
+  ATIS said your way (a fix, a local name, the FAA's typos), for every airport or one, matched as whole words before
+  the map's own rules. The page lists the words in your airports' ATIS that the map reads as written, and **Try it**
+  shows and plays an ATIS with them
 
 - **`/api/live` says whether the map can speak** (`speech`): true with spoken weather on and a server set, so the
   touchscreen remote offers hold-to-hear only then

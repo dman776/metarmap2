@@ -127,6 +127,10 @@
             </button>
             % end
         </div>
+        % if atis:
+        <!-- ATIS: the one being read, line by line (the FAA's text, then how it's said), the line being said lit -->
+        <ol class="tx r-transcript" id="r-transcript" aria-label="The ATIS, line by line" hidden></ol>
+        % end
     </section>
 </div>
 

@@ -79,5 +79,18 @@
 % if speech:
 <audio id="awos-audio" preload="none"></audio>
 % end
+% if with_atis:
+<!-- an ATIS to read along while it plays (app.js) -->
+<section class="card tx-sheet" id="atis-sheet" aria-label="The ATIS, line by line" hidden>
+    <div class="card-head">
+        <h2>ATIS</h2>
+        <span class="muted">The FAA's text, then how it's said</span>
+        <button class="btn icon tx-close" type="button" aria-label="Close and stop">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+    </div>
+    <ol class="tx"></ol>
+</section>
+% end
 
 %include("footer.tpl")

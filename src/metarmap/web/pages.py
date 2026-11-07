@@ -195,6 +195,38 @@ def airports(services: "App", site):
     )
 
 
+def pronunciation(services: "App", site):
+    """The spoken ATIS's tunings: words and phrases said another way, with the words the map reads as written."""
+    from metarmap.atis import AtisError
+    from metarmap.atis_spoken import unknown
+
+    speech = services.config.data.speech
+    codes = [a.code for a in services.config.airports if a.code]
+    with_atis = [c for c in codes if c in api.atis_airports(services)]
+    tuned = {(t.text, t.airport) for t in speech.tunings}
+    suggestions, problem = {}, None  # {word: [the airports whose ATIS has it]}
+    for code in with_atis:
+        try:
+            entries = services.atis.entries(code)
+        except AtisError as e:
+            problem = str(e)
+            continue
+        for entry in entries:
+            for word in sorted(unknown(entry["datis"])):
+                if (word, "") not in tuned and (word, code) not in tuned and code not in suggestions.get(word, []):
+                    suggestions.setdefault(word, []).append(code)
+    return render(
+        site,
+        "pronunciation.tpl",
+        tunings=speech.tunings,
+        codes=codes,
+        with_atis=with_atis,
+        atis_on=bool(speech.atis) and configured(speech),
+        suggestions=dict(sorted(suggestions.items())),
+        problem=problem,
+    )
+
+
 def raw(services: "App"):
     data = services.metars.data
     buf = io.StringIO()
@@ -218,3 +250,4 @@ def add_routes(app, services: "App", site, auth):
     app.route("/raw/<code>", "GET", lambda code: raw_code(services, code))
     app.route("/config", "GET", lambda: config(services, site), apply=auth)
     app.route("/config/airports", "GET", lambda: airports(services, site), apply=auth)
+    app.route("/config/pronunciation", "GET", lambda: pronunciation(services, site), apply=auth)

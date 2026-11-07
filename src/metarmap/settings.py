@@ -277,6 +277,49 @@ def http_url(value, key):
 SERVER_URL = re.compile(r"^$|^https?://[A-Za-z0-9.-]+(:[0-9]{1,5})?$")
 
 
+TUNING_TEXT = re.compile(r"^[A-Z0-9][A-Z0-9 /.'-]{0,39}$")  # as the FAA writes it: capitals, digits, a few marks
+TUNING_AIRPORT = re.compile(r"^$|^[A-Z0-9]{3,4}$")
+MAX_TUNINGS = 300
+
+
+@dataclass
+class Tuning(_Section):
+    """A word or phrase of an ATIS said another way (the Pronunciation page), e.g. MNSTR said "monster"."""
+
+    text: str = ""  # as the FAA writes it; matched as whole words, in any case
+    say: str = ""  # what the voice says instead, as it's written
+    airport: str = ""  # only in this airport's ATIS (KHOU or HOU); "" for every airport
+
+
+def parse_tunings(items) -> List[Tuning]:
+    """
+    The Pronunciation page's list ([{"text", "say", "airport"}]) as Tunings: text in capitals with single spaces, the
+    airport in capitals. Raises ValueError, naming the row, for one that can't be used.
+    """
+    if not isinstance(items, list):
+        raise ValueError("tunings: a list of {text, say, airport}")
+    if len(items) > MAX_TUNINGS:
+        raise ValueError(f"tunings: at most {MAX_TUNINGS}")
+    found, seen = [], set()
+    for n, item in enumerate(items, 1):
+        if not isinstance(item, dict):
+            raise ValueError(f"tuning {n}: not a {{text, say, airport}}")
+        text = " ".join(str(item.get("text") or "").upper().split())
+        say = " ".join(str(item.get("say") or "").split())
+        airport = str(item.get("airport") or "").strip().upper()
+        if not TUNING_TEXT.match(text):
+            raise ValueError(f"tuning {n}: {text!r} isn't text an ATIS has (letters, digits, up to 40)")
+        if not say or len(say) > 120 or "§" in say or not say.isprintable():
+            raise ValueError(f"tuning {n}: say {text} as what? (up to 120 characters)")
+        if not TUNING_AIRPORT.match(airport):
+            raise ValueError(f"tuning {n}: {airport!r} isn't an airport code")
+        if (text, airport) in seen:
+            raise ValueError(f"tuning {n}: {text} is there twice" + (f" for {airport}" if airport else ""))
+        seen.add((text, airport))
+        found.append(Tuning(text=text, say=say, airport=airport))
+    return found
+
+
 @dataclass
 class SpeechSettings(_Section):
     # /api/speak/<code>.audio reads an airport's METAR aloud, by a speech server on another computer (metarmap.speech).
@@ -300,6 +343,8 @@ class SpeechSettings(_Section):
     # the real ATIS (metarmap.atis), for airports that publish a digital one (about 75 large US airports), from
     # atis.info, an unofficial service: /api/atis/<code>.audio and the ATIS buttons. Off: the map never asks it
     atis: bool = False
+    # words and phrases of an ATIS said another way: local names, fixes, the FAA's odd spellings (Pronunciation page)
+    tunings: List[Tuning] = field(default_factory=list)
 
 
 @dataclass
@@ -344,6 +389,7 @@ class Settings(_Section):
             quiet.enabled, quiet.start, quiet.end = False, QuietHours.start, QuietHours.end
         migrate_visualizers(settings, data)
         _check_rules(settings, "")
+        settings.speech.tunings = _usable_tunings(settings.speech.tunings)
         settings._extra.pop("color", None)  # the LED colors live in the code now (3.1.2); an older file's are dropped
         return settings
 
@@ -423,6 +469,19 @@ class Settings(_Section):
         if dataclasses.is_dataclass(getattr(section, name)) or _is_section_list(kind):
             raise KeyError(f"{key} is a group of settings, not a single setting")
         return section, fields[name], kind
+
+
+def _usable_tunings(tunings):
+    """Loading: the hand-edited tunings parse_tunings() takes; one it doesn't is logged and left out."""
+    found = {}
+    for t in tunings:
+        try:
+            (tuning,) = parse_tunings([{"text": t.text, "say": t.say, "airport": t.airport}])
+        except ValueError as e:
+            logging.getLogger(__name__).warning("Invalid speech.tunings entry in config.json (%s); left out", e)
+            continue
+        found.setdefault((tuning.text, tuning.airport), tuning)  # the same one twice: the first
+    return list(found.values())
 
 
 def _check_rules(section, prefix):
