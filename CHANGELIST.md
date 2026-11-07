@@ -1,4 +1,4 @@
-### Unreleased
+### dman776 26.11.07 (2026-11-07)
 
 - **A METAR as text to be read aloud** (`/api/speak/<code>` and `/api/speak`): ATIS style, with every number spelled
   out as words ("wind one three zero at eight", "altimeter three zero zero five") so a text-to-speech voice can't
