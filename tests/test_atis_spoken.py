@@ -140,3 +140,60 @@ def test_what_it_doesnt_know_is_identifiers_and_fixes():
         "BNR", "CHS", "CKH", "CLT", "CMH", "DCM", "HNL", "HPN", "JFK", "KRSW", "MNSTR", "MSP", "MTV", "PDX", "PHX",
         "PSP", "PVD", "RSW", "SC", "SDL", "SLC", "TRM", "TRSSH", "VNY", "YVR",
     }  # fmt: skip
+
+
+# ---- line by line, and tunings ---------------------------------------------------------------------------------
+
+HOBBY = (
+    "HOU ATIS INFO P 1653Z. 11010KT 10SM SCT080 24/14 A3011 (THREE ZERO ONE ONE). DEPARTURE RUNWAY ASSIGNED BY GRO UND "
+    "CONTROL. TRSSH AND MNSTR ARR EXP ILS RY 13R. ...ADVS YOU HAVE INFO P."
+)
+
+
+def tuning(text, say, airport=""):
+    from metarmap.settings import Tuning
+
+    return Tuning(text=text, say=say, airport=airport)
+
+
+def test_lines_pair_the_faas_text_with_how_its_said():
+    found = atis_spoken.lines([{"type": "combined", "datis": HOBBY}], "Hobby", "KHOU")
+    assert found == [
+        ("HOU ATIS INFO P 1653Z.", "Hobby information Papa, one six five tree Zulu."),
+        (
+            "11010KT 10SM SCT080 24/14 A3011 (THREE ZERO ONE ONE).",  # as the FAA wrote it, the altimeter's words too
+            "Wind one one zero at one zero. Visibility one zero. Sky condition scattered at eight thousand. "
+            "Temperature two four, dew point one four. Altimeter tree zero one one.",
+        ),
+        ("DEPARTURE RUNWAY ASSIGNED BY GRO UND CONTROL.", "Departure runway assigned by gro und control."),
+        ("TRSSH AND MNSTR ARR EXP ILS RY 13R.", "TRSSH and MNSTR arrival expect ILS runway one tree right."),
+        ("ADVS YOU HAVE INFO P.", "Advise you have information Papa."),
+    ]
+    assert atis_spoken.spoken_atis([{"type": "combined", "datis": HOBBY}], "Hobby", "KHOU") == " ".join(
+        said for _, said in found
+    )
+
+
+def test_tunings_are_said_as_written():
+    tunings = [
+        tuning("GRO UND", "ground"),  # a phrase, across the FAA's stray space
+        tuning("mnstr", "monster"),  # any case
+        tuning("TRSSH", "thresh", "HOU"),  # this airport's (HOU or KHOU)
+        tuning("ILS", "eye ell ess 2"),  # said just so: digits too
+        tuning("ARR", "inbound", "KIAH"),  # another airport's: not here
+    ]
+    said = atis_spoken.spoken_atis([{"type": "combined", "datis": HOBBY}], "Hobby", "KHOU", (), tunings)
+    assert "Departure runway assigned by ground control." in said
+    assert "thresh and monster arrival expect eye ell ess 2 runway one tree right." in said.lower()
+    assert said.startswith("Hobby information Papa")  # the header and the weather aren't tuned
+
+
+def test_tunings_match_whole_words_and_the_longest_first():
+    tunings = [tuning("RY", "rye"), tuning("RY 13R", "the long runway")]
+    said = atis_spoken.expand("ILS RY 13R. RYAN RY 4.", "", frozenset(), atis_spoken.for_airport(tunings, "KHOU"))
+    assert said == "ILS the long runway. Ryan rye four."
+
+
+def test_for_airport():
+    tunings = [tuning("A", "x"), tuning("BB", "y", "KHOU"), tuning("CCC", "z", "HOU"), tuning("D", "w", "KIAH")]
+    assert [t.text for t in atis_spoken.for_airport(tunings, "KHOU")] == ["CCC", "BB", "A"]

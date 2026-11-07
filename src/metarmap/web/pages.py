@@ -11,7 +11,7 @@ from metarmap import system
 from metarmap.config import MAX_LEDS
 from metarmap.leds import intro
 from metarmap.settings import LED_ORDERS, LED_PINS, LIGHTNING_COLORS, TRAFFIC_SECONDS
-from metarmap.web import views
+from metarmap.web import api, views
 from metarmap.web.site import render
 
 if TYPE_CHECKING:  # app.py imports the web, so only for the type checker
@@ -59,6 +59,7 @@ def metars(services: "App", site):
         fetched=services.metars.lastFetchTime,
         cats=views.CATEGORIES,
         speech=configured(services.config.data.speech),  # an AWOS button per airport: only with a speech server
+        with_atis=api.atis_airports(services),  # an ATIS button for these (speech.atis, and a digital ATIS)
         **views.summary(s),
     )
 
@@ -88,7 +89,9 @@ def remote(services: "App", site):
         brightness=services.renderer.pixels().brightness,
         auto_rotate=services.config.data.visualizer.auto_rotate.enabled,
         oled_on=services.display.on if services.config.data.display_screen.enabled else None,
-        speech=configured(services.config.data.speech),  # the AWOS tab: only with a speech server to read aloud
+        speech=configured(services.config.data.speech),  # Info's AWOS mode: only with a speech server to read aloud
+        atis=configured(services.config.data.speech) and services.config.data.speech.atis,  # and its ATIS mode
+        with_atis=api.atis_airports(services),  # the airports ATIS mode shows (then from /api/live's leds[].atis)
     )
 
 
@@ -192,6 +195,38 @@ def airports(services: "App", site):
     )
 
 
+def pronunciation(services: "App", site):
+    """The spoken ATIS's tunings: words and phrases said another way, with the words the map reads as written."""
+    from metarmap.atis import AtisError
+    from metarmap.atis_spoken import unknown
+
+    speech = services.config.data.speech
+    codes = [a.code for a in services.config.airports if a.code]
+    with_atis = [c for c in codes if c in api.atis_airports(services)]
+    tuned = {(t.text, t.airport) for t in speech.tunings}
+    suggestions, problem = {}, None  # {word: [the airports whose ATIS has it]}
+    for code in with_atis:
+        try:
+            entries = services.atis.entries(code)
+        except AtisError as e:
+            problem = str(e)
+            continue
+        for entry in entries:
+            for word in sorted(unknown(entry["datis"])):
+                if (word, "") not in tuned and (word, code) not in tuned and code not in suggestions.get(word, []):
+                    suggestions.setdefault(word, []).append(code)
+    return render(
+        site,
+        "pronunciation.tpl",
+        tunings=speech.tunings,
+        codes=codes,
+        with_atis=with_atis,
+        atis_on=bool(speech.atis) and configured(speech),
+        suggestions=dict(sorted(suggestions.items())),
+        problem=problem,
+    )
+
+
 def raw(services: "App"):
     data = services.metars.data
     buf = io.StringIO()
@@ -215,3 +250,4 @@ def add_routes(app, services: "App", site, auth):
     app.route("/raw/<code>", "GET", lambda code: raw_code(services, code))
     app.route("/config", "GET", lambda: config(services, site), apply=auth)
     app.route("/config/airports", "GET", lambda: airports(services, site), apply=auth)
+    app.route("/config/pronunciation", "GET", lambda: pronunciation(services, site), apply=auth)

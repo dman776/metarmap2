@@ -925,17 +925,34 @@ def test_speak_audio(services):
     assert c("/api/speak/KXXX.audio", auth=False)[0] == 404
 
 
-def test_the_remote_has_an_awos_tab_with_a_server(client):
-    """Only once there's a Piper server to read the reports: then a button per airport, in the map's order."""
+def info_modes(page):
+    """The Info tab's modes, as its selector offers them."""
+    return re.findall(r'<button class="chip" type="button" data-mode="(\w+)"', page)
+
+
+def test_the_info_tab_offers_awos_with_a_server(client):
+    """Only once there's a speech server to read the reports: then AWOS beside Locate, on the same airports."""
     page = client("/remote")[1]
-    assert 'id="tab-awos"' not in page and 'id="awos"' not in page
+    assert info_modes(page) == [] and 'id="r-speak-audio"' not in page
     client.services.config.data.speech.enabled = True
     client.services.config.data.speech.wyoming_host = "192.168.0.14"
     page = client("/remote")[1]
-    assert 'id="tab-awos"' in page and 'id="r-speak-audio"' in page
+    assert info_modes(page) == ["locate", "awos"] and 'id="r-speak-audio"' in page
     codes = [a.code for a in client.services.config.airports if a.code]
-    assert re.findall(r'data-speak="([A-Z0-9]+)"', page) == codes
-    assert "data-call=" not in page.split('id="awos"')[1].split("</section>")[0]  # speech only: no locate
+    assert re.findall(r'data-speak="([A-Z0-9]+)"', page) == codes  # each airport, in the map's order
+    assert page.count('data-call="/locate/') == len(codes)  # Locate is the mode it opens in (remote.js)
+
+
+def test_the_info_tab_offers_atis_with_speech_atis(client):
+    speech = client.services.config.data.speech
+    speech.enabled, speech.wyoming_host, speech.atis = True, "192.168.0.14", True
+    client.services.atis = SimpleNamespace(available=lambda: {"KHOU"})
+    page = client("/remote")[1]
+    assert info_modes(page) == ["locate", "awos", "atis"]
+    assert re.findall(r'data-station="(\w+)" data-speak="\w+" data-atis="true"', page) == ["KHOU"]
+    assert 'id="r-no-atis"' in page
+    speech.atis = False
+    assert info_modes(client("/remote")[1]) == ["locate", "awos"]
 
 
 def test_config_has_a_spoken_weather_section(client):
@@ -972,12 +989,12 @@ def test_kokoro_settings(client):
     assert client("/config/edit/speech.engine/espeak")[0] == 400
 
 
-def test_the_awos_tab_follows_the_engine(client):
+def test_the_awos_mode_follows_the_engine(client):
     speech = client.services.config.data.speech
     speech.enabled, speech.engine, speech.kokoro_url = True, "kokoro", "http://192.168.0.164:8880"
-    assert 'id="tab-awos"' in client("/remote")[1]
+    assert "awos" in info_modes(client("/remote")[1])
     speech.engine = "wyoming"  # and no Home Assistant set
-    assert 'id="tab-awos"' not in client("/remote")[1]
+    assert "awos" not in info_modes(client("/remote")[1])
 
 
 def test_config_shows_the_engines_settings(client):
@@ -1009,10 +1026,10 @@ def test_enable_speech_opens_the_settings(client):
     page = client("/config")[1]
     assert 'data-key="speech.enabled"' in page
     assert 'data-when="speech-enabled" hidden' in page  # the server settings wait for the switch
-    assert "data-awos=" not in client("/metars")[1] and 'id="tab-awos"' not in client("/remote")[1]
+    assert "data-awos=" not in client("/metars")[1] and "awos" not in info_modes(client("/remote")[1])
     assert client("/config/edit/speech.enabled/true")[0] == 200
     assert 'data-when="speech-enabled">' in client("/config")[1]
-    assert "data-awos=" in client("/metars")[1] and 'id="tab-awos"' in client("/remote")[1]
+    assert "data-awos=" in client("/metars")[1] and "awos" in info_modes(client("/remote")[1])
 
 
 def test_speech_settings(client):
@@ -1686,8 +1703,8 @@ def test_remote_page(client):
     assert status == 200
     assert '<body class="kiosk">' in body and 'class="topbar"' not in body and 'class="foot"' not in body
     assert 'name="apple-mobile-web-app-capable" content="yes"' in body
-    assert [t.split('"')[0] for t in body.split('data-tab="')[1:]] == ["visualizer", "map", "locator"]
-    assert 'id="locator" role="tabpanel" aria-labelledby="tab-locator" hidden' in body
+    assert [t.split('"')[0] for t in body.split('data-tab="')[1:]] == ["visualizer", "map", "info"]
+    assert 'id="info" role="tabpanel" aria-labelledby="tab-info" data-mode="locate" hidden' in body
     # the Map tab: map.js is only loaded when it opens
     assert 'id="r-map" role="tabpanel" aria-labelledby="tab-map" hidden' in body
     assert 'data-script="/static/map.js?v=' in body and '<script src="/static/map.js' not in body
@@ -1700,6 +1717,7 @@ def test_remote_page(client):
     codes = [a.code for a in app.config.airports if a.code]
     assert body.count('class="r-apt') == len(codes)
     assert f'data-call="/locate/0" data-then="none"\n                    data-station="{codes[0]}"' in body
+    assert 'class="r-modes"' not in body  # no speech: Locate is all Info does
     assert 'id="station-search"' in body  # more than 12 airports
     assert 'id="r-paused" hidden' in body  # Flight Category isn't exclusive
 
@@ -1927,3 +1945,79 @@ def test_atis_setting(client):
     assert 'data-key="speech.atis"' in client("/config")[1]
     assert client("/config/edit/speech.atis/true")[0] == 200
     assert client.services.config.data.speech.atis is True
+
+
+def test_the_metars_page_has_an_atis_button_where_there_is_one(client):
+    speech = client.services.config.data.speech
+    speech.enabled, speech.wyoming_host, speech.atis = True, "192.168.0.14", True
+    client.services.atis = SimpleNamespace(available=lambda: {"KHOU", "KJFK"})  # KJFK: not on this map
+    page = client("/metars")[1]
+    assert re.findall(r'data-atis="(\w+)"', page) == ["KHOU"]
+    speech.atis = False
+    client.services.atis = SimpleNamespace(available=lambda: set())
+    assert "data-atis=" not in client("/metars")[1]
+
+
+# ---- reading along, and the Pronunciation page -----------------------------------------------------------------
+
+
+def test_atis_lines(services):
+    c = speaking_map(services)
+    found = c.json("/api/atis/khou/lines", auth=False)
+    assert found["code"] == "KHOU"
+    assert found["entries"] == [{"type": "combined", "code": "P", "time": "1653", "updatedAt": "2026-11-07T17:44:35Z"}]
+    assert found["lines"][0] == {
+        "raw": "HOU ATIS INFO P 1653Z.",
+        "said": "Hobby information Papa, one six five tree Zulu.",
+    }
+    assert found["lines"][1]["raw"].endswith("A3011 (THREE ZERO ONE ONE).")  # the FAA's own text
+    assert found["lines"][-1] == {"raw": "ADVS YOU HAVE INFO P.", "said": "Advise you have information Papa."}
+    assert " ".join(line["said"] for line in found["lines"]) == c("/api/atis/KHOU", auth=False)[1]
+    assert c("/api/atis/KIAH/lines", auth=False)[0] == 404
+
+
+def test_atis_lines_follow_the_tunings(services):
+    from metarmap.settings import Tuning
+
+    c = speaking_map(services)
+    services.config.data.speech.tunings = [Tuning(text="LNDG AND DEPG", say="arriving and leaving", airport="KHOU")]
+    said = [line["said"] for line in c.json("/api/atis/KHOU/lines", auth=False)["lines"]]
+    assert "Arriving and leaving runway one tree right." in said
+
+
+def test_saving_tunings(client):
+    status, body = client("/config/tunings", method="POST", body={"tunings": [{"text": "mnstr", "say": "monster"}]})
+    assert status == 200 and json.loads(body) == {"tunings": [{"text": "MNSTR", "say": "monster", "airport": ""}]}
+    assert [t.text for t in client.services.config.data.speech.tunings] == ["MNSTR"]
+    status, why = client("/config/tunings", method="POST", body={"tunings": [{"text": "MNSTR", "say": ""}]})
+    assert status == 400 and "say MNSTR as what" in why
+    assert client("/config/tunings", method="POST", body={"tunings": []}, auth=False)[0] == 401
+
+
+def test_the_pronunciation_page(client):
+    from metarmap.settings import Tuning
+
+    speech = client.services.config.data.speech
+    speech.enabled, speech.wyoming_host, speech.atis = True, "192.168.0.14", True
+    speech.tunings = [Tuning(text="MNSTR", say="monster")]
+    entry = {"type": "combined", "code": "P", "datis": "HOU ATIS INFO P 1653Z. TRSSH AND MNSTR ARR. CAUTION VNY TFC."}
+    client.services.atis = SimpleNamespace(available=lambda: {"KHOU"}, entries=lambda code: [entry])
+    status, page = client("/config/pronunciation")
+    assert status == 200
+    assert 'class="tn-text" value="MNSTR"' in page and 'class="tn-say" value="monster"' in page
+    assert re.findall(r'data-suggest="(\w+)"', page) == ["TRSSH", "VNY"]  # MNSTR is tuned already
+    assert '<option value="KHOU">KHOU</option>' in page and 'id="tn-try"' in page
+    assert "Spoken ATIS is off" not in page
+    assert 'href="/config/pronunciation"' in client("/config")[1]
+    assert client("/config/pronunciation", auth=False)[0] == 401
+
+
+def test_the_pages_have_somewhere_to_read_along(client):
+    speech = client.services.config.data.speech
+    speech.enabled, speech.wyoming_host, speech.atis = True, "192.168.0.14", True
+    client.services.atis = SimpleNamespace(available=lambda: {"KHOU"})
+    assert 'id="atis-sheet"' in client("/metars")[1]
+    assert 'id="r-transcript"' in client("/remote")[1]
+    speech.atis = False
+    client.services.atis = SimpleNamespace(available=lambda: set())
+    assert 'id="atis-sheet"' not in client("/metars")[1] and 'id="r-transcript"' not in client("/remote")[1]

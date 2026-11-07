@@ -31,6 +31,10 @@
     const STATUS_MS = 60 * 1000;
     const HOLD_MS = 3000;  // after a touch, a control keeps what the user set while the map catches up
     const TAB_KEY = 'metarmap.remote.tab';
+    const MODE_KEY = 'metarmap.remote.mode';
+    // the Info tab's modes, and the old tabs' names: #locator and #awos (a kiosk's address, a remembered tab)
+    const MODES = ['locate', 'awos', 'atis'];
+    const OLD_TABS = {locator: 'locate', awos: 'awos', atis: 'atis'};
 
     const page = document.querySelector('.remote');
     const host = document.querySelector('.r-host');
@@ -43,10 +47,13 @@
     const brt = document.getElementById('brightness');
     const brtLabel = document.getElementById('brt_label');
     const oled = document.getElementById('oled-on');
-    const tiles = {};  // the Locator's, by LED
-    document.querySelectorAll('#locator .r-apt').forEach(function (t) { tiles[t.dataset.pixel] = t; });
-    const speakTiles = {};  // the AWOS tab's, by LED
-    document.querySelectorAll('#awos .r-apt').forEach(function (t) { speakTiles[t.dataset.pixel] = t; });
+    const info = document.getElementById('info');
+    const tiles = {};  // the Info tab's airports, by LED
+    document.querySelectorAll('#info .r-apt').forEach(function (t) { tiles[t.dataset.pixel] = t; });
+    const modeChips = Array.from(document.querySelectorAll('.r-modes [data-mode]'));
+    const noAtis = document.getElementById('r-no-atis');
+    let mode = 'locate';
+    let quiet = function () {};  // stops what the Info tab is reading (set below, with the speech)
 
     // ---- the Map tab: map.js, loaded when the tab first opens, then told the map's size each time it opens -----
     const mapEl = document.getElementById('map');
@@ -67,7 +74,12 @@
     const tabs = Array.from(document.querySelectorAll('[data-tab]'));
 
     function showTab(name, keep) {
+        if (OLD_TABS[name]) {  // #locator, #awos, #atis: the Info tab in that mode
+            setMode(OLD_TABS[name], keep);
+            name = 'info';
+        }
         const tab = tabs.find(function (t) { return t.dataset.tab === name; }) || tabs[0];
+        if (tab.dataset.tab !== 'info') quiet();  // the reading is for the one looking
         tabs.forEach(function (t) {
             const on = t === tab;
             t.setAttribute('aria-selected', on ? 'true' : 'false');
@@ -89,8 +101,44 @@
             showTab(tabs[(i + step + tabs.length) % tabs.length].dataset.tab, true).focus();
         });
     });
-    let saved = null;
-    try { saved = window.localStorage.getItem(TAB_KEY); } catch (e) { /* private window */ }
+    // ---- Info: what a press on an airport does. Locate pulses its LED (app.js's data-call); AWOS and ATIS read it
+    // aloud here (below). ATIS shows only the airports with a digital ATIS (/api/live's leds[].atis)
+    const LABELS = {locate: 'Locate ', awos: 'Hear the weather at ', atis: 'Hear the ATIS at '};
+
+    function setMode(next, keep) {
+        const chip = modeChips.find(function (c) { return c.dataset.mode === next; });
+        next = chip || next === 'locate' ? next : 'locate';  // AWOS or ATIS off: Locate
+        if (next !== mode) quiet();
+        mode = next;
+        info.dataset.mode = mode;
+        modeChips.forEach(function (c) { c.setAttribute('aria-pressed', c.dataset.mode === mode ? 'true' : 'false'); });
+        Object.keys(tiles).forEach(function (pixel) {
+            const tile = tiles[pixel];
+            if (mode === 'locate') tile.dataset.call = '/locate/' + pixel;
+            else delete tile.dataset.call;  // a press reads it aloud instead
+            tile.setAttribute('aria-label', LABELS[mode] + tile.dataset.station);
+        });
+        showNoAtis();
+        if (keep) {
+            try { window.localStorage.setItem(MODE_KEY, mode); } catch (e) { /* private window */ }
+        }
+    }
+
+    function showNoAtis() {
+        if (!noAtis) return;
+        noAtis.hidden = mode !== 'atis' || Object.keys(tiles).some(function (p) { return tiles[p].dataset.atis === 'true'; });
+    }
+
+    modeChips.forEach(function (c) {
+        c.addEventListener('click', function () { setMode(c.dataset.mode, true); });
+    });
+
+    let saved = null, savedMode = null;
+    try {
+        saved = window.localStorage.getItem(TAB_KEY);
+        savedMode = window.localStorage.getItem(MODE_KEY);
+    } catch (e) { /* private window */ }
+    setMode(MODES.indexOf(savedMode) >= 0 ? savedMode : 'locate', false);
     showTab(window.location.hash.slice(1) || saved, false);
     window.addEventListener('hashchange', function () { showTab(window.location.hash.slice(1), false); });
 
@@ -204,13 +252,15 @@
     function showAirports(leds, locate, now) {
         leds.forEach(function (led) {
             const cat = /^(VFR|MVFR|IFR|LIFR)$/.test(led.flightCategory || '') ? led.flightCategory : 'none';
-            [tiles[led.pixel], speakTiles[led.pixel]].forEach(function (tile) {
-                if (tile && tile.dataset.cat !== cat) {
-                    tile.dataset.cat = cat;
-                    tile.querySelector('.dot').className = 'dot ' + cat.toLowerCase();
-                }
-            });
+            const tile = tiles[led.pixel];
+            if (!tile) return;
+            if (tile.dataset.cat !== cat) {
+                tile.dataset.cat = cat;
+                tile.querySelector('.dot').className = 'dot ' + cat.toLowerCase();
+            }
+            if (led.atis !== undefined) tile.dataset.atis = led.atis ? 'true' : 'false';
         });
+        showNoAtis();
         if (locate && locate.at !== lastLocate) {
             const fresh = lastLocate !== null || now - locate.at < 2;  // not one from before the page loaded
             lastLocate = locate.at;
@@ -274,9 +324,10 @@
         if (!document.hidden) { poll(); pollVersion(); }
     });
 
-    // ---- AWOS: an airport's METAR read aloud (/api/speak/<code>.audio, made by Home Assistant's Piper) ------------
-    // A press plays it here, in the browser; another airport switches to it; the one playing again (or Stop) stops.
-    // The audio is started in the press itself: a phone only lets a page play sound in answer to a touch.
+    // ---- AWOS and ATIS: an airport's METAR (/api/speak/<code>.audio) or real ATIS (/api/atis/<code>.audio) read
+    // aloud by the map's speech server. A press plays it here, in the browser; another airport switches to it; the
+    // one playing again (or Stop) stops. The audio is started in the press itself: a phone only lets a page play
+    // sound in answer to a touch.
     const audio = document.getElementById('r-speak-audio');
     if (audio) {
         const bar = document.getElementById('r-speak-bar');
@@ -285,7 +336,16 @@
         const stopBtn = document.getElementById('r-speak-stop');
         const idleText = textEl.textContent;
         let current = null;  // the button being read
+        let base = '/api/speak/';  // and where its words come from: /api/speak/ (AWOS) or /api/atis/ (ATIS)
         let words = null;  // its text, once it's come
+        const said = document.getElementById('r-transcript');  // an ATIS's lines, to read along
+        let unfollow = function () {};
+        function clearTranscript() {
+            unfollow();
+            unfollow = function () {};
+            if (said) said.hidden = true;
+        }
+        const IDLE = {awos: 'Press an airport to hear its weather', atis: 'Press an airport to hear its ATIS'};
 
         function mark(btn, state) {  // state: 'loading', 'speaking' or null
             btn.classList.toggle('loading', state === 'loading');
@@ -307,9 +367,16 @@
             current = null;
             words = null;
             if (message) showBar(code, message, 'error');
-            else showBar('', idleText, '');
+            else showBar('', IDLE[mode] || idleText, '');
         }
+        quiet = function () {
+            clearTranscript();
+            if (current) stop();
+            else showBar('', IDLE[mode] || idleText, '');
+        };
+        quiet();
         function speak(btn) {
+            if (mode === 'locate') return;  // app.js's data-call locates it
             const code = btn.dataset.speak;
             if (current === btn) {
                 stop();
@@ -317,15 +384,32 @@
             }
             if (current) mark(current, null);
             current = btn;
+            base = mode === 'atis' ? '/api/atis/' : '/api/speak/';
             words = null;
             mark(btn, 'loading');
-            showBar(code, 'Getting the weather...', 'loading');
-            audio.src = '/api/speak/' + encodeURIComponent(code) + '.audio';
+            showBar(code, mode === 'atis' ? 'Getting the ATIS...' : 'Getting the weather...', 'loading');
+            audio.src = base + encodeURIComponent(code) + '.audio';
             const playing = audio.play();
             if (playing) playing.catch(function (err) {
                 if (err.name !== 'AbortError' && current === btn) failed(btn, err);  // Abort: switched or stopped
             });
-            fetch('/api/speak/' + encodeURIComponent(code), {cache: 'no-store'})
+            clearTranscript();
+            if (mode === 'atis' && said && window.metarmapTranscript) {
+                // the ATIS line by line below the airports; the bar says which one it is
+                const t = window.metarmapTranscript;
+                t.lines(code).then(function (lines) {  // fetched while the audio is made, shown once it plays
+                    if (current !== btn) return;
+                    words = lines.length ? lines[0].said : null;
+                    unfollow = t.whenPlaying(audio, function () {
+                        if (current !== btn) return;
+                        t.render(said, lines);
+                        unfollow = t.follow(said, audio, lines);
+                        if (btn.classList.contains('speaking')) showBar(code, words || 'Speaking...', 'speaking');
+                    });
+                }).catch(function () { /* the audio says it all */ });
+                return;
+            }
+            fetch(base + encodeURIComponent(code), {cache: 'no-store'})
                 .then(function (res) { return res.ok ? res.text() : null; })
                 .then(function (text) {
                     if (current !== btn || !text) return;
@@ -334,11 +418,11 @@
                 })
                 .catch(function () { /* the audio says it all */ });
         }
-        // why it didn't play: the map says it in words (no server, or Home Assistant's Piper couldn't be reached)
+        // why it didn't play: the map says it in words (no server, the server or atis.info couldn't be reached)
         async function failed(btn, err) {
             let why = 'Could not play it';
             try {
-                const res = await fetch('/api/speak/' + encodeURIComponent(btn.dataset.speak) + '.audio', {cache: 'no-store'});
+                const res = await fetch(base + encodeURIComponent(btn.dataset.speak) + '.audio', {cache: 'no-store'});
                 if (!res.ok) why = (await res.text()).trim() || why;
                 else if (err && err.name === 'NotAllowedError') why = 'The browser blocked sound: press again';
             } catch (e) {
@@ -359,10 +443,7 @@
             btn.addEventListener('click', function () { speak(btn); });
         });
         stopBtn.addEventListener('click', function () { stop(); });
-        // the tab left (or the page hidden): quiet, as the reading is for the one looking
-        tabs.forEach(function (t) {
-            t.addEventListener('click', function () { if (t.dataset.tab !== 'awos' && current) stop(); });
-        });
+        // the page hidden (another tab or mode: quiet(), above): quiet, as the reading is for the one looking
         document.addEventListener('visibilitychange', function () { if (document.hidden && current) stop(); });
     }
 

@@ -14,7 +14,7 @@ from metarmap import __version__
 from metarmap.decode import decode, summary
 from metarmap.models import Report
 from metarmap.atis import AtisError
-from metarmap.atis_spoken import spoken_atis
+from metarmap.atis_spoken import lines as atis_lines
 from metarmap.speech import SpeechError, configured
 from metarmap.spoken import spoken
 from metarmap.visualizers import advisories as advisories_vis, tfr as tfr_vis, wind_direction
@@ -270,8 +270,11 @@ def atis_airports(services: "App"):
     return atis.available()
 
 
-def atis_report(services: "App", code):
-    """One airport's ATIS as text to be read aloud (see metarmap.atis_spoken). Raises AtisError."""
+def atis_transcript(services: "App", code):
+    """
+    One airport's ATIS line by line, for reading along: {"code", "lines": [{"raw": the FAA's text, "said": how it's
+    read}], "entries": [{"type", "code" (its letter), "time", "updatedAt"}]}. Raises AtisError.
+    """
     airports = {a.code: a for a in services.config.airports if a.code}
     if code not in airports:
         raise AtisError(f"{code} isn't on the map", 404)
@@ -280,7 +283,19 @@ def atis_report(services: "App", code):
         raise AtisError("This map has no ATIS", 503)
     entries = atis.entries(code)
     m = services.metars.data.get(code)
-    return spoken_atis(entries, airports[code].name or (m.name if m else ""), code, atis.available() | set(airports))
+    name = airports[code].name or (m.name if m else "")
+    tunings = services.config.data.speech.tunings
+    found = atis_lines(entries, name, code, atis.available() | set(airports), tunings)
+    return {
+        "code": code,
+        "lines": [{"raw": raw, "said": said} for raw, said in found],
+        "entries": [{k: e[k] for k in ("type", "code", "time", "updatedAt")} for e in entries],
+    }
+
+
+def atis_report(services: "App", code):
+    """One airport's ATIS as text to be read aloud (see metarmap.atis_spoken). Raises AtisError."""
+    return " ".join(line["said"] for line in atis_transcript(services, code)["lines"] if line["said"])
 
 
 def atis_overview(services: "App"):
@@ -393,6 +408,13 @@ def as_atis_audio(services: "App", code):
     return byte_range(clip)
 
 
+def as_atis_transcript(services: "App", code):
+    try:
+        return as_json(atis_transcript(services, code))
+    except AtisError as e:
+        return as_error(e)
+
+
 def as_atis_overview(services: "App"):
     try:
         return as_json(atis_overview(services))
@@ -434,6 +456,7 @@ def add_routes(app, services: "App", site):
     # .audio before the text route, as for /api/speak
     app.route("/api/atis/<code>.audio", "GET", lambda code: as_atis_audio(services, code.upper()))
     app.route("/api/atis/<code>", "GET", lambda code: as_atis_text(services, code.upper()))
+    app.route("/api/atis/<code>/lines", "GET", lambda code: as_atis_transcript(services, code.upper()))
     app.route(
         "/api/metar/<code>",
         "GET",

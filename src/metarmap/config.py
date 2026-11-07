@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from typing import Callable, List, Sequence, Union
 
 from metarmap.metar import MOCK_KEY, parse_raw
-from metarmap.settings import Airport, Settings, parse_value
+from metarmap.settings import Airport, Settings, parse_tunings, parse_value
 
 log = logging.getLogger(__name__)
 
@@ -143,6 +143,15 @@ class Config:
         old = self._data.get(key)
         if self._data.set(key, value) != old:
             self._changed(key)
+        self.write()
+
+    @locked
+    def set_tunings(self, items):
+        """Saves the Pronunciation page's list of tunings as a whole (settings.parse_tunings). Raises ValueError."""
+        tunings = parse_tunings(items)
+        if tunings != self._data.speech.tunings:
+            self._data.speech.tunings = tunings
+            self._changed("speech.tunings")
         self.write()
 
     @locked

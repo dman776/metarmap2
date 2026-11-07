@@ -369,9 +369,9 @@
 
     <section class="card settings" id="speech">
         <h2>Spoken weather</h2>
-        <p class="muted" style="margin: 0; padding: 0 24px 6px; font-size: 13px">Airports' METARs read aloud, as an AWOS reads them: the Remote page's AWOS tab, and <code>/api/speak/&lt;code&gt;.audio</code>. A speech server on another computer reads them; the map keeps each one until the next METAR.</p>
+        <p class="muted" style="margin: 0; padding: 0 24px 6px; font-size: 13px">Airports' METARs read aloud, as an AWOS reads them: the Remote page's Info tab, and <code>/api/speak/&lt;code&gt;.audio</code>. A speech server on another computer reads them; the map keeps each one until the next METAR.</p>
         % s = d.speech
-        % switch('speech.enabled', s.enabled, 'Enable speech', 'Read METARs aloud: AWOS buttons on the METARs page and an AWOS tab on the Remote page.')
+        % switch('speech.enabled', s.enabled, 'Enable speech', 'Read METARs aloud: AWOS buttons on the METARs page and an AWOS mode on the Remote page\'s Info tab.')
         <div class="sub" data-when="speech-enabled"{{!'' if s.enabled else ' hidden'}}>
         <div class="set">
             <div><label class="t" for="speech-engine">Speech server</label><div class="d">Piper in Home Assistant, or a Kokoro server (Kokoro-FastAPI).</div></div>
@@ -419,6 +419,12 @@
         </div>
 
         % switch('speech.atis', s.atis, 'Spoken ATIS', 'The real ATIS too, for airports that publish a digital one (about 75 large US airports), from atis.info, an unofficial service. Only asked when you play one.')
+        <div class="sub" data-when="speech-atis"{{!'' if s.atis else ' hidden'}}>
+        <div class="set">
+            <div><div class="t">Pronunciation</div><div class="d">Local names, fixes and the FAA's odd spellings said your way{{!' (%d set)' % len(s.tunings) if s.tunings else ''}}.</div></div>
+            <a class="btn" href="/config/pronunciation">Pronunciation</a>
+        </div>
+        </div>
 
         % if first_airport:
         <div class="set">

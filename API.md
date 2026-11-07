@@ -185,7 +185,7 @@ What the physical map is doing right now. The Map page polls it every second. No
 | `visualizer.legendInUse` | The `key`s of the legend entries the LEDs (and virtual airports) show now, in the legend's order (see `/api/status`'s `visualizer.legend`); `null` for a whole-strip visualizer (Rainbow, Chase), whose legend is always shown whole. Follows the LEDs: a fetch, an airport change or a different visualizer changes it |
 | `visualizer.legendInUseOnly` | The `visualizer.legend_in_use_only` setting: whether the web pages list only those entries |
 | `strip` | Set when one effect drives the whole strip instead: `rainbow` (`period`) or `chase` (`step`, `size`, `spacing`). The virtual airports keep their own `look` meanwhile: the same rainbow, or `off` for a chase (a wiring check). |
-| `speech` | Whether spoken weather can be asked for (`/api/speak/<code>.audio`): `speech.enabled` on, with a server set for `speech.engine`. The METARs page's AWOS buttons, the Remote page's AWOS tab and the touchscreen remote's hold-to-hear show only then |
+| `speech` | Whether spoken weather can be asked for (`/api/speak/<code>.audio`): `speech.enabled` on, with a server set for `speech.engine`. The METARs page's AWOS buttons, the Remote page's AWOS mode (Info tab) and the touchscreen remote's hold-to-hear show only then |
 | `leds[].atis` | The airport's real ATIS can be read aloud (`/api/atis/<code>.audio`): `speech.atis` and spoken weather are on, and it publishes a digital ATIS. The list of airports with one is refreshed every half hour |
 | `locate` | The last white locate pulse: LED `pixel` and Unix time `at`. `null` until the first one. A virtual airport's pulse is only shown on the Map page. |
 | `display.on` | Whether the screen is showing; `false` after `/display/off` (then `screen` is `null`) |
@@ -281,6 +281,19 @@ The FAA's contractions are written out as words (`DEPG` departing, `OTS` out of 
 Alpha, `RY8R` runway eight right, `126.225` one two six point two two five), and the weather groups are read as the
 AWOS reads them; the altimeter's own words in parentheses and the remarks are left out. Letters said as letters
 (`ILS`, `VOR`) and identifiers (`VNY`) stay in capitals.
+
+`GET /api/atis/<code>/lines` is the same ATIS line by line, for reading along: each line the FAA's text (`raw`, as
+written, with the altimeter's words and the remarks) and how it's said (`said`), with the entries it comes from:
+
+```json
+{ "code": "KHOU",
+  "lines": [ { "raw": "HOU ATIS INFO Q 1753Z.", "said": "Houston Hobby Airport information Quebec, one seven five tree Zulu." },
+             { "raw": "LNDG AND DEPG RWY 13R.", "said": "Landing and departing runway one tree right." } ],
+  "entries": [ { "type": "combined", "code": "Q", "time": "1753", "updatedAt": "2026-11-07T17:54:35Z" } ] }
+```
+
+The words follow `speech.tunings` (the Pronunciation page): whole words or phrases said another way, for every airport
+or one, before the map's own rules.
 
 `/api/atis` lists the map's airports that have one, with each ATIS's `type` (`combined`, `arr` or `dep`), its
 information letter (`code`), its `time` (HHMM, UTC) and when atis.info last updated it (`updatedAt`):
@@ -499,6 +512,7 @@ Settings that apply right away:
 - `speech.engine`: the speech server: `wyoming` (Piper, e.g. Home Assistant's add-on) or `kokoro` (Kokoro-FastAPI)
 - `speech.wyoming_host`, `speech.wyoming_port`, `speech.wyoming_voice`: the Piper server (Home Assistant's address; port 10200) and the voice to ask it for (e.g. `en_US-lessac-medium`; empty: its own). An empty host or voice is sent as `-`
 - `speech.atis`: the spoken ATIS on or off (`/api/atis`, from atis.info; off by default)
+- `speech.tunings`: the Pronunciation page's list, `[{"text": "MNSTR", "say": "monster", "airport": ""}]` (`airport` empty for every airport). Saved as a whole with `POST /config/tunings` and `{"tunings": [...]}` (login needed), not with `/config/edit`
 - `speech.kokoro_url`, `speech.kokoro_voice`, `speech.kokoro_speed`: the Kokoro server (e.g. `/config/edit/speech.kokoro_url/192.168.0.164:8880`; `http://` is added), its voice (e.g. `af_heart`) and speed (0.5 to 2). An empty address is sent as `-`
 - `visualizer.active`, the default visualizer used at startup, by id (`/config/edit/visualizer.active/wind`); a number is taken too and saved as the id. An unknown one is a 400. Saving it doesn't change the visualizer that's running now; use `/visualizer/<id>` for that.
 - `visualizer.auto_rotate.enabled`
@@ -587,7 +601,7 @@ curl -u metar:map -H 'Content-Type: application/json' -d '{"user": "pilot", "pas
 | `GET /metars` | | Table of METARs for every airport |
 | `GET /map` | | Live mirror of the LEDs and the OLED screen on an FAA chart, satellite or radar background (a new radar scan every 5 minutes while radar is shown) |
 | `GET /map/legend` | | The active visualizer's legend (HTML), which the Map page and the Remote page swap in when the visualizer changes |
-| `GET /remote` | | A remote control laid out for an iPad in kiosk mode, in three tabs: Visualizer (the visualizers and the legend, with a footer of controls: the auto-rotate switch with a countdown to the next visualizer, which is saved, and LED brightness and the OLED switch, which aren't), Map (the Map page's live map) and Locator (Locate for every airport). It follows changes made anywhere else (it polls `/api/live`). `/remote#map` or `#locator` opens that tab; otherwise it opens the one last used on that device. *Add to Home Screen* opens it full screen |
+| `GET /remote` | | A remote control laid out for an iPad in kiosk mode, in three tabs: Visualizer (the visualizers and the legend, with a footer of controls: the auto-rotate switch with a countdown to the next visualizer, which is saved, and LED brightness and the OLED switch, which aren't), Map (the Map page's live map) and Info (every airport; a press locates it, or with spoken weather on, reads its AWOS, or with `speech.atis` its ATIS: Locate, AWOS and ATIS modes, ATIS showing only the airports with one). It follows changes made anywhere else (it polls `/api/live`). `/remote#map` or `#info` opens that tab, and `#locator`, `#awos` or `#atis` the Info tab in that mode; otherwise it opens the tab and mode last used on that device. *Add to Home Screen* opens it full screen |
 | `GET /raw` | | Raw METAR text for every airport, followed by the full parsed data |
 | `GET /raw/<code>` | | Raw METAR text for one airport |
 | `GET /debug` | | Debug information |

@@ -238,6 +238,15 @@ def add_routes(app, services: "App", site, auth, updates=None):
             }
         )
 
+    def set_tunings():
+        """The Pronunciation page's Save: {"tunings": [{"text", "say", "airport"}]}, the whole list."""
+        try:
+            config.set_tunings(body().get("tunings"))
+        except ValueError as e:
+            bottle.abort(400, str(e))
+        tunings = config.data.speech.tunings
+        return as_json({"tunings": [{"text": t.text, "say": t.say, "airport": t.airport} for t in tunings]})
+
     def set_login():
         """
         Changes the web UI login, and the Pi login user's Linux password to the same password. The Linux password
@@ -318,6 +327,7 @@ def add_routes(app, services: "App", site, auth, updates=None):
     app.route("/config/airports/<pixel:int>/<key>/<value>", "GET", set_airport, apply=auth)
     app.route("/config/airports/move/<src:int>/<dst:int>", "GET", move_airport, apply=auth)
     app.route("/config/airports/mock", "POST", set_mock_metar, apply=auth)
+    app.route("/config/tunings", "POST", set_tunings, apply=auth)
     # the older by-code edits, still used by anything written for airports.json
     app.route("/config/airports/edit/<oldkey>/<newkey>", "GET", edit_airport, apply=auth)
     app.route("/config/airports/edit/prop/<airport>/<key>/<value>", "GET", edit_airport_property, apply=auth)

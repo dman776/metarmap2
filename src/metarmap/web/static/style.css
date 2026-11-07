@@ -181,7 +181,8 @@ select:focus, input[type=text]:focus, input[type=search]:focus, input[type=passw
 .trow.metar { grid-template-columns: 44px 150px 76px minmax(0, 1fr) 72px 104px; min-width: 860px; }
 .trow.metar:hover { background: #151f2a; }
 .trow.metar.awos { grid-template-columns: 44px 150px 76px minmax(0, 1fr) 72px 196px; min-width: 950px; }  /* Locate and AWOS */
-.row-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.trow.metar.awos.atis { grid-template-columns: 44px 150px 76px minmax(0, 1fr) 72px 284px; min-width: 1040px; }  /* and ATIS */
+.row-actions { display: flex; gap: 8px; justify-content: flex-start; }  /* Locate, AWOS, ATIS: each in the same place on every row */
 .chip.loading { animation: r-loading 1.2s ease-in-out infinite; }
 .trow.brief { grid-template-columns: 150px 76px minmax(0, 1fr) 72px; min-width: 640px; padding: 14px 24px; }
 .raw { font: 13px var(--mono); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -538,6 +539,48 @@ body.kiosk main.wrap { max-width: none; height: 100vh; height: var(--kiosk-h, 10
 .r-speak-bar[data-state="error"] { border-color: var(--ifr); }
 .r-speak-bar[data-state="error"] .r-speak-text { color: var(--ifr); }
 .r-speak-bar .btn { flex: none; }
+/* Info: the mode decides what a press does, and what shows. Locate: the crosshair, the paused badge; AWOS and ATIS:
+   the speaker and the bar of what's read; ATIS: only the airports with a digital ATIS */
+.r-modes { display: flex; gap: 6px; flex: none; }
+.r-modes .chip { min-height: 44px; padding: 0 16px; }
+#info .r-apt .i-speak, #info[data-mode="locate"] .r-speak-bar, #info:not([data-mode="locate"]) #r-paused { display: none; }
+#info:not([data-mode="locate"]) .r-apt .i-locate { display: none; }
+#info:not([data-mode="locate"]) .r-apt .i-speak { display: block; }
+#info:not([data-mode="locate"]) .r-grid.paused .r-apt { opacity: 1; }
+#info[data-mode="atis"] .r-apt[data-atis="false"] { display: none; }
+.r-no-atis { margin: 0; }
+/* an ATIS to read along (app.js's transcript): the FAA's text, then how it's said; the line being said lit */
+.tx { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.tx li { display: grid; gap: 4px; padding: 10px 14px; border-left: 3px solid transparent; border-radius: 8px; transition: background .2s; }
+.tx .tx-raw { font: 500 14px var(--mono); color: var(--text); overflow-wrap: anywhere; }
+.tx .tx-said { font-size: 14px; line-height: 1.4; color: var(--muted); }
+.tx li.current { background: var(--accent-soft); border-left-color: var(--accent); }
+.tx li.current .tx-said { color: var(--text); }
+.r-transcript { padding-bottom: 8px; }
+.tx-sheet { position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 20; max-height: 45vh; overflow-y: auto; box-shadow: 0 12px 40px rgba(0, 0, 0, .55); }
+.tx-sheet .card-head { position: sticky; top: 0; background: var(--surface); z-index: 1; }
+.tx-sheet .card-head .muted { flex: 1; font-size: 13px; }
+.tx-sheet .tx { padding: 8px 10px 12px; }
+/* the Pronunciation page */
+.tn-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) 160px 48px; }
+.tn-row input, .tn-row select { width: 100%; }
+.tn-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.tn-suggest { display: flex; flex-wrap: wrap; gap: 8px; padding: 16px 24px; }
+.tn-empty, .tn-status, .tn-hint { margin: 0; padding: 12px 24px; }
+.tn-status:empty { display: none; }
+#tn-try .tx { padding: 0 12px 16px; }
+/* Try it's Play: glows while the ATIS is fetched and read (can take half a minute), then is a Stop button */
+.tn-play .i-stop, .tn-play[aria-pressed="true"] .i-play { display: none; }
+.tn-play[aria-pressed="true"] .i-stop { display: block; }
+.tn-play[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.btn.loading { animation: btn-glow 1.2s ease-in-out infinite; }
+@keyframes btn-glow { 50% { border-color: var(--accent); box-shadow: 0 0 14px rgba(245, 181, 68, .55); } }
+@media (max-width: 720px) {
+    .tn-row { grid-template-columns: minmax(0, 1fr) 48px; }
+    .tn-row.head { display: none; }
+    .tn-row .tn-say, .tn-row .tn-airport { grid-column: 1; }
+    .tn-row .tn-remove { grid-row: 1; grid-column: 2; }
+}
 @keyframes r-locate { 50% { background: #fff; color: var(--bg); box-shadow: 0 0 18px rgba(255, 255, 255, .6); } }
 
 /* an iPad on its side: bigger airport tiles */

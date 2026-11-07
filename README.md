@@ -85,8 +85,9 @@ Settings save as you change them.
 
 ### Remote control
 
-`/remote` is a remote control for a tablet in kiosk mode, here on an iPad in landscape: pick a visualizer, or find an
-airport's LED with the locator.
+`/remote` is a remote control for a tablet in kiosk mode, here on an iPad in landscape: pick a visualizer, or, on the
+**Info** tab, press an airport to find its LED (**Locate**), or, with spoken weather on, to hear its **AWOS** or
+**ATIS**.
 
 ![The remote page's Visualizer tab](docs/images/remote_visualizer.png)
 
@@ -249,9 +250,9 @@ release, `git pull` says it isn't on a branch: `git checkout master` first (or p
 ## Spoken weather
 
 The map can read an airport's METAR aloud, as an AWOS does: an **AWOS** button beside each airport on the METARs
-page, an **AWOS** tab on the Remote page, and `http://metarmap.local/api/speak/KHOU.audio` for anything else
-(`/api/speak/KHOU` shows the words). It's off until you turn it on. It's for fun, not for flight planning: listen to
-the airport's own AWOS, ASOS or ATIS for that.
+page, an **AWOS** mode on the Remote page's Info tab, and `http://metarmap.local/api/speak/KHOU.audio` for anything
+else (`/api/speak/KHOU` shows the words). It's off until you turn it on. It's for fun, not for flight planning: listen
+to the airport's own AWOS, ASOS or ATIS for that.
 
 A speech server on another computer reads the reports; the map sends it the words and keeps the audio it gets back,
 so even a Pi Zero W can do it. Two kinds work:
@@ -293,6 +294,18 @@ so it's off until you turn it on, and the map only asks it when someone plays an
 request for every airport) and every half hour to know which airports have one. The FAA writes ATIS in its
 contractions ("DEPG RY 15L", "TWY EA CLSD"); the map writes those out as words ("departing runway one five left",
 "taxiway Echo Alpha closed") so the voice reads them right. A contraction it doesn't know is read as it's written.
+
+**Read along**: while an ATIS plays, the page shows it line by line, the FAA's text over how it's said, with the
+line being said lit and kept in view: a way to learn to read a D-ATIS. On the Remote page's Info tab (ATIS mode)
+under the airports, and on the METARs page in a panel at the bottom (× closes it and stops the audio). The voice
+doesn't say when it reaches each line, so the map works it out from the lines' lengths: close, not exact.
+
+**Pronunciation** (**Config > System > Spoken weather > Pronunciation**, `speech.tunings`): your own words for what
+the map doesn't say well, such as a fix or a local name (`MNSTR` said "monster"), a typo in the FAA's text
+(`GRO UND` said "ground"), or a word you'd rather hear another way (`RNAV` said "are nav"), for every airport or one.
+Each is matched as whole words, in any case, before the map's own rules, and is said exactly as you write it. The
+page lists the words in your airports' ATIS now that the map reads as written (press one to tune it), and **Try it**
+shows and plays an airport's ATIS with your tunings.
 
 Like the spoken weather, it's for fun, not for flight planning.
 

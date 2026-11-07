@@ -189,6 +189,82 @@
     }
     window.metarmapOutput = showOutput;
 
+    // ---- an ATIS to read along (/api/atis/<code>/lines): each line the FAA's text, then how it's said. While the
+    // audio plays, the line being said is lit and kept in view. The voice doesn't say when it reaches a line, so it's
+    // worked out from how long each line's words are: close, not exact. remote.js uses it too (window.metarmapTranscript)
+    const transcript = {
+        render: function (list, lines) {
+            list.textContent = '';
+            lines.forEach(function (line) {
+                const li = document.createElement('li');
+                const raw = document.createElement('span');
+                raw.className = 'tx-raw';
+                raw.textContent = line.raw;
+                const said = document.createElement('span');
+                said.className = 'tx-said';
+                said.textContent = line.said;
+                if (line.raw) li.appendChild(raw);
+                li.appendChild(said);
+                list.appendChild(li);
+            });
+            list.hidden = !lines.length;
+        },
+        // lights the line being said while `audio` plays; returns a function that stops following it
+        follow: function (list, audio, lines) {
+            const weights = lines.map(function (line) { return line.said.length + 12; });  // + a pause between lines
+            const total = weights.reduce(function (a, b) { return a + b; }, 0) || 1;
+            let lit = -1;
+            const light = function (i) {
+                if (i === lit) return;
+                const items = list.children;
+                if (items[lit]) items[lit].classList.remove('current');
+                lit = i;
+                if (items[i]) {
+                    items[i].classList.add('current');
+                    items[i].scrollIntoView({block: 'nearest', behavior: 'smooth'});
+                }
+            };
+            const update = function () {
+                if (!audio.duration || !isFinite(audio.duration)) return;
+                const at = audio.currentTime / audio.duration * total;
+                let sum = 0;
+                for (let i = 0; i < weights.length; i++) {
+                    sum += weights[i];
+                    if (at < sum) { light(i); return; }
+                }
+                light(weights.length - 1);
+            };
+            const done = function () { light(-1); };
+            audio.addEventListener('timeupdate', update);
+            audio.addEventListener('ended', done);
+            return function () {
+                audio.removeEventListener('timeupdate', update);
+                audio.removeEventListener('ended', done);
+                light(-1);
+            };
+        },
+        // runs show() once `audio` starts playing (now, if it has): the words wait for the sound, which can take
+        // half a minute to be made; returns a function that cancels the wait
+        whenPlaying: function (audio, show) {
+            if (!audio.paused && audio.currentTime > 0) {
+                show();
+                return function () {};
+            }
+            const once = function () {
+                audio.removeEventListener('playing', once);
+                show();
+            };
+            audio.addEventListener('playing', once);
+            return function () { audio.removeEventListener('playing', once); };
+        },
+        lines: async function (code) {
+            const res = await fetch('/api/atis/' + encodeURIComponent(code) + '/lines', {cache: 'no-store'});
+            if (!res.ok) throw new Error((await res.text()).trim() || res.status + ' ' + res.statusText);
+            return (await res.json()).lines;
+        },
+    };
+    window.metarmapTranscript = transcript;
+
     // range inputs with a live label: <input type=range data-label="id" data-format="pct|sec|x">
     document.querySelectorAll('input[type=range][data-label]').forEach(function (r) {
         const out = document.getElementById(r.dataset.label);
@@ -515,12 +591,37 @@
         });
     });
 
-    // METARs page: AWOS plays an airport's report here (/api/speak/<code>.audio, from the speech server). Another
-    // airport switches to it; the one playing again stops. The sound starts in the press itself (a phone only lets
-    // a page play sound in answer to a touch); if it can't play, the map says why.
+    // METARs page: AWOS plays an airport's report here (/api/speak/<code>.audio, from the speech server), and ATIS
+    // its real ATIS (/api/atis/<code>.audio). Another button switches to it; the one playing again stops. The sound
+    // starts in the press itself (a phone only lets a page play sound in answer to a touch); if it can't play, the
+    // map says why.
     const awosAudio = document.getElementById('awos-audio');
     if (awosAudio) {
         let playing = null;  // the button whose report is playing (or loading)
+        // an ATIS shows its words to read along, in a panel at the bottom; × closes it (and stops it)
+        const sheet = document.getElementById('atis-sheet');
+        let unfollow = function () {};
+        const closeSheet = function () {
+            unfollow();
+            if (sheet) sheet.hidden = true;
+        };
+        const openSheet = async function (btn) {
+            if (!sheet) return;
+            const code = btn.dataset.atis;
+            sheet.querySelector('h2').textContent = code + ' ATIS';
+            const list = sheet.querySelector('.tx');
+            try {
+                const lines = await transcript.lines(code);  // fetched while the audio is made...
+                if (playing !== btn) return;
+                unfollow = transcript.whenPlaying(awosAudio, function () {  // ...shown once it plays
+                    if (playing !== btn) return;
+                    transcript.render(list, lines);
+                    sheet.hidden = false;
+                    unfollow = transcript.follow(list, awosAudio, lines);
+                });
+            } catch (e) { /* the audio says why it can't */ }
+        };
+        if (sheet) sheet.querySelector('.tx-close').addEventListener('click', function () { stop(); closeSheet(); });
         const reset = function () {
             if (!playing) return;
             playing.setAttribute('aria-pressed', 'false');
@@ -533,31 +634,38 @@
             awosAudio.load();
             reset();
         };
+        const isAtis = function (btn) { return 'atis' in btn.dataset; };
+        const codeOf = function (btn) { return isAtis(btn) ? btn.dataset.atis : btn.dataset.awos; };
+        const urlOf = function (btn) {
+            return (isAtis(btn) ? '/api/atis/' : '/api/speak/') + encodeURIComponent(codeOf(btn)) + '.audio';
+        };
         const failed = async function (btn, err) {
-            const code = btn.dataset.awos;
+            const what = isAtis(btn) ? 'ATIS' : 'AWOS';
             let why = 'It could not be played.';
             try {
-                const res = await fetch('/api/speak/' + encodeURIComponent(code) + '.audio', {cache: 'no-store'});
+                const res = await fetch(urlOf(btn), {cache: 'no-store'});
                 if (!res.ok) why = (await res.text()).trim() || why;
-                else if (err && err.name === 'NotAllowedError') why = 'The browser blocked sound: press AWOS again.';
+                else if (err && err.name === 'NotAllowedError') why = 'The browser blocked sound: press ' + what + ' again.';
             } catch (e) {
                 why = "Can't reach the map.";
             }
             if (playing !== btn) return;  // switched or stopped meanwhile
             stop();
-            showOutput(code + ': no spoken weather', why);
+            showOutput(codeOf(btn) + (isAtis(btn) ? ': no ATIS' : ': no spoken weather'), why);
         };
-        document.querySelectorAll('[data-awos]').forEach(function (btn) {
+        document.querySelectorAll('[data-awos], [data-atis]').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 if (playing === btn) {
                     stop();
                     return;
                 }
                 reset();
+                closeSheet();
                 playing = btn;
                 btn.setAttribute('aria-pressed', 'true');
                 btn.classList.add('loading');
-                awosAudio.src = '/api/speak/' + encodeURIComponent(btn.dataset.awos) + '.audio';
+                awosAudio.src = urlOf(btn);
+                if (isAtis(btn)) openSheet(btn);
                 const started = awosAudio.play();
                 if (started) started.catch(function (err) {
                     if (err.name !== 'AbortError' && playing === btn) failed(btn, err);
@@ -594,5 +702,142 @@
             });
         });
         if (search) search.addEventListener('input', apply);
+    }
+    // ---- the Pronunciation page: the tunings (rows of: the FAA's text, say it as, airport), Save sends the whole
+    // list; a suggested word adds a row for it; Try it shows and plays an airport's ATIS as saved
+    const tunings = document.getElementById('tunings');
+    if (tunings) {
+        const rows = document.getElementById('tn-rows');
+        const empty = document.getElementById('tn-empty');
+        const status = document.getElementById('tn-status');
+        const codes = tunings.dataset.codes ? tunings.dataset.codes.split(' ') : [];
+        const showEmpty = function () { empty.hidden = rows.children.length > 0; };
+        const wire = function (row) {
+            row.querySelector('.tn-remove').addEventListener('click', function () {
+                row.remove();
+                showEmpty();
+                status.textContent = 'Not saved yet.';
+            });
+            row.querySelectorAll('input, select').forEach(function (el) {
+                el.addEventListener('input', function () { status.textContent = 'Not saved yet.'; });
+            });
+        };
+        const addRow = function (text) {
+            const row = document.createElement('div');
+            row.className = 'tn-row trow';
+            row.innerHTML = '<input type="text" class="tn-text" aria-label="The FAA writes" autocapitalize="characters" spellcheck="false" maxlength="40">' +
+                '<input type="text" class="tn-say" aria-label="Say it as" maxlength="120">' +
+                '<select class="tn-airport" aria-label="Airport"><option value="">Every airport</option></select>' +
+                '<button class="btn icon tn-remove" type="button" aria-label="Remove"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>';
+            const select = row.querySelector('select');
+            codes.forEach(function (c) {
+                const o = document.createElement('option');
+                o.value = o.textContent = c;
+                select.appendChild(o);
+            });
+            row.querySelector('.tn-text').value = text || '';
+            rows.appendChild(row);
+            wire(row);
+            showEmpty();
+            row.querySelector(text ? '.tn-say' : '.tn-text').focus();
+            status.textContent = 'Not saved yet.';
+        };
+        Array.from(rows.children).forEach(wire);
+        document.getElementById('tn-add').addEventListener('click', function () { addRow(''); });
+        document.querySelectorAll('[data-suggest]').forEach(function (chip) {
+            chip.addEventListener('click', function () {
+                addRow(chip.dataset.suggest);
+                chip.remove();
+            });
+        });
+        const save = document.getElementById('tn-save');
+        save.addEventListener('click', async function () {
+            const list = Array.from(rows.children).map(function (row) {
+                return {
+                    text: row.querySelector('.tn-text').value,
+                    say: row.querySelector('.tn-say').value,
+                    airport: row.querySelector('.tn-airport').value,
+                };
+            }).filter(function (t) { return t.text.trim() || t.say.trim(); });  // a row left empty is dropped
+            busy(save, true);
+            try {
+                const res = await fetch('/config/tunings', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({tunings: list}),
+                });
+                const text = await res.text();
+                if (!res.ok) throw new Error(text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() || res.statusText);
+                const saved = JSON.parse(text).tunings;
+                status.textContent = 'Saved ' + saved.length + (saved.length === 1 ? ' tuning.' : ' tunings.');
+                rows.querySelectorAll('.tn-text').forEach(function (input, i) {  // as saved: in capitals
+                    if (saved[i]) input.value = saved[i].text;
+                });
+                if (shown) show();
+            } catch (err) {
+                showOutput('Could not save', String(err.message || err));
+            } finally {
+                busy(save, false);
+            }
+        });
+
+        const pick = document.getElementById('tn-airport');
+        const list = document.getElementById('tn-transcript');
+        const audio = document.getElementById('tn-audio');
+        const play = document.getElementById('tn-play');
+        let shown = false, lines = [], unfollow = function () {};
+        const show = async function () {
+            try {
+                lines = await transcript.lines(pick.value);
+                shown = true;
+            } catch (err) {  // said in place of the lines: the page shows it on opening, unasked
+                lines = [{raw: '', said: "Couldn't get " + pick.value + "'s ATIS: " + String(err.message || err)}];
+            }
+            transcript.render(list, lines);
+        };
+        // Play's three looks: idle (Play), getting (glowing: the ATIS is fetched and read, which can take half a
+        // minute), playing (Stop: press it to stop)
+        const playLabel = play && play.querySelector('.tn-play-label');
+        const playState = function (state) {
+            play.setAttribute('aria-pressed', state === 'idle' ? 'false' : 'true');
+            play.classList.toggle('loading', state === 'getting');
+            playLabel.textContent = state === 'getting' ? 'Getting the ATIS...' : state === 'playing' ? 'Stop' : 'Play';
+            play.title = state === 'idle' ? '' : 'Press to stop';
+        };
+        const stopPlaying = function () {
+            unfollow();
+            unfollow = function () {};
+            audio.pause();
+            audio.removeAttribute('src');
+            audio.load();
+            playState('idle');
+        };
+        if (pick) {
+            document.getElementById('tn-show').addEventListener('click', function () { stopPlaying(); show(); });
+            pick.addEventListener('change', function () { stopPlaying(); show(); });
+            play.addEventListener('click', async function () {
+                if (play.getAttribute('aria-pressed') === 'true') { stopPlaying(); return; }
+                playState('getting');
+                audio.src = '/api/atis/' + encodeURIComponent(pick.value) + '.audio';
+                const started = audio.play();  // in the press: a phone only plays sound in answer to a touch
+                await show();
+                unfollow();
+                unfollow = transcript.follow(list, audio, lines);
+                if (started) started.catch(async function (err) {
+                    if (err.name === 'AbortError') return;
+                    let why = String(err.message || err);
+                    try {
+                        const res = await fetch(audio.src, {cache: 'no-store'});
+                        if (!res.ok) why = (await res.text()).trim() || why;
+                    } catch (e) { /* as it is */ }
+                    stopPlaying();
+                    showOutput(pick.value + ': no ATIS', why);
+                });
+            });
+            audio.addEventListener('playing', function () { playState('playing'); });
+            audio.addEventListener('ended', function () { playState('idle'); });
+            show();
+        }
     }
 })();

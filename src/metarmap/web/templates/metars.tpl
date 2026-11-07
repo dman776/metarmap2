@@ -33,7 +33,7 @@
 
 <section class="card" style="overflow: hidden">
     <div class="scroll-x">
-        % awos = ' awos' if speech else ''
+        % awos = (' awos' if speech else '') + (' atis' if with_atis else '')  # room for their buttons
         <div class="trow metar head{{awos}}"><span>LED</span><span>Station</span><span>Cat</span><span>Raw METAR</span><span>Obs</span><span></span></div>
         % for s in stations:
         % cat = s['cat'] if s['cat'] in cats else 'none'
@@ -64,6 +64,12 @@
                     AWOS
                 </button>
                 % end
+                % if s['code'] in with_atis:
+                <button class="chip sm" type="button" data-atis="{{s['code']}}" aria-pressed="false" aria-label="Hear {{s['code']}}'s ATIS">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+                    ATIS
+                </button>
+                % end
             </span>
         </div>
         % end
@@ -72,6 +78,19 @@
 
 % if speech:
 <audio id="awos-audio" preload="none"></audio>
+% end
+% if with_atis:
+<!-- an ATIS to read along while it plays (app.js) -->
+<section class="card tx-sheet" id="atis-sheet" aria-label="The ATIS, line by line" hidden>
+    <div class="card-head">
+        <h2>ATIS</h2>
+        <span class="muted">The FAA's text, then how it's said</span>
+        <button class="btn icon tx-close" type="button" aria-label="Close and stop">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+    </div>
+    <ol class="tx"></ol>
+</section>
 % end
 
 %include("footer.tpl")
