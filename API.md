@@ -282,6 +282,19 @@ Alpha, `RY8R` runway eight right, `126.225` one two six point two two five), and
 AWOS reads them; the altimeter's own words in parentheses and the remarks are left out. Letters said as letters
 (`ILS`, `VOR`) and identifiers (`VNY`) stay in capitals.
 
+`GET /api/atis/<code>/lines` is the same ATIS line by line, for reading along: each line the FAA's text (`raw`, as
+written, with the altimeter's words and the remarks) and how it's said (`said`), with the entries it comes from:
+
+```json
+{ "code": "KHOU",
+  "lines": [ { "raw": "HOU ATIS INFO Q 1753Z.", "said": "Houston Hobby Airport information Quebec, one seven five tree Zulu." },
+             { "raw": "LNDG AND DEPG RWY 13R.", "said": "Landing and departing runway one tree right." } ],
+  "entries": [ { "type": "combined", "code": "Q", "time": "1753", "updatedAt": "2026-11-07T17:54:35Z" } ] }
+```
+
+The words follow `speech.tunings` (the Pronunciation page): whole words or phrases said another way, for every airport
+or one, before the map's own rules.
+
 `/api/atis` lists the map's airports that have one, with each ATIS's `type` (`combined`, `arr` or `dep`), its
 information letter (`code`), its `time` (HHMM, UTC) and when atis.info last updated it (`updatedAt`):
 
@@ -499,6 +512,7 @@ Settings that apply right away:
 - `speech.engine`: the speech server: `wyoming` (Piper, e.g. Home Assistant's add-on) or `kokoro` (Kokoro-FastAPI)
 - `speech.wyoming_host`, `speech.wyoming_port`, `speech.wyoming_voice`: the Piper server (Home Assistant's address; port 10200) and the voice to ask it for (e.g. `en_US-lessac-medium`; empty: its own). An empty host or voice is sent as `-`
 - `speech.atis`: the spoken ATIS on or off (`/api/atis`, from atis.info; off by default)
+- `speech.tunings`: the Pronunciation page's list, `[{"text": "MNSTR", "say": "monster", "airport": ""}]` (`airport` empty for every airport). Saved as a whole with `POST /config/tunings` and `{"tunings": [...]}` (login needed), not with `/config/edit`
 - `speech.kokoro_url`, `speech.kokoro_voice`, `speech.kokoro_speed`: the Kokoro server (e.g. `/config/edit/speech.kokoro_url/192.168.0.164:8880`; `http://` is added), its voice (e.g. `af_heart`) and speed (0.5 to 2). An empty address is sent as `-`
 - `visualizer.active`, the default visualizer used at startup, by id (`/config/edit/visualizer.active/wind`); a number is taken too and saved as the id. An unknown one is a 400. Saving it doesn't change the visualizer that's running now; use `/visualizer/<id>` for that.
 - `visualizer.auto_rotate.enabled`

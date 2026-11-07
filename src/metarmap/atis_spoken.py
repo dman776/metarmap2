@@ -21,7 +21,7 @@ The digits are said as pilots say them ("tree", "niner"), as in metarmap.spoken.
 """
 
 import re
-from typing import Iterable, List, Set, Tuple
+from typing import Iterable, List, Sequence, Set, Tuple
 
 from metarmap import metar, spoken
 
@@ -330,17 +330,51 @@ TIME = re.compile(r"^(?P<time>\d{4})Z$")
 WITH_UNIT = re.compile(r"^(?P<number>\d*\.?\d+)(?P<unit>FT|NM|KTS?|SM|')$")  # 100FT, .3NM, 100' (feet)
 
 
-def spoken_atis(entries: Iterable[dict], name: str = "", code: str = "", ids: Iterable[str] = ()) -> str:
+Line = Tuple[str, str]  # one line of an ATIS: (the FAA's text, how it's said)
+PLACEHOLDER = re.compile(r"^§(\d+)§$")  # a tuned word or phrase, in place in the text (see tuned())
+
+
+def lines(
+    entries: Iterable[dict], name: str = "", code: str = "", ids: Iterable[str] = (), tunings: Sequence = ()
+) -> List[Line]:
     """
-    One airport's ATIS as text to be spoken: a combined one, or the arrival then the departure ATIS. entries: what
-    metarmap.atis has for the airport ({"type", "code", "datis"}); name, code: as for metarmap.spoken. ids: airport
-    identifiers to spell when the text names them (KABQ and ABQ, for "KABQ"), e.g. every airport with an ATIS.
+    One airport's ATIS line by line, each with how it's said: a combined one, or the arrival then the departure ATIS.
+    entries: what metarmap.atis has for the airport ({"type", "code", "datis"}); name, code: as for metarmap.spoken.
+    ids: airport identifiers to spell when the text names them (KABQ and ABQ, for "KABQ"), e.g. every airport with
+    an ATIS. tunings: words or phrases said another way (speech.tunings: text, say, airport), this airport's and
+    every airport's.
     """
     place = spoken.airport_name(name, code)
     order = {"arr": 0, "combined": 1, "dep": 2}
     known = identifiers(list(ids) + [code])
-    texts = [expand(e["datis"], place, known) for e in sorted(entries, key=lambda e: order.get(e.get("type"), 1))]
-    return " ".join(texts) if texts else f"{place}. No ATIS is available."
+    mine = for_airport(tunings, code)
+    found: List[Line] = []
+    for entry in sorted(entries, key=lambda e: order.get(e.get("type"), 1)):
+        found += expand_lines(entry["datis"], place, known, mine)
+    return found or [("", f"{place}. No ATIS is available.")]
+
+
+def spoken_atis(
+    entries: Iterable[dict], name: str = "", code: str = "", ids: Iterable[str] = (), tunings: Sequence = ()
+) -> str:
+    """The ATIS as one text to be spoken (see lines())."""
+    return " ".join(said for _, said in lines(entries, name, code, ids, tunings) if said)
+
+
+def for_airport(tunings: Sequence, code: str) -> List:
+    """The tunings for this airport's ATIS (its own, and every airport's), the longest first, so a phrase wins over
+    a word in it."""
+    mine = identifiers([code])
+    found = [t for t in tunings if t.text and (not t.airport or t.airport.upper() in mine)]
+    return sorted(found, key=lambda t: -len(t.text))
+
+
+def tuned(text: str, tunings: Sequence) -> str:
+    """The text with each tuning's words (whole words, any case) replaced by a placeholder, said as it's tuned."""
+    for i, t in enumerate(tunings):
+        words = r"\s+".join(re.escape(w) for w in t.text.upper().split())
+        text = re.sub(rf"(?<![A-Z0-9]){words}(?![A-Z0-9])", f"§{i}§", text, flags=re.IGNORECASE)
+    return text
 
 
 def identifiers(codes: Iterable[str]) -> Set[str]:
@@ -355,22 +389,32 @@ def identifiers(codes: Iterable[str]) -> Set[str]:
     return found
 
 
-def expand(text: str, place: str = "", ids: Set[str] = frozenset()) -> str:
+def expand(text: str, place: str = "", ids: Set[str] = frozenset(), tunings: Sequence = ()) -> str:
+    """One ATIS text as words (see expand_lines())."""
+    return " ".join(said for _, said in expand_lines(text, place, ids, tunings))
+
+
+def expand_lines(text: str, place: str = "", ids: Set[str] = frozenset(), tunings: Sequence = ()) -> List[Line]:
     """
-    One ATIS text as words (see the module's notes). place: the airport's name to say in the header; ids: airport
-    identifiers to spell.
+    One ATIS text line by line (see the module's notes): the header, the weather, then each sentence. place: the
+    airport's name to say in the header; ids: airport identifiers to spell; tunings: for_airport()'s, applied to the
+    sentences after the weather.
     """
     text = tidy(text)
-    sentences = []
+    found: List[Line] = []
     match = HEADER.match(text)
     if match:
-        sentences.append(header(match, place))
+        found.append((text[: match.end()].strip(), header(match, place)))
         text = text[match.end() :]
     body = sentences_of(text)
-    if body and looks_like_weather(body[0]):
-        sentences += weather_sentences(body.pop(0))
-    sentences += [s for s in (sentence(words, ids) for words in body) if s]
-    return " ".join(sentences)
+    if body and looks_like_weather(body[0].split()):
+        raw = body.pop(0)
+        found.append((raw + ".", " ".join(weather_sentences(raw.split()))))
+    for raw in body:
+        said = sentence(tuned(raw, tunings).split(), ids, tunings)
+        if said:
+            found.append((raw + ".", said))
+    return found
 
 
 def unknown(text: str) -> Set[str]:
@@ -396,7 +440,6 @@ def unknown(text: str) -> Set[str]:
 
 def tidy(text: str) -> str:
     """Spaces and stray punctuation: "RWY 3 ." -> "RWY 3.", ". . ." and "..." -> ".", "BTN TWY, M" kept."""
-    text = re.sub(r"\(([A-Z ]+)\)", " ", text)  # the altimeter's own words, said from A3013 instead
     text = re.sub(r"\s*\.(\s*\.)+\s*", ". ", text)  # ". . ." or "...": one sentence's end
     text = re.sub(r"\s*;", ",", text)
     text = re.sub(r"\s+([.,])(?=\s|$)", r"\1", text)  # "RWY 3 ." (not ".3NM", a distance)
@@ -408,10 +451,10 @@ def tidy(text: str) -> str:
     return text
 
 
-def sentences_of(text: str) -> List[List[str]]:
-    """The text's sentences as words: a period ends one when a space or the end follows (not in 132.82)."""
+def sentences_of(text: str) -> List[str]:
+    """The text's sentences: a period ends one when a space or the end follows (not in 132.82)."""
     parts = re.split(r"\.(?=\s|$)", text)
-    return [p.split() for p in (part.strip() for part in parts) if p]
+    return [p for p in (part.strip() for part in parts) if p]
 
 
 def header(match, place: str) -> str:
@@ -427,8 +470,10 @@ def looks_like_weather(words: List[str]) -> bool:
 
 
 def weather_sentences(words: List[str]) -> List[str]:
-    """The weather groups ("11007KT 10SM SCT080 BKN250 23/13 A3013 RMK ...") as the AWOS says them."""
-    report = metar.parse_raw("ATIS " + " ".join(w.strip(",") for w in words), now=None)  # the remarks are left out
+    """The weather groups ("11007KT 10SM SCT080 BKN250 23/13 A3013 RMK ...") as the AWOS says them. The altimeter's
+    own words in parentheses ("(THREE ZERO ONE THREE)") are left out, as A3013 says it, and so are the remarks."""
+    groups = re.sub(r"\([^)]*\)", " ", " ".join(w.strip(",") for w in words))
+    report = metar.parse_raw("ATIS " + groups, now=None)
     return [
         s
         for s in (
@@ -445,14 +490,18 @@ def weather_sentences(words: List[str]) -> List[str]:
     ]
 
 
-def sentence(words: List[str], ids: Set[str] = frozenset()) -> str:
+def sentence(words: List[str], ids: Set[str] = frozenset(), tunings: Sequence = ()) -> str:
     """One sentence of the rest of the ATIS, word by word."""
     out: List[str] = []
     context = ""  # "runway", "taxiway", "approach", "information": what a bare number or letter belongs to
     for i, raw in enumerate(words):
-        raw = raw.rstrip(".")
+        raw = raw.rstrip(".").strip("()")
         word, comma = (raw[:-1], ",") if raw.endswith(",") else (raw, "")
         following = words[i + 1].rstrip(",") if i + 1 < len(words) else ""
+        if m := PLACEHOLDER.match(word):  # tuned: said as it's written
+            out.append(tunings[int(m[1])].say + comma)
+            context = ""
+            continue
         said, context = say(word, context, following, ids)
         if said:
             out.append(said + comma)

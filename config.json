@@ -77,7 +77,8 @@
         "kokoro_url": "",
         "kokoro_voice": "af_heart",
         "kokoro_speed": 1.0,
-        "atis": false
+        "atis": false,
+        "tunings": []
     },
     "dev_mode": false,
     "airports": [

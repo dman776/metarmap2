@@ -1956,3 +1956,68 @@ def test_the_metars_page_has_an_atis_button_where_there_is_one(client):
     speech.atis = False
     client.services.atis = SimpleNamespace(available=lambda: set())
     assert "data-atis=" not in client("/metars")[1]
+
+
+# ---- reading along, and the Pronunciation page -----------------------------------------------------------------
+
+
+def test_atis_lines(services):
+    c = speaking_map(services)
+    found = c.json("/api/atis/khou/lines", auth=False)
+    assert found["code"] == "KHOU"
+    assert found["entries"] == [{"type": "combined", "code": "P", "time": "1653", "updatedAt": "2026-11-07T17:44:35Z"}]
+    assert found["lines"][0] == {
+        "raw": "HOU ATIS INFO P 1653Z.",
+        "said": "Hobby information Papa, one six five tree Zulu.",
+    }
+    assert found["lines"][1]["raw"].endswith("A3011 (THREE ZERO ONE ONE).")  # the FAA's own text
+    assert found["lines"][-1] == {"raw": "ADVS YOU HAVE INFO P.", "said": "Advise you have information Papa."}
+    assert " ".join(line["said"] for line in found["lines"]) == c("/api/atis/KHOU", auth=False)[1]
+    assert c("/api/atis/KIAH/lines", auth=False)[0] == 404
+
+
+def test_atis_lines_follow_the_tunings(services):
+    from metarmap.settings import Tuning
+
+    c = speaking_map(services)
+    services.config.data.speech.tunings = [Tuning(text="LNDG AND DEPG", say="arriving and leaving", airport="KHOU")]
+    said = [line["said"] for line in c.json("/api/atis/KHOU/lines", auth=False)["lines"]]
+    assert "Arriving and leaving runway one tree right." in said
+
+
+def test_saving_tunings(client):
+    status, body = client("/config/tunings", method="POST", body={"tunings": [{"text": "mnstr", "say": "monster"}]})
+    assert status == 200 and json.loads(body) == {"tunings": [{"text": "MNSTR", "say": "monster", "airport": ""}]}
+    assert [t.text for t in client.services.config.data.speech.tunings] == ["MNSTR"]
+    status, why = client("/config/tunings", method="POST", body={"tunings": [{"text": "MNSTR", "say": ""}]})
+    assert status == 400 and "say MNSTR as what" in why
+    assert client("/config/tunings", method="POST", body={"tunings": []}, auth=False)[0] == 401
+
+
+def test_the_pronunciation_page(client):
+    from metarmap.settings import Tuning
+
+    speech = client.services.config.data.speech
+    speech.enabled, speech.wyoming_host, speech.atis = True, "192.168.0.14", True
+    speech.tunings = [Tuning(text="MNSTR", say="monster")]
+    entry = {"type": "combined", "code": "P", "datis": "HOU ATIS INFO P 1653Z. TRSSH AND MNSTR ARR. CAUTION VNY TFC."}
+    client.services.atis = SimpleNamespace(available=lambda: {"KHOU"}, entries=lambda code: [entry])
+    status, page = client("/config/pronunciation")
+    assert status == 200
+    assert 'class="tn-text" value="MNSTR"' in page and 'class="tn-say" value="monster"' in page
+    assert re.findall(r'data-suggest="(\w+)"', page) == ["TRSSH", "VNY"]  # MNSTR is tuned already
+    assert '<option value="KHOU">KHOU</option>' in page and 'id="tn-try"' in page
+    assert "Spoken ATIS is off" not in page
+    assert 'href="/config/pronunciation"' in client("/config")[1]
+    assert client("/config/pronunciation", auth=False)[0] == 401
+
+
+def test_the_pages_have_somewhere_to_read_along(client):
+    speech = client.services.config.data.speech
+    speech.enabled, speech.wyoming_host, speech.atis = True, "192.168.0.14", True
+    client.services.atis = SimpleNamespace(available=lambda: {"KHOU"})
+    assert 'id="atis-sheet"' in client("/metars")[1]
+    assert 'id="r-transcript"' in client("/remote")[1]
+    speech.atis = False
+    client.services.atis = SimpleNamespace(available=lambda: set())
+    assert 'id="atis-sheet"' not in client("/metars")[1] and 'id="r-transcript"' not in client("/remote")[1]

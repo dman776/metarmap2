@@ -338,6 +338,13 @@
         let current = null;  // the button being read
         let base = '/api/speak/';  // and where its words come from: /api/speak/ (AWOS) or /api/atis/ (ATIS)
         let words = null;  // its text, once it's come
+        const said = document.getElementById('r-transcript');  // an ATIS's lines, to read along
+        let unfollow = function () {};
+        function clearTranscript() {
+            unfollow();
+            unfollow = function () {};
+            if (said) said.hidden = true;
+        }
         const IDLE = {awos: 'Press an airport to hear its weather', atis: 'Press an airport to hear its ATIS'};
 
         function mark(btn, state) {  // state: 'loading', 'speaking' or null
@@ -362,7 +369,11 @@
             if (message) showBar(code, message, 'error');
             else showBar('', IDLE[mode] || idleText, '');
         }
-        quiet = function () { if (current) stop(); else showBar('', IDLE[mode] || idleText, ''); };
+        quiet = function () {
+            clearTranscript();
+            if (current) stop();
+            else showBar('', IDLE[mode] || idleText, '');
+        };
         quiet();
         function speak(btn) {
             if (mode === 'locate') return;  // app.js's data-call locates it
@@ -382,6 +393,19 @@
             if (playing) playing.catch(function (err) {
                 if (err.name !== 'AbortError' && current === btn) failed(btn, err);  // Abort: switched or stopped
             });
+            clearTranscript();
+            if (mode === 'atis' && said && window.metarmapTranscript) {
+                // the ATIS line by line below the airports; the bar says which one it is
+                const t = window.metarmapTranscript;
+                t.lines(code).then(function (lines) {
+                    if (current !== btn) return;
+                    t.render(said, lines);
+                    unfollow = t.follow(said, audio, lines);
+                    words = lines.length ? lines[0].said : null;
+                    if (btn.classList.contains('speaking')) showBar(code, words || 'Speaking...', 'speaking');
+                }).catch(function () { /* the audio says it all */ });
+                return;
+            }
             fetch(base + encodeURIComponent(code), {cache: 'no-store'})
                 .then(function (res) { return res.ok ? res.text() : null; })
                 .then(function (text) {

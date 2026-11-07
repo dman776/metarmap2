@@ -419,6 +419,12 @@
         </div>
 
         % switch('speech.atis', s.atis, 'Spoken ATIS', 'The real ATIS too, for airports that publish a digital one (about 75 large US airports), from atis.info, an unofficial service. Only asked when you play one.')
+        <div class="sub" data-when="speech-atis"{{!'' if s.atis else ' hidden'}}>
+        <div class="set">
+            <div><div class="t">Pronunciation</div><div class="d">Local names, fixes and the FAA's odd spellings said your way{{!' (%d set)' % len(s.tunings) if s.tunings else ''}}.</div></div>
+            <a class="btn" href="/config/pronunciation">Pronunciation</a>
+        </div>
+        </div>
 
         % if first_airport:
         <div class="set">
