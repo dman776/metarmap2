@@ -81,9 +81,11 @@
                 % end
             </select>
             <button class="btn" type="button" id="tn-show">Show</button>
-            <button class="btn" type="button" id="tn-play" aria-pressed="false">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
-                Play
+            <!-- Play; glows while the map gets the ATIS and the speech server reads it; then Stop -->
+            <button class="btn tn-play" type="button" id="tn-play" aria-pressed="false">
+                <svg class="i-play" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
+                <svg class="i-stop" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+                <span class="tn-play-label">Play</span>
             </button>
         </span>
     </div>

@@ -397,12 +397,15 @@
             if (mode === 'atis' && said && window.metarmapTranscript) {
                 // the ATIS line by line below the airports; the bar says which one it is
                 const t = window.metarmapTranscript;
-                t.lines(code).then(function (lines) {
+                t.lines(code).then(function (lines) {  // fetched while the audio is made, shown once it plays
                     if (current !== btn) return;
-                    t.render(said, lines);
-                    unfollow = t.follow(said, audio, lines);
                     words = lines.length ? lines[0].said : null;
-                    if (btn.classList.contains('speaking')) showBar(code, words || 'Speaking...', 'speaking');
+                    unfollow = t.whenPlaying(audio, function () {
+                        if (current !== btn) return;
+                        t.render(said, lines);
+                        unfollow = t.follow(said, audio, lines);
+                        if (btn.classList.contains('speaking')) showBar(code, words || 'Speaking...', 'speaking');
+                    });
                 }).catch(function () { /* the audio says it all */ });
                 return;
             }

@@ -243,6 +243,20 @@
                 light(-1);
             };
         },
+        // runs show() once `audio` starts playing (now, if it has): the words wait for the sound, which can take
+        // half a minute to be made; returns a function that cancels the wait
+        whenPlaying: function (audio, show) {
+            if (!audio.paused && audio.currentTime > 0) {
+                show();
+                return function () {};
+            }
+            const once = function () {
+                audio.removeEventListener('playing', once);
+                show();
+            };
+            audio.addEventListener('playing', once);
+            return function () { audio.removeEventListener('playing', once); };
+        },
         lines: async function (code) {
             const res = await fetch('/api/atis/' + encodeURIComponent(code) + '/lines', {cache: 'no-store'});
             if (!res.ok) throw new Error((await res.text()).trim() || res.status + ' ' + res.statusText);
@@ -597,11 +611,14 @@
             sheet.querySelector('h2').textContent = code + ' ATIS';
             const list = sheet.querySelector('.tx');
             try {
-                const lines = await transcript.lines(code);
+                const lines = await transcript.lines(code);  // fetched while the audio is made...
                 if (playing !== btn) return;
-                transcript.render(list, lines);
-                sheet.hidden = false;
-                unfollow = transcript.follow(list, awosAudio, lines);
+                unfollow = transcript.whenPlaying(awosAudio, function () {  // ...shown once it plays
+                    if (playing !== btn) return;
+                    transcript.render(list, lines);
+                    sheet.hidden = false;
+                    unfollow = transcript.follow(list, awosAudio, lines);
+                });
             } catch (e) { /* the audio says why it can't */ }
         };
         if (sheet) sheet.querySelector('.tx-close').addEventListener('click', function () { stop(); closeSheet(); });
@@ -779,24 +796,33 @@
             }
             transcript.render(list, lines);
         };
+        // Play's three looks: idle (Play), getting (glowing: the ATIS is fetched and read, which can take half a
+        // minute), playing (Stop: press it to stop)
+        const playLabel = play && play.querySelector('.tn-play-label');
+        const playState = function (state) {
+            play.setAttribute('aria-pressed', state === 'idle' ? 'false' : 'true');
+            play.classList.toggle('loading', state === 'getting');
+            playLabel.textContent = state === 'getting' ? 'Getting the ATIS...' : state === 'playing' ? 'Stop' : 'Play';
+            play.title = state === 'idle' ? '' : 'Press to stop';
+        };
         const stopPlaying = function () {
             unfollow();
+            unfollow = function () {};
             audio.pause();
             audio.removeAttribute('src');
             audio.load();
-            play.setAttribute('aria-pressed', 'false');
-            play.classList.remove('loading');
+            playState('idle');
         };
         if (pick) {
             document.getElementById('tn-show').addEventListener('click', function () { stopPlaying(); show(); });
             pick.addEventListener('change', function () { stopPlaying(); show(); });
             play.addEventListener('click', async function () {
                 if (play.getAttribute('aria-pressed') === 'true') { stopPlaying(); return; }
-                play.setAttribute('aria-pressed', 'true');
-                play.classList.add('loading');
+                playState('getting');
                 audio.src = '/api/atis/' + encodeURIComponent(pick.value) + '.audio';
                 const started = audio.play();  // in the press: a phone only plays sound in answer to a touch
                 await show();
+                unfollow();
                 unfollow = transcript.follow(list, audio, lines);
                 if (started) started.catch(async function (err) {
                     if (err.name === 'AbortError') return;
@@ -809,11 +835,8 @@
                     showOutput(pick.value + ': no ATIS', why);
                 });
             });
-            audio.addEventListener('playing', function () { play.classList.remove('loading'); });
-            audio.addEventListener('ended', function () {
-                play.setAttribute('aria-pressed', 'false');
-                play.classList.remove('loading');
-            });
+            audio.addEventListener('playing', function () { playState('playing'); });
+            audio.addEventListener('ended', function () { playState('idle'); });
             show();
         }
     }
