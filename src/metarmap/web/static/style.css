@@ -181,6 +181,7 @@ select:focus, input[type=text]:focus, input[type=search]:focus, input[type=passw
 .trow.metar { grid-template-columns: 44px 150px 76px minmax(0, 1fr) 72px 104px; min-width: 860px; }
 .trow.metar:hover { background: #151f2a; }
 .trow.metar.awos { grid-template-columns: 44px 150px 76px minmax(0, 1fr) 72px 196px; min-width: 950px; }  /* Locate and AWOS */
+.trow.metar.awos.atis { grid-template-columns: 44px 150px 76px minmax(0, 1fr) 72px 284px; min-width: 1040px; }  /* and ATIS */
 .row-actions { display: flex; gap: 8px; justify-content: flex-end; }
 .chip.loading { animation: r-loading 1.2s ease-in-out infinite; }
 .trow.brief { grid-template-columns: 150px 76px minmax(0, 1fr) 72px; min-width: 640px; padding: 14px 24px; }
@@ -538,6 +539,16 @@ body.kiosk main.wrap { max-width: none; height: 100vh; height: var(--kiosk-h, 10
 .r-speak-bar[data-state="error"] { border-color: var(--ifr); }
 .r-speak-bar[data-state="error"] .r-speak-text { color: var(--ifr); }
 .r-speak-bar .btn { flex: none; }
+/* Info: the mode decides what a press does, and what shows. Locate: the crosshair, the paused badge; AWOS and ATIS:
+   the speaker and the bar of what's read; ATIS: only the airports with a digital ATIS */
+.r-modes { display: flex; gap: 6px; flex: none; }
+.r-modes .chip { min-height: 44px; padding: 0 16px; }
+#info .r-apt .i-speak, #info[data-mode="locate"] .r-speak-bar, #info:not([data-mode="locate"]) #r-paused { display: none; }
+#info:not([data-mode="locate"]) .r-apt .i-locate { display: none; }
+#info:not([data-mode="locate"]) .r-apt .i-speak { display: block; }
+#info:not([data-mode="locate"]) .r-grid.paused .r-apt { opacity: 1; }
+#info[data-mode="atis"] .r-apt[data-atis="false"] { display: none; }
+.r-no-atis { margin: 0; }
 @keyframes r-locate { 50% { background: #fff; color: var(--bg); box-shadow: 0 0 18px rgba(255, 255, 255, .6); } }
 
 /* an iPad on its side: bigger airport tiles */

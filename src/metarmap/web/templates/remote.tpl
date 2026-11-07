@@ -12,16 +12,10 @@
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg>
                 <span>Map</span>
             </button>
-            <button class="r-tab" type="button" role="tab" id="tab-locator" aria-controls="locator" aria-selected="false" data-tab="locator">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
-                <span>Locator</span>
+            <button class="r-tab" type="button" role="tab" id="tab-info" aria-controls="info" aria-selected="false" data-tab="info">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>
+                <span>Info</span>
             </button>
-            % if speech:
-            <button class="r-tab" type="button" role="tab" id="tab-awos" aria-controls="awos" aria-selected="false" data-tab="awos">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>
-                <span>AWOS</span>
-            </button>
-            % end
         </div>
         <span class="host r-host" role="status" title="{{myIP}} · v{{version}}"><span>{{myIP}}</span></span>
         <button class="btn icon r-full" type="button" aria-label="Fullscreen" aria-pressed="false" hidden>
@@ -87,8 +81,18 @@
         <script id="map-settings" type="application/json">{{!json.dumps(settings).replace('</', '<\\/')}}</script>
     </section>
 
-    <section class="r-panel r-air" id="locator" role="tabpanel" aria-labelledby="tab-locator" hidden>
+    <!-- Info: the airports, and what a press does (Locate, AWOS, ATIS). #locator, #awos and #atis open a mode -->
+    <section class="r-panel r-air" id="info" role="tabpanel" aria-labelledby="tab-info" data-mode="locate" hidden>
         <div class="r-air-head">
+            % if speech:
+            <div class="r-modes" role="group" aria-label="What a press does">
+                <button class="chip" type="button" data-mode="locate" aria-pressed="true">Locate</button>
+                <button class="chip" type="button" data-mode="awos" aria-pressed="false">AWOS</button>
+                % if atis:
+                <button class="chip" type="button" data-mode="atis" aria-pressed="false">ATIS</button>
+                % end
+            </div>
+            % end
             <span class="badge warn" id="r-paused"{{!'' if active['exclusive'] else ' hidden'}}>Locate is paused by {{active['name']}}</span>
             % if len(stations) > 12:
             <label class="search r-search">
@@ -97,21 +101,7 @@
             </label>
             % end
         </div>
-        <div class="r-grid{{' paused' if active['exclusive'] else ''}}">
-            % for s in stations:
-            % cat = s['cat'] if s['cat'] in cats else 'none'
-            <button class="r-apt{{' virtual' if s['virtual'] else ''}}" type="button" data-call="/locate/{{s['pixel']}}" data-then="none"
-                    data-station="{{s['code']}}" data-cat="{{cat}}" data-pixel="{{s['pixel']}}" aria-label="Locate {{s['code']}}" title="{{s['name'] or s['code']}}">
-                <span class="dot {{cat.lower()}}"></span>
-                <b>{{s['code']}}</b>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
-            </button>
-            % end
-        </div>
-    </section>
-
-    % if speech:
-    <section class="r-panel r-air" id="awos" role="tabpanel" aria-labelledby="tab-awos" hidden>
+        % if speech:
         <!-- what's being read: the airport, then its words as they're spoken; Stop -->
         <div class="r-speak-bar" id="r-speak-bar" role="status" aria-live="polite">
             <span class="r-speak-code" id="r-speak-code"></span>
@@ -122,19 +112,22 @@
             </button>
         </div>
         <audio id="r-speak-audio" preload="none"></audio>
-        <div class="r-grid">
+        <p class="muted r-no-atis" id="r-no-atis" hidden>No airport on this map has a digital ATIS. Only about 75 large US airports publish one.</p>
+        % end
+        <div class="r-grid{{' paused' if active['exclusive'] else ''}}">
             % for s in stations:
             % cat = s['cat'] if s['cat'] in cats else 'none'
-            <button class="r-apt r-speak{{' virtual' if s['virtual'] else ''}}" type="button" data-speak="{{s['code']}}"
-                    data-cat="{{cat}}" data-pixel="{{s['pixel']}}" aria-label="Hear {{s['code']}}'s weather" title="{{s['name'] or s['code']}}">
+            <button class="r-apt{{' virtual' if s['virtual'] else ''}}" type="button" data-call="/locate/{{s['pixel']}}" data-then="none"
+                    data-station="{{s['code']}}" data-speak="{{s['code']}}" data-atis="{{'true' if s['code'] in with_atis else 'false'}}"
+                    data-cat="{{cat}}" data-pixel="{{s['pixel']}}" aria-label="Locate {{s['code']}}" title="{{s['name'] or s['code']}}">
                 <span class="dot {{cat.lower()}}"></span>
                 <b>{{s['code']}}</b>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
+                <svg class="i-locate" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
+                <svg class="i-speak" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
             </button>
             % end
         </div>
     </section>
-    % end
 </div>
 
 <script src="/static/remote.js?v={{assets}}"></script>

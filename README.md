@@ -85,8 +85,9 @@ Settings save as you change them.
 
 ### Remote control
 
-`/remote` is a remote control for a tablet in kiosk mode, here on an iPad in landscape: pick a visualizer, or find an
-airport's LED with the locator.
+`/remote` is a remote control for a tablet in kiosk mode, here on an iPad in landscape: pick a visualizer, or, on the
+**Info** tab, press an airport to find its LED (**Locate**), or, with spoken weather on, to hear its **AWOS** or
+**ATIS**.
 
 ![The remote page's Visualizer tab](docs/images/remote_visualizer.png)
 
@@ -249,9 +250,9 @@ release, `git pull` says it isn't on a branch: `git checkout master` first (or p
 ## Spoken weather
 
 The map can read an airport's METAR aloud, as an AWOS does: an **AWOS** button beside each airport on the METARs
-page, an **AWOS** tab on the Remote page, and `http://metarmap.local/api/speak/KHOU.audio` for anything else
-(`/api/speak/KHOU` shows the words). It's off until you turn it on. It's for fun, not for flight planning: listen to
-the airport's own AWOS, ASOS or ATIS for that.
+page, an **AWOS** mode on the Remote page's Info tab, and `http://metarmap.local/api/speak/KHOU.audio` for anything
+else (`/api/speak/KHOU` shows the words). It's off until you turn it on. It's for fun, not for flight planning: listen
+to the airport's own AWOS, ASOS or ATIS for that.
 
 A speech server on another computer reads the reports; the map sends it the words and keeps the audio it gets back,
 so even a Pi Zero W can do it. Two kinds work:

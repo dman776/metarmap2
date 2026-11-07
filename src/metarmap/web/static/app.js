@@ -515,9 +515,10 @@
         });
     });
 
-    // METARs page: AWOS plays an airport's report here (/api/speak/<code>.audio, from the speech server). Another
-    // airport switches to it; the one playing again stops. The sound starts in the press itself (a phone only lets
-    // a page play sound in answer to a touch); if it can't play, the map says why.
+    // METARs page: AWOS plays an airport's report here (/api/speak/<code>.audio, from the speech server), and ATIS
+    // its real ATIS (/api/atis/<code>.audio). Another button switches to it; the one playing again stops. The sound
+    // starts in the press itself (a phone only lets a page play sound in answer to a touch); if it can't play, the
+    // map says why.
     const awosAudio = document.getElementById('awos-audio');
     if (awosAudio) {
         let playing = null;  // the button whose report is playing (or loading)
@@ -533,21 +534,26 @@
             awosAudio.load();
             reset();
         };
+        const isAtis = function (btn) { return 'atis' in btn.dataset; };
+        const codeOf = function (btn) { return isAtis(btn) ? btn.dataset.atis : btn.dataset.awos; };
+        const urlOf = function (btn) {
+            return (isAtis(btn) ? '/api/atis/' : '/api/speak/') + encodeURIComponent(codeOf(btn)) + '.audio';
+        };
         const failed = async function (btn, err) {
-            const code = btn.dataset.awos;
+            const what = isAtis(btn) ? 'ATIS' : 'AWOS';
             let why = 'It could not be played.';
             try {
-                const res = await fetch('/api/speak/' + encodeURIComponent(code) + '.audio', {cache: 'no-store'});
+                const res = await fetch(urlOf(btn), {cache: 'no-store'});
                 if (!res.ok) why = (await res.text()).trim() || why;
-                else if (err && err.name === 'NotAllowedError') why = 'The browser blocked sound: press AWOS again.';
+                else if (err && err.name === 'NotAllowedError') why = 'The browser blocked sound: press ' + what + ' again.';
             } catch (e) {
                 why = "Can't reach the map.";
             }
             if (playing !== btn) return;  // switched or stopped meanwhile
             stop();
-            showOutput(code + ': no spoken weather', why);
+            showOutput(codeOf(btn) + (isAtis(btn) ? ': no ATIS' : ': no spoken weather'), why);
         };
-        document.querySelectorAll('[data-awos]').forEach(function (btn) {
+        document.querySelectorAll('[data-awos], [data-atis]').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 if (playing === btn) {
                     stop();
@@ -557,7 +563,7 @@
                 playing = btn;
                 btn.setAttribute('aria-pressed', 'true');
                 btn.classList.add('loading');
-                awosAudio.src = '/api/speak/' + encodeURIComponent(btn.dataset.awos) + '.audio';
+                awosAudio.src = urlOf(btn);
                 const started = awosAudio.play();
                 if (started) started.catch(function (err) {
                     if (err.name !== 'AbortError' && playing === btn) failed(btn, err);
