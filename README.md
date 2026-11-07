@@ -107,7 +107,7 @@ screens, which updates itself from GitHub releases.
 Wiring:
 
 - **LEDs**: data to GPIO 18 (pin 12), ground to a Pi ground, power from the 5V supply. GPIO 12, 13, 21 or 10 also
-  work: pick it in Config > LED pixels. See Adafruit's
+  work: pick it in Config > Physical display > LED pixels. See Adafruit's
   [NeoPixels on Raspberry Pi](https://learn.adafruit.com/neopixels-on-raspberry-pi/raspberry-pi-wiring) guide.
 - **OLED screen**: SDA to GPIO 2 (pin 3), SCL to GPIO 3 (pin 5), VCC to 3.3V, GND to ground.
 
@@ -213,7 +213,7 @@ Changes save right away. To check the wiring order:
 
 Every setting takes effect right away; none needs a restart.
 
-**Config > Access** changes:
+**Config > System > Access** changes:
 - the web UI login. On a Raspberry Pi, the new password also becomes the password of the Pi's login user
   (e.g. `pi`), so you don't have two to remember. On any other machine only the web UI login changes.
 - the Wi-Fi network. The Pi switches a few seconds after you save, and keeps the old network: if it can't join
@@ -228,7 +228,7 @@ The map checks GitHub for a new release when it starts and every 6 hours. When t
 **Update available** at the top, and the Home page's button reads **Update to v2.9.0** (for example). Click it, then
 use **Restart**. Your `config.json` is kept.
 
-**Config > Software** has more:
+**Config > System > Software** has more:
 - **Check now** asks GitHub straight away.
 - **Update to**: **Releases** (the default) installs only released versions, and never goes back to an older one.
   **Latest commit** installs the newest code on GitHub, released or not. Use it on a map you test changes on.
@@ -340,11 +340,11 @@ on your network: it reads `/api/live` and `/api/status`, and sends `/visualizer/
   `.2`, ...). Problems are marked `WARNING` or `ERROR` (`grep -E "WARNING|ERROR" metarmap.log`), and those, with
   crashes, also go to `journalctl -u metarmap`.
 - **LEDs stay dark or show the wrong colors**:
-  1. Check the data wire goes to the pin set in Config > LED pixels (GPIO 18 unless you changed it) and that the
+  1. Check the data wire goes to the pin set in Config > Physical display > LED pixels (GPIO 18 unless you changed it) and that the
      strip shares a ground with the Pi.
   2. Run a test pattern: choose the **Chase** visualizer on the Home page (it lights each LED in turn), or turn on
-     **Test pattern on startup** in Config (it runs a rainbow comet along the strip once, right away).
-  3. If red and green are swapped, change **Color order** in Config > LED pixels (GRB or RGB) and restart.
+     **Startup sequence** in Config > Physical display (turning it on plays it along the strip once, right away).
+  3. If red and green are swapped, change **Color order** in Config > Physical display > LED pixels (GRB or RGB) and restart.
 - **OLED screen stays blank**: `sudo i2cdetect -y 1` should show the screen at address `3c`. If it shows nothing,
   check the wiring, and that I2C is on (`sudo raspi-config`, Interface Options).
 - **An airport's LED is off**: it hasn't reported in the last 5 hours, or its code is wrong. The METARs page shows
@@ -363,7 +363,7 @@ and the web UI (including the live Map page and its OLED window) works as usual 
   version
 
 For testing on a real map, set `"dev_mode": true` in `config.json` by hand (stop the map first). Then **Config >
-Software > Update to** offers **Branch**, to install a branch you pushed to GitHub (**Check now** refreshes the list),
+System > Software > Update to** offers **Branch**, to install a branch you pushed to GitHub (**Check now** refreshes the list),
 and every row on **Config > Airports** gets a **Mock METAR** field: paste a raw METAR and it replaces that airport's
 real report on the LEDs and everywhere else, until you clear it. Mocked airports are marked `mock` on the web pages.
 
