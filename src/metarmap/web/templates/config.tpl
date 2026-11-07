@@ -369,7 +369,7 @@
 
     <section class="card settings" id="speech">
         <h2>Spoken weather</h2>
-        <p class="muted" style="margin: 0; padding: 0 24px 6px; font-size: 13px">Airports' METARs read aloud, ATIS style: the Remote page's AWOS tab, and <code>/api/speak/&lt;code&gt;.audio</code>. A speech server on another computer reads them; the map keeps each one until the next METAR.</p>
+        <p class="muted" style="margin: 0; padding: 0 24px 6px; font-size: 13px">Airports' METARs read aloud, as an AWOS reads them: the Remote page's AWOS tab, and <code>/api/speak/&lt;code&gt;.audio</code>. A speech server on another computer reads them; the map keeps each one until the next METAR.</p>
         % s = d.speech
         % switch('speech.enabled', s.enabled, 'Enable speech', 'Read METARs aloud: AWOS buttons on the METARs page and an AWOS tab on the Remote page.')
         <div class="sub" data-when="speech-enabled"{{!'' if s.enabled else ' hidden'}}>

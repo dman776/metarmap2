@@ -228,7 +228,7 @@ case-insensitive; an airport that isn't on the map is a 404.
 
 ### `GET /api/speak/<code>`, `GET /api/speak`
 
-An airport's METAR as text to be read aloud, ATIS style, for text to speech (`text/plain`). No authentication. The code is
+An airport's METAR as text to be read aloud as an AWOS reads it, for text to speech (`text/plain`). No authentication. The code is
 case-insensitive; an airport that isn't on the map is a 404. `/api/speak` gives every airport on the map as JSON,
 `{code: text}`, in the map's order.
 
