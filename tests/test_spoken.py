@@ -37,19 +37,19 @@ def test_a_whole_report():
         flight_category="MVFR",
     )
     assert spoken.spoken(metar, "Houston/Hobby Arpt, TX, US", "KHOU") == (
-        "Houston Hobby Airport. Weather at zero zero five three Zulu. "
-        "Wind one three zero at one three, gusting one nine. Visibility one zero. "
+        "Houston Hobby Airport. Weather at zero zero five tree Zulu. "
+        "Wind one tree zero at one tree, gusting one niner. Visibility one zero. "
         "Weather light rain and mist. Lightning observed. "
-        "Sky condition few clouds at four thousand nine hundred, ceiling eight thousand broken, "
+        "Sky condition few clouds at four thousand niner hundred, ceiling eight thousand broken, "
         "overcast at twelve thousand. "
-        "Temperature two one, dew point one six. Altimeter three zero zero five. Marginal V F R."
+        "Temperature two one, dew point one six. Altimeter tree zero zero five. Marginal VFR."
     )
 
 
 def test_a_plain_report():
     assert spoken.spoken(report(), "Hooks", "KDWH") == (
-        "Hooks. Weather at zero zero five three Zulu. Wind one three zero at eight. Visibility one zero. Sky clear. "
-        "Temperature two one, dew point one six. Altimeter three zero zero five. V F R."
+        "Hooks. Weather at zero zero five tree Zulu. Wind one tree zero at eight. Visibility one zero. Sky clear. "
+        "Temperature two one, dew point one six. Altimeter tree zero zero five. VFR."
     )
 
 
@@ -62,7 +62,7 @@ def test_missing_values_are_said_to_be_missing():
     metar = Report(obs_time=OBS)
     text = spoken.spoken(metar, "Hooks", "KDWH")
     assert text == (
-        "Hooks. Weather at zero zero five three Zulu. Wind not reported. Visibility not reported. "
+        "Hooks. Weather at zero zero five tree Zulu. Wind not reported. Visibility not reported. "
         "Sky condition not reported. Temperature not reported, dew point not reported. Altimeter not reported."
     )  # and no category to say
 
@@ -78,8 +78,8 @@ def test_no_time():
         (dict(wind_speed=None), "Wind not reported."),
         (dict(wind_dir="VRB", wind_speed=4), "Wind variable at four."),
         (dict(wind_dir="VRB", wind_speed=12, wind_gust_speed=20), "Wind variable at one two, gusting two zero."),
-        (dict(wind_dir="90", wind_speed=5), "Wind zero nine zero at five."),
-        (dict(wind_dir="360", wind_speed=22, wind_gust_speed=31), "Wind three six zero at two two, gusting three one."),
+        (dict(wind_dir="90", wind_speed=5), "Wind zero niner zero at five."),
+        (dict(wind_dir="360", wind_speed=22, wind_gust_speed=31), "Wind tree six zero at two two, gusting tree one."),
     ],
 )
 def test_wind(fields, text):
@@ -94,10 +94,10 @@ def test_wind(fields, text):
         (7, False, "Visibility seven."),
         (1.5, False, "Visibility one and one half."),
         (0.25, False, "Visibility one quarter."),
-        (0.75, False, "Visibility three quarters."),
+        (0.75, False, "Visibility tree quarters."),
         (2.5, False, "Visibility two and one half."),
         (0.0625, False, "Visibility one sixteenth."),
-        (0.375, False, "Visibility three eighths."),
+        (0.375, False, "Visibility tree eighths."),
         (0, False, "Visibility zero."),
         (None, False, "Visibility not reported."),
     ],
@@ -123,16 +123,16 @@ def test_weather():
         ((SkyLayer("CLR"),), None, "Sky clear."),
         ((SkyLayer("SKC"),), None, "Sky clear."),
         ((SkyLayer("FEW", 5000),), None, "Sky condition few clouds at five thousand."),
-        ((SkyLayer("SCT", 3800),), None, "Sky condition scattered at three thousand eight hundred."),
+        ((SkyLayer("SCT", 3800),), None, "Sky condition scattered at tree thousand eight hundred."),
         ((SkyLayer("OVC", 800),), None, "Sky condition ceiling eight hundred overcast."),
         (
             (SkyLayer("SCT", 4300), SkyLayer("BKN", 8000), SkyLayer("OVC", 12000)),
             None,
-            "Sky condition scattered at four thousand three hundred, ceiling eight thousand broken, "
+            "Sky condition scattered at four thousand tree hundred, ceiling eight thousand broken, "
             "overcast at twelve thousand.",
         ),
         ((SkyLayer("BKN", 25000),), None, "Sky condition ceiling twenty five thousand broken."),
-        ((SkyLayer("OVX"),), 300, "Sky obscured, vertical visibility three hundred."),
+        ((SkyLayer("OVX"),), 300, "Sky obscured, vertical visibility tree hundred."),
         ((SkyLayer("OVX"),), None, "Sky obscured."),
         ((SkyLayer("BKN"),), None, "Sky condition broken."),  # no base reported
     ],
@@ -145,7 +145,7 @@ def test_sky(layers, vert, text):
     "temp, dew, text",
     [
         (21, 16, "Temperature two one, dew point one six."),
-        (-3, -8, "Temperature minus three, dew point minus eight."),
+        (-3, -8, "Temperature minus tree, dew point minus eight."),
         (0, -1, "Temperature zero, dew point minus one."),
         (5, None, "Temperature five, dew point not reported."),
         (None, 4, "Temperature not reported, dew point four."),
@@ -156,18 +156,18 @@ def test_temperature(temp, dew, text):
 
 
 def test_altimeter():
-    assert spoken.altimeter(30.05) == "Altimeter three zero zero five."
-    assert spoken.altimeter(29.92) == "Altimeter two nine nine two."
+    assert spoken.altimeter(30.05) == "Altimeter tree zero zero five."
+    assert spoken.altimeter(29.92) == "Altimeter two niner niner two."
     assert spoken.altimeter(None) == "Altimeter not reported."
 
 
-@pytest.mark.parametrize("category, text", [("IFR", "I F R."), ("LIFR", "Low I F R."), ("MVFR", "Marginal V F R.")])
+@pytest.mark.parametrize("category, text", [("IFR", "IFR."), ("LIFR", "Low IFR."), ("MVFR", "Marginal VFR.")])
 def test_flight_category(category, text):
     assert spoken.spoken(report(flight_category=category), "Hooks").endswith(" " + text)
 
 
 def test_no_flight_category_is_left_out():
-    assert spoken.spoken(report(flight_category=None), "Hooks").endswith("Altimeter three zero zero five.")
+    assert spoken.spoken(report(flight_category=None), "Hooks").endswith("Altimeter tree zero zero five.")
 
 
 @pytest.mark.parametrize(
@@ -200,13 +200,13 @@ def test_numbers():
         "ten",
         "nineteen",
         "twenty",
-        "forty nine",
-        "ninety nine",
+        "forty niner",
+        "ninety niner",
     ]
-    assert spoken.digits(130) == "one three zero"
-    assert spoken.digits("0053") == "zero zero five three"
+    assert spoken.digits(130) == "one tree zero"
+    assert spoken.digits("0053") == "zero zero five tree"
     assert spoken.digits(-8) == "eight"
-    assert spoken.altitude(4900) == "four thousand nine hundred"
+    assert spoken.altitude(4900) == "four thousand niner hundred"
     assert spoken.altitude(800) == "eight hundred"
     assert spoken.altitude(12000) == "twelve thousand"
     assert spoken.altitude(4950) == "five thousand"  # to the nearest hundred (banker's rounding: 4950 -> 5000)
