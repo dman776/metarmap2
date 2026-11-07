@@ -1,5 +1,5 @@
 """
-A METAR as it would be read aloud, ATIS style, for text to speech:
+A METAR as an AWOS would read it aloud, for text to speech:
 
     David Wayne Hooks Memorial. Weather at zero zero five tree Zulu. Wind not reported. Visibility one zero. Sky
     condition few clouds at four thousand niner hundred, few clouds at seven thousand five hundred. Temperature two

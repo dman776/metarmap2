@@ -248,9 +248,10 @@ release, `git pull` says it isn't on a branch: `git checkout master` first (or p
 
 ## Spoken weather
 
-The map can read an airport's METAR aloud, ATIS style: an **AWOS** button beside each airport on the METARs page, an
-**AWOS** tab on the Remote page, and `http://metarmap.local/api/speak/KHOU.audio` for anything else (`/api/speak/KHOU`
-shows the words). It's off until you turn it on.
+The map can read an airport's METAR aloud, as an AWOS does: an **AWOS** button beside each airport on the METARs
+page, an **AWOS** tab on the Remote page, and `http://metarmap.local/api/speak/KHOU.audio` for anything else
+(`/api/speak/KHOU` shows the words). It's off until you turn it on. It's for fun, not for flight planning: listen to
+the airport's own AWOS, ASOS or ATIS for that.
 
 A speech server on another computer reads the reports; the map sends it the words and keeps the audio it gets back,
 so even a Pi Zero W can do it. Two kinds work:

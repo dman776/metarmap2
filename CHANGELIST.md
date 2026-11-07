@@ -2,7 +2,7 @@
 
 - **`/api/live` says whether the map can speak** (`speech`): true with spoken weather on and a server set, so the
   touchscreen remote offers hold-to-hear only then
-- **Spoken weather sounds more like ATIS**:
+- **Spoken weather sounds more like an AWOS**:
   - Flight categories as words: "VFR", "Marginal VFR", "IFR", "Low IFR" instead of "V F R", so the voice doesn't
     pause between the letters
   - Aviation digits: "tree" for 3 and "niner" for 9 ("altimeter tree zero zero five", "wind two niner zero"); teens
