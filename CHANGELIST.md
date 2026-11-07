@@ -1,3 +1,8 @@
+### Unreleased
+
+- **`/api/live` says whether the map can speak** (`speech`): true with spoken weather on and a server set, so the
+  touchscreen remote offers hold-to-hear only then
+
 ### dman776 26.11.07 (2026-11-07)
 
 - **A METAR as text to be read aloud** (`/api/speak/<code>` and `/api/speak`): ATIS style, with every number spelled

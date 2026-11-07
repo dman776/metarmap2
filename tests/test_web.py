@@ -716,6 +716,25 @@ def test_live(services):
     assert api.live(services)["display"] == {"enabled": False, "on": False, "screen": None}
 
 
+def test_live_says_whether_the_map_can_speak(services):
+    """The touchscreen remote offers hold-to-hear only then: speech on, with a server set for its engine."""
+    from metarmap.speech import Speech
+
+    speech = services.config.data.speech
+    assert api.live(services)["speech"] is False  # off by default
+    services.speech = Speech(lambda: speech)
+    speech.enabled = True
+    assert api.live(services)["speech"] is False  # no server yet
+    speech.wyoming_host = "192.168.0.14"
+    assert api.live(services)["speech"] is True
+    speech.engine = "kokoro"
+    assert api.live(services)["speech"] is False  # Kokoro's address isn't set
+    speech.kokoro_url = "http://192.168.0.164:8880"
+    assert api.live(services)["speech"] is True
+    speech.enabled = False
+    assert api.live(services)["speech"] is False
+
+
 def test_live_places_airports_without_a_report(services):
     """The Map page shows them as open rings, so they need a position from the station lookup."""
     kdkr = next(led for led in api.live(services)["leds"] if led["code"] == "KDKR")

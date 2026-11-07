@@ -168,7 +168,8 @@ What the physical map is doing right now. The Map page polls it every second. No
     "screen": { "airport": "KGLS", "title": "KGLS", "virtual": false, "badge": "LIFR", "page": 1,
                 "lines": [ { "icon": "wind", "text": "150@08" }, { "icon": "visibility", "text": "1SM" },
                            { "icon": "pressure", "text": "29.98" } ] }
-  }
+  },
+  "speech": true
 }
 ```
 
@@ -184,6 +185,7 @@ What the physical map is doing right now. The Map page polls it every second. No
 | `visualizer.legendInUse` | The `key`s of the legend entries the LEDs (and virtual airports) show now, in the legend's order (see `/api/status`'s `visualizer.legend`); `null` for a whole-strip visualizer (Rainbow, Chase), whose legend is always shown whole. Follows the LEDs: a fetch, an airport change or a different visualizer changes it |
 | `visualizer.legendInUseOnly` | The `visualizer.legend_in_use_only` setting: whether the web pages list only those entries |
 | `strip` | Set when one effect drives the whole strip instead: `rainbow` (`period`) or `chase` (`step`, `size`, `spacing`). The virtual airports keep their own `look` meanwhile: the same rainbow, or `off` for a chase (a wiring check). |
+| `speech` | Whether spoken weather can be asked for (`/api/speak/<code>.audio`): `speech.enabled` on, with a server set for `speech.engine`. The METARs page's AWOS buttons, the Remote page's AWOS tab and the touchscreen remote's hold-to-hear show only then |
 | `locate` | The last white locate pulse: LED `pixel` and Unix time `at`. `null` until the first one. A virtual airport's pulse is only shown on the Map page. |
 | `display.on` | Whether the screen is showing; `false` after `/display/off` (then `screen` is `null`) |
 | `display.screen` | What the OLED shows. `badge` is the flight category, with a `*` after one that's estimated from the visibility and ceiling (`VFR*`). `virtual` is true for a virtual airport, whose code is in a dashed box. `page` is 1 or 2 for an airport, 0 for "Data Unavailable" or a message (then `airport` is `null`). Icons: `wind`, `visibility`, `pressure`, `temp`, `dewpoint`, `date`. |
