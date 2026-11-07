@@ -189,11 +189,12 @@
     }
     window.metarmapOutput = showOutput;
 
-    // range inputs with a live label: <input type=range data-label="id" data-format="pct|sec">
+    // range inputs with a live label: <input type=range data-label="id" data-format="pct|sec|x">
     document.querySelectorAll('input[type=range][data-label]').forEach(function (r) {
         const out = document.getElementById(r.dataset.label);
         const fmt = function (v) {
-            return r.dataset.format === 'pct' ? Math.round(v * 100) + '%' : v + ' s';
+            if (r.dataset.format === 'pct') return Math.round(v * 100) + '%';
+            return r.dataset.format === 'x' ? v + '×' : v + ' s';  // x: a speed, 1.25×
         };
         r.addEventListener('input', function () { if (out) out.textContent = fmt(r.value); });
     });
@@ -296,7 +297,8 @@
     // config settings: <input data-key="a.b" data-restart> / <select data-key>
     document.querySelectorAll('[data-key]').forEach(function (el) {
         el.addEventListener('change', async function () {
-            const value = el.type === 'checkbox' ? el.checked : el.value;
+            let value = el.type === 'checkbox' ? el.checked : el.value;
+            if (value === '' && el.dataset.empty) value = el.dataset.empty;  // a URL can't end in nothing: "-" is empty
             try {
                 await call('/config/edit/' + el.dataset.key + '/' + encodeURIComponent(value));
                 if (el.hasAttribute('data-restart')) {
@@ -308,6 +310,35 @@
             }
         });
     });
+
+    // Config > System > Spoken weather: Test plays an airport's report here, or says why it can't
+    const speechTest = document.getElementById('speech-test');
+    if (speechTest) {
+        const result = document.getElementById('speech-test-result');
+        const idle = result.textContent;
+        let player = null;
+        speechTest.addEventListener('click', async function () {
+            if (player) player.pause();
+            const url = '/api/speak/' + encodeURIComponent(speechTest.dataset.code) + '.audio';
+            busy(speechTest, true);
+            const engine = document.getElementById('speech-engine');
+            result.textContent = engine && engine.value === 'kokoro' ? 'Asking Kokoro...' : 'Asking Home Assistant...';
+            result.classList.remove('bad');
+            try {
+                const res = await fetch(url, {cache: 'no-store'});
+                if (!res.ok) throw new Error((await res.text()).trim() || res.status + ' ' + res.statusText);
+                player = new Audio(URL.createObjectURL(await res.blob()));
+                player.addEventListener('ended', function () { result.textContent = idle; });
+                await player.play();
+                result.textContent = 'Playing...';
+            } catch (err) {
+                result.textContent = err.name === 'NotAllowedError' ? 'The browser blocked sound: press Play again' : String(err.message || err);
+                result.classList.add('bad');
+            } finally {
+                busy(speechTest, false);
+            }
+        });
+    }
 
     // Config tabs: #physical, #visualizers, ... show one panel; the address keeps the tab, and the last one is
     // remembered for the next visit. Airports is its own page (/config/airports).
@@ -338,13 +369,15 @@
         showTab(location.hash.slice(1) || remembered);
     }
 
-    // Config: settings nested under another, <div class="sub" data-when="control-id" [data-when-value="v"]>, show
-    // while its switch is on (or its select has that value). The page is drawn with them already shown or hidden.
+    // Config: settings nested under another, <div class="sub" data-when="control-id" [data-when-value="v" |
+    // data-when-filled]>, show while its switch is on (or its select has that value, or its text box has something).
+    // The page is drawn with them already shown or hidden.
     document.querySelectorAll('[data-when]').forEach(function (group) {
         const control = document.getElementById(group.dataset.when);
         if (!control) return;
         const update = function () {
-            group.hidden = 'whenValue' in group.dataset ? control.value !== group.dataset.whenValue : !control.checked;
+            if ('whenFilled' in group.dataset) group.hidden = !control.value.trim();  // a text box that has something
+            else group.hidden = 'whenValue' in group.dataset ? control.value !== group.dataset.whenValue : !control.checked;
         };
         control.addEventListener('change', update);
     });
@@ -481,6 +514,62 @@
             }
         });
     });
+
+    // METARs page: AWOS plays an airport's report here (/api/speak/<code>.audio, from the speech server). Another
+    // airport switches to it; the one playing again stops. The sound starts in the press itself (a phone only lets
+    // a page play sound in answer to a touch); if it can't play, the map says why.
+    const awosAudio = document.getElementById('awos-audio');
+    if (awosAudio) {
+        let playing = null;  // the button whose report is playing (or loading)
+        const reset = function () {
+            if (!playing) return;
+            playing.setAttribute('aria-pressed', 'false');
+            playing.classList.remove('loading');
+            playing = null;
+        };
+        const stop = function () {
+            awosAudio.pause();
+            awosAudio.removeAttribute('src');
+            awosAudio.load();
+            reset();
+        };
+        const failed = async function (btn, err) {
+            const code = btn.dataset.awos;
+            let why = 'It could not be played.';
+            try {
+                const res = await fetch('/api/speak/' + encodeURIComponent(code) + '.audio', {cache: 'no-store'});
+                if (!res.ok) why = (await res.text()).trim() || why;
+                else if (err && err.name === 'NotAllowedError') why = 'The browser blocked sound: press AWOS again.';
+            } catch (e) {
+                why = "Can't reach the map.";
+            }
+            if (playing !== btn) return;  // switched or stopped meanwhile
+            stop();
+            showOutput(code + ': no spoken weather', why);
+        };
+        document.querySelectorAll('[data-awos]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                if (playing === btn) {
+                    stop();
+                    return;
+                }
+                reset();
+                playing = btn;
+                btn.setAttribute('aria-pressed', 'true');
+                btn.classList.add('loading');
+                awosAudio.src = '/api/speak/' + encodeURIComponent(btn.dataset.awos) + '.audio';
+                const started = awosAudio.play();
+                if (started) started.catch(function (err) {
+                    if (err.name !== 'AbortError' && playing === btn) failed(btn, err);
+                });
+            });
+        });
+        awosAudio.addEventListener('playing', function () { if (playing) playing.classList.remove('loading'); });
+        awosAudio.addEventListener('ended', stop);
+        awosAudio.addEventListener('error', function () {
+            if (playing && awosAudio.getAttribute('src')) failed(playing, awosAudio.error);
+        });
+    }
 
     // METAR list: category filter + search
     const rows = document.querySelectorAll('[data-station]');

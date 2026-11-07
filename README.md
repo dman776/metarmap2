@@ -246,6 +246,39 @@ git checkout v2.9.0      # the release you want
 Running `./install.sh` after an update also installs any new packages the map needs. On a map that has installed a
 release, `git pull` says it isn't on a branch: `git checkout master` first (or pick **Latest commit** above).
 
+## Spoken weather
+
+The map can read an airport's METAR aloud, ATIS style: an **AWOS** button beside each airport on the METARs page, an
+**AWOS** tab on the Remote page, and `http://metarmap.local/api/speak/KHOU.audio` for anything else (`/api/speak/KHOU`
+shows the words). It's off until you turn it on.
+
+A speech server on another computer reads the reports; the map sends it the words and keeps the audio it gets back,
+so even a Pi Zero W can do it. Two kinds work:
+- **Piper in Home Assistant** (free, offline): install the **Piper** add-on, then in **Settings > Add-ons > Piper >
+  Configuration > Network** set the port to `10200` and save (add-ons don't open their ports to your network until
+  you do). The map talks to it over the Wyoming protocol, as Home Assistant does; any
+  [wyoming-piper](https://github.com/rhasspy/wyoming-piper) server works the same way.
+- **[Kokoro](https://github.com/remsky/Kokoro-FastAPI)** (Kokoro-FastAPI, free, runs on your own computer): its
+  address and port, e.g. `http://192.168.0.164:8880`.
+
+Then on the map: **Config > System > Spoken weather**, turn on **Enable speech**, pick the server and fill in its
+address. **Test** plays the first airport's report there and then, or says what's wrong.
+
+The first time an airport is asked for, the server takes a few seconds to make its report; after that the map keeps
+it until the next METAR, so playing it again is instant.
+
+Settings (`speech` in `config.json`):
+- `enabled`: spoken weather on or off (off by default; the rest is kept while it's off)
+- `engine`: `wyoming` (Piper, e.g. Home Assistant's) or `kokoro`
+- `wyoming_host`, `wyoming_port`, `wyoming_voice`: Home Assistant's address, `10200`, and a Piper voice such as
+  `en_US-lessac-medium` or `en_US-ryan-high` (empty: the add-on's own; Home Assistant downloads a voice the first time
+  it's asked for)
+- `kokoro_url`, `kokoro_voice`, `kokoro_speed`: the Kokoro server, a voice such as `af_heart` or `bm_george`, and how
+  fast it reads (0.5 to 2)
+
+If `/api/speak/<code>.audio` answers with an error, it says why: speech is off, no server is set, the server can't be
+reached (for Home Assistant, check the add-on's port), or the server's own reason, such as a voice it doesn't have.
+
 ## Web API, Home Assistant and the touchscreen remote
 
 `GET /api/status` returns the map's state as JSON. The web UI's controls are plain HTTP requests too, so scripts and

@@ -66,7 +66,7 @@ class Client:
     def __init__(self, app):
         self.app = app
 
-    def __call__(self, path, method="GET", auth=True, body=None):
+    def __call__(self, path, method="GET", auth=True, body=None, headers=None):
         data = json.dumps(body).encode() if body is not None else b""
         environ = {
             "REQUEST_METHOD": method,
@@ -81,6 +81,8 @@ class Client:
             "CONTENT_LENGTH": str(len(data)),
             "CONTENT_TYPE": "application/json",
         }
+        for name, value in (headers or {}).items():
+            environ["HTTP_" + name.upper().replace("-", "_")] = value
         if auth is True:
             environ["HTTP_AUTHORIZATION"] = AUTH
         elif auth:
@@ -93,7 +95,7 @@ class Client:
 
         result = self.app(environ, start_response)
         try:
-            body = b"".join(result).decode()
+            body = b"".join(result).decode(errors="replace")  # binary bodies (audio) too
         finally:
             if hasattr(result, "close"):
                 result.close()  # as a WSGI server does: a static file's body is an open file
@@ -842,6 +844,164 @@ def test_metar_route(services):
     c = Client(create_app(services, ip=""))
     assert c.json("/api/metar/khou", auth=False)["code"] == "KHOU"
     assert c("/api/metar/KXXX", auth=False)[0] == 404
+
+
+def test_speak_routes(services):
+    c = Client(create_app(services, ip=""))
+    status, body = c("/api/speak/khou", auth=False)
+    assert status == 200 and c.headers["Content-Type"] == "text/plain; charset=utf-8"
+    assert body.startswith("Hobby. Weather at") and "Lightning observed." in body
+    assert c("/api/speak/KXXX", auth=False)[0] == 404
+    everything = c.json("/api/speak", auth=False)
+    assert list(everything) == ["KHOU", "KIAH", "KDKR"]  # the map's order, the empty LED skipped
+    assert everything["KHOU"] == body
+    assert everything["KIAH"].startswith("K I A H. ")  # no name: its letters
+    assert everything["KDKR"] == "Crockett. No weather report is available."
+
+
+def test_speak_audio(services):
+    from metarmap import speech as speech_module
+    from metarmap.settings import SpeechSettings
+    from metarmap.speech import Speech
+
+    settings = SpeechSettings(enabled=True)
+    texts = []
+
+    def connect(address, timeout=None):
+        class Socket:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+            def sendall(self, data):
+                texts.append(speech_module.read_wyoming_event(io.BytesIO(data))[1]["text"])
+
+            def makefile(self, mode):
+                fmt = {"rate": 16000, "width": 2, "channels": 1}
+                return io.BytesIO(
+                    speech_module.wyoming_event("audio-start", fmt)
+                    + speech_module.wyoming_event("audio-chunk", fmt, b"\x01\x02" * 50)
+                    + speech_module.wyoming_event("audio-stop")
+                )
+
+        return Socket()
+
+    services.speech = Speech(lambda: settings, connect=connect)
+    c = Client(create_app(services, ip=""))
+    status, body = c("/api/speak/khou.audio", auth=False)
+    assert status == 503 and "speech.wyoming_host" in body  # no server set yet
+    settings.wyoming_host = "192.168.0.14"
+    status, body = c("/api/speak/khou.audio", auth=False)
+    assert status == 200 and c.headers["Content-Type"] == "audio/wav" and body.startswith("RIFF")
+    assert texts == [c("/api/speak/KHOU", auth=False)[1]]  # what the text route says
+    # Safari (iPad) plays an <audio> only from ranges: bytes 0-1 first, then the rest; the cache answers them
+    status, part = c("/api/speak/khou.audio", auth=False, headers={"Range": "bytes=0-1"})
+    assert status == 206 and part == "RI" and c.headers["Content-Range"] == f"bytes 0-1/{len(body)}"
+    assert c.headers["Accept-Ranges"] == "bytes"
+    status, rest = c("/api/speak/khou.audio", auth=False, headers={"Range": "bytes=2-"})
+    assert status == 206 and "RI" + rest == body and len(texts) == 1
+    assert c("/api/speak/khou.audio", auth=False, headers={"Range": f"bytes={len(body)}-"})[0] == 416
+    assert c("/api/speak/KXXX.audio", auth=False)[0] == 404
+
+
+def test_the_remote_has_an_awos_tab_with_a_server(client):
+    """Only once there's a Piper server to read the reports: then a button per airport, in the map's order."""
+    page = client("/remote")[1]
+    assert 'id="tab-awos"' not in page and 'id="awos"' not in page
+    client.services.config.data.speech.enabled = True
+    client.services.config.data.speech.wyoming_host = "192.168.0.14"
+    page = client("/remote")[1]
+    assert 'id="tab-awos"' in page and 'id="r-speak-audio"' in page
+    codes = [a.code for a in client.services.config.airports if a.code]
+    assert re.findall(r'data-speak="([A-Z0-9]+)"', page) == codes
+    assert "data-call=" not in page.split('id="awos"')[1].split("</section>")[0]  # speech only: no locate
+
+
+def test_config_has_a_spoken_weather_section(client):
+    page = client("/config")[1]
+    assert 'id="speech"' in page and 'data-key="speech.wyoming_host"' in page and 'data-empty="-"' in page
+    assert '<option value="en_US-lessac-medium">' in page
+    first = next(a.code for a in client.services.config.airports if a.code)
+    assert f'id="speech-test" data-code="{first}"' in page
+
+
+def test_a_dash_empties_the_speech_server_and_voice(client):
+    """A URL can't end in nothing, so the page sends "-" for an emptied box (as the Airports page does)."""
+    assert client("/config/edit/speech.wyoming_host/192.168.0.14")[0] == 200
+    assert client("/config/edit/speech.wyoming_voice/en_US-ryan-high")[0] == 200
+    assert client("/config/edit/speech.wyoming_host/-")[0] == 200
+    assert client("/config/edit/speech.wyoming_voice/-")[0] == 200
+    speech = client.services.config.data.speech  # a save reads config.json back, so look it up now
+    assert (speech.wyoming_host, speech.wyoming_voice) == ("", "")
+
+
+def test_kokoro_settings(client):
+    assert client("/config/edit/speech.engine/kokoro")[0] == 200
+    assert client("/config/edit/speech.kokoro_url/192.168.0.164:8880")[0] == 200  # http:// is added
+    assert client.services.config.data.speech.kokoro_url == "http://192.168.0.164:8880"
+    assert client("/config/edit/speech.kokoro_url/http://192.168.0.164:8880/")[0] == 200  # a / is dropped
+    assert client.services.config.data.speech.kokoro_url == "http://192.168.0.164:8880"
+    assert client("/config/edit/speech.kokoro_url/ftp://x")[0] == 400
+    assert client("/config/edit/speech.kokoro_url/-")[0] == 200
+    assert client.services.config.data.speech.kokoro_url == ""
+    assert client("/config/edit/speech.kokoro_voice/bm_george")[0] == 200
+    assert client("/config/edit/speech.kokoro_voice/George!")[0] == 400
+    assert client("/config/edit/speech.kokoro_speed/1.25")[0] == 200
+    assert client("/config/edit/speech.kokoro_speed/5")[0] == 400
+    assert client("/config/edit/speech.engine/espeak")[0] == 400
+
+
+def test_the_awos_tab_follows_the_engine(client):
+    speech = client.services.config.data.speech
+    speech.enabled, speech.engine, speech.kokoro_url = True, "kokoro", "http://192.168.0.164:8880"
+    assert 'id="tab-awos"' in client("/remote")[1]
+    speech.engine = "wyoming"  # and no Home Assistant set
+    assert 'id="tab-awos"' not in client("/remote")[1]
+
+
+def test_config_shows_the_engines_settings(client):
+    page = client("/config")[1]
+    assert '<option value="wyoming" selected>' in page and '<option value="kokoro">' in page
+    assert 'data-when="speech-engine" data-when-value="kokoro" hidden' in page
+    assert '<option value="bm_george">' in page
+    client.services.config.data.speech.engine = "kokoro"
+    page = client("/config")[1]
+    assert 'data-when="speech-engine" data-when-value="wyoming" hidden' in page
+    assert 'data-when="speech-engine" data-when-value="kokoro">' in page
+
+
+def test_the_metars_page_has_awos_buttons_with_a_server(client):
+    page = client("/metars")[1]
+    assert "data-awos=" not in page and 'id="awos-audio"' not in page and "trow metar awos" not in page
+    client.services.config.data.speech.enabled = True
+    client.services.config.data.speech.wyoming_host = "192.168.0.14"
+    page = client("/metars")[1]
+    codes = [a.code for a in client.services.config.airports if a.code]
+    assert re.findall(r'data-awos="([A-Z0-9]+)"', page) == codes  # one beside each Locate
+    assert page.count('data-call="/locate/') == len(codes)
+    assert 'id="awos-audio"' in page and "trow metar head awos" in page
+
+
+def test_enable_speech_opens_the_settings(client):
+    speech = client.services.config.data.speech
+    speech.wyoming_host = "192.168.0.14"  # a server, but speech off
+    page = client("/config")[1]
+    assert 'data-key="speech.enabled"' in page
+    assert 'data-when="speech-enabled" hidden' in page  # the server settings wait for the switch
+    assert "data-awos=" not in client("/metars")[1] and 'id="tab-awos"' not in client("/remote")[1]
+    assert client("/config/edit/speech.enabled/true")[0] == 200
+    assert 'data-when="speech-enabled">' in client("/config")[1]
+    assert "data-awos=" in client("/metars")[1] and 'id="tab-awos"' in client("/remote")[1]
+
+
+def test_speech_settings(client):
+    assert client("/config/edit/speech.wyoming_host/192.168.0.14")[0] == 200
+    assert client("/config/edit/speech.wyoming_host/a%20b")[0] == 400
+    assert client("/config/edit/speech.wyoming_port/10201")[0] == 200
+    assert client("/config/edit/speech.wyoming_voice/en_US-lessac-medium")[0] == 200
+    assert client("/config/edit/speech.wyoming_voice/nonsense")[0] == 400
 
 
 def test_api_routes(services):

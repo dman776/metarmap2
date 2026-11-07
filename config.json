@@ -68,6 +68,16 @@
         "channel": "releases",
         "branch": ""
     },
+    "speech": {
+        "enabled": false,
+        "engine": "wyoming",
+        "wyoming_host": "",
+        "wyoming_port": 10200,
+        "wyoming_voice": "",
+        "kokoro_url": "",
+        "kokoro_voice": "af_heart",
+        "kokoro_speed": 1.0
+    },
     "dev_mode": false,
     "airports": [
         {

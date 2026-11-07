@@ -30,7 +30,7 @@
     </div>
     <div class="range">
         <input id="{{ident}}" type="range" min="{{lo}}" max="{{hi}}" step="{{step}}" value="{{val}}" data-key="{{key}}" data-label="{{ident}}-val" data-format="{{fmt}}"{{!' data-restart' if restart else ''}}>
-        <span class="val" id="{{ident}}-val">{{'%d%%' % round(val * 100) if fmt == 'pct' else '%g s' % val}}</span>
+        <span class="val" id="{{ident}}-val">{{'%d%%' % round(val * 100) if fmt == 'pct' else ('%g×' % val if fmt == 'x' else '%g s' % val)}}</span>
     </div>
 </div>
 % end
@@ -366,6 +366,69 @@
         % end
     </section>
     % end
+
+    <section class="card settings" id="speech">
+        <h2>Spoken weather</h2>
+        <p class="muted" style="margin: 0; padding: 0 24px 6px; font-size: 13px">Airports' METARs read aloud, ATIS style: the Remote page's AWOS tab, and <code>/api/speak/&lt;code&gt;.audio</code>. A speech server on another computer reads them; the map keeps each one until the next METAR.</p>
+        % s = d.speech
+        % switch('speech.enabled', s.enabled, 'Enable speech', 'Read METARs aloud: AWOS buttons on the METARs page and an AWOS tab on the Remote page.')
+        <div class="sub" data-when="speech-enabled"{{!'' if s.enabled else ' hidden'}}>
+        <div class="set">
+            <div><label class="t" for="speech-engine">Speech server</label><div class="d">Piper in Home Assistant, or a Kokoro server (Kokoro-FastAPI).</div></div>
+            <select id="speech-engine" data-key="speech.engine">
+                <option value="wyoming"{{!' selected' if s.engine == 'wyoming' else ''}}>Home Assistant (Piper)</option>
+                <option value="kokoro"{{!' selected' if s.engine == 'kokoro' else ''}}>Kokoro</option>
+            </select>
+        </div>
+
+        <div class="sub" data-when="speech-engine" data-when-value="wyoming"{{!'' if s.engine == 'wyoming' else ' hidden'}}>
+        <div class="set">
+            <div><label class="t" for="speech-host">Home Assistant</label><div class="d">Its address, e.g. 192.168.0.14. It needs the <b>Piper</b> add-on, with its port set to 10200 in the add-on's <b>Configuration &gt; Network</b>. Empty: no spoken weather.</div></div>
+            <input id="speech-host" type="text" value="{{s.wyoming_host}}" data-key="speech.wyoming_host" data-empty="-" placeholder="Not set" autocapitalize="none" spellcheck="false">
+        </div>
+        <div class="set">
+            <div><label class="t" for="speech-port">Port</label><div class="d">The Piper add-on's: 10200 unless you changed it.</div></div>
+            <input id="speech-port" type="text" inputmode="numeric" value="{{s.wyoming_port}}" data-key="speech.wyoming_port" style="width: 110px">
+        </div>
+        <div class="set">
+            <div><label class="t" for="speech-voice">Voice</label><div class="d">A Piper voice. Empty: the add-on's own. Home Assistant downloads a new one the first time, so its first report takes longer.</div></div>
+            <input id="speech-voice" type="text" list="speech-voices" value="{{s.wyoming_voice}}" data-key="speech.wyoming_voice" data-empty="-" placeholder="The add-on's own" autocapitalize="none" spellcheck="false">
+            <datalist id="speech-voices">
+                % for voice in speech_voices:
+                <option value="{{voice}}"></option>
+                % end
+            </datalist>
+        </div>
+        </div>
+
+        <div class="sub" data-when="speech-engine" data-when-value="kokoro"{{!'' if s.engine == 'kokoro' else ' hidden'}}>
+        <div class="set">
+            <div><label class="t" for="speech-kokoro-url">Kokoro server</label><div class="d">Its address and port, e.g. http://192.168.0.164:8880. Empty: no spoken weather.</div></div>
+            <input id="speech-kokoro-url" type="text" value="{{s.kokoro_url}}" data-key="speech.kokoro_url" data-empty="-" placeholder="Not set" autocapitalize="none" spellcheck="false">
+        </div>
+        <div class="set">
+            <div><label class="t" for="speech-kokoro-voice">Voice</label><div class="d">A Kokoro voice: af_ and am_ are American (female, male), bf_ and bm_ British.</div></div>
+            <input id="speech-kokoro-voice" type="text" list="kokoro-voices" value="{{s.kokoro_voice}}" data-key="speech.kokoro_voice" autocapitalize="none" spellcheck="false">
+            <datalist id="kokoro-voices">
+                % for voice in kokoro_voices:
+                <option value="{{voice}}"></option>
+                % end
+            </datalist>
+        </div>
+        % slider('speech.kokoro_speed', s.kokoro_speed, 'Speed', 'How fast it reads: 1 is normal.', lo=0.5, hi=2, step=0.05, fmt='x')
+        </div>
+
+        % if first_airport:
+        <div class="set">
+            <div><div class="t">Test</div><div class="d" id="speech-test-result">Plays {{first_airport}}'s weather here.</div></div>
+            <button class="btn" type="button" id="speech-test" data-code="{{first_airport}}">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
+                Play
+            </button>
+        </div>
+        % end
+        </div>
+    </section>
 
     <section class="card settings" id="access">
         <h2>Access</h2>

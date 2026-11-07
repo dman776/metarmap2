@@ -224,6 +224,41 @@ case-insensitive; an airport that isn't on the map is a 404.
 | `summary` | A few sentences about the weather, in this order, for what the report has: the flight category and what it means, the weather (e.g. `Light rain, mist`), `Lightning reported`, the wind, the ceiling (or the lowest clouds, or `Clear skies`), the density altitude (to the nearest 100 ft), a fog warning when the temperature and dewpoint are 2°C or less apart, and an icing warning between -20°C and 2°C with clouds or precipitation. Empty when the airport isn't reporting. |
 | `raw`, `flightCategory`, `obsTime` | `null` when the airport isn't reporting |
 
+### `GET /api/speak/<code>`, `GET /api/speak`
+
+An airport's METAR as text to be read aloud, ATIS style, for text to speech (`text/plain`). No authentication. The code is
+case-insensitive; an airport that isn't on the map is a 404. `/api/speak` gives every airport on the map as JSON,
+`{code: text}`, in the map's order.
+
+```
+David Wayne Hooks Memorial. Weather at zero zero five three Zulu. Wind not reported. Visibility one zero. Sky
+condition few clouds at four thousand nine hundred, few clouds at seven thousand five hundred. Temperature two one,
+dew point one six. Altimeter three zero zero five. V F R.
+```
+
+Everything is spelled out as words, so a speech model can't read a number two ways: digit by digit for the wind, the
+time, the temperature and the altimeter, in English for cloud heights and visibility fractions. In order: the
+airport's name (the map's own, else the station's, with `Rgnl`, `Muni`, `Intl`... written out; else its letters), the
+observation time in Zulu, the wind, the visibility, the weather, `Lightning observed`, the sky (the first broken or
+overcast layer is the `ceiling`), the temperature and dew point (`minus` below zero), the altimeter and the flight
+category. What the report leaves out is said to be `not reported`; an airport with no report says so.
+
+### `GET /api/speak/<code>.audio`
+
+The same text, read aloud, as WAV (`audio/wav`, 16-bit mono at the voice's rate: 16 or 22.05 kHz from Piper, 24 kHz
+from Kokoro). No authentication. With `speech.enabled` on, a speech server on another computer reads it
+(`speech.engine`): Piper over the Wyoming protocol, such as Home Assistant's Piper add-on (`speech.wyoming_host`), or
+Kokoro-FastAPI (`speech.kokoro_url`); README, *Spoken weather*. Each clip is kept until the airport's text changes,
+so asking again is instant.
+
+Errors are plain text saying why:
+
+| Status | Why |
+|---|---|
+| 404 | The airport isn't on the map |
+| 503 | Speech is off (`speech.enabled`), or no server is set for the engine |
+| 502 | The server couldn't be reached, or failed (its reason, e.g. a voice it doesn't have) |
+
 ### `GET /api/advisories`
 
 The G-AIRMETs and SIGMETs the Advisories visualizer shows, for the Map page's areas. No authentication. The map
@@ -421,6 +456,10 @@ Settings that apply right away:
 - `led.init_sequence`: the startup sequence: `comet` (a rainbow along the strip; the default), `center_out` (the map fades in from the middle of the box around the airports out to its edges), `edges_in` (from the edges in to the middle), `sweep` (across the map, from `led.init_sweep_from`), `radar` (a beam from north, clockwise) or `sparkle` (one LED at a time, in random order). All but `comet` fade each LED in to its visualizer color over 3 seconds. Changing it plays it once now
 - `led.init_sweep_from`: where `sweep` starts: `W` (west to east; the default), `NW`, `N`, `NE`, `E`, `SE`, `S` or `SW`. Changing it plays the sequence once now
 - `led.dim_on_refresh`: the LEDs fade to half their brightness while METARs are fetched (at least a second), then fade back
+- `speech.enabled`: spoken weather on or off (`/api/speak/<code>.audio`, and the AWOS buttons on the METARs and Remote pages)
+- `speech.engine`: the speech server: `wyoming` (Piper, e.g. Home Assistant's add-on) or `kokoro` (Kokoro-FastAPI)
+- `speech.wyoming_host`, `speech.wyoming_port`, `speech.wyoming_voice`: the Piper server (Home Assistant's address; port 10200) and the voice to ask it for (e.g. `en_US-lessac-medium`; empty: its own). An empty host or voice is sent as `-`
+- `speech.kokoro_url`, `speech.kokoro_voice`, `speech.kokoro_speed`: the Kokoro server (e.g. `/config/edit/speech.kokoro_url/192.168.0.164:8880`; `http://` is added), its voice (e.g. `af_heart`) and speed (0.5 to 2). An empty address is sent as `-`
 - `visualizer.active`, the default visualizer used at startup, by id (`/config/edit/visualizer.active/wind`); a number is taken too and saved as the id. An unknown one is a 400. Saving it doesn't change the visualizer that's running now; use `/visualizer/<id>` for that.
 - `visualizer.auto_rotate.enabled`
 - `visualizer.auto_rotate.delay_seconds` (the new delay starts counting when it's saved)

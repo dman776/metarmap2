@@ -1,5 +1,16 @@
-### Unreleased
+### dman776 26.11.07 (2026-11-07)
 
+- **A METAR as text to be read aloud** (`/api/speak/<code>` and `/api/speak`): ATIS style, with every number spelled
+  out as words ("wind one three zero at eight", "altimeter three zero zero five") so a text-to-speech voice can't
+  misread it, `not reported` for what a report leaves out, and the airport's name with its abbreviations written
+  out
+- **The METARs read aloud** (`/api/speak/<code>.audio`, optional; README: *Spoken weather*): turned on in
+  **Config > System > Spoken weather** (**Enable speech**), and read by a speech server on another computer, so a Pi
+  Zero W can do it: Piper in Home Assistant (its Piper add-on, over the Wyoming protocol) or Kokoro (Kokoro-FastAPI).
+  The section has each server's address and voice (and Kokoro's speed), and **Test** to hear one. Each clip is kept
+  until the next METAR
+  - **AWOS** buttons: beside each airport's Locate on the METARs page, and an AWOS tab on the Remote page; a press
+    plays the report in the browser, with the words on the Remote
 - **Home's Fetch METARs button counts down to the next fetch**: a ring (as on the Remote's auto-rotate) and the time
   left, in place of the button's icon. After a failed fetch it counts down to the retry (every minute). When the fetch
   has come, the page reloads with the new METARs
