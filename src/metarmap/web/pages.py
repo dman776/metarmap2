@@ -81,6 +81,7 @@ def remote(services: "App", site):
         brightness=services.renderer.pixels().brightness,
         auto_rotate=services.config.data.visualizer.auto_rotate.enabled,
         oled_on=services.display.on if services.config.data.display_screen.enabled else None,
+        speech=bool(services.config.data.speech.wyoming_host),  # the AWOS tab: only with a Piper server to read aloud
     )
 
 
@@ -100,6 +101,25 @@ def debug(services: "App", site):
         strip_look=renderer.strip_look,
         rows=list(enumerate(zip(services.metars.data, renderer.looks))),
     )
+
+
+# Spoken weather's voice list: English Piper voices that Home Assistant's add-on has (any other can be typed)
+SPEECH_VOICES = (
+    "en_US-lessac-low",
+    "en_US-lessac-medium",
+    "en_US-lessac-high",
+    "en_US-amy-medium",
+    "en_US-ryan-medium",
+    "en_US-ryan-high",
+    "en_US-joe-medium",
+    "en_US-john-medium",
+    "en_US-kristin-medium",
+    "en_US-hfc_female-medium",
+    "en_US-hfc_male-medium",
+    "en_GB-alan-medium",
+    "en_GB-cori-high",
+    "en_GB-jenny_dioco-medium",
+)
 
 
 def config(services: "App", site):
@@ -122,6 +142,8 @@ def config(services: "App", site):
         # the login user's password only changes on a Raspberry Pi with the map running as root
         linux_user=system.login_user() if system.can_set_login_password() else None,
         wifi=system.current_wifi(),
+        speech_voices=SPEECH_VOICES,
+        first_airport=next((a.code for a in services.config.airports if a.code), ""),  # Spoken weather's Test
     )
 
 

@@ -43,8 +43,10 @@
     const brt = document.getElementById('brightness');
     const brtLabel = document.getElementById('brt_label');
     const oled = document.getElementById('oled-on');
-    const tiles = {};
-    document.querySelectorAll('.r-apt').forEach(function (t) { tiles[t.dataset.pixel] = t; });
+    const tiles = {};  // the Locator's, by LED
+    document.querySelectorAll('#locator .r-apt').forEach(function (t) { tiles[t.dataset.pixel] = t; });
+    const speakTiles = {};  // the AWOS tab's, by LED
+    document.querySelectorAll('#awos .r-apt').forEach(function (t) { speakTiles[t.dataset.pixel] = t; });
 
     // ---- the Map tab: map.js, loaded when the tab first opens, then told the map's size each time it opens -----
     const mapEl = document.getElementById('map');
@@ -201,13 +203,13 @@
 
     function showAirports(leds, locate, now) {
         leds.forEach(function (led) {
-            const tile = tiles[led.pixel];
-            if (!tile) return;
             const cat = /^(VFR|MVFR|IFR|LIFR)$/.test(led.flightCategory || '') ? led.flightCategory : 'none';
-            if (tile.dataset.cat !== cat) {
-                tile.dataset.cat = cat;
-                tile.querySelector('.dot').className = 'dot ' + cat.toLowerCase();
-            }
+            [tiles[led.pixel], speakTiles[led.pixel]].forEach(function (tile) {
+                if (tile && tile.dataset.cat !== cat) {
+                    tile.dataset.cat = cat;
+                    tile.querySelector('.dot').className = 'dot ' + cat.toLowerCase();
+                }
+            });
         });
         if (locate && locate.at !== lastLocate) {
             const fresh = lastLocate !== null || now - locate.at < 2;  // not one from before the page loaded
@@ -271,6 +273,98 @@
     document.addEventListener('visibilitychange', function () {
         if (!document.hidden) { poll(); pollVersion(); }
     });
+
+    // ---- AWOS: an airport's METAR read aloud (/api/speak/<code>.audio, made by Home Assistant's Piper) ------------
+    // A press plays it here, in the browser; another airport switches to it; the one playing again (or Stop) stops.
+    // The audio is started in the press itself: a phone only lets a page play sound in answer to a touch.
+    const audio = document.getElementById('r-speak-audio');
+    if (audio) {
+        const bar = document.getElementById('r-speak-bar');
+        const codeEl = document.getElementById('r-speak-code');
+        const textEl = document.getElementById('r-speak-text');
+        const stopBtn = document.getElementById('r-speak-stop');
+        const idleText = textEl.textContent;
+        let current = null;  // the button being read
+        let words = null;  // its text, once it's come
+
+        function mark(btn, state) {  // state: 'loading', 'speaking' or null
+            btn.classList.toggle('loading', state === 'loading');
+            btn.classList.toggle('speaking', state === 'speaking');
+            btn.setAttribute('aria-pressed', state ? 'true' : 'false');
+        }
+        function showBar(code, text, state) {
+            codeEl.textContent = code || '';
+            textEl.textContent = text;
+            bar.dataset.state = state || '';
+            stopBtn.hidden = !code || state === 'error';
+        }
+        function stop(message) {
+            audio.pause();
+            audio.removeAttribute('src');
+            audio.load();  // drops what was loading
+            if (current) mark(current, null);
+            const code = current && current.dataset.speak;
+            current = null;
+            words = null;
+            if (message) showBar(code, message, 'error');
+            else showBar('', idleText, '');
+        }
+        function speak(btn) {
+            const code = btn.dataset.speak;
+            if (current === btn) {
+                stop();
+                return;
+            }
+            if (current) mark(current, null);
+            current = btn;
+            words = null;
+            mark(btn, 'loading');
+            showBar(code, 'Getting the weather...', 'loading');
+            audio.src = '/api/speak/' + encodeURIComponent(code) + '.audio';
+            const playing = audio.play();
+            if (playing) playing.catch(function (err) {
+                if (err.name !== 'AbortError' && current === btn) failed(btn, err);  // Abort: switched or stopped
+            });
+            fetch('/api/speak/' + encodeURIComponent(code), {cache: 'no-store'})
+                .then(function (res) { return res.ok ? res.text() : null; })
+                .then(function (text) {
+                    if (current !== btn || !text) return;
+                    words = text;
+                    if (btn.classList.contains('speaking')) showBar(code, words, 'speaking');
+                })
+                .catch(function () { /* the audio says it all */ });
+        }
+        // why it didn't play: the map says it in words (no server, or Home Assistant's Piper couldn't be reached)
+        async function failed(btn, err) {
+            let why = 'Could not play it';
+            try {
+                const res = await fetch('/api/speak/' + encodeURIComponent(btn.dataset.speak) + '.audio', {cache: 'no-store'});
+                if (!res.ok) why = (await res.text()).trim() || why;
+                else if (err && err.name === 'NotAllowedError') why = 'The browser blocked sound: press again';
+            } catch (e) {
+                why = "Can't reach the map";
+            }
+            if (current === btn) stop(why);
+        }
+        audio.addEventListener('playing', function () {
+            if (!current) return;
+            mark(current, 'speaking');
+            showBar(current.dataset.speak, words || 'Speaking...', 'speaking');
+        });
+        audio.addEventListener('ended', function () { stop(); });
+        audio.addEventListener('error', function () {
+            if (current && audio.getAttribute('src')) failed(current, audio.error);
+        });
+        document.querySelectorAll('[data-speak]').forEach(function (btn) {
+            btn.addEventListener('click', function () { speak(btn); });
+        });
+        stopBtn.addEventListener('click', function () { stop(); });
+        // the tab left (or the page hidden): quiet, as the reading is for the one looking
+        tabs.forEach(function (t) {
+            t.addEventListener('click', function () { if (t.dataset.tab !== 'awos' && current) stop(); });
+        });
+        document.addEventListener('visibilitychange', function () { if (document.hidden && current) stop(); });
+    }
 
     // ---- fullscreen: the browser's own; on an iPhone (none) add the page to the Home Screen instead -------------
     const full = document.querySelector('.r-full');

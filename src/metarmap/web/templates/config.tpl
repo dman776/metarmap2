@@ -367,6 +367,39 @@
     </section>
     % end
 
+    <section class="card settings" id="speech">
+        <h2>Spoken weather</h2>
+        <p class="muted" style="margin: 0; padding: 0 24px 6px; font-size: 13px">Airports' METARs read aloud, ATIS style: the Remote page's AWOS tab, and <code>/api/speak/&lt;code&gt;.audio</code>. The voice is Piper in Home Assistant: install its <b>Piper</b> add-on, and in the add-on's <b>Configuration &gt; Network</b> set the port to 10200.</p>
+        <div class="set">
+            <div><label class="t" for="speech-host">Home Assistant</label><div class="d">Its address, e.g. 192.168.0.14. Empty: no spoken weather.</div></div>
+            <input id="speech-host" type="text" value="{{d.speech.wyoming_host}}" data-key="speech.wyoming_host" data-empty="-" placeholder="Not set" autocapitalize="none" spellcheck="false">
+        </div>
+        <div class="sub" data-when="speech-host" data-when-filled{{!'' if d.speech.wyoming_host else ' hidden'}}>
+        <div class="set">
+            <div><label class="t" for="speech-port">Port</label><div class="d">The Piper add-on's: 10200 unless you changed it.</div></div>
+            <input id="speech-port" type="text" inputmode="numeric" value="{{d.speech.wyoming_port}}" data-key="speech.wyoming_port" style="width: 110px">
+        </div>
+        <div class="set">
+            <div><label class="t" for="speech-voice">Voice</label><div class="d">A Piper voice. Empty: the add-on's own. Home Assistant downloads a new one the first time, so its first report takes longer.</div></div>
+            <input id="speech-voice" type="text" list="speech-voices" value="{{d.speech.wyoming_voice}}" data-key="speech.wyoming_voice" data-empty="-" placeholder="The add-on's own" autocapitalize="none" spellcheck="false">
+            <datalist id="speech-voices">
+                % for voice in speech_voices:
+                <option value="{{voice}}"></option>
+                % end
+            </datalist>
+        </div>
+        % if first_airport:
+        <div class="set">
+            <div><div class="t">Test</div><div class="d" id="speech-test-result">Plays {{first_airport}}'s weather here.</div></div>
+            <button class="btn" type="button" id="speech-test" data-code="{{first_airport}}">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
+                Play
+            </button>
+        </div>
+        % end
+        </div>
+    </section>
+
     <section class="card settings" id="access">
         <h2>Access</h2>
         <form class="set access" data-form="/config/login" data-then="login" autocomplete="off">

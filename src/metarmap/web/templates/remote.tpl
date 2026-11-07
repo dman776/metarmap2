@@ -16,6 +16,12 @@
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
                 <span>Locator</span>
             </button>
+            % if speech:
+            <button class="r-tab" type="button" role="tab" id="tab-awos" aria-controls="awos" aria-selected="false" data-tab="awos">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+                <span>AWOS</span>
+            </button>
+            % end
         </div>
         <span class="host r-host" role="status" title="{{myIP}} · v{{version}}"><span>{{myIP}}</span></span>
         <button class="btn icon r-full" type="button" aria-label="Fullscreen" aria-pressed="false" hidden>
@@ -103,6 +109,32 @@
             % end
         </div>
     </section>
+
+    % if speech:
+    <section class="r-panel r-air" id="awos" role="tabpanel" aria-labelledby="tab-awos" hidden>
+        <!-- what's being read: the airport, then its words as they're spoken; Stop -->
+        <div class="r-speak-bar" id="r-speak-bar" role="status" aria-live="polite">
+            <span class="r-speak-code" id="r-speak-code"></span>
+            <span class="r-speak-text" id="r-speak-text">Press an airport to hear its weather</span>
+            <button class="btn" type="button" id="r-speak-stop" hidden>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+                Stop
+            </button>
+        </div>
+        <audio id="r-speak-audio" preload="none"></audio>
+        <div class="r-grid">
+            % for s in stations:
+            % cat = s['cat'] if s['cat'] in cats else 'none'
+            <button class="r-apt r-speak{{' virtual' if s['virtual'] else ''}}" type="button" data-speak="{{s['code']}}"
+                    data-cat="{{cat}}" data-pixel="{{s['pixel']}}" aria-label="Hear {{s['code']}}'s weather" title="{{s['name'] or s['code']}}">
+                <span class="dot {{cat.lower()}}"></span>
+                <b>{{s['code']}}</b>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
+            </button>
+            % end
+        </div>
+    </section>
+    % end
 </div>
 
 <script src="/static/remote.js?v={{assets}}"></script>

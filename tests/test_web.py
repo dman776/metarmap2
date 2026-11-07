@@ -897,13 +897,45 @@ def test_speak_audio(services):
     assert c("/api/speak/KXXX.audio", auth=False)[0] == 404
 
 
+def test_the_remote_has_an_awos_tab_with_a_server(client):
+    """Only once there's a Piper server to read the reports: then a button per airport, in the map's order."""
+    page = client("/remote")[1]
+    assert 'id="tab-awos"' not in page and 'id="awos"' not in page
+    client.services.config.data.speech.wyoming_host = "192.168.0.14"
+    page = client("/remote")[1]
+    assert 'id="tab-awos"' in page and 'id="r-speak-audio"' in page
+    codes = [a.code for a in client.services.config.airports if a.code]
+    assert re.findall(r'data-speak="([A-Z0-9]+)"', page) == codes
+    assert "data-call=" not in page.split('id="awos"')[1].split("</section>")[0]  # speech only: no locate
+
+
+def test_config_has_a_spoken_weather_section(client):
+    page = client("/config")[1]
+    assert 'id="speech"' in page and 'data-key="speech.wyoming_host"' in page and 'data-empty="-"' in page
+    assert '<option value="en_US-lessac-medium">' in page
+    first = next(a.code for a in client.services.config.airports if a.code)
+    assert f'id="speech-test" data-code="{first}"' in page
+    assert 'data-when="speech-host" data-when-filled hidden' in page  # port, voice and Test wait for an address
+    client.services.config.data.speech.wyoming_host = "192.168.0.14"
+    assert 'data-when="speech-host" data-when-filled>' in client("/config")[1]
+
+
+def test_a_dash_empties_the_speech_server_and_voice(client):
+    """A URL can't end in nothing, so the page sends "-" for an emptied box (as the Airports page does)."""
+    assert client("/config/edit/speech.wyoming_host/192.168.0.14")[0] == 200
+    assert client("/config/edit/speech.wyoming_voice/en_US-ryan-high")[0] == 200
+    assert client("/config/edit/speech.wyoming_host/-")[0] == 200
+    assert client("/config/edit/speech.wyoming_voice/-")[0] == 200
+    speech = client.services.config.data.speech  # a save reads config.json back, so look it up now
+    assert (speech.wyoming_host, speech.wyoming_voice) == ("", "")
+
+
 def test_speech_settings(client):
     assert client("/config/edit/speech.wyoming_host/192.168.0.14")[0] == 200
     assert client("/config/edit/speech.wyoming_host/a%20b")[0] == 400
     assert client("/config/edit/speech.wyoming_port/10201")[0] == 200
     assert client("/config/edit/speech.wyoming_voice/en_US-lessac-medium")[0] == 200
     assert client("/config/edit/speech.wyoming_voice/nonsense")[0] == 400
-    assert client("/config/edit/speech.wyoming_voice/")[0] in (200, 404)  # "" is the server's own voice
 
 
 def test_api_routes(services):

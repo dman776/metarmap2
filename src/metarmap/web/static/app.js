@@ -296,7 +296,8 @@
     // config settings: <input data-key="a.b" data-restart> / <select data-key>
     document.querySelectorAll('[data-key]').forEach(function (el) {
         el.addEventListener('change', async function () {
-            const value = el.type === 'checkbox' ? el.checked : el.value;
+            let value = el.type === 'checkbox' ? el.checked : el.value;
+            if (value === '' && el.dataset.empty) value = el.dataset.empty;  // a URL can't end in nothing: "-" is empty
             try {
                 await call('/config/edit/' + el.dataset.key + '/' + encodeURIComponent(value));
                 if (el.hasAttribute('data-restart')) {
@@ -308,6 +309,34 @@
             }
         });
     });
+
+    // Config > System > Spoken weather: Test plays an airport's report here, or says why it can't
+    const speechTest = document.getElementById('speech-test');
+    if (speechTest) {
+        const result = document.getElementById('speech-test-result');
+        const idle = result.textContent;
+        let player = null;
+        speechTest.addEventListener('click', async function () {
+            if (player) player.pause();
+            const url = '/api/speak/' + encodeURIComponent(speechTest.dataset.code) + '.audio';
+            busy(speechTest, true);
+            result.textContent = 'Asking Home Assistant...';
+            result.classList.remove('bad');
+            try {
+                const res = await fetch(url, {cache: 'no-store'});
+                if (!res.ok) throw new Error((await res.text()).trim() || res.status + ' ' + res.statusText);
+                player = new Audio(URL.createObjectURL(await res.blob()));
+                player.addEventListener('ended', function () { result.textContent = idle; });
+                await player.play();
+                result.textContent = 'Playing...';
+            } catch (err) {
+                result.textContent = err.name === 'NotAllowedError' ? 'The browser blocked sound: press Play again' : String(err.message || err);
+                result.classList.add('bad');
+            } finally {
+                busy(speechTest, false);
+            }
+        });
+    }
 
     // Config tabs: #physical, #visualizers, ... show one panel; the address keeps the tab, and the last one is
     // remembered for the next visit. Airports is its own page (/config/airports).
@@ -338,13 +367,15 @@
         showTab(location.hash.slice(1) || remembered);
     }
 
-    // Config: settings nested under another, <div class="sub" data-when="control-id" [data-when-value="v"]>, show
-    // while its switch is on (or its select has that value). The page is drawn with them already shown or hidden.
+    // Config: settings nested under another, <div class="sub" data-when="control-id" [data-when-value="v" |
+    // data-when-filled]>, show while its switch is on (or its select has that value, or its text box has something).
+    // The page is drawn with them already shown or hidden.
     document.querySelectorAll('[data-when]').forEach(function (group) {
         const control = document.getElementById(group.dataset.when);
         if (!control) return;
         const update = function () {
-            group.hidden = 'whenValue' in group.dataset ? control.value !== group.dataset.whenValue : !control.checked;
+            if ('whenFilled' in group.dataset) group.hidden = !control.value.trim();  // a text box that has something
+            else group.hidden = 'whenValue' in group.dataset ? control.value !== group.dataset.whenValue : !control.checked;
         };
         control.addEventListener('change', update);
     });
