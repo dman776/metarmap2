@@ -49,6 +49,7 @@ ABBREVIATIONS = {
     "cnty": "County",
     "ctr": "Center",
     "fld": "Field",
+    "intcntl": "Intercontinental",
     "intl": "International",
     "mem": "Memorial",
     "muni": "Municipal",

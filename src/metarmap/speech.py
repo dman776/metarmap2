@@ -8,7 +8,7 @@ mono): it suits a Pi Zero W, which couldn't make speech itself.
   kokoro   Kokoro-FastAPI (speech.kokoro_url, e.g. http://192.168.0.164:8880), over its OpenAI-style speech API:
            asked for raw PCM (24 kHz) and wrapped in a WAV here, as its own WAVs are written for streaming
 
-Each clip is kept until its text changes (a new METAR), so playing an airport again takes no time.
+Each clip is kept until its text changes (a new METAR, a new ATIS), so playing an airport again takes no time.
 """
 
 import hashlib
@@ -27,12 +27,12 @@ from metarmap import USER_AGENT
 
 log = logging.getLogger(__name__)
 
-CACHE_CLIPS = 60  # a clip is about 500 KB (15 s at 16-22 kHz): 30 MB at most, kept in memory
-WYOMING_TIMEOUT = 60  # seconds for the whole report: Home Assistant's box may be busy
+CACHE_BYTES = 32 * 1024 * 1024  # the clips kept in memory: a METAR is about 500 KB (15 s), an ATIS a few MB
+WYOMING_TIMEOUT = 120  # seconds for the whole text (an ATIS can be a minute long): Home Assistant's box may be busy
 WYOMING_VERSION = "1.5.0"  # the protocol version the map speaks (wyoming 1.5 and later understand it)
 MAX_EVENT_BYTES = 4 * 1024 * 1024  # an audio chunk is a few KB; anything this big isn't a Wyoming server
 KOKORO_RATE = 24000  # Kokoro's raw PCM: 16-bit mono at 24 kHz
-KOKORO_TIMEOUT = 60
+KOKORO_TIMEOUT = 120
 
 
 def configured(s) -> bool:
@@ -60,6 +60,7 @@ class Speech:
         self._post = post or requests.post
         self._lock = threading.Lock()
         self._cache: "OrderedDict[str, bytes]" = OrderedDict()
+        self._cached = 0  # bytes in the cache
 
     def problem(self) -> Optional[str]:
         """Why the map can't speak (what to set up), or None if it can try."""
@@ -89,9 +90,11 @@ class Speech:
                 return self._cache[name]
         clip = self._kokoro(text, s) if s.engine == "kokoro" else self._synthesize(text, s)
         with self._lock:
-            self._cache[name] = clip
-            while len(self._cache) > CACHE_CLIPS:
-                self._cache.popitem(last=False)
+            if name not in self._cache:
+                self._cache[name] = clip
+                self._cached += len(clip)
+            while self._cached > CACHE_BYTES and len(self._cache) > 1:  # the newest is kept, however big
+                self._cached -= len(self._cache.popitem(last=False)[1])
         return clip
 
     def _synthesize(self, text: str, s) -> bytes:

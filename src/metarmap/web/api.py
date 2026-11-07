@@ -13,6 +13,8 @@ import bottle
 from metarmap import __version__
 from metarmap.decode import decode, summary
 from metarmap.models import Report
+from metarmap.atis import AtisError
+from metarmap.atis_spoken import spoken_atis
 from metarmap.speech import SpeechError, configured
 from metarmap.spoken import spoken
 from metarmap.visualizers import advisories as advisories_vis, tfr as tfr_vis, wind_direction
@@ -177,6 +179,7 @@ def live(services: "App", now=None):
     active_num, active_vis = renderer.visualizer
     display = services.display if services.config.data.display_screen.enabled else None
     barbs = active_vis.barbs
+    with_atis = atis_airports(services)
     leds = []
     for s in views.stations(
         services.config.airports,
@@ -199,6 +202,7 @@ def live(services: "App", now=None):
                 "lightning": bool(m and m.lightning),
                 "look": led_looks.get(s["pixel"], {"effect": "off", "colors": []}),
                 "wind": wind_barb(m) if barbs else None,
+                "atis": s["code"] in with_atis,  # a spoken ATIS can be asked for (/api/atis/<code>.audio)
             }
         )
     return {
@@ -258,6 +262,44 @@ def spoken_report(services: "App", code):
     return spoken(m, airports[code].name or (m.name if m else ""), code)
 
 
+def atis_airports(services: "App"):
+    """The map's airports with a spoken ATIS to ask for: speech on with a server, speech.atis on, and a D-ATIS."""
+    atis = services.atis
+    if atis is None or services.speech is None or not configured(services.config.data.speech):
+        return set()
+    return atis.available()
+
+
+def atis_report(services: "App", code):
+    """One airport's ATIS as text to be read aloud (see metarmap.atis_spoken). Raises AtisError."""
+    airports = {a.code: a for a in services.config.airports if a.code}
+    if code not in airports:
+        raise AtisError(f"{code} isn't on the map", 404)
+    atis = services.atis
+    if atis is None:
+        raise AtisError("This map has no ATIS", 503)
+    entries = atis.entries(code)
+    m = services.metars.data.get(code)
+    return spoken_atis(entries, airports[code].name or (m.name if m else ""), code, atis.available() | set(airports))
+
+
+def atis_overview(services: "App"):
+    """The map's airports with an ATIS: {code: [{"type", "code" (its letter), "time", "updatedAt"}]}."""
+    atis = services.atis
+    if atis is None:
+        raise AtisError("This map has no ATIS", 503)
+    found = {}
+    for code in (a.code for a in services.config.airports if a.code):
+        try:
+            entries = atis.entries(code)
+        except AtisError as e:
+            if e.status == 404:
+                continue
+            raise
+        found[code] = [{k: e[k] for k in ("type", "code", "time", "updatedAt")} for e in entries]
+    return found
+
+
 def spoken_reports(services: "App"):
     """Every airport's spoken METAR, {code: text}, in the map's order."""
     return {a.code: spoken_report(services, a.code) for a in services.config.airports if a.code}
@@ -314,12 +356,48 @@ def as_audio(services: "App", code):
     try:
         clip = speech.audio(text)
     except SpeechError as e:
-        bottle.response.status = e.status
-        bottle.response.content_type = "text/plain; charset=utf-8"
-        return str(e)
+        return as_error(e)
     bottle.response.content_type = "audio/wav"
     bottle.response.set_header("Cache-Control", "no-store")  # the next METAR says something else
     return byte_range(clip)
+
+
+def as_error(e):
+    """A SpeechError's or AtisError's message as a plain-text answer, with its status."""
+    bottle.response.status = e.status
+    bottle.response.content_type = "text/plain; charset=utf-8"
+    return str(e)
+
+
+def as_atis_text(services: "App", code):
+    try:
+        text = atis_report(services, code)
+    except AtisError as e:
+        return as_error(e)
+    bottle.response.content_type = "text/plain; charset=utf-8"
+    return text
+
+
+def as_atis_audio(services: "App", code):
+    """An airport's ATIS read aloud (WAV), by the speech server. 404: not on the map, or no ATIS; 503: speech or
+    spoken ATIS is off; 502: atis.info or the speech server failed. Errors are plain text."""
+    speech = services.speech
+    if speech is None:
+        bottle.abort(503, "This map has no speech")
+    try:
+        clip = speech.audio(atis_report(services, code))
+    except (AtisError, SpeechError) as e:
+        return as_error(e)
+    bottle.response.content_type = "audio/wav"
+    bottle.response.set_header("Cache-Control", "no-store")  # the next ATIS says something else
+    return byte_range(clip)
+
+
+def as_atis_overview(services: "App"):
+    try:
+        return as_json(atis_overview(services))
+    except AtisError as e:
+        return as_error(e)
 
 
 def byte_range(body: bytes) -> bytes:
@@ -352,6 +430,10 @@ def add_routes(app, services: "App", site):
     # .audio before the text route: <code> would take "KHOU.audio" too
     app.route("/api/speak/<code>.audio", "GET", lambda code: as_audio(services, code.upper()))
     app.route("/api/speak/<code>", "GET", lambda code: as_text(spoken_report(services, code.upper()), code))
+    app.route("/api/atis", "GET", lambda: as_atis_overview(services))
+    # .audio before the text route, as for /api/speak
+    app.route("/api/atis/<code>.audio", "GET", lambda code: as_atis_audio(services, code.upper()))
+    app.route("/api/atis/<code>", "GET", lambda code: as_atis_text(services, code.upper()))
     app.route(
         "/api/metar/<code>",
         "GET",

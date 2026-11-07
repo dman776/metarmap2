@@ -297,6 +297,9 @@ class SpeechSettings(_Section):
     )
     kokoro_voice: str = setting("af_heart", pattern=KOKORO_VOICE, message="{key}: {value!r} isn't a Kokoro voice")
     kokoro_speed: float = setting(1.0, between=(0.5, 2.0))
+    # the real ATIS (metarmap.atis), for airports that publish a digital one (about 75 large US airports), from
+    # atis.info, an unofficial service: /api/atis/<code>.audio and the ATIS buttons. Off: the map never asks it
+    atis: bool = False
 
 
 @dataclass

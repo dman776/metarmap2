@@ -21,6 +21,7 @@ from typing import Optional
 import schedule
 
 from metarmap import __version__, logs, service, visualizers
+from metarmap.atis import Atis
 from metarmap.speech import Speech
 from metarmap.advisories import Advisories
 from metarmap.tfr import Tfrs
@@ -58,7 +59,8 @@ class App:
     traffic: Optional[Traffic] = None  # live traffic for the Map page, fetched while a page asks for it
     advisories: Optional[Advisories] = None  # G-AIRMETs and SIGMETs, for Advisories (fetched with the METARs)
     tfrs: Optional[Tfrs] = None  # TFRs, for the TFR visualizer (fetched in the background with the METARs)
-    speech: Optional[Speech] = None  # the METARs read aloud by a Piper server (Home Assistant's), when one is set
+    speech: Optional[Speech] = None  # the METARs read aloud by a speech server (Piper or Kokoro), when one is set
+    atis: Optional[Atis] = None  # the digital ATIS from atis.info, for the spoken ATIS (speech.atis)
 
 
 # ---- building ------------------------------------------------------------------------------------------------
@@ -98,7 +100,10 @@ def build(config_file=CONFIG_FILE, strip=None, screen=None, clock: Clock = None,
         lambda: [p for p in (metars.position(a.code) for a in config.airports if a.code) if p],
     )
     speech = Speech(lambda: config.data.speech)
-    app = App(config, sun, metars, renderer, display, schedule.Scheduler(), releases, traffic, advisories, tfrs, speech)
+    atis = Atis(lambda: config.data.speech.enabled and config.data.speech.atis)
+    app = App(
+        config, sun, metars, renderer, display, schedule.Scheduler(), releases, traffic, advisories, tfrs, speech, atis
+    )
     fill_names(app)
     schedule_jobs(app)
     wire_config(app)

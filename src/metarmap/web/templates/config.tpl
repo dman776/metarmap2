@@ -418,6 +418,8 @@
         % slider('speech.kokoro_speed', s.kokoro_speed, 'Speed', 'How fast it reads: 1 is normal.', lo=0.5, hi=2, step=0.05, fmt='x')
         </div>
 
+        % switch('speech.atis', s.atis, 'Spoken ATIS', 'The real ATIS too, for airports that publish a digital one (about 75 large US airports), from atis.info, an unofficial service. Only asked when you play one.')
+
         % if first_airport:
         <div class="set">
             <div><div class="t">Test</div><div class="d" id="speech-test-result">Plays {{first_airport}}'s weather here.</div></div>

@@ -76,7 +76,8 @@
         "wyoming_voice": "",
         "kokoro_url": "",
         "kokoro_voice": "af_heart",
-        "kokoro_speed": 1.0
+        "kokoro_speed": 1.0,
+        "atis": false
     },
     "dev_mode": false,
     "airports": [

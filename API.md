@@ -186,6 +186,7 @@ What the physical map is doing right now. The Map page polls it every second. No
 | `visualizer.legendInUseOnly` | The `visualizer.legend_in_use_only` setting: whether the web pages list only those entries |
 | `strip` | Set when one effect drives the whole strip instead: `rainbow` (`period`) or `chase` (`step`, `size`, `spacing`). The virtual airports keep their own `look` meanwhile: the same rainbow, or `off` for a chase (a wiring check). |
 | `speech` | Whether spoken weather can be asked for (`/api/speak/<code>.audio`): `speech.enabled` on, with a server set for `speech.engine`. The METARs page's AWOS buttons, the Remote page's AWOS tab and the touchscreen remote's hold-to-hear show only then |
+| `leds[].atis` | The airport's real ATIS can be read aloud (`/api/atis/<code>.audio`): `speech.atis` and spoken weather are on, and it publishes a digital ATIS. The list of airports with one is refreshed every half hour |
 | `locate` | The last white locate pulse: LED `pixel` and Unix time `at`. `null` until the first one. A virtual airport's pulse is only shown on the Map page. |
 | `display.on` | Whether the screen is showing; `false` after `/display/off` (then `screen` is `null`) |
 | `display.screen` | What the OLED shows. `badge` is the flight category, with a `*` after one that's estimated from the visibility and ceiling (`VFR*`). `virtual` is true for a virtual airport, whose code is in a dashed box. `page` is 1 or 2 for an airport, 0 for "Data Unavailable" or a message (then `airport` is `null`). Icons: `wind`, `visibility`, `pressure`, `temp`, `dewpoint`, `date`. |
@@ -261,6 +262,41 @@ Errors are plain text saying why:
 | 404 | The airport isn't on the map |
 | 503 | Speech is off (`speech.enabled`), or no server is set for the engine |
 | 502 | The server couldn't be reached, or failed (its reason, e.g. a voice it doesn't have) |
+
+### `GET /api/atis/<code>`, `GET /api/atis/<code>.audio`, `GET /api/atis`
+
+An airport's real ATIS, the FAA's digital ATIS (D-ATIS) from [atis.info](https://atis.info), as text to be read aloud
+(`text/plain`), and read aloud as WAV, as `/api/speak` does. No authentication. Needs `speech.atis` on (and, for
+the audio, spoken weather: `speech.enabled` and a server). Only about 75 large US airports publish one;
+`/api/live`'s `leds[].atis` says which of the map's do. An airport with arrival and departure ATIS reads both,
+arrival first.
+
+```
+Houston Hobby Airport information Quebec, one seven five tree Zulu. Wind zero niner zero at six. ... ILS approach
+runway one tree right approach in use. Landing and departing runway one tree right. ... Taxiway Echo closed. ...
+Advise you have information Quebec.
+```
+
+The FAA's contractions are written out as words (`DEPG` departing, `OTS` out of service, `TWY EA` taxiway Echo
+Alpha, `RY8R` runway eight right, `126.225` one two six point two two five), and the weather groups are read as the
+AWOS reads them; the altimeter's own words in parentheses and the remarks are left out. Letters said as letters
+(`ILS`, `VOR`) and identifiers (`VNY`) stay in capitals.
+
+`/api/atis` lists the map's airports that have one, with each ATIS's `type` (`combined`, `arr` or `dep`), its
+information letter (`code`), its `time` (HHMM, UTC) and when atis.info last updated it (`updatedAt`):
+
+```json
+{ "KHOU": [ { "type": "combined", "code": "Q", "time": "1753", "updatedAt": "2026-11-07T17:54:35Z" } ] }
+```
+
+The map asks atis.info only when an ATIS is asked for: one request for every airport, at most once a minute, and
+longer after a failure. Errors are plain text saying why:
+
+| Status | Why |
+|---|---|
+| 404 | The airport isn't on the map, or has no digital ATIS |
+| 503 | Spoken ATIS is off (`speech.atis`), or speech is off or has no server (the audio) |
+| 502 | atis.info, or the speech server, couldn't be reached or failed |
 
 ### `GET /api/advisories`
 
@@ -462,6 +498,7 @@ Settings that apply right away:
 - `speech.enabled`: spoken weather on or off (`/api/speak/<code>.audio`, and the AWOS buttons on the METARs and Remote pages)
 - `speech.engine`: the speech server: `wyoming` (Piper, e.g. Home Assistant's add-on) or `kokoro` (Kokoro-FastAPI)
 - `speech.wyoming_host`, `speech.wyoming_port`, `speech.wyoming_voice`: the Piper server (Home Assistant's address; port 10200) and the voice to ask it for (e.g. `en_US-lessac-medium`; empty: its own). An empty host or voice is sent as `-`
+- `speech.atis`: the spoken ATIS on or off (`/api/atis`, from atis.info; off by default)
 - `speech.kokoro_url`, `speech.kokoro_voice`, `speech.kokoro_speed`: the Kokoro server (e.g. `/config/edit/speech.kokoro_url/192.168.0.164:8880`; `http://` is added), its voice (e.g. `af_heart`) and speed (0.5 to 2). An empty address is sent as `-`
 - `visualizer.active`, the default visualizer used at startup, by id (`/config/edit/visualizer.active/wind`); a number is taken too and saved as the id. An unknown one is a 400. Saving it doesn't change the visualizer that's running now; use `/visualizer/<id>` for that.
 - `visualizer.auto_rotate.enabled`

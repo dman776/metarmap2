@@ -1,5 +1,17 @@
 ### Unreleased
 
+- **Spoken ATIS** (`/api/atis/<code>.audio`, `/api/atis/<code>`, `/api/atis`; README: *Spoken ATIS*): the real ATIS
+  for the airports that publish a digital one (about 75 large US airports; KHOU and KIAH around Houston), from
+  atis.info, read aloud by the spoken weather's server. Turned on in **Config > System > Spoken weather**
+  (**Spoken ATIS**, `speech.atis`, off by default). The FAA's contractions are written out as words, runways and
+  taxiways as a pilot says them ("runway two six left", "taxiway Echo Alpha"), and the weather as the AWOS says it;
+  an airport with arrival and departure ATIS reads both. atis.info is asked only when an ATIS is played (at most once
+  a minute) and every half hour for which airports have one
+  - `/api/live`'s `leds[].atis`: the airport has an ATIS to hear
+  - The speech cache keeps up to 32 MB of clips (was 60 clips), as an ATIS is a few times a METAR's length, and the
+    speech servers have 2 minutes to read one (was 1)
+  - "Intcntl" in a station's name is read as "Intercontinental" (the AWOS too)
+
 - **`/api/live` says whether the map can speak** (`speech`): true with spoken weather on and a server set, so the
   touchscreen remote offers hold-to-hear only then
 - **Spoken weather sounds more like an AWOS**:

@@ -1853,3 +1853,77 @@ def test_a_new_code_drops_the_mock(dev_map, monkeypatch):
     mock(c, 0, MOCK)
     c("/config/airports/0/code/KDWH")
     assert "mock_metar" not in c.services.config.airports[0]._extra
+
+
+# ---- spoken ATIS ---------------------------------------------------------------------------------------------------
+
+HOBBY_ATIS = {
+    "airport": "KHOU",
+    "type": "combined",
+    "code": "P",
+    "datis": "HOU ATIS INFO P 1653Z. 11010KT 10SM SCT080 24/14 A3011 (THREE ZERO ONE ONE). LNDG AND DEPG RWY 13R. "
+    "...ADVS YOU HAVE INFO P.",
+    "time": "1653",
+    "updatedAt": "2026-11-07T17:44:35Z",
+}
+
+
+def speaking_map(services, atis_on=True):
+    """services with a speech server that answers with the text as "audio", and atis.info faked with Hobby's ATIS."""
+    from metarmap.atis import Atis
+
+    speech = services.config.data.speech
+    speech.enabled, speech.wyoming_host, speech.atis = True, "192.168.0.14", atis_on
+    services.speech = SimpleNamespace(audio=lambda text: b"RIFF" + text.encode())
+    answer = SimpleNamespace(status_code=200, json=lambda: [HOBBY_ATIS], raise_for_status=lambda: None)
+    services.atis = Atis(lambda: speech.enabled and speech.atis, get=lambda *a, **k: answer, background=False)
+    return Client(create_app(services, ip=""))
+
+
+def test_atis_routes(services):
+    c = speaking_map(services)
+    status, body = c("/api/atis/khou", auth=False)
+    assert status == 200 and c.headers["Content-Type"] == "text/plain; charset=utf-8"
+    assert body.startswith("Hobby information Papa, one six five tree Zulu. Wind one one zero at one zero.")
+    assert body.endswith("Landing and departing runway one tree right. Advise you have information Papa.")
+    status, why = c("/api/atis/KIAH", auth=False)
+    assert status == 404 and why == "KIAH has no digital ATIS"
+    assert c("/api/atis/KXXX", auth=False) == (404, "KXXX isn't on the map")
+    assert c.json("/api/atis", auth=False) == {
+        "KHOU": [{"type": "combined", "code": "P", "time": "1653", "updatedAt": "2026-11-07T17:44:35Z"}]
+    }
+
+
+def test_atis_audio(services):
+    c = speaking_map(services)
+    status, body = c("/api/atis/khou.audio", auth=False)
+    assert status == 200 and c.headers["Content-Type"] == "audio/wav"
+    assert body == "RIFF" + c("/api/atis/KHOU", auth=False)[1]  # the words the text route gives, read aloud
+    status, part = c("/api/atis/khou.audio", auth=False, headers={"Range": "bytes=0-3"})
+    assert status == 206 and part == "RIFF"  # Safari's ranges, as for /api/speak
+    assert c("/api/atis/KIAH.audio", auth=False)[0] == 404
+
+
+def test_atis_off(services):
+    c = speaking_map(services, atis_on=False)
+    for path in ("/api/atis/KHOU", "/api/atis/KHOU.audio"):
+        status, why = c(path, auth=False)
+        assert status == 503 and "speech.atis" in why
+    assert all(led["atis"] is False for led in api.live(services)["leds"])
+
+
+def test_live_says_which_airports_have_an_atis(services):
+    speaking_map(services)
+    assert {led["code"]: led["atis"] for led in api.live(services)["leds"]} == {
+        "KHOU": True,
+        "KIAH": False,
+        "KDKR": False,
+    }
+    services.config.data.speech.wyoming_host = ""  # no speech server: no ATIS to hear either
+    assert not any(led["atis"] for led in api.live(services)["leds"])
+
+
+def test_atis_setting(client):
+    assert 'data-key="speech.atis"' in client("/config")[1]
+    assert client("/config/edit/speech.atis/true")[0] == 200
+    assert client.services.config.data.speech.atis is True
