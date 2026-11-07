@@ -62,7 +62,7 @@ def wyoming_reply(pcm, rate=16000, chunks=2, inline=False):
 
 def make_wyoming(fake=None, **settings):
     fake = fake or FakeWyoming()
-    s = SpeechSettings(wyoming_host="192.168.0.14", **settings)
+    s = SpeechSettings(enabled=True, wyoming_host="192.168.0.14", **settings)
     return Speech(lambda: s, connect=fake), fake, s
 
 
@@ -178,7 +178,7 @@ class FakeKokoro:
 
 def make_kokoro(fake=None, **settings):
     fake = fake or FakeKokoro()
-    s = SpeechSettings(engine="kokoro", kokoro_url="http://192.168.0.164:8880", **settings)
+    s = SpeechSettings(enabled=True, engine="kokoro", kokoro_url="http://192.168.0.164:8880", **settings)
     return Speech(lambda: s, post=fake), fake, s
 
 
@@ -267,7 +267,19 @@ def test_kokoro_failures_say_why(fake, said):
 
 
 def test_configured():
-    assert not speech_module.configured(SpeechSettings())
-    assert speech_module.configured(SpeechSettings(wyoming_host="192.168.0.14"))
-    assert not speech_module.configured(SpeechSettings(engine="kokoro", wyoming_host="192.168.0.14"))
-    assert speech_module.configured(SpeechSettings(engine="kokoro", kokoro_url="http://192.168.0.164:8880"))
+    on = dict(enabled=True)
+    assert not speech_module.configured(SpeechSettings(**on))
+    assert speech_module.configured(SpeechSettings(wyoming_host="192.168.0.14", **on))
+    assert not speech_module.configured(SpeechSettings(engine="kokoro", wyoming_host="192.168.0.14", **on))
+    assert speech_module.configured(SpeechSettings(engine="kokoro", kokoro_url="http://192.168.0.164:8880", **on))
+    assert not speech_module.configured(SpeechSettings(wyoming_host="192.168.0.14"))  # off: a server isn't enough
+
+
+def test_speech_off():
+    """Off, the map doesn't ask the server at all, and says how to turn it on."""
+    speech, fake, s = make_wyoming()
+    s.enabled = False
+    assert "speech.enabled" in speech.problem()
+    with pytest.raises(SpeechError) as e:
+        speech.audio("Hooks.")
+    assert e.value.status == 503 and fake.addresses == []

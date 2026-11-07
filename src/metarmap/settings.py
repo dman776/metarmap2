@@ -279,7 +279,9 @@ SERVER_URL = re.compile(r"^$|^https?://[A-Za-z0-9.-]+(:[0-9]{1,5})?$")
 
 @dataclass
 class SpeechSettings(_Section):
-    # /api/speak/<code>.audio reads an airport's METAR aloud, by a speech server on another computer (metarmap.speech)
+    # /api/speak/<code>.audio reads an airport's METAR aloud, by a speech server on another computer (metarmap.speech).
+    # Off: no speech, and no AWOS buttons; the server settings are kept for when it's turned on again
+    enabled: bool = False
     engine: str = setting("wyoming", choices=("wyoming", "kokoro"))
     # wyoming: Piper over the Wyoming protocol, e.g. Home Assistant's Piper add-on (its port, 10200, opened in the
     # add-on's Network settings). "": no speech

@@ -36,8 +36,8 @@ KOKORO_TIMEOUT = 60
 
 
 def configured(s) -> bool:
-    """Whether the speech settings name a server for their engine (the Remote's AWOS tab shows then)."""
-    return bool(s.kokoro_url if s.engine == "kokoro" else s.wyoming_host)
+    """Whether speech is on, with a server named for its engine (the AWOS buttons and tab show then)."""
+    return s.enabled and bool(s.kokoro_url if s.engine == "kokoro" else s.wyoming_host)
 
 
 class SpeechError(Exception):
@@ -64,6 +64,8 @@ class Speech:
     def problem(self) -> Optional[str]:
         """Why the map can't speak (what to set up), or None if it can try."""
         s = self._settings()
+        if not s.enabled:
+            return "Spoken weather is off: turn on speech.enabled (Config > System > Spoken weather)"
         if s.engine == "kokoro":
             return None if s.kokoro_url else "No Kokoro server: set speech.kokoro_url (e.g. http://192.168.0.164:8880)"
         if not s.wyoming_host:

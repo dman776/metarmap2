@@ -245,18 +245,19 @@ category. What the report leaves out is said to be `not reported`; an airport wi
 
 ### `GET /api/speak/<code>.audio`
 
-The same text, read aloud, as WAV (`audio/wav`, 16-bit mono at the voice's rate: 16 kHz for a `low` voice, 22.05 kHz
-for `medium`). No authentication. The voice is Piper on another computer, over the Wyoming protocol: Home Assistant's
-Piper add-on (`speech.wyoming_host`; README, *Spoken weather*). Each clip is kept until the airport's text changes, so
-asking again is instant.
+The same text, read aloud, as WAV (`audio/wav`, 16-bit mono at the voice's rate: 16 or 22.05 kHz from Piper, 24 kHz
+from Kokoro). No authentication. With `speech.enabled` on, a speech server on another computer reads it
+(`speech.engine`): Piper over the Wyoming protocol, such as Home Assistant's Piper add-on (`speech.wyoming_host`), or
+Kokoro-FastAPI (`speech.kokoro_url`); README, *Spoken weather*. Each clip is kept until the airport's text changes,
+so asking again is instant.
 
 Errors are plain text saying why:
 
 | Status | Why |
 |---|---|
 | 404 | The airport isn't on the map |
-| 503 | No Piper server is set (`speech.wyoming_host`) |
-| 502 | The server couldn't be reached, or failed (its reason) |
+| 503 | Speech is off (`speech.enabled`), or no server is set for the engine |
+| 502 | The server couldn't be reached, or failed (its reason, e.g. a voice it doesn't have) |
 
 ### `GET /api/advisories`
 
@@ -455,7 +456,10 @@ Settings that apply right away:
 - `led.init_sequence`: the startup sequence: `comet` (a rainbow along the strip; the default), `center_out` (the map fades in from the middle of the box around the airports out to its edges), `edges_in` (from the edges in to the middle), `sweep` (across the map, from `led.init_sweep_from`), `radar` (a beam from north, clockwise) or `sparkle` (one LED at a time, in random order). All but `comet` fade each LED in to its visualizer color over 3 seconds. Changing it plays it once now
 - `led.init_sweep_from`: where `sweep` starts: `W` (west to east; the default), `NW`, `N`, `NE`, `E`, `SE`, `S` or `SW`. Changing it plays the sequence once now
 - `led.dim_on_refresh`: the LEDs fade to half their brightness while METARs are fetched (at least a second), then fade back
-- `speech.wyoming_host`, `speech.wyoming_port`, `speech.wyoming_voice`: the Piper server `/api/speak/<code>.audio` uses (Home Assistant's address, empty for no speech; port 10200) and the voice to ask it for (e.g. `en_US-lessac-medium`; empty: its own)
+- `speech.enabled`: spoken weather on or off (`/api/speak/<code>.audio`, and the AWOS buttons on the METARs and Remote pages)
+- `speech.engine`: the speech server: `wyoming` (Piper, e.g. Home Assistant's add-on) or `kokoro` (Kokoro-FastAPI)
+- `speech.wyoming_host`, `speech.wyoming_port`, `speech.wyoming_voice`: the Piper server (Home Assistant's address; port 10200) and the voice to ask it for (e.g. `en_US-lessac-medium`; empty: its own). An empty host or voice is sent as `-`
+- `speech.kokoro_url`, `speech.kokoro_voice`, `speech.kokoro_speed`: the Kokoro server (e.g. `/config/edit/speech.kokoro_url/192.168.0.164:8880`; `http://` is added), its voice (e.g. `af_heart`) and speed (0.5 to 2). An empty address is sent as `-`
 - `visualizer.active`, the default visualizer used at startup, by id (`/config/edit/visualizer.active/wind`); a number is taken too and saved as the id. An unknown one is a 400. Saving it doesn't change the visualizer that's running now; use `/visualizer/<id>` for that.
 - `visualizer.auto_rotate.enabled`
 - `visualizer.auto_rotate.delay_seconds` (the new delay starts counting when it's saved)

@@ -371,6 +371,8 @@
         <h2>Spoken weather</h2>
         <p class="muted" style="margin: 0; padding: 0 24px 6px; font-size: 13px">Airports' METARs read aloud, ATIS style: the Remote page's AWOS tab, and <code>/api/speak/&lt;code&gt;.audio</code>. A speech server on another computer reads them; the map keeps each one until the next METAR.</p>
         % s = d.speech
+        % switch('speech.enabled', s.enabled, 'Enable speech', 'Read METARs aloud: AWOS buttons on the METARs page and an AWOS tab on the Remote page.')
+        <div class="sub" data-when="speech-enabled"{{!'' if s.enabled else ' hidden'}}>
         <div class="set">
             <div><label class="t" for="speech-engine">Speech server</label><div class="d">Piper in Home Assistant, or a Kokoro server (Kokoro-FastAPI).</div></div>
             <select id="speech-engine" data-key="speech.engine">
@@ -425,6 +427,7 @@
             </button>
         </div>
         % end
+        </div>
     </section>
 
     <section class="card settings" id="access">

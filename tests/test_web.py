@@ -862,7 +862,7 @@ def test_speak_audio(services):
     from metarmap.settings import SpeechSettings
     from metarmap.speech import Speech
 
-    settings = SpeechSettings()
+    settings = SpeechSettings(enabled=True)
     texts = []
 
     def connect(address, timeout=None):
@@ -901,6 +901,7 @@ def test_the_remote_has_an_awos_tab_with_a_server(client):
     """Only once there's a Piper server to read the reports: then a button per airport, in the map's order."""
     page = client("/remote")[1]
     assert 'id="tab-awos"' not in page and 'id="awos"' not in page
+    client.services.config.data.speech.enabled = True
     client.services.config.data.speech.wyoming_host = "192.168.0.14"
     page = client("/remote")[1]
     assert 'id="tab-awos"' in page and 'id="r-speak-audio"' in page
@@ -945,7 +946,7 @@ def test_kokoro_settings(client):
 
 def test_the_awos_tab_follows_the_engine(client):
     speech = client.services.config.data.speech
-    speech.engine, speech.kokoro_url = "kokoro", "http://192.168.0.164:8880"
+    speech.enabled, speech.engine, speech.kokoro_url = True, "kokoro", "http://192.168.0.164:8880"
     assert 'id="tab-awos"' in client("/remote")[1]
     speech.engine = "wyoming"  # and no Home Assistant set
     assert 'id="tab-awos"' not in client("/remote")[1]
@@ -965,12 +966,25 @@ def test_config_shows_the_engines_settings(client):
 def test_the_metars_page_has_awos_buttons_with_a_server(client):
     page = client("/metars")[1]
     assert "data-awos=" not in page and 'id="awos-audio"' not in page and "trow metar awos" not in page
+    client.services.config.data.speech.enabled = True
     client.services.config.data.speech.wyoming_host = "192.168.0.14"
     page = client("/metars")[1]
     codes = [a.code for a in client.services.config.airports if a.code]
     assert re.findall(r'data-awos="([A-Z0-9]+)"', page) == codes  # one beside each Locate
     assert page.count('data-call="/locate/') == len(codes)
     assert 'id="awos-audio"' in page and "trow metar head awos" in page
+
+
+def test_enable_speech_opens_the_settings(client):
+    speech = client.services.config.data.speech
+    speech.wyoming_host = "192.168.0.14"  # a server, but speech off
+    page = client("/config")[1]
+    assert 'data-key="speech.enabled"' in page
+    assert 'data-when="speech-enabled" hidden' in page  # the server settings wait for the switch
+    assert "data-awos=" not in client("/metars")[1] and 'id="tab-awos"' not in client("/remote")[1]
+    assert client("/config/edit/speech.enabled/true")[0] == 200
+    assert 'data-when="speech-enabled">' in client("/config")[1]
+    assert "data-awos=" in client("/metars")[1] and 'id="tab-awos"' in client("/remote")[1]
 
 
 def test_speech_settings(client):
