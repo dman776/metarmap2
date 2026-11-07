@@ -253,6 +253,20 @@ class UpdateSettings(_Section):
     branch: str = setting("", pattern=BRANCH_NAME, message="{key}: {value!r} isn't a branch name")
 
 
+HOST_NAME = re.compile(r"^$|^[A-Za-z0-9]([A-Za-z0-9.-]{0,252}[A-Za-z0-9])?$")
+PIPER_VOICE = re.compile(r"^$|^[a-z]{2,3}_[A-Z]{2}-[A-Za-z0-9_]+-(x_low|low|medium|high)$")
+
+
+@dataclass
+class SpeechSettings(_Section):
+    # /api/speak/<code>.audio reads an airport's METAR aloud with Piper on another computer, over the Wyoming protocol:
+    # Home Assistant's Piper add-on (its port, 10200, opened in the add-on's Network settings). "": no speech
+    wyoming_host: str = setting("", pattern=HOST_NAME, message="{key}: {value!r} isn't a host name or address")
+    wyoming_port: int = setting(10200, between=(1, 65535))
+    # the Piper voice to ask for, e.g. "en_US-lessac-medium"; "": the server's own
+    wyoming_voice: str = setting("", pattern=PIPER_VOICE, message="{key}: {value!r} isn't a Piper voice")
+
+
 @dataclass
 class Airport(_Section):
     """One LED of the strip (or a virtual airport, after them) and the airport it shows."""
@@ -272,6 +286,7 @@ class Settings(_Section):
     lightning: Lightning = field(default_factory=Lightning)
     tfr: TfrSettings = field(default_factory=TfrSettings)
     update: UpdateSettings = field(default_factory=UpdateSettings)
+    speech: SpeechSettings = field(default_factory=SpeechSettings)
     # for developing the map: Config > Software can update from any branch on GitHub. Edited in config.json by
     # hand only; the web UI can't change it
     dev_mode: bool = setting(False, editable=False, message="dev_mode is only changed by editing config.json")

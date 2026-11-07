@@ -93,7 +93,7 @@ class Client:
 
         result = self.app(environ, start_response)
         try:
-            body = b"".join(result).decode()
+            body = b"".join(result).decode(errors="replace")  # binary bodies (audio) too
         finally:
             if hasattr(result, "close"):
                 result.close()  # as a WSGI server does: a static file's body is an open file
@@ -842,6 +842,68 @@ def test_metar_route(services):
     c = Client(create_app(services, ip=""))
     assert c.json("/api/metar/khou", auth=False)["code"] == "KHOU"
     assert c("/api/metar/KXXX", auth=False)[0] == 404
+
+
+def test_speak_routes(services):
+    c = Client(create_app(services, ip=""))
+    status, body = c("/api/speak/khou", auth=False)
+    assert status == 200 and c.headers["Content-Type"] == "text/plain; charset=utf-8"
+    assert body.startswith("Hobby. Weather at") and "Lightning observed." in body
+    assert c("/api/speak/KXXX", auth=False)[0] == 404
+    everything = c.json("/api/speak", auth=False)
+    assert list(everything) == ["KHOU", "KIAH", "KDKR"]  # the map's order, the empty LED skipped
+    assert everything["KHOU"] == body
+    assert everything["KIAH"].startswith("K I A H. ")  # no name: its letters
+    assert everything["KDKR"] == "Crockett. No weather report is available."
+
+
+def test_speak_audio(services):
+    from metarmap import speech as speech_module
+    from metarmap.settings import SpeechSettings
+    from metarmap.speech import Speech
+
+    settings = SpeechSettings()
+    texts = []
+
+    def connect(address, timeout=None):
+        class Socket:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+            def sendall(self, data):
+                texts.append(speech_module.read_wyoming_event(io.BytesIO(data))[1]["text"])
+
+            def makefile(self, mode):
+                fmt = {"rate": 16000, "width": 2, "channels": 1}
+                return io.BytesIO(
+                    speech_module.wyoming_event("audio-start", fmt)
+                    + speech_module.wyoming_event("audio-chunk", fmt, b"\x01\x02" * 50)
+                    + speech_module.wyoming_event("audio-stop")
+                )
+
+        return Socket()
+
+    services.speech = Speech(lambda: settings, connect=connect)
+    c = Client(create_app(services, ip=""))
+    status, body = c("/api/speak/khou.audio", auth=False)
+    assert status == 503 and "speech.wyoming_host" in body  # no server set yet
+    settings.wyoming_host = "192.168.0.14"
+    status, body = c("/api/speak/khou.audio", auth=False)
+    assert status == 200 and c.headers["Content-Type"] == "audio/wav" and body.startswith("RIFF")
+    assert texts == [c("/api/speak/KHOU", auth=False)[1]]  # what the text route says
+    assert c("/api/speak/KXXX.audio", auth=False)[0] == 404
+
+
+def test_speech_settings(client):
+    assert client("/config/edit/speech.wyoming_host/192.168.0.14")[0] == 200
+    assert client("/config/edit/speech.wyoming_host/a%20b")[0] == 400
+    assert client("/config/edit/speech.wyoming_port/10201")[0] == 200
+    assert client("/config/edit/speech.wyoming_voice/en_US-lessac-medium")[0] == 200
+    assert client("/config/edit/speech.wyoming_voice/nonsense")[0] == 400
+    assert client("/config/edit/speech.wyoming_voice/")[0] in (200, 404)  # "" is the server's own voice
 
 
 def test_api_routes(services):

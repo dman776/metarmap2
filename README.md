@@ -246,6 +246,34 @@ git checkout v2.9.0      # the release you want
 Running `./install.sh` after an update also installs any new packages the map needs. On a map that has installed a
 release, `git pull` says it isn't on a branch: `git checkout master` first (or pick **Latest commit** above).
 
+## Spoken weather
+
+The map can read an airport's METAR aloud, ATIS style: `http://metarmap.local/api/speak/KHOU.audio` plays it in a
+browser, and `/api/speak/KHOU` shows the words. It's optional: the map runs the same without it.
+
+The voice is [Piper](https://github.com/OHF-Voice/piper1-gpl) running in Home Assistant (free, offline, no account).
+The map sends Home Assistant the words over the Wyoming protocol and keeps the audio it gets back, so even a Pi Zero
+W can do it.
+
+1. In Home Assistant, install the **Piper** add-on if you haven't. Then **Settings > Add-ons > Piper >
+   Configuration > Network**: set the port to `10200` and save (add-ons don't open their ports to your network until
+   you do).
+2. On the map, set `speech.wyoming_host` to Home Assistant's address:
+   `curl -u metar:map http://metarmap.local/config/edit/speech.wyoming_host/192.168.0.14`
+
+The first time an airport is asked for, Home Assistant takes a few seconds to make its report; after that the map
+keeps it until the next METAR, so playing it again is instant.
+
+Settings (`speech` in `config.json`):
+- `wyoming_host`: Home Assistant's address (empty: no speech)
+- `wyoming_port`: `10200`, the add-on's
+- `wyoming_voice`: a Piper voice, e.g. `en_US-lessac-medium` or `en_US-ryan-high` (empty: the add-on's own). Home
+  Assistant downloads a voice the first time it's asked for
+
+Any computer running [wyoming-piper](https://github.com/rhasspy/wyoming-piper) works the same way. If
+`/api/speak/<code>.audio` answers with an error, it says why: no host set, or the server can't be reached (check the
+add-on's port).
+
 ## Web API, Home Assistant and the touchscreen remote
 
 `GET /api/status` returns the map's state as JSON. The web UI's controls are plain HTTP requests too, so scripts and

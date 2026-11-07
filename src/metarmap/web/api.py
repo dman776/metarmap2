@@ -13,6 +13,8 @@ import bottle
 from metarmap import __version__
 from metarmap.decode import decode, summary
 from metarmap.models import Report
+from metarmap.speech import SpeechError
+from metarmap.spoken import spoken
 from metarmap.visualizers import advisories as advisories_vis, tfr as tfr_vis, wind_direction
 from metarmap.web import views
 
@@ -244,6 +246,20 @@ def metar(services: "App", code):
     }
 
 
+def spoken_report(services: "App", code):
+    """One airport's METAR as text to be read aloud (see metarmap.spoken); None if the airport isn't on the map."""
+    airports = {a.code: a for a in services.config.airports if a.code}
+    if code not in airports:
+        return None
+    m = services.metars.data.get(code)
+    return spoken(m, airports[code].name or (m.name if m else ""), code)
+
+
+def spoken_reports(services: "App"):
+    """Every airport's spoken METAR, {code: text}, in the map's order."""
+    return {a.code: spoken_report(services, a.code) for a in services.config.airports if a.code}
+
+
 def traffic(services: "App"):
     """Live traffic around the airports (see metarmap.traffic); None for a map without it."""
     found = services.traffic
@@ -275,6 +291,34 @@ def as_json(data):
     return json.dumps(data)
 
 
+def as_text(text, code):
+    """A plain-text answer (404 when `text` is None: the airport isn't on the map)."""
+    if text is None:
+        bottle.abort(404, f"{code} isn't on the map")
+    bottle.response.content_type = "text/plain; charset=utf-8"
+    return text
+
+
+def as_audio(services: "App", code):
+    """An airport's METAR read aloud (WAV), by the Piper server in speech.wyoming_host. 404: not on the map; 503: no
+    server is set; 502: the server failed or couldn't be reached. The errors are plain text, saying why."""
+    text = spoken_report(services, code)
+    if text is None:
+        bottle.abort(404, f"{code} isn't on the map")
+    speech = services.speech
+    if speech is None:
+        bottle.abort(503, "This map has no speech")
+    try:
+        clip = speech.audio(text)
+    except SpeechError as e:
+        bottle.response.status = e.status
+        bottle.response.content_type = "text/plain; charset=utf-8"
+        return str(e)
+    bottle.response.content_type = "audio/wav"
+    bottle.response.set_header("Cache-Control", "no-store")  # the next METAR says something else
+    return clip
+
+
 def add_routes(app, services: "App", site):
     app.route("/api/status", "GET", lambda: as_json(status(services, site.ip)))
     app.route("/api/live", "GET", lambda: as_json(live(services)))
@@ -283,6 +327,10 @@ def add_routes(app, services: "App", site):
     )
     app.route("/api/tfrs", "GET", lambda: as_json(tfrs(services) or bottle.abort(404, "No TFRs")))
     app.route("/api/traffic", "GET", lambda: as_json(traffic(services) or bottle.abort(404, "No live traffic")))
+    app.route("/api/speak", "GET", lambda: as_json(spoken_reports(services)))
+    # .audio before the text route: <code> would take "KHOU.audio" too
+    app.route("/api/speak/<code>.audio", "GET", lambda code: as_audio(services, code.upper()))
+    app.route("/api/speak/<code>", "GET", lambda code: as_text(spoken_report(services, code.upper()), code))
     app.route(
         "/api/metar/<code>",
         "GET",

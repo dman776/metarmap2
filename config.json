@@ -68,6 +68,11 @@
         "channel": "releases",
         "branch": ""
     },
+    "speech": {
+        "wyoming_host": "",
+        "wyoming_port": 10200,
+        "wyoming_voice": ""
+    },
     "dev_mode": false,
     "airports": [
         {

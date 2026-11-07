@@ -1,5 +1,12 @@
 ### Unreleased
 
+- **A METAR as text to be read aloud** (`/api/speak/<code>` and `/api/speak`): ATIS style, with every number spelled
+  out as words ("wind one three zero at eight", "altimeter three zero zero five") so a text-to-speech voice can't
+  misread it, `not reported` for what a report leaves out, and the airport's name with its abbreviations written
+  out
+- **The METARs read aloud** (`/api/speak/<code>.audio`, optional; README: *Spoken weather*): by Piper in Home
+  Assistant (its Piper add-on, over the Wyoming protocol), so a Pi Zero W can do it. Set `speech.wyoming_host` to Home
+  Assistant's address. Each clip is kept until the next METAR
 - **Home's Fetch METARs button counts down to the next fetch**: a ring (as on the Remote's auto-rotate) and the time
   left, in place of the button's icon. After a failed fetch it counts down to the retry (every minute). When the fetch
   has come, the page reloads with the new METARs
