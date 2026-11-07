@@ -321,7 +321,8 @@
             if (player) player.pause();
             const url = '/api/speak/' + encodeURIComponent(speechTest.dataset.code) + '.audio';
             busy(speechTest, true);
-            result.textContent = 'Asking Home Assistant...';
+            const engine = document.getElementById('speech-engine');
+            result.textContent = engine && engine.value === 'kokoro' ? 'Asking Kokoro...' : 'Asking Home Assistant...';
             result.classList.remove('bad');
             try {
                 const res = await fetch(url, {cache: 'no-store'});
