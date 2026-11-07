@@ -11,7 +11,7 @@ from metarmap import system
 from metarmap.config import MAX_LEDS
 from metarmap.leds import intro
 from metarmap.settings import LED_ORDERS, LED_PINS, LIGHTNING_COLORS, TRAFFIC_SECONDS
-from metarmap.web import views
+from metarmap.web import api, views
 from metarmap.web.site import render
 
 if TYPE_CHECKING:  # app.py imports the web, so only for the type checker
@@ -59,6 +59,7 @@ def metars(services: "App", site):
         fetched=services.metars.lastFetchTime,
         cats=views.CATEGORIES,
         speech=configured(services.config.data.speech),  # an AWOS button per airport: only with a speech server
+        with_atis=api.atis_airports(services),  # an ATIS button for these (speech.atis, and a digital ATIS)
         **views.summary(s),
     )
 
@@ -88,7 +89,9 @@ def remote(services: "App", site):
         brightness=services.renderer.pixels().brightness,
         auto_rotate=services.config.data.visualizer.auto_rotate.enabled,
         oled_on=services.display.on if services.config.data.display_screen.enabled else None,
-        speech=configured(services.config.data.speech),  # the AWOS tab: only with a speech server to read aloud
+        speech=configured(services.config.data.speech),  # Info's AWOS mode: only with a speech server to read aloud
+        atis=configured(services.config.data.speech) and services.config.data.speech.atis,  # and its ATIS mode
+        with_atis=api.atis_airports(services),  # the airports ATIS mode shows (then from /api/live's leds[].atis)
     )
 
 

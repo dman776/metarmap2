@@ -112,6 +112,7 @@ def build(config_file=CONFIG_FILE, strip=None, screen=None, clock: Clock = None,
         # they come (the first TFR list has a few dozen details to fetch)
         fetch_advisories_soon(app)
         fetch_tfrs(app)
+        atis.available()  # with spoken ATIS on, which airports have one (in the background): the pages' ATIS buttons
     return app
 
 
