@@ -66,7 +66,7 @@ class Client:
     def __init__(self, app):
         self.app = app
 
-    def __call__(self, path, method="GET", auth=True, body=None):
+    def __call__(self, path, method="GET", auth=True, body=None, headers=None):
         data = json.dumps(body).encode() if body is not None else b""
         environ = {
             "REQUEST_METHOD": method,
@@ -81,6 +81,8 @@ class Client:
             "CONTENT_LENGTH": str(len(data)),
             "CONTENT_TYPE": "application/json",
         }
+        for name, value in (headers or {}).items():
+            environ["HTTP_" + name.upper().replace("-", "_")] = value
         if auth is True:
             environ["HTTP_AUTHORIZATION"] = AUTH
         elif auth:
@@ -894,6 +896,13 @@ def test_speak_audio(services):
     status, body = c("/api/speak/khou.audio", auth=False)
     assert status == 200 and c.headers["Content-Type"] == "audio/wav" and body.startswith("RIFF")
     assert texts == [c("/api/speak/KHOU", auth=False)[1]]  # what the text route says
+    # Safari (iPad) plays an <audio> only from ranges: bytes 0-1 first, then the rest; the cache answers them
+    status, part = c("/api/speak/khou.audio", auth=False, headers={"Range": "bytes=0-1"})
+    assert status == 206 and part == "RI" and c.headers["Content-Range"] == f"bytes 0-1/{len(body)}"
+    assert c.headers["Accept-Ranges"] == "bytes"
+    status, rest = c("/api/speak/khou.audio", auth=False, headers={"Range": "bytes=2-"})
+    assert status == 206 and "RI" + rest == body and len(texts) == 1
+    assert c("/api/speak/khou.audio", auth=False, headers={"Range": f"bytes={len(body)}-"})[0] == 416
     assert c("/api/speak/KXXX.audio", auth=False)[0] == 404
 
 

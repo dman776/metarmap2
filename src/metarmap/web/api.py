@@ -316,7 +316,25 @@ def as_audio(services: "App", code):
         return str(e)
     bottle.response.content_type = "audio/wav"
     bottle.response.set_header("Cache-Control", "no-store")  # the next METAR says something else
-    return clip
+    return byte_range(clip)
+
+
+def byte_range(body: bytes) -> bytes:
+    """`body`, or the part a Range header asks for (206). Safari (iPhone, iPad) plays an <audio> only from a server
+    that answers ranges: it asks for bytes 0-1 first, then the rest. The speech cache keeps the repeats cheap."""
+    bottle.response.set_header("Accept-Ranges", "bytes")
+    header = bottle.request.get_header("Range")
+    if not header:
+        return body
+    ranges = list(bottle.parse_range_header(header, len(body)))
+    if not ranges:
+        bottle.response.status = 416
+        bottle.response.set_header("Content-Range", f"bytes */{len(body)}")
+        return b""
+    start, end = ranges[0]  # end is exclusive
+    bottle.response.status = 206
+    bottle.response.set_header("Content-Range", f"bytes {start}-{end - 1}/{len(body)}")
+    return body[start:end]
 
 
 def add_routes(app, services: "App", site):
