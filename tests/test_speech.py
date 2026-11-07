@@ -138,13 +138,23 @@ def test_wyoming_failures_say_why(fake, said):
 
 
 def test_the_cache_keeps_the_newest(monkeypatch):
-    monkeypatch.setattr(speech_module, "CACHE_CLIPS", 2)
+    clip = len(make_wyoming()[0].audio("a"))  # the fake's clips are all this long
+    monkeypatch.setattr(speech_module, "CACHE_BYTES", 2 * clip)  # room for two
     speech, fake, _ = make_wyoming()
     for text in ("a", "b", "c"):
         speech.audio(text)
     speech.audio("c")  # still kept
     speech.audio("a")  # dropped: asked again
     assert [sent_events_of(data)[1]["text"] for data in fake.sent] == ["a", "b", "c", "a"]
+
+
+def test_a_clip_bigger_than_the_cache_is_still_kept(monkeypatch):
+    """An ATIS can be a few MB: the newest clip stays, so playing it again (Safari's ranges) doesn't ask again."""
+    monkeypatch.setattr(speech_module, "CACHE_BYTES", 10)
+    speech, fake, _ = make_wyoming()
+    speech.audio("a long ATIS")
+    speech.audio("a long ATIS")
+    assert len(fake.sent) == 1
 
 
 def sent_events_of(data):

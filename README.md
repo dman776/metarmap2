@@ -279,6 +279,22 @@ Settings (`speech` in `config.json`):
 If `/api/speak/<code>.audio` answers with an error, it says why: speech is off, no server is set, the server can't be
 reached (for Home Assistant, check the add-on's port), or the server's own reason, such as a voice it doesn't have.
 
+### Spoken ATIS
+
+About 75 large US airports publish their ATIS as text (the FAA's digital ATIS, D-ATIS). With **Spoken ATIS** on
+(**Config > System > Spoken weather**, `speech.atis`), the map reads an airport's real ATIS aloud too, through the
+same speech server: `http://metarmap.local/api/atis/KHOU.audio` (`/api/atis/KHOU` shows the words). Unlike the AWOS
+it has the information letter, the approaches and runways in use, and the NOTAMs. An airport with separate arrival
+and departure ATIS reads both, arrival first.
+
+The text comes from [atis.info](https://atis.info), an unofficial copy of the FAA's D-ATIS with no published terms,
+so it's off until you turn it on, and the map only asks it when someone plays an ATIS (at most once a minute, one
+request for every airport) and every half hour to know which airports have one. The FAA writes ATIS in its
+contractions ("DEPG RY 15L", "TWY EA CLSD"); the map writes those out as words ("departing runway one five left",
+"taxiway Echo Alpha closed") so the voice reads them right. A contraction it doesn't know is read as it's written.
+
+Like the spoken weather, it's for fun, not for flight planning.
+
 ## Web API, Home Assistant and the touchscreen remote
 
 `GET /api/status` returns the map's state as JSON. The web UI's controls are plain HTTP requests too, so scripts and
