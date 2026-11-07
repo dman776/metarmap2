@@ -962,6 +962,17 @@ def test_config_shows_the_engines_settings(client):
     assert 'data-when="speech-engine" data-when-value="kokoro">' in page
 
 
+def test_the_metars_page_has_awos_buttons_with_a_server(client):
+    page = client("/metars")[1]
+    assert "data-awos=" not in page and 'id="awos-audio"' not in page and "trow metar awos" not in page
+    client.services.config.data.speech.wyoming_host = "192.168.0.14"
+    page = client("/metars")[1]
+    codes = [a.code for a in client.services.config.airports if a.code]
+    assert re.findall(r'data-awos="([A-Z0-9]+)"', page) == codes  # one beside each Locate
+    assert page.count('data-call="/locate/') == len(codes)
+    assert 'id="awos-audio"' in page and "trow metar head awos" in page
+
+
 def test_speech_settings(client):
     assert client("/config/edit/speech.wyoming_host/192.168.0.14")[0] == 200
     assert client("/config/edit/speech.wyoming_host/a%20b")[0] == 400

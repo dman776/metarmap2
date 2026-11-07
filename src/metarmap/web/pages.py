@@ -53,7 +53,13 @@ def index(services: "App", site):
 def metars(services: "App", site):
     s = stations(services)
     return render(
-        site, "metars.tpl", stations=s, fetched=services.metars.lastFetchTime, cats=views.CATEGORIES, **views.summary(s)
+        site,
+        "metars.tpl",
+        stations=s,
+        fetched=services.metars.lastFetchTime,
+        cats=views.CATEGORIES,
+        speech=configured(services.config.data.speech),  # an AWOS button per airport: only with a speech server
+        **views.summary(s),
     )
 
 

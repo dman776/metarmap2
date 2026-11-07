@@ -180,6 +180,9 @@ select:focus, input[type=text]:focus, input[type=search]:focus, input[type=passw
 .trow.head { background: var(--sunken); font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .trow.metar { grid-template-columns: 44px 150px 76px minmax(0, 1fr) 72px 104px; min-width: 860px; }
 .trow.metar:hover { background: #151f2a; }
+.trow.metar.awos { grid-template-columns: 44px 150px 76px minmax(0, 1fr) 72px 196px; min-width: 950px; }  /* Locate and AWOS */
+.row-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.chip.loading { animation: r-loading 1.2s ease-in-out infinite; }
 .trow.brief { grid-template-columns: 150px 76px minmax(0, 1fr) 72px; min-width: 640px; padding: 14px 24px; }
 .raw { font: 13px var(--mono); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .station b { font: 600 15px var(--mono); display: block; }
@@ -445,7 +448,7 @@ pre.dump { margin: 0; padding: 16px 20px; overflow: auto; font: 13px/1.6 var(--m
     .set .range input { width: 160px; }
     .ap-row { grid-template-columns: 32px minmax(0, 1fr) 46px 86px; gap: 10px; padding: 8px 18px; }
     .ap-row .ap-name { display: none; }
-    .trow.metar, .trow.brief { min-width: 0; grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "st cat btn" "raw raw raw"; gap: 8px 12px; padding: 12px 16px; }
+    .trow.metar, .trow.metar.awos, .trow.brief { min-width: 0; grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "st cat btn" "raw raw raw"; gap: 8px 12px; padding: 12px 16px; }
     .trow.metar.head { display: none; }
     .trow.metar > :nth-child(1), .trow.metar > :nth-child(5), .trow.brief > :nth-child(4) { display: none; }
     .trow.metar > :nth-child(2), .trow.brief > :nth-child(1) { grid-area: st; }

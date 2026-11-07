@@ -33,10 +33,11 @@
 
 <section class="card" style="overflow: hidden">
     <div class="scroll-x">
-        <div class="trow metar head"><span>LED</span><span>Station</span><span>Cat</span><span>Raw METAR</span><span>Obs</span><span></span></div>
+        % awos = ' awos' if speech else ''
+        <div class="trow metar head{{awos}}"><span>LED</span><span>Station</span><span>Cat</span><span>Raw METAR</span><span>Obs</span><span></span></div>
         % for s in stations:
         % cat = s['cat'] if s['cat'] in cats else 'none'
-        <div class="trow metar" data-station="{{s['code']}}" data-cat="{{cat}}">
+        <div class="trow metar{{awos}}" data-station="{{s['code']}}" data-cat="{{cat}}">
             <span class="mono muted">{{s['pixel'] + 1}}</span>
             <span class="station"><b>{{s['code']}}</b>{{!'<span class="badge-mock" title="A mock METAR from the Airports page (dev_mode)">mock</span>' if s['mock'] else ''}}
                 % if s['name']:
@@ -52,13 +53,25 @@
             <span class="nodata">Not reporting METAR data</span>
             <span class="mono muted">—</span>
             % end
-            <button class="chip sm" type="button" data-call="/locate/{{s['pixel']}}" data-then="none" aria-label="Locate {{s['code']}} on the map">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
-                Locate
-            </button>
+            <span class="row-actions">
+                <button class="chip sm" type="button" data-call="/locate/{{s['pixel']}}" data-then="none" aria-label="Locate {{s['code']}} on the map">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
+                    Locate
+                </button>
+                % if speech:
+                <button class="chip sm" type="button" data-awos="{{s['code']}}" aria-pressed="false" aria-label="Hear {{s['code']}}'s weather">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
+                    AWOS
+                </button>
+                % end
+            </span>
         </div>
         % end
     </div>
 </section>
+
+% if speech:
+<audio id="awos-audio" preload="none"></audio>
+% end
 
 %include("footer.tpl")

@@ -514,6 +514,62 @@
         });
     });
 
+    // METARs page: AWOS plays an airport's report here (/api/speak/<code>.audio, from the speech server). Another
+    // airport switches to it; the one playing again stops. The sound starts in the press itself (a phone only lets
+    // a page play sound in answer to a touch); if it can't play, the map says why.
+    const awosAudio = document.getElementById('awos-audio');
+    if (awosAudio) {
+        let playing = null;  // the button whose report is playing (or loading)
+        const reset = function () {
+            if (!playing) return;
+            playing.setAttribute('aria-pressed', 'false');
+            playing.classList.remove('loading');
+            playing = null;
+        };
+        const stop = function () {
+            awosAudio.pause();
+            awosAudio.removeAttribute('src');
+            awosAudio.load();
+            reset();
+        };
+        const failed = async function (btn, err) {
+            const code = btn.dataset.awos;
+            let why = 'It could not be played.';
+            try {
+                const res = await fetch('/api/speak/' + encodeURIComponent(code) + '.audio', {cache: 'no-store'});
+                if (!res.ok) why = (await res.text()).trim() || why;
+                else if (err && err.name === 'NotAllowedError') why = 'The browser blocked sound: press AWOS again.';
+            } catch (e) {
+                why = "Can't reach the map.";
+            }
+            if (playing !== btn) return;  // switched or stopped meanwhile
+            stop();
+            showOutput(code + ': no spoken weather', why);
+        };
+        document.querySelectorAll('[data-awos]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                if (playing === btn) {
+                    stop();
+                    return;
+                }
+                reset();
+                playing = btn;
+                btn.setAttribute('aria-pressed', 'true');
+                btn.classList.add('loading');
+                awosAudio.src = '/api/speak/' + encodeURIComponent(btn.dataset.awos) + '.audio';
+                const started = awosAudio.play();
+                if (started) started.catch(function (err) {
+                    if (err.name !== 'AbortError' && playing === btn) failed(btn, err);
+                });
+            });
+        });
+        awosAudio.addEventListener('playing', function () { if (playing) playing.classList.remove('loading'); });
+        awosAudio.addEventListener('ended', stop);
+        awosAudio.addEventListener('error', function () {
+            if (playing && awosAudio.getAttribute('src')) failed(playing, awosAudio.error);
+        });
+    }
+
     // METAR list: category filter + search
     const rows = document.querySelectorAll('[data-station]');
     if (rows.length) {
