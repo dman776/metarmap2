@@ -538,10 +538,15 @@
         return audio;
     }
 
+    // its parts are kept, only shown or hidden: a click's target taken out of the page would look to Leaflet like
+    // a click on the map (it can't see the popup above it any more), and close the popup
     function markPlay(btn, state) {  // state: 'loading', 'speaking' or null
+        if (!btn.firstChild) btn.innerHTML = PLAY_SVG + STOP_SVG + '<span></span>';
         btn.classList.toggle('loading', state === 'loading');
         btn.setAttribute('aria-pressed', state ? 'true' : 'false');
-        btn.innerHTML = (state ? STOP_SVG : PLAY_SVG) + '<span>' + (state ? 'Stop' : KINDS[btn.dataset.kind].label) + '</span>';
+        btn.children[0].toggleAttribute('hidden', !!state);
+        btn.children[1].toggleAttribute('hidden', !state);
+        btn.children[2].textContent = state ? 'Stop' : KINDS[btn.dataset.kind].label;
     }
 
     function stopListening(why) {
@@ -634,7 +639,10 @@
             btn.dataset.code = led.code;
             btn.setAttribute('aria-label', KINDS[kind].aria + led.code);
             markPlay(btn, null);
-            btn.addEventListener('click', function () { play(btn, parts); });
+            L.DomEvent.on(btn, 'click', function (e) {
+                L.DomEvent.stop(e);  // the press is the popup's, never the map's (which would close the popup)
+                play(btn, parts);
+            });
             buttons.appendChild(btn);
         });
         panel.appendChild(buttons);
