@@ -2041,8 +2041,13 @@ def test_the_pronunciation_page(client):
     assert re.findall(r'data-suggest="(\w+)"', page) == ["TRSSH", "VNY"]  # MNSTR is tuned already
     assert '<option value="KHOU">KHOU</option>' in page and 'id="tn-try"' in page
     assert page.count('class="btn icon tn-play tn-hear"') == 1 and 'id="tn-hear-audio"' in page  # a speaker per row
-    assert "Spoken ATIS is off" not in page
-    assert 'href="/config/pronunciation"' in client("/config")[1]
+    assert "Spoken weather is off" not in page
+    config = client("/config")[1]
+    # under the speech server (it's for the AWOS and the ATIS), not under Spoken ATIS
+    assert config.index('href="/config/pronunciation"') < config.index("speech.atis")
+    assert config.index('href="/config/pronunciation"') > config.index('id="speech-engine"')
+    speech.enabled = False
+    assert "Spoken weather is off" in client("/config/pronunciation")[1]
     assert client("/config/pronunciation", auth=False)[0] == 401
 
 

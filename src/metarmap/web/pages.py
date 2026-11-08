@@ -196,7 +196,8 @@ def airports(services: "App", site):
 
 
 def pronunciation(services: "App", site):
-    """The spoken ATIS's tunings: words and phrases said another way, with the words the map reads as written."""
+    """The spoken weather's tunings (the AWOS and the ATIS): words and phrases said another way, with the words the
+    map reads as written."""
     from metarmap.atis import AtisError
     from metarmap.atis_spoken import unknown
 
@@ -221,6 +222,7 @@ def pronunciation(services: "App", site):
         tunings=speech.tunings,
         codes=codes,
         with_atis=with_atis,
+        speech_on=configured(speech),
         atis_on=bool(speech.atis) and configured(speech),
         suggestions=dict(sorted(suggestions.items())),
         problem=problem,

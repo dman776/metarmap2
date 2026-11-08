@@ -10,11 +10,11 @@
 
 <p class="tab-intro"><a href="/config#system">Spoken weather</a> › Pronunciation. The map writes out the FAA's contractions itself ("DEPG RY 15L" is "departing runway one five left"). Here you tell it how to say the rest: a fix or a local name ("MNSTR" as "monster"), a typo in the FAA's text ("GRO UND" as "ground"), or a word you'd like said another way ("RNAV" as "are nav"). Each is matched as whole words, in any case, in every airport's ATIS and AWOS or in one airport's (its name too), before the map's own rules, and is said just as you write it.</p>
 
-% if not atis_on:
+% if not speech_on:
 <section class="banner" role="status">
     <span>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f5b544" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.5"/></svg>
-        Spoken ATIS is off (or spoken weather has no server). The list is kept; turn it on in Spoken weather to hear it.
+        Spoken weather is off (or has no speech server). The list is kept; turn it on in Spoken weather to hear it.
     </span>
     <a class="btn" href="/config#system">Spoken weather</a>
 </section>
