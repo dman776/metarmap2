@@ -193,7 +193,8 @@
     // audio plays, the line being said is lit and kept in view. The voice doesn't say when it reaches a line, so it's
     // worked out from how long each line's words are: close, not exact. remote.js uses it too (window.metarmapTranscript)
     const transcript = {
-        render: function (list, lines) {
+        // rawOnly (the map's popup): only the FAA's text; a line with none is kept, hidden, as follow() counts lines
+        render: function (list, lines, rawOnly) {
             list.textContent = '';
             lines.forEach(function (line) {
                 const li = document.createElement('li');
@@ -204,7 +205,8 @@
                 said.className = 'tx-said';
                 said.textContent = line.said;
                 if (line.raw) li.appendChild(raw);
-                li.appendChild(said);
+                if (!rawOnly) li.appendChild(said);
+                else if (!line.raw) li.hidden = true;
                 list.appendChild(li);
             });
             list.hidden = !lines.length;

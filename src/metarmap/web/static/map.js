@@ -600,8 +600,20 @@
         if (started) started.catch(function (err) {
             if (err.name !== 'AbortError' && listen.btn === btn) listenFailed(btn, err);  // Abort: switched or stopped
         });
+        parts.metar.hidden = true;
         const t = window.metarmapTranscript;
-        if (btn.dataset.kind !== 'atis' || !t) {
+        if (btn.dataset.kind === 'awos') {  // the METAR it's read from, shown once it plays
+            const show = function () {
+                if (listen.btn !== btn) return;
+                parts.metar.hidden = !parts.metar.textContent;
+                parts.resized();
+            };
+            if (t) listen.unfollow = t.whenPlaying(audio, show);
+            else audio.addEventListener('playing', show, {once: true});
+            parts.resized();
+            return;
+        }
+        if (!t) {
             parts.resized();
             return;
         }
@@ -609,7 +621,7 @@
             if (listen.btn !== btn) return;
             listen.unfollow = t.whenPlaying(audio, function () {
                 if (listen.btn !== btn) return;
-                t.render(parts.list, lines);
+                t.render(parts.list, lines, true);  // the FAA's text only
                 listen.unfollow = t.follow(parts.list, audio, lines, parts.list);
                 parts.resized();
             });
@@ -664,6 +676,11 @@
         parts.why.setAttribute('role', 'status');
         parts.why.hidden = true;
         panel.appendChild(parts.why);
+        parts.metar = document.createElement('div');  // AWOS: the raw METAR
+        parts.metar.className = 'pop-raw pop-metar';
+        parts.metar.textContent = led.raw || '';
+        parts.metar.hidden = true;
+        panel.appendChild(parts.metar);
         parts.list = document.createElement('ol');
         parts.list.className = 'tx pop-tx';
         parts.list.setAttribute('aria-label', led.code + ' ATIS, line by line');

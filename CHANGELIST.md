@@ -2,7 +2,8 @@
 
 - **Listen in the Map page's airport popup** (and the Remote page's Map tab): with spoken weather on, a fourth tab,
   **Listen**, plays the airport's **AWOS**, and its **ATIS** where it publishes one (with spoken ATIS on), with the
-  information letter and time, and the ATIS's lines to read along as it plays. Closing the popup stops it; the
+  information letter and time. While it plays, the popup shows the raw METAR (AWOS), or the ATIS as the FAA wrote it,
+  line by line, the line being read lit. Closing the popup stops it; the
   popup's tab is remembered as the others are (Summary when spoken weather is off). If it can't play, it says why in
   the popup. On the Remote page, the popup and the Info tab never talk at once (one stops the other), and leaving
   the Map tab stops the popup's

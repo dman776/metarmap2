@@ -376,6 +376,7 @@ body.map-full-open { overflow: hidden; }
 .led-popup .pop-tx { max-height: 200px; overflow-y: auto; }
 .led-popup .pop-tx li { padding: 6px 8px; gap: 2px; }
 .led-popup .pop-tx .tx-raw, .led-popup .pop-tx .tx-said { font-size: 12px; }
+.pop-metar { padding: 6px 8px; border-left: 3px solid var(--accent); border-radius: 8px; background: var(--accent-soft); color: var(--text); overflow-wrap: anywhere; }
 .pop-summary { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 3px; }
 .pop-summary li.age { color: var(--muted); list-style: none; margin-left: -16px; }
 .pop-decoded { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 12px; margin: 0; font: 12px/1.45 var(--sans); }

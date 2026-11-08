@@ -49,7 +49,8 @@ The Wind Direction visualizer, with wind barbs, over the radar background:
 
 Click an airport for its weather in plain English, the raw METAR, or the METAR decoded line by line. With
 [spoken weather](#spoken-weather) on, its **Listen** tab plays the airport's AWOS, and its ATIS where it publishes one
-(with [Spoken ATIS](#spoken-atis) on), to read along:
+(with [Spoken ATIS](#spoken-atis) on). While it plays, the popup shows the raw METAR (AWOS), or the ATIS as the FAA
+wrote it, the line being read lit:
 
 ![An airport's popup on the Map page, with its weather in plain English](docs/images/map_airport_popup.jpg)
 
@@ -300,7 +301,7 @@ contractions ("DEPG RY 15L", "TWY EA CLSD"); the map writes those out as words (
 
 **Read along**: while an ATIS plays, the page shows it line by line, the FAA's text over how it's said, with the
 line being said lit and kept in view: a way to learn to read a D-ATIS. On the Remote page's Info tab (ATIS mode)
-under the airports, in the Listen tab of an airport's popup on the Map page (closing the popup stops it), and on
+under the airports, in the Listen tab of an airport's popup on the Map page (the FAA's text only; closing the popup stops it), and on
 the METARs page in a panel at the bottom (× closes it and stops the audio). The voice
 doesn't say when it reaches each line, so the map works it out from the lines' lengths: close, not exact.
 
