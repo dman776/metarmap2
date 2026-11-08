@@ -30,6 +30,8 @@ Returns a read-only snapshot of the map's state as `application/json`. No authen
     "active": 0,
     "id": "flight_category",
     "name": "Flight Category",
+    "shortName": "Flight Cat",
+    "icon": "plane",
     "exclusive": false,
     "description": "Display the flight category (ie. VFR, MVFR, IFR, LIFR).",
     "legend": [
@@ -40,8 +42,9 @@ Returns a read-only snapshot of the map's state as `application/json`. No authen
     ]
   },
   "visualizers": [
-    { "index": 0, "id": "flight_category", "name": "Flight Category", "exclusive": false },
-    { "index": 1, "id": "wind", "name": "Wind", "exclusive": false }
+    { "index": 0, "id": "flight_category", "name": "Flight Category", "shortName": "Flight Cat", "icon": "plane",
+      "exclusive": false },
+    { "index": 1, "id": "wind", "name": "Wind", "shortName": "Wind", "icon": "wind", "exclusive": false }
   ],
   "config": {
     "visualizer.active": "flight_category",
@@ -134,9 +137,9 @@ Returns a read-only snapshot of the map's state as `application/json`. No authen
 | `brightness` | Current LED brightness, `0.0`–`1.0` |
 | `build` | What's running, read when the map started: `tag` is the release it's at or after (`null` if none), `ahead` how many commits after it, `commit` and `sha` the commit, `modified` whether the code was changed on the map itself (`config.json` and `airports.json` don't count). `release` is true on a release exactly; otherwise `pill` says why not ("Unreleased: 3 commits after v2.9.2", "Not tagged: v2.9.3" when `untagged`, "Pre-release: v2.9.0-rc1", "Modified: local changes to v2.9.2", "Unreleased: no release tag"). `chip` is the header's version text and `url` the commit on GitHub (`null` if the map isn't from GitHub). `null` outside a git checkout. |
 | `update` | What's newest on GitHub: `current` is the running version, `commit` the running commit, `channel` is the channel in use (`branch` counts as `releases` without `dev_mode`), `available` the release (or, on the `latest` and `branch` channels, the commit) an update would install, or `null` when up to date; `installed` is what an update installed that needs a restart; `releases` lists the releases that can be installed, newest first; with `dev_mode`, `branches` lists GitHub's branches and `branch` is the one the `branch` channel follows; `checked` is when GitHub was last asked, and `error` why that failed. `null` if the map doesn't check. |
-| `visualizer` | The visualizer that is running now: `active` is its number, `id` its id (see the table under Control). `exclusive` visualizers ignore `/locate`. |
+| `visualizer` | The visualizer that is running now: `active` is its number, `id` its id (see the table under Control). `shortName` is its name where there's little room (at most 11 characters, e.g. "Density Alt"), and `icon` names what its icon shows: one of `plane`, `cloud`, `eye`, `wind`, `gust`, `compass`, `thermometer`, `droplet`, `mountain`, `gauge`, `rain`, `warning`, `ban`, `rainbow`, `chase` (each visualizer has its own; a client draws them its own way, and should show none for a name it doesn't know). `exclusive` visualizers ignore `/locate`. |
 | `visualizer.legend` | What the LEDs mean for that visualizer. `colors` are CSS hex colors; two or more mean a gradient across the range. `effect` is `solid`, `blink`, `pulse`, `flash` (the first color with flashes of the second), `chase` or `off`. `period` is the seconds per blink or pulse, or `null`. `key` names the entry (stable, unlike `label`, which can change with the settings); `inUse` is whether an LED (or a virtual airport) shows it now, always `true` for a whole-strip visualizer (Rainbow, Chase). |
-| `visualizers` | Every visualizer, in index order: `index` is its number and `id` its id, both accepted by `/visualizer/<id>` |
+| `visualizers` | Every visualizer, in index order: `index` is its number and `id` its id, both accepted by `/visualizer/<id>`; `shortName` and `icon` as in `visualizer` |
 | `config` | The saved `config.json` values, keyed by the dotted path accepted by `/config/edit` |
 | `display` | The OLED screen: `enabled` is the Config setting (`display_screen.enabled`); `on` is whether it's showing now (false after `/display/off`, or when not enabled) |
 | `suntimes` | Today's dimming schedule (ISO 8601 with time zone) |
@@ -152,7 +155,8 @@ What the physical map is doing right now. The Map page polls it every second. No
 {
   "now": 1792854523.9,
   "brightness": 0.5,
-  "visualizer": { "active": 0, "id": "flight_category", "name": "Flight Category", "exclusive": false, "areas": null,
+  "visualizer": { "active": 0, "id": "flight_category", "name": "Flight Category", "shortName": "Flight Cat",
+                  "icon": "plane", "exclusive": false, "areas": null,
                   "autoRotate": { "enabled": true, "seconds": 60, "next": 1792854560.0 },
                   "legendInUse": ["VFR", "IFR", "lightning"], "legendInUseOnly": false },
   "fetch": { "next": 1792854900.0, "seconds": 600, "fetched": 1792854300.2 },
@@ -179,6 +183,7 @@ What the physical map is doing right now. The Map page polls it every second. No
 | `leds[].look` | The LED's current effect: `solid`, `off`, `blink` (`period` seconds per on/off cycle; with two `colors` it alternates between them instead of turning off), `pulse` (`period`; `low`, if present, is its dimmest point, e.g. `0.3`, otherwise it fades to off), or `cycle` (steps through `colors`, `step` seconds each). Colors are CSS hex colors. |
 | `leds[].wind` | While a wind visualizer runs (Wind, Wind Gusts, Wind Direction): the airport's wind for its barb on the Map page, `{"dir": 270.0, "kt": 12}` (the direction it blows from, and the sustained speed). `null` when it's calm, variable (`VRB`), has no direction or no report, and for every other visualizer. |
 | `leds[].virtual` | A virtual airport: no LED on the strip, so the Map page draws it in a dashed circle. |
+| `visualizer.shortName`, `visualizer.icon` | As in `/api/status`, for the visualizer running now |
 | `visualizer.areas` | Which areas the Map page draws while the visualizer runs: `advisories` (Advisories, from `/api/advisories`), `tfrs` (TFR, from `/api/tfrs`), else `null` |
 | `fetch` | The METAR fetch: `next` is when it next happens (Unix time, compare it with `now`; `null` if none is scheduled), `seconds` how long that wait is (600 for the regular fetch every 10 minutes; 60 for a retry after a failed fetch, which comes first), `fetched` when METARs were last fetched (`null` before the first). `GET /fetch` restarts the 10-minute wait. The Home page's Fetch METARs button counts down with it, and reloads once the next fetch has come |
 | `visualizer.autoRotate` | Auto-rotate: `enabled` and `seconds` are its settings (`visualizer.auto_rotate`); `next` is when it next changes the visualizer (Unix time, compare it with `now`), `null` while it's off. Picking a visualizer by hand (`/visualizer/...`) starts the wait again, so `next` moves a whole delay ahead |

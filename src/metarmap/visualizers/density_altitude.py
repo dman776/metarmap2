@@ -69,6 +69,8 @@ VISUALIZER = Visualizer(
     id="density_altitude",
     name="Density Altitude",
     description='Display the density altitude above the field elevation (how much higher the airport "feels").',
+    short_name="Density Alt",
+    icon="mountain",
     legend=legend,
     look=look,
 )

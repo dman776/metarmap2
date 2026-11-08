@@ -46,6 +46,8 @@ VISUALIZER = Visualizer(
     name="Wind Gusts",
     description="Display how much stronger the gusts are than the wind: dim white with no gusts, then blue, yellow, "
     "orange and red as the gusts get stronger.",
+    short_name="Gusts",
+    icon="gust",
     legend=legend,
     look=look,
     barbs=True,  # the Map page draws each airport's wind barb

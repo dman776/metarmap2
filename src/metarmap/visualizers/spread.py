@@ -41,6 +41,8 @@ VISUALIZER = Visualizer(
     id="dewpoint_spread",
     name="Dewpoint Spread",
     description="Display the temperature-dewpoint spread (fog risk): white when it's dry, red when fog is likely.",
+    short_name="Dew Spread",
+    icon="droplet",
     legend=legend,
     look=look,
 )

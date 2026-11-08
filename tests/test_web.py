@@ -32,7 +32,8 @@ from metarmap.traffic import Traffic
 from metarmap.visualizers import advisories as advisories_vis
 from metarmap.visualizers import flightcategory, rainbow, wind, wind_direction, windgusts
 from metarmap.visualizers import tfr as tfr_vis
-from metarmap.web import api, control, create_app, views
+from metarmap.visualizers.visualizer import ICONS
+from metarmap.web import api, control, create_app, icons, views
 
 AUTH = "Basic " + base64.b64encode(b"metar:map").decode()
 OBS = datetime(2026, 10, 24, 17, 53, tzinfo=timezone.utc)
@@ -691,6 +692,11 @@ def test_status(services):
     assert [v["name"] for v in status["visualizers"]] == ["Flight Category", "Rainbow"]
     assert [(v["index"], v["id"]) for v in status["visualizers"]] == [(0, "flight_category"), (1, "rainbow")]
     assert status["visualizers"][1]["exclusive"] is True
+    assert [(v["shortName"], v["icon"]) for v in status["visualizers"]] == [
+        ("Flight Cat", "plane"),
+        ("Rainbow", "rainbow"),
+    ]
+    assert (status["visualizer"]["shortName"], status["visualizer"]["icon"]) == ("Flight Cat", "plane")
     assert status["config"]["display_screen.delay"] == 5.0
     assert status["suntimes"]["dawn"] == SUN["dawn"].isoformat()
     assert status["lastFetchTime"] == "2026-10-24T12:55:00"
@@ -712,6 +718,7 @@ def test_live(services):
     assert live["leds"][1]["lat"] == 29.6
     assert live["leds"][2]["look"]["effect"] == "off"  # no report
     assert live["strip"] is None
+    assert (live["visualizer"]["shortName"], live["visualizer"]["icon"]) == ("Flight Cat", "plane")
     assert live["display"] == {"enabled": True, "on": True, "screen": {"kind": "message", "title": "MAP"}}
     services.config.data.display_screen.enabled = False
     assert api.live(services)["display"] == {"enabled": False, "on": False, "screen": None}
@@ -764,6 +771,8 @@ def test_live_whole_strip_visualizer(services):
         "active": 1,
         "id": "rainbow",
         "name": "Rainbow",
+        "shortName": "Rainbow",
+        "icon": "rainbow",
         "exclusive": True,
         "areas": None,
         "autoRotate": {"enabled": False, "seconds": 60, "next": None},
@@ -857,7 +866,19 @@ def test_map_legend_follows_the_visualizer(services):
     status, body = c("/map/legend", auth=False)
     assert status == 200 and 'class="legend"' in body and "<html" not in body
     assert 'data-then="none"' in c("/map", auth=False)[1]
-    assert 'data-active="0"' in c("/map", auth=False)[1]
+    assert 'data-active="0" data-icon="plane"' in c("/map", auth=False)[1]
+    assert '<symbol id="vi-plane"' in c("/map", auth=False)[1]  # map.js draws the legend title's icon from it
+
+
+def test_icons_draw_every_visualizer_icon():
+    assert set(icons.SHAPES) == set(ICONS)
+    sprite = icons.sprite()
+    assert all(f'<symbol id="vi-{name}"' in sprite for name in ICONS)
+    assert (
+        icons.use("cloud", 18)
+        == '<svg class="vi" width="18" height="18" aria-hidden="true"><use href="#vi-cloud"/></svg>'
+    )
+    assert icons.use("nope") == ""
 
 
 def test_metar_route(services):
@@ -1712,6 +1733,9 @@ def test_remote_page(client):
     assert 'id="map-settings"' in body and "leaflet.js" in body
     assert body.count("data-vis=") == len(app.renderer.visualizers)
     assert 'data-vis="0" data-name="Flight Category"' in body
+    # each chip has its visualizer's icon, from the page's sprite
+    assert body.count('<symbol id="vi-') == len(icons.SHAPES)
+    assert '<use href="#vi-plane"/></svg>Flight Category</button>' in body
     assert 'id="r-legend"' in body and 'class="legend"' in body
     assert 'id="brightness"' in body and "data-update" not in body
     assert "<dialog" not in body  # nothing opens them here; a browser without <dialog> would show them

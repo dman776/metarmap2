@@ -143,6 +143,8 @@ VISUALIZER = Visualizer(
     id="precipitation",
     name="Precipitation",
     description="Display the current observed weather: the color is what it is, the effect is how heavy it is.",
+    short_name="Precip",
+    icon="rain",
     legend=legend,
     look=look,
 )

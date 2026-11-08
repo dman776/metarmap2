@@ -79,12 +79,21 @@ def status(services: "App", ip):
             "active": active_num,
             "id": active_vis.id,
             "name": active_vis.name,
+            "shortName": active_vis.short_name,
+            "icon": active_vis.icon,
             "exclusive": active_vis.exclusive,
             "description": active_vis.description,
             "legend": services.renderer.legend(),
         },
         "visualizers": [
-            {"index": i, "id": v.id, "name": v.name, "exclusive": v.exclusive}
+            {
+                "index": i,
+                "id": v.id,
+                "name": v.name,
+                "shortName": v.short_name,
+                "icon": v.icon,
+                "exclusive": v.exclusive,
+            }
             for i, v in enumerate(services.renderer.visualizers)
         ],
         "config": {
@@ -212,6 +221,8 @@ def live(services: "App", now=None):
             "active": active_num,
             "id": active_vis.id,
             "name": active_vis.name,
+            "shortName": active_vis.short_name,
+            "icon": active_vis.icon,
             "exclusive": active_vis.exclusive,
             "areas": active_vis.areas,
             "autoRotate": auto_rotate(services),

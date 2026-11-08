@@ -76,6 +76,8 @@ VISUALIZER = Visualizer(
     name="Flight Category",
     description="Display the flight category (VFR, MVFR, IFR, LIFR). A station that doesn't report one gets an "
     "estimate from its visibility and ceiling, shown breathing (or solid, if that's turned off in Config).",
+    short_name="Flight Cat",
+    icon="plane",
     legend=legend,
     look=look,
 )

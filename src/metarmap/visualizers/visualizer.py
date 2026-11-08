@@ -13,6 +13,26 @@ from metarmap.models import Look, Report
 # Visualizer.areas: the areas the Map page can draw, each from /api/<areas>
 AREAS = ("advisories", "tfrs")
 ID = re.compile(r"^[a-z][a-z0-9_]*$")
+# Visualizer.icon: what each visualizer's icon shows; each client draws the name its own way (the web pages:
+# metarmap.web.icons)
+ICONS = (
+    "plane",
+    "cloud",
+    "eye",
+    "wind",
+    "gust",
+    "compass",
+    "thermometer",
+    "droplet",
+    "mountain",
+    "gauge",
+    "rain",
+    "warning",
+    "ban",
+    "rainbow",
+    "chase",
+)
+SHORT_NAME_MAX = 11  # characters: fits a tile of the touchscreen remote's visualizer picker
 
 
 @dataclass(frozen=True)
@@ -24,6 +44,8 @@ class Visualizer:
     id:          what config.json saves (visualizer.active, visualizer.auto_rotate.skip) and the API accepts; never
                  changes, so `name` can
     name, description: shown in the web UI, Home Assistant and on the OLED
+    short_name:  the name where there's little room (the touchscreen remote's picker), at most SHORT_NAME_MAX characters
+    icon:        what its icon shows (one of ICONS)
     legend:      legend(settings) -> legend_item() entries describing what the LEDs mean
     look:        look(metar, settings) -> how one airport's LED looks (metar is {} when it has no report), or
     strip_look:  strip_look(settings) -> one look for the whole strip (rainbow, chase); exactly one of the two.
@@ -37,6 +59,8 @@ class Visualizer:
     id: str
     name: str
     description: str
+    short_name: str
+    icon: str
     legend: Callable[..., List[dict]]
     look: Optional[Callable[[Optional[Report], object], Look]] = None
     strip_look: Optional[Callable[[object], Look]] = None
@@ -47,6 +71,12 @@ class Visualizer:
     def __post_init__(self):
         if not ID.fullmatch(self.id):
             raise ValueError(f"visualizer id {self.id!r}: lower case letters, digits and _, starting with a letter")
+        if not 0 < len(self.short_name) <= SHORT_NAME_MAX:
+            raise ValueError(
+                f"visualizer {self.id}: short_name {self.short_name!r} needs 1-{SHORT_NAME_MAX} characters"
+            )
+        if self.icon not in ICONS:
+            raise ValueError(f"visualizer {self.id}: icon {self.icon!r} is not one of {', '.join(ICONS)}")
         if (self.look is None) == (self.strip_look is None):
             raise ValueError(f"visualizer {self.id}: needs either look or strip_look, not both")
         if self.covers_virtual and self.strip_look is None:
@@ -156,6 +186,8 @@ def info(vis, settings) -> dict:
     return {
         "id": vis.id,
         "name": vis.name,
+        "short_name": vis.short_name,
+        "icon": vis.icon,
         "description": vis.description,
         "exclusive": vis.exclusive,
         "legend": legend(vis, settings),

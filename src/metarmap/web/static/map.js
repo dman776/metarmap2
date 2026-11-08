@@ -146,6 +146,21 @@
         }
     });
 
+    // a visualizer's icon (/api/live's visualizer.icon) from the page's sprite (metarmap.web.icons); null without one
+    function visIcon(name) {
+        if (!name || !document.getElementById('vi-' + name)) return null;
+        const NS = 'http://www.w3.org/2000/svg';
+        const svg = document.createElementNS(NS, 'svg');
+        svg.setAttribute('class', 'vi');
+        svg.setAttribute('width', '14');
+        svg.setAttribute('height', '14');
+        svg.setAttribute('aria-hidden', 'true');
+        const use = document.createElementNS(NS, 'use');
+        use.setAttribute('href', '#vi-' + name);
+        svg.append(use);
+        return svg;
+    }
+
     // `list` is the legend's <ul> (none for a visualizer without one)
     function showLegend(list) {
         const old = legendBox.querySelector('.legend');
@@ -153,7 +168,18 @@
         legendBox.hidden = !list;
         if (!list) return;
         const title = document.querySelector('.vis-name b');
-        legendBox.querySelector('summary').textContent = 'What the LEDs mean' + (title ? ' · ' + title.textContent : '');
+        // one inline span, so the icon sits in the line instead of splitting the flex row
+        const text = document.createElement('span');
+        text.textContent = 'What the LEDs mean' + (title ? ' · ' : '');
+        if (title) {  // the icon and name stay together when it wraps
+            const name = document.createElement('span');
+            name.className = 'vis';
+            const icon = visIcon(document.querySelector('.vis-name').dataset.icon);
+            if (icon) name.append(icon);
+            name.append(title.textContent);
+            text.append(name);
+        }
+        legendBox.querySelector('summary').replaceChildren(text);
         legendBox.append(list.cloneNode(true));
     }
     new LegendControl().addTo(map);
@@ -172,7 +198,10 @@
             const html = document.createElement('div');
             html.innerHTML = await res.text();
             if (legendWanted !== vis.active) return;  // changed again while this one loaded
-            if (visName) visName.querySelector('b').textContent = vis.name;
+            if (visName) {
+                visName.querySelector('b').textContent = vis.name;
+                visName.dataset.icon = vis.icon || '';
+            }
             if (fullVisName) fullVisName.textContent = vis.name;
             showLegend(html.querySelector('.legend'));
             shownVisualizer = vis.active;
