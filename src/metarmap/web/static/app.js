@@ -209,8 +209,9 @@
             });
             list.hidden = !lines.length;
         },
-        // lights the line being said while `audio` plays; returns a function that stops following it
-        follow: function (list, audio, lines) {
+        // lights the line being said while `audio` plays; returns a function that stops following it. With
+        // `scroller` (the map's popup), only that box is scrolled to keep the line in view, never the map under it
+        follow: function (list, audio, lines, scroller) {
             const weights = lines.map(function (line) { return line.said.length + 12; });  // + a pause between lines
             const total = weights.reduce(function (a, b) { return a + b; }, 0) || 1;
             let lit = -1;
@@ -219,10 +220,16 @@
                 const items = list.children;
                 if (items[lit]) items[lit].classList.remove('current');
                 lit = i;
-                if (items[i]) {
-                    items[i].classList.add('current');
+                if (!items[i]) return;
+                items[i].classList.add('current');
+                if (!scroller) {
                     items[i].scrollIntoView({block: 'nearest', behavior: 'smooth'});
+                    return;
                 }
+                const box = scroller.getBoundingClientRect();
+                const at = items[i].getBoundingClientRect();
+                const by = at.top < box.top ? at.top - box.top : at.bottom > box.bottom ? at.bottom - box.bottom : 0;
+                if (by) scroller.scrollBy({top: by, behavior: 'smooth'});
             };
             const update = function () {
                 if (!audio.duration || !isFinite(audio.duration)) return;

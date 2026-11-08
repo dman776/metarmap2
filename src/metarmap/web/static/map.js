@@ -388,9 +388,9 @@
             '<g class="edge">' + g + '</g><g class="line">' + g + '</g></svg>';
     }
 
-    // the popup's last tab (summary, raw or decoded), remembered in this browser
+    // the popup's last tab (summary, raw, decoded or listen), remembered in this browser
     const TAB_KEY = 'metarmap.popupTab';
-    const TABS = [['summary', 'Summary'], ['raw', 'Raw'], ['decoded', 'Decoded']];
+    const TABS = [['summary', 'Summary'], ['raw', 'Raw'], ['decoded', 'Decoded'], ['listen', 'Listen']];
     function savedTab() {
         let tab = null;
         try { tab = window.localStorage.getItem(TAB_KEY); } catch (e) { /* private window */ }
@@ -467,14 +467,17 @@
         head.appendChild(pill);
         box.appendChild(head);
 
+        // Listen only with spoken weather on (/api/live's speech)
+        const tabsHere = TABS.filter(function (t) { return t[0] !== 'listen' || speechOn; });
         const panels = {};
-        TABS.forEach(function (t) {
+        tabsHere.forEach(function (t) {
             panels[t[0]] = document.createElement('div');
             panels[t[0]].className = 'pop-raw';
         });
         panels.summary.className = 'pop-text';
         panels.raw.textContent = led.raw || 'Not reporting METAR data';
         let loaded = false;
+        let listening = null;  // the Listen tab's parts, built the first time it's shown
 
         const tabs = document.createElement('div');
         tabs.className = 'pop-tabs';
@@ -485,13 +488,14 @@
                 panels[name].hidden = name !== tab;
                 buttons[name].setAttribute('aria-selected', name === tab ? 'true' : 'false');
             });
-            if (tab !== 'raw' && !loaded) {
+            if ((tab === 'summary' || tab === 'decoded') && !loaded) {
                 loaded = true;
                 loadMetar(panels, led.code, resized);
             }
+            if (tab === 'listen' && !listening) listening = listenPanel(panels.listen, led, resized);
             resized();
         };
-        TABS.forEach(function (t) {
+        tabsHere.forEach(function (t) {
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'pop-tab';
@@ -502,10 +506,168 @@
             tabs.appendChild(btn);
         });
         box.appendChild(tabs);
-        TABS.forEach(function (t) { box.appendChild(panels[t[0]]); });
-        show(savedTab());
+        tabsHere.forEach(function (t) { box.appendChild(panels[t[0]]); });
+        const tab = savedTab();
+        show(panels[tab] ? tab : 'summary');  // Listen remembered, but spoken weather is off now
         return box;
     }
+
+    // ---- Listen: an airport's weather read aloud by the map's speech server, as an AWOS reads it from the METAR
+    // (/api/speak/<code>.audio, every airport), and its real ATIS (/api/atis/<code>.audio, only where /api/live's
+    // leds[].atis says it has one), with the ATIS's words to read along (app.js's window.metarmapTranscript). One
+    // sound at a time; closing the popup stops it. The sound starts in the press itself: a phone only lets a page
+    // play sound in answer to a touch. On the Remote, the Info tab's reading and this one stop each other
+    // (metarmap:speaking), and leaving the Map tab stops this one (metarmap:quiet).
+    let speechOn = false;  // /api/live's speech
+    const PLAY_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg>';
+    const STOP_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>';
+    const KINDS = {
+        awos: {label: 'AWOS', base: '/api/speak/', aria: 'Hear the weather at ', none: ': no spoken weather'},
+        atis: {label: 'ATIS', base: '/api/atis/', aria: 'Hear the ATIS at ', none: ': no ATIS'}
+    };
+    const listen = {audio: null, btn: null, parts: null, unfollow: function () {}};
+
+    function listenAudio() {
+        if (listen.audio) return listen.audio;
+        const audio = listen.audio = new Audio();
+        audio.addEventListener('playing', function () { if (listen.btn) markPlay(listen.btn, 'speaking'); });
+        audio.addEventListener('ended', function () { stopListening(); });
+        audio.addEventListener('error', function () {
+            if (listen.btn && audio.getAttribute('src')) listenFailed(listen.btn, audio.error);
+        });
+        return audio;
+    }
+
+    function markPlay(btn, state) {  // state: 'loading', 'speaking' or null
+        btn.classList.toggle('loading', state === 'loading');
+        btn.setAttribute('aria-pressed', state ? 'true' : 'false');
+        btn.innerHTML = (state ? STOP_SVG : PLAY_SVG) + '<span>' + (state ? 'Stop' : KINDS[btn.dataset.kind].label) + '</span>';
+    }
+
+    function stopListening(why) {
+        listen.unfollow();
+        listen.unfollow = function () {};
+        const btn = listen.btn;
+        listen.btn = null;
+        if (listen.audio && listen.audio.getAttribute('src')) {
+            listen.audio.pause();
+            listen.audio.removeAttribute('src');
+            listen.audio.load();  // drops what was loading
+        }
+        if (btn) markPlay(btn, null);
+        if (why && listen.parts) {
+            listen.parts.why.textContent = why;
+            listen.parts.why.hidden = false;
+            listen.parts.resized();
+        }
+    }
+
+    // why it didn't play, in words: the map's own reason (spoken ATIS off, no speech server, atis.info down...)
+    async function listenFailed(btn, err) {
+        const kind = KINDS[btn.dataset.kind];
+        let why = 'It could not be played.';
+        try {
+            const res = await fetch(kind.base + encodeURIComponent(btn.dataset.code) + '.audio', {cache: 'no-store'});
+            if (!res.ok) why = (await res.text()).trim() || why;
+            else if (err && err.name === 'NotAllowedError') why = 'The browser blocked sound: press ' + kind.label + ' again.';
+        } catch (e) {
+            why = "Can't reach the map.";
+        }
+        if (listen.btn === btn) stopListening(btn.dataset.code + kind.none + ': ' + why);
+    }
+
+    function play(btn, parts) {
+        if (listen.btn === btn) {
+            stopListening();
+            return;
+        }
+        stopListening();
+        document.dispatchEvent(new CustomEvent('metarmap:speaking', {detail: 'popup'}));
+        const audio = listenAudio();
+        const code = btn.dataset.code;
+        listen.btn = btn;
+        listen.parts = parts;
+        parts.why.hidden = true;
+        parts.list.hidden = true;
+        markPlay(btn, 'loading');
+        audio.src = KINDS[btn.dataset.kind].base + encodeURIComponent(code) + '.audio';
+        const started = audio.play();
+        if (started) started.catch(function (err) {
+            if (err.name !== 'AbortError' && listen.btn === btn) listenFailed(btn, err);  // Abort: switched or stopped
+        });
+        const t = window.metarmapTranscript;
+        if (btn.dataset.kind !== 'atis' || !t) {
+            parts.resized();
+            return;
+        }
+        t.lines(code).then(function (lines) {  // fetched while the audio is made, shown once it plays
+            if (listen.btn !== btn) return;
+            listen.unfollow = t.whenPlaying(audio, function () {
+                if (listen.btn !== btn) return;
+                t.render(parts.list, lines);
+                listen.unfollow = t.follow(parts.list, audio, lines, parts.list);
+                parts.resized();
+            });
+        }).catch(function () { /* the audio says why it can't */ });
+        parts.resized();
+    }
+
+    // "Information Q, 1753Z", or arrival and departure apart, from /api/atis/<code>/lines' entries
+    function atisLetters(entries) {
+        const KIND = {arr: 'Arrival information ', dep: 'Departure information '};
+        return entries.map(function (e) {
+            return (KIND[e.type] || 'Information ') + e.code + (e.time ? ', ' + e.time + 'Z' : '');
+        }).join(' · ');
+    }
+
+    function listenPanel(panel, led, resized) {
+        panel.className = 'pop-listen';
+        const buttons = document.createElement('div');
+        buttons.className = 'pop-plays';
+        const parts = {resized: resized};
+        ['awos', 'atis'].forEach(function (kind) {
+            if (kind === 'atis' && !led.atis) return;  // no digital ATIS here (or spoken ATIS is off)
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'pop-play';
+            btn.dataset.kind = kind;
+            btn.dataset.code = led.code;
+            btn.setAttribute('aria-label', KINDS[kind].aria + led.code);
+            markPlay(btn, null);
+            btn.addEventListener('click', function () { play(btn, parts); });
+            buttons.appendChild(btn);
+        });
+        panel.appendChild(buttons);
+        if (led.atis) {
+            parts.letters = document.createElement('div');
+            parts.letters.className = 'pop-letters muted';
+            panel.appendChild(parts.letters);
+            fetch('/api/atis/' + encodeURIComponent(led.code) + '/lines', {cache: 'no-store'})
+                .then(function (res) { return res.ok ? res.json() : null; })
+                .then(function (atis) {
+                    if (!atis || !atis.entries || !atis.entries.length) return;
+                    parts.letters.textContent = atisLetters(atis.entries);
+                    resized();
+                })
+                .catch(function () { /* a press says why */ });
+        }
+        parts.why = document.createElement('p');
+        parts.why.className = 'pop-why';
+        parts.why.setAttribute('role', 'status');
+        parts.why.hidden = true;
+        panel.appendChild(parts.why);
+        parts.list = document.createElement('ol');
+        parts.list.className = 'tx pop-tx';
+        parts.list.setAttribute('aria-label', led.code + ' ATIS, line by line');
+        parts.list.hidden = true;
+        panel.appendChild(parts.list);
+        return parts;
+    }
+
+    // the Remote's Info tab started reading, or its Map tab was left; the page hidden: quiet, as it's for the one looking
+    document.addEventListener('metarmap:speaking', function (e) { if (e.detail !== 'popup') stopListening(); });
+    document.addEventListener('metarmap:quiet', function () { stopListening(); });
+    document.addEventListener('visibilitychange', function () { if (document.hidden) stopListening(); });
 
     function syncLeds(list) {
         list.forEach(function (led) {
@@ -528,6 +690,7 @@
                     const popup = e.popup;
                     popup.setContent(popupFor(entry.data, function () { if (popup.isOpen()) popup.update(); }));
                 });
+                marker.on('popupclose', function () { stopListening(); });  // also when another airport opens
             }
             entry.data = led;
             totalPixels = Math.max(totalPixels, led.pixel + 1);
@@ -1084,6 +1247,7 @@
         try {
             const res = await fetch('/api/live', {cache: 'no-store'});
             const live = await res.json();
+            speechOn = !!live.speech;
             syncLeds(live.leds);
             strip = live.strip;
             followVisualizer(live.visualizer);

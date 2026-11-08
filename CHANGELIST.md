@@ -1,5 +1,11 @@
 ### Unreleased
 
+- **Listen in the Map page's airport popup** (and the Remote page's Map tab): with spoken weather on, a fourth tab,
+  **Listen**, plays the airport's **AWOS**, and its **ATIS** where it publishes one (with spoken ATIS on), with the
+  information letter and time, and the ATIS's lines to read along as it plays. Closing the popup stops it; the
+  popup's tab is remembered as the others are (Summary when spoken weather is off). If it can't play, it says why in
+  the popup. On the Remote page, the popup and the Info tab never talk at once (one stops the other), and leaving
+  the Map tab stops the popup's
 - **Spoken ATIS** (`/api/atis/<code>.audio`, `/api/atis/<code>`, `/api/atis`; README: *Spoken ATIS*): the real ATIS
   for the airports that publish a digital one (about 75 large US airports; KHOU and KIAH around Houston), from
   atis.info, read aloud by the spoken weather's server. Turned on in **Config > System > Spoken weather**
