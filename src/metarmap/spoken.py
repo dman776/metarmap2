@@ -12,8 +12,9 @@ reported (as the LEDs blink red for it), so a listener can tell a missing value 
 sentence, which a speech model gives a pause.
 """
 
+import re
 from fractions import Fraction
-from typing import Optional
+from typing import Optional, Sequence
 
 from metarmap import decode
 from metarmap.models import Report
@@ -64,11 +65,17 @@ ABBREVIATIONS = {
 }
 
 
-def spoken(metar: Optional[Report], name: str = "", code: str = "") -> str:
+def spoken(metar: Optional[Report], name: str = "", code: str = "", tunings: Sequence = ()) -> str:
     """
     The report as text to be spoken. name: the airport's name (a station's, e.g. "Houston/Hobby Arpt, TX, US", or the
-    map's own); code: its identifier, spelled out when there's no name. An airport with no report says so.
+    map's own); code: its identifier, spelled out when there's no name. An airport with no report says so. tunings:
+    words or phrases said another way (the Pronunciation page's, for this airport; see atis_spoken.for_airport()),
+    applied to the whole text, the airport's name too.
     """
+    return tune(_spoken(metar, name, code), tunings)
+
+
+def _spoken(metar: Optional[Report], name: str, code: str) -> str:
     place = airport_name(name or (metar.name if metar else ""), code)
     if not metar:
         return f"{place}. No weather report is available."
@@ -94,6 +101,19 @@ def airport_name(name: str, code: str = "") -> str:
     if not text:
         return " ".join(code.upper()) or "This airport"
     return " ".join(ABBREVIATIONS.get(word.strip(".").lower(), word) for word in text.split())
+
+
+def tune(text: str, tunings: Sequence) -> str:
+    """
+    The text with each tuning's words (whole words, any case) said as it's tuned, in one pass, so what one tuning
+    says isn't tuned again. tunings: the longest first (atis_spoken.for_airport()), so a phrase wins over a word in it.
+    """
+    found = [t for t in tunings if t.text and t.text.split()]
+    if not found:
+        return text
+    words = [r"\s+".join(re.escape(w) for w in t.text.split()) for t in found]
+    pattern = re.compile(r"(?<![A-Za-z0-9])(?:" + "|".join(f"({w})" for w in words) + r")(?![A-Za-z0-9])", re.I)
+    return pattern.sub(lambda m: found[m.lastindex - 1].say, text)
 
 
 # ---- numbers as words ---------------------------------------------------------------------------------------------

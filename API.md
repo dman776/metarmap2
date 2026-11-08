@@ -245,7 +245,8 @@ as pilots and controllers say them: `tree` for 3 and `niner` for 9. In order: th
 airport's name (the map's own, else the station's, with `Rgnl`, `Muni`, `Intl`... written out; else its letters), the
 observation time in Zulu, the wind, the visibility, the weather, `Lightning observed`, the sky (the first broken or
 overcast layer is the `ceiling`), the temperature and dew point (`minus` below zero), the altimeter and the flight
-category. What the report leaves out is said to be `not reported`; an airport with no report says so.
+category. What the report leaves out is said to be `not reported`; an airport with no report says so. The words, the
+airport's name too, follow `speech.tunings` (the Pronunciation page), as the ATIS does.
 
 ### `GET /api/speak/<code>.audio`
 
@@ -293,7 +294,7 @@ written, with the altimeter's words and the remarks) and how it's said (`said`),
 ```
 
 The words follow `speech.tunings` (the Pronunciation page): whole words or phrases said another way, for every airport
-or one, before the map's own rules.
+or one, before the map's own rules. The airport's name in the first line is tuned as the AWOS's is.
 
 `/api/atis` lists the map's airports that have one, with each ATIS's `type` (`combined`, `arr` or `dep`), its
 information letter (`code`), its `time` (HHMM, UTC) and when atis.info last updated it (`updatedAt`):
@@ -512,7 +513,7 @@ Settings that apply right away:
 - `speech.engine`: the speech server: `wyoming` (Piper, e.g. Home Assistant's add-on) or `kokoro` (Kokoro-FastAPI)
 - `speech.wyoming_host`, `speech.wyoming_port`, `speech.wyoming_voice`: the Piper server (Home Assistant's address; port 10200) and the voice to ask it for (e.g. `en_US-lessac-medium`; empty: its own). An empty host or voice is sent as `-`
 - `speech.atis`: the spoken ATIS on or off (`/api/atis`, from atis.info; off by default)
-- `speech.tunings`: the Pronunciation page's list, `[{"text": "MNSTR", "say": "monster", "airport": ""}]` (`airport` empty for every airport). Saved as a whole with `POST /config/tunings` and `{"tunings": [...]}` (login needed), not with `/config/edit`
+- `speech.tunings`: the Pronunciation page's list, `[{"text": "MNSTR", "say": "monster", "airport": ""}]` (`airport` empty for every airport). Saved as a whole with `POST /config/tunings` and `{"tunings": [...]}` (login needed), not with `/config/edit`. `GET /config/say.audio?text=...` (login needed) reads any words aloud as WAV, at most 200 characters, for the page's speaker beside each tuning: 400 for no words or too many, 503 and 502 as for `/api/speak/<code>.audio`
 - `speech.kokoro_url`, `speech.kokoro_voice`, `speech.kokoro_speed`: the Kokoro server (e.g. `/config/edit/speech.kokoro_url/192.168.0.164:8880`; `http://` is added), its voice (e.g. `af_heart`) and speed (0.5 to 2). An empty address is sent as `-`
 - `visualizer.active`, the default visualizer used at startup, by id (`/config/edit/visualizer.active/wind`); a number is taken too and saved as the id. An unknown one is a 400. Saving it doesn't change the visualizer that's running now; use `/visualizer/<id>` for that.
 - `visualizer.auto_rotate.enabled`

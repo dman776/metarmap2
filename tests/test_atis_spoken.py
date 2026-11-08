@@ -188,6 +188,12 @@ def test_tunings_are_said_as_written():
     assert said.startswith("Hobby information Papa")  # the header and the weather aren't tuned
 
 
+def test_tunings_say_the_airports_name_in_the_header():
+    tunings = [tuning("Hobby", "Hobbie", "KHOU"), tuning("P", "pee")]  # P: the letter stays Papa (header, not body)
+    said = atis_spoken.spoken_atis([{"type": "combined", "datis": HOBBY}], "Hobby", "KHOU", (), tunings)
+    assert said.startswith("Hobbie information Papa, one six five tree Zulu.")
+
+
 def test_tunings_match_whole_words_and_the_longest_first():
     tunings = [tuning("RY", "rye"), tuning("RY 13R", "the long runway")]
     said = atis_spoken.expand("ILS RY 13R. RYAN RY 4.", "", frozenset(), atis_spoken.for_airport(tunings, "KHOU"))

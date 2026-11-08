@@ -14,7 +14,7 @@ from metarmap import __version__
 from metarmap.decode import decode, summary
 from metarmap.models import Report
 from metarmap.atis import AtisError
-from metarmap.atis_spoken import lines as atis_lines
+from metarmap.atis_spoken import for_airport, lines as atis_lines
 from metarmap.speech import SpeechError, configured
 from metarmap.spoken import spoken
 from metarmap.visualizers import advisories as advisories_vis, tfr as tfr_vis, wind_direction
@@ -259,7 +259,8 @@ def spoken_report(services: "App", code):
     if code not in airports:
         return None
     m = services.metars.data.get(code)
-    return spoken(m, airports[code].name or (m.name if m else ""), code)
+    tunings = for_airport(services.config.data.speech.tunings, code)
+    return spoken(m, airports[code].name or (m.name if m else ""), code, tunings)
 
 
 def atis_airports(services: "App"):
@@ -374,6 +375,31 @@ def as_audio(services: "App", code):
         return as_error(e)
     bottle.response.content_type = "audio/wav"
     bottle.response.set_header("Cache-Control", "no-store")  # the next METAR says something else
+    return byte_range(clip)
+
+
+# the most a Pronunciation page's Play reads: a tuning says at most 120 characters
+SAY_MAX = 200
+
+
+def as_said_audio(services: "App", text: str):
+    """
+    Some words read aloud (WAV), as the speech server says them: the Pronunciation page's Play beside a tuning, to
+    hear a "say it as" before saving it. 400: no words, or too many; 503 and 502 as for as_audio().
+    """
+    text = " ".join((text or "").split())
+    if not text:
+        bottle.abort(400, "Nothing to say")
+    if len(text) > SAY_MAX:
+        bottle.abort(400, f"At most {SAY_MAX} characters")
+    speech = services.speech
+    if speech is None:
+        bottle.abort(503, "This map has no speech")
+    try:
+        clip = speech.audio(text)
+    except SpeechError as e:
+        return as_error(e)
+    bottle.response.content_type = "audio/wav"
     return byte_range(clip)
 
 

@@ -721,7 +721,48 @@
         const status = document.getElementById('tn-status');
         const codes = tunings.dataset.codes ? tunings.dataset.codes.split(' ') : [];
         const showEmpty = function () { empty.hidden = rows.children.length > 0; };
+        // the speaker beside a row: its "say it as" read aloud now, saved or not, to tweak until it sounds right;
+        // one row at a time, and it stops Try it's ATIS (and Try it stops it)
+        const hearAudio = document.getElementById('tn-hear-audio');
+        let hearing = null;  // the row's button that's playing
+        const stopHearing = function () {
+            if (hearing) {
+                hearing.setAttribute('aria-pressed', 'false');
+                hearing.classList.remove('loading');
+            }
+            hearing = null;
+            hearAudio.pause();
+            hearAudio.removeAttribute('src');
+            hearAudio.load();
+        };
+        hearAudio.addEventListener('playing', function () { if (hearing) hearing.classList.remove('loading'); });
+        hearAudio.addEventListener('ended', stopHearing);
+        const hear = function (button, row) {
+            const wasMe = hearing === button;
+            stopHearing();
+            if (wasMe) return;
+            const say = row.querySelector('.tn-say').value.trim() || row.querySelector('.tn-text').value.trim();
+            if (!say) { status.textContent = 'Nothing to hear: type how to say it first.'; return; }
+            if (play) stopPlaying();  // Try it's ATIS (only when the page has Try it)
+            hearing = button;
+            button.setAttribute('aria-pressed', 'true');
+            button.classList.add('loading');
+            hearAudio.src = '/config/say.audio?text=' + encodeURIComponent(say);
+            const started = hearAudio.play();  // in the press: a phone only plays sound in answer to a touch
+            if (started) started.catch(async function (err) {
+                if (err.name === 'AbortError') return;
+                let why = String(err.message || err);
+                try {
+                    const res = await fetch(hearAudio.src, {cache: 'no-store', credentials: 'same-origin'});
+                    if (!res.ok) why = (await res.text()).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() || why;
+                } catch (e) { /* as it is */ }
+                stopHearing();
+                showOutput("Couldn't say it", why);
+            });
+        };
         const wire = function (row) {
+            const button = row.querySelector('.tn-hear');
+            button.addEventListener('click', function () { hear(button, row); });
             row.querySelector('.tn-remove').addEventListener('click', function () {
                 row.remove();
                 showEmpty();
@@ -737,6 +778,7 @@
             row.innerHTML = '<input type="text" class="tn-text" aria-label="The FAA writes" autocapitalize="characters" spellcheck="false" maxlength="40">' +
                 '<input type="text" class="tn-say" aria-label="Say it as" maxlength="120">' +
                 '<select class="tn-airport" aria-label="Airport"><option value="">Every airport</option></select>' +
+                '<button class="btn icon tn-play tn-hear" type="button" aria-label="Hear it" aria-pressed="false" title="Hear it as written, before saving"><svg class="i-play" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg><svg class="i-stop" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg></button>' +
                 '<button class="btn icon tn-remove" type="button" aria-label="Remove"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>';
             const select = row.querySelector('select');
             codes.forEach(function (c) {
@@ -827,6 +869,7 @@
             pick.addEventListener('change', function () { stopPlaying(); show(); });
             play.addEventListener('click', async function () {
                 if (play.getAttribute('aria-pressed') === 'true') { stopPlaying(); return; }
+                stopHearing();
                 playState('getting');
                 audio.src = '/api/atis/' + encodeURIComponent(pick.value) + '.audio';
                 const started = audio.play();  // in the press: a phone only plays sound in answer to a touch

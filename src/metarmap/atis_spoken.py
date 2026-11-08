@@ -344,10 +344,10 @@ def lines(
     an ATIS. tunings: words or phrases said another way (speech.tunings: text, say, airport), this airport's and
     every airport's.
     """
-    place = spoken.airport_name(name, code)
+    mine = for_airport(tunings, code)
+    place = spoken.tune(spoken.airport_name(name, code), mine)  # the name, as the AWOS says it
     order = {"arr": 0, "combined": 1, "dep": 2}
     known = identifiers(list(ids) + [code])
-    mine = for_airport(tunings, code)
     found: List[Line] = []
     for entry in sorted(entries, key=lambda e: order.get(e.get("type"), 1)):
         found += expand_lines(entry["datis"], place, known, mine)
