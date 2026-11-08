@@ -364,6 +364,19 @@ body.map-full-open { overflow: hidden; }
 .pop-tab[aria-selected="true"] { border-color: var(--accent); color: var(--accent); }
 .pop-tab:focus-visible { outline: 2px solid #ffd27d; outline-offset: 2px; }
 .pop-text { font: 13px/1.45 var(--sans); color: var(--text); }
+.pop-listen { display: grid; gap: 8px; font: 13px/1.45 var(--sans); }
+.pop-plays { display: flex; flex-wrap: wrap; gap: 6px; }
+.pop-play { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--control); background: var(--surface-2); color: var(--text); font: 600 13px var(--sans); cursor: pointer; }
+.pop-play[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.pop-play.loading { animation: r-loading 1.2s ease-in-out infinite; }
+.pop-play:focus-visible { outline: 2px solid #ffd27d; outline-offset: 2px; }
+.pop-letters { font-size: 12px; }
+.pop-letters:empty { display: none; }
+.pop-why { margin: 0; font-size: 12px; color: #ff8a8a; overflow-wrap: anywhere; }
+.led-popup .pop-tx { max-height: 200px; overflow-y: auto; }
+.led-popup .pop-tx li { padding: 6px 8px; gap: 2px; }
+.led-popup .pop-tx .tx-raw, .led-popup .pop-tx .tx-said { font-size: 12px; }
+.pop-metar { padding: 6px 8px; border-left: 3px solid var(--accent); border-radius: 8px; background: var(--accent-soft); color: var(--text); overflow-wrap: anywhere; }
 .pop-summary { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 3px; }
 .pop-summary li.age { color: var(--muted); list-style: none; margin-left: -16px; }
 .pop-decoded { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 12px; margin: 0; font: 12px/1.45 var(--sans); }

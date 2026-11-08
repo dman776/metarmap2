@@ -80,6 +80,7 @@
         }
         const tab = tabs.find(function (t) { return t.dataset.tab === name; }) || tabs[0];
         if (tab.dataset.tab !== 'info') quiet();  // the reading is for the one looking
+        if (tab.dataset.tab !== 'map') document.dispatchEvent(new Event('metarmap:quiet'));  // and the map popup's
         tabs.forEach(function (t) {
             const on = t === tab;
             t.setAttribute('aria-selected', on ? 'true' : 'false');
@@ -383,6 +384,7 @@
                 return;
             }
             if (current) mark(current, null);
+            document.dispatchEvent(new CustomEvent('metarmap:speaking', {detail: 'info'}));  // the map popup's stops
             current = btn;
             base = mode === 'atis' ? '/api/atis/' : '/api/speak/';
             words = null;
@@ -443,6 +445,8 @@
             btn.addEventListener('click', function () { speak(btn); });
         });
         stopBtn.addEventListener('click', function () { stop(); });
+        // the map popup's Listen started: one voice at a time
+        document.addEventListener('metarmap:speaking', function (e) { if (e.detail !== 'info' && current) stop(); });
         // the page hidden (another tab or mode: quiet(), above): quiet, as the reading is for the one looking
         document.addEventListener('visibilitychange', function () { if (document.hidden && current) stop(); });
     }

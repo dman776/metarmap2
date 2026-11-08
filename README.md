@@ -47,7 +47,10 @@ The Wind Direction visualizer, with wind barbs, over the radar background:
 
 ![The Wind Direction visualizer over live radar: each airport in the color of the direction its wind blows from, with a barb](docs/images/map_wind_direction_with_barbs.jpg)
 
-Click an airport for its weather in plain English, the raw METAR, or the METAR decoded line by line:
+Click an airport for its weather in plain English, the raw METAR, or the METAR decoded line by line. With
+[spoken weather](#spoken-weather) on, its **Listen** tab plays the airport's AWOS, and its ATIS where it publishes one
+(with [Spoken ATIS](#spoken-atis) on). While it plays, the popup shows the raw METAR (AWOS), or the ATIS as the FAA
+wrote it, the line being read lit:
 
 ![An airport's popup on the Map page, with its weather in plain English](docs/images/map_airport_popup.jpg)
 
@@ -250,7 +253,8 @@ release, `git pull` says it isn't on a branch: `git checkout master` first (or p
 ## Spoken weather
 
 The map can read an airport's METAR aloud, as an AWOS does: an **AWOS** button beside each airport on the METARs
-page, an **AWOS** mode on the Remote page's Info tab, and `http://metarmap.local/api/speak/KHOU.audio` for anything
+page, in the **Listen** tab of an airport's popup on the Map page (and the Remote page's Map tab), an **AWOS** mode
+on the Remote page's Info tab, and `http://metarmap.local/api/speak/KHOU.audio` for anything
 else (`/api/speak/KHOU` shows the words). It's off until you turn it on. It's for fun, not for flight planning: listen
 to the airport's own AWOS, ASOS or ATIS for that.
 
@@ -297,7 +301,8 @@ contractions ("DEPG RY 15L", "TWY EA CLSD"); the map writes those out as words (
 
 **Read along**: while an ATIS plays, the page shows it line by line, the FAA's text over how it's said, with the
 line being said lit and kept in view: a way to learn to read a D-ATIS. On the Remote page's Info tab (ATIS mode)
-under the airports, and on the METARs page in a panel at the bottom (× closes it and stops the audio). The voice
+under the airports, in the Listen tab of an airport's popup on the Map page (the FAA's text only; closing the popup stops it), and on
+the METARs page in a panel at the bottom (× closes it and stops the audio). The voice
 doesn't say when it reaches each line, so the map works it out from the lines' lengths: close, not exact.
 
 **Pronunciation** (**Config > System > Spoken weather > Pronunciation**, `speech.tunings`): your own words for what

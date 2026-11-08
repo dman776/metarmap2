@@ -2021,3 +2021,10 @@ def test_the_pages_have_somewhere_to_read_along(client):
     speech.atis = False
     client.services.atis = SimpleNamespace(available=lambda: set())
     assert 'id="atis-sheet"' not in client("/metars")[1] and 'id="r-transcript"' not in client("/remote")[1]
+
+
+@pytest.mark.parametrize("page", ["/map", "/remote"])
+def test_the_map_popup_can_read_along(client, page):
+    """The popup's Listen tab (map.js) reads an ATIS along with app.js's window.metarmapTranscript."""
+    body = client(page)[1]
+    assert "/static/app.js?v=" in body and "/static/map.js?v=" in body

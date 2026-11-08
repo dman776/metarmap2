@@ -193,7 +193,8 @@
     // audio plays, the line being said is lit and kept in view. The voice doesn't say when it reaches a line, so it's
     // worked out from how long each line's words are: close, not exact. remote.js uses it too (window.metarmapTranscript)
     const transcript = {
-        render: function (list, lines) {
+        // rawOnly (the map's popup): only the FAA's text; a line with none is kept, hidden, as follow() counts lines
+        render: function (list, lines, rawOnly) {
             list.textContent = '';
             lines.forEach(function (line) {
                 const li = document.createElement('li');
@@ -204,13 +205,15 @@
                 said.className = 'tx-said';
                 said.textContent = line.said;
                 if (line.raw) li.appendChild(raw);
-                li.appendChild(said);
+                if (!rawOnly) li.appendChild(said);
+                else if (!line.raw) li.hidden = true;
                 list.appendChild(li);
             });
             list.hidden = !lines.length;
         },
-        // lights the line being said while `audio` plays; returns a function that stops following it
-        follow: function (list, audio, lines) {
+        // lights the line being said while `audio` plays; returns a function that stops following it. With
+        // `scroller` (the map's popup), only that box is scrolled to keep the line in view, never the map under it
+        follow: function (list, audio, lines, scroller) {
             const weights = lines.map(function (line) { return line.said.length + 12; });  // + a pause between lines
             const total = weights.reduce(function (a, b) { return a + b; }, 0) || 1;
             let lit = -1;
@@ -219,10 +222,16 @@
                 const items = list.children;
                 if (items[lit]) items[lit].classList.remove('current');
                 lit = i;
-                if (items[i]) {
-                    items[i].classList.add('current');
+                if (!items[i]) return;
+                items[i].classList.add('current');
+                if (!scroller) {
                     items[i].scrollIntoView({block: 'nearest', behavior: 'smooth'});
+                    return;
                 }
+                const box = scroller.getBoundingClientRect();
+                const at = items[i].getBoundingClientRect();
+                const by = at.top < box.top ? at.top - box.top : at.bottom > box.bottom ? at.bottom - box.bottom : 0;
+                if (by) scroller.scrollBy({top: by, behavior: 'smooth'});
             };
             const update = function () {
                 if (!audio.duration || !isFinite(audio.duration)) return;
