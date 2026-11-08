@@ -68,10 +68,11 @@ class Client:
 
     def __call__(self, path, method="GET", auth=True, body=None, headers=None):
         data = json.dumps(body).encode() if body is not None else b""
+        path, _, query = path.partition("?")
         environ = {
             "REQUEST_METHOD": method,
             "PATH_INFO": path,
-            "QUERY_STRING": "",
+            "QUERY_STRING": query,
             "SERVER_NAME": "test",
             "SERVER_PORT": "80",
             "SERVER_PROTOCOL": "HTTP/1.1",
@@ -1985,6 +1986,38 @@ def test_atis_lines_follow_the_tunings(services):
     assert "Arriving and leaving runway one tree right." in said
 
 
+def test_awos_follows_the_tunings(services):
+    from metarmap.settings import Tuning
+
+    c = Client(create_app(services, ip=""))
+    services.config.data.speech.tunings = [
+        Tuning(text="Hobby", say="Hobbie", airport="KHOU"),
+        Tuning(text="lightning", say="flashes"),  # every airport's, in the weather too
+        Tuning(text="Crockett", say="Crock it", airport="KIAH"),  # another airport's: not KDKR's
+    ]
+    body = c("/api/speak/khou", auth=False)[1]
+    assert body.startswith("Hobbie. Weather at") and "flashes observed." in body  # just as written
+    assert c.json("/api/speak", auth=False)["KDKR"] == "Crockett. No weather report is available."
+
+
+def test_hearing_a_tuning_before_saving_it(client):
+    texts = []
+
+    def audio(text):
+        texts.append(text)
+        return b"RIFF" + b"\0" * 40
+
+    client.services.speech = SimpleNamespace(audio=audio)
+    status, body = client("/config/say.audio?text=" + "eye%20ell%20%20ess")
+    assert status == 200 and client.headers["Content-Type"] == "audio/wav" and body.startswith("RIFF")
+    assert texts == ["eye ell ess"]  # spaces tidied
+    assert client("/config/say.audio?text=%20")[0] == 400
+    assert client("/config/say.audio?text=" + "a" * 201)[0] == 400
+    assert client("/config/say.audio?text=hi", auth=False)[0] == 401  # any words at all: behind the login
+    client.services.speech = None
+    assert client("/config/say.audio?text=hi")[0] == 503
+
+
 def test_saving_tunings(client):
     status, body = client("/config/tunings", method="POST", body={"tunings": [{"text": "mnstr", "say": "monster"}]})
     assert status == 200 and json.loads(body) == {"tunings": [{"text": "MNSTR", "say": "monster", "airport": ""}]}
@@ -2007,6 +2040,7 @@ def test_the_pronunciation_page(client):
     assert 'class="tn-text" value="MNSTR"' in page and 'class="tn-say" value="monster"' in page
     assert re.findall(r'data-suggest="(\w+)"', page) == ["TRSSH", "VNY"]  # MNSTR is tuned already
     assert '<option value="KHOU">KHOU</option>' in page and 'id="tn-try"' in page
+    assert page.count('class="btn icon tn-play tn-hear"') == 1 and 'id="tn-hear-audio"' in page  # a speaker per row
     assert "Spoken ATIS is off" not in page
     assert 'href="/config/pronunciation"' in client("/config")[1]
     assert client("/config/pronunciation", auth=False)[0] == 401

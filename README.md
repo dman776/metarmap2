@@ -308,9 +308,11 @@ doesn't say when it reaches each line, so the map works it out from the lines' l
 **Pronunciation** (**Config > System > Spoken weather > Pronunciation**, `speech.tunings`): your own words for what
 the map doesn't say well, such as a fix or a local name (`MNSTR` said "monster"), a typo in the FAA's text
 (`GRO UND` said "ground"), or a word you'd rather hear another way (`RNAV` said "are nav"), for every airport or one.
-Each is matched as whole words, in any case, before the map's own rules, and is said exactly as you write it. The
-page lists the words in your airports' ATIS now that the map reads as written (press one to tune it), and **Try it**
-shows and plays an airport's ATIS with your tunings.
+Each is matched as whole words, in any case, before the map's own rules, and is said exactly as you write it, in the
+ATIS and the AWOS alike, the airport's name included (`Hobby` said "Hobbie" for KHOU). The speaker beside each row
+reads its "say it as" aloud right away, saved or not, so you can tweak the spelling until it sounds right. The page
+lists the words in your airports' ATIS now that the map reads as written (press one to tune it), and **Try it** shows
+and plays an airport's ATIS with your tunings as saved.
 
 Like the spoken weather, it's for fun, not for flight planning.
 

@@ -575,7 +575,7 @@ body.kiosk main.wrap { max-width: none; height: 100vh; height: var(--kiosk-h, 10
 .tx-sheet .card-head .muted { flex: 1; font-size: 13px; }
 .tx-sheet .tx { padding: 8px 10px 12px; }
 /* the Pronunciation page */
-.tn-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) 160px 48px; }
+.tn-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) 160px 48px 48px; }
 .tn-row input, .tn-row select { width: 100%; }
 .tn-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .tn-suggest { display: flex; flex-wrap: wrap; gap: 8px; padding: 16px 24px; }
@@ -593,6 +593,7 @@ body.kiosk main.wrap { max-width: none; height: 100vh; height: var(--kiosk-h, 10
     .tn-row.head { display: none; }
     .tn-row .tn-say, .tn-row .tn-airport { grid-column: 1; }
     .tn-row .tn-remove { grid-row: 1; grid-column: 2; }
+    .tn-row .tn-hear { grid-row: 2; grid-column: 2; }
 }
 @keyframes r-locate { 50% { background: #fff; color: var(--bg); box-shadow: 0 0 18px rgba(255, 255, 255, .6); } }
 

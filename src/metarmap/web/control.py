@@ -16,7 +16,7 @@ from metarmap import system
 from metarmap.config import parse_user
 from metarmap import update
 from metarmap.lib import versions
-from metarmap.web import pages
+from metarmap.web import api, pages
 
 if TYPE_CHECKING:  # app.py imports the web, so only for the type checker
     from metarmap.app import App
@@ -328,6 +328,13 @@ def add_routes(app, services: "App", site, auth, updates=None):
     app.route("/config/airports/move/<src:int>/<dst:int>", "GET", move_airport, apply=auth)
     app.route("/config/airports/mock", "POST", set_mock_metar, apply=auth)
     app.route("/config/tunings", "POST", set_tunings, apply=auth)
+    # Play beside a tuning: its "say it as", read aloud before it's saved (behind the login: any words at all)
+    app.route(
+        "/config/say.audio",
+        "GET",
+        lambda: api.as_said_audio(services, bottle.request.query.getunicode("text")),
+        apply=auth,
+    )
     # the older by-code edits, still used by anything written for airports.json
     app.route("/config/airports/edit/<oldkey>/<newkey>", "GET", edit_airport, apply=auth)
     app.route("/config/airports/edit/prop/<airport>/<key>/<value>", "GET", edit_airport_property, apply=auth)

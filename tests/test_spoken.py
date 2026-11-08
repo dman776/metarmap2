@@ -193,6 +193,27 @@ def test_the_stations_name_is_used_when_the_map_has_none():
     assert spoken.spoken(report(name="Houston/Hobby Arpt, TX, US"), "", "KHOU").startswith("Houston Hobby Airport.")
 
 
+def tuning(text, say, airport=""):
+    from metarmap.settings import Tuning
+
+    return Tuning(text=text, say=say, airport=airport)
+
+
+def test_tunings_are_said_as_written_the_name_too():
+    tunings = [tuning("Hooks Memorial", "Hooks"), tuning("david wayne", "Dave")]  # a phrase, any case
+    said = spoken.spoken(report(name="David Wayne Hooks Memorial"), "", "KDWH", tunings)
+    assert said.startswith("Dave Hooks. Weather at")
+    assert spoken.spoken(None, "Hooks Memorial", "KDWH", tunings) == "Hooks. No weather report is available."
+
+
+def test_tune_in_one_pass_whole_words_longest_first():
+    tunings = [tuning("Hobby Airport", "the hobby field"), tuning("Hobby", "Hobbie"), tuning("field", "x")]
+    assert spoken.tune("Houston Hobby Airport. Hobby. Hobbyist.", tunings) == (
+        "Houston the hobby field. Hobbie. Hobbyist."  # what a tuning says isn't tuned again; Hobbyist isn't Hobby
+    )
+    assert spoken.tune("Hobby", []) == "Hobby"
+
+
 def test_numbers():
     assert [spoken.number(n) for n in (0, 7, 10, 19, 20, 49, 99)] == [
         "zero",

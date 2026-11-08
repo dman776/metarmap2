@@ -1,5 +1,11 @@
 ### Unreleased
 
+- **Pronunciation for the AWOS and the airport's name**: the Pronunciation page's tunings (`speech.tunings`) are now
+  said in the AWOS too (`/api/speak/<code>`, its audio), not only the ATIS, and in both the airport's name follows
+  them (the ATIS's first line, the AWOS's first words), as an airport's own or every airport's
+- **Hear a tuning before saving it**: a speaker beside each row of the Pronunciation page reads its "say it as" aloud
+  right away, saved or not, to tweak until it sounds right (`GET /config/say.audio?text=...`, login needed; at most
+  200 characters). It and Try it's ATIS never play at once
 - **Listen in the Map page's airport popup** (and the Remote page's Map tab): with spoken weather on, a fourth tab,
   **Listen**, plays the airport's **AWOS**, and its **ATIS** where it publishes one (with spoken ATIS on), with the
   information letter and time. While it plays, the popup shows the raw METAR (AWOS), or the ATIS as the FAA wrote it,
