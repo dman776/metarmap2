@@ -192,10 +192,24 @@
     // ---- an ATIS to read along (/api/atis/<code>/lines): each line the FAA's text, then how it's said. While the
     // audio plays, the line being said is lit and kept in view. The voice doesn't say when it reaches a line, so it's
     // worked out from how long each line's words are: close, not exact. remote.js uses it too (window.metarmapTranscript)
+    const LEAD = 0.5;  // seconds: a jump lands this far before its line, so as not to miss the start of it. A line is
+                       // lit this much early, so the one jumped to is the one lit
+    const lineWeights = function (lines) {
+        return lines.map(function (line) { return line.said.length + 12; });  // + a pause between lines
+    };
+    const seekWaits = new WeakMap();  // an audio -> how to cancel the jump waiting for its length
     const transcript = {
-        // rawOnly (the map's popup): only the FAA's text; a line with none is kept, hidden, as follow() counts lines
-        render: function (list, lines, rawOnly) {
+        // rawOnly (the map's popup): only the FAA's text; a line with none is kept, hidden, as follow() counts lines.
+        // onLine(i): a click on line i (not on a line with no FAA text, nor one that ends selecting text to copy)
+        render: function (list, lines, rawOnly, onLine) {
             list.textContent = '';
+            list.classList.toggle('tx-jump', !!onLine);
+            list.onclick = !onLine ? null : function (e) {
+                if (String(window.getSelection())) return;
+                const li = e.target.closest('li');
+                const i = li ? Array.prototype.indexOf.call(list.children, li) : -1;
+                if (i >= 0 && lines[i].raw) onLine(i);
+            };
             lines.forEach(function (line) {
                 const li = document.createElement('li');
                 const raw = document.createElement('span');
@@ -214,7 +228,7 @@
         // lights the line being said while `audio` plays; returns a function that stops following it. With
         // `scroller` (the map's popup), only that box is scrolled to keep the line in view, never the map under it
         follow: function (list, audio, lines, scroller) {
-            const weights = lines.map(function (line) { return line.said.length + 12; });  // + a pause between lines
+            const weights = lineWeights(lines);
             const total = weights.reduce(function (a, b) { return a + b; }, 0) || 1;
             let lit = -1;
             const light = function (i) {
@@ -235,7 +249,7 @@
             };
             const update = function () {
                 if (!audio.duration || !isFinite(audio.duration)) return;
-                const at = audio.currentTime / audio.duration * total;
+                const at = (audio.currentTime + LEAD) / audio.duration * total;
                 let sum = 0;
                 for (let i = 0; i < weights.length; i++) {
                     sum += weights[i];
@@ -251,6 +265,36 @@
                 audio.removeEventListener('ended', done);
                 light(-1);
             };
+        },
+        // jumps to line i: now, or when `audio` knows its length (it can take half a minute to be made; stopping it
+        // cancels the jump, and so does another one)
+        seek: function (audio, lines, i) {
+            if (seekWaits.has(audio)) seekWaits.get(audio)();
+            const go = function () {
+                const weights = lineWeights(lines);
+                const total = weights.reduce(function (a, b) { return a + b; }, 0) || 1;
+                const before = weights.slice(0, i).reduce(function (a, b) { return a + b; }, 0);
+                audio.currentTime = Math.max(0, before / total * audio.duration - LEAD);
+            };
+            if (audio.duration && isFinite(audio.duration)) {
+                go();
+                return;
+            }
+            const src = audio.src;  // another airport started meanwhile isn't this jump's audio
+            const cancel = function () {
+                audio.removeEventListener('loadedmetadata', ready);
+                audio.removeEventListener('emptied', stopped);
+                seekWaits.delete(audio);
+            };
+            const ready = function () {
+                cancel();
+                if (audio.src === src) go();
+            };
+            // stopped: the pages take the src away (setting a new one also empties it, and that isn't a stop)
+            const stopped = function () { if (!audio.getAttribute('src')) cancel(); };
+            audio.addEventListener('loadedmetadata', ready);
+            audio.addEventListener('emptied', stopped);
+            seekWaits.set(audio, cancel);
         },
         // runs show() once `audio` starts playing (now, if it has): the words wait for the sound, which can take
         // half a minute to be made; returns a function that cancels the wait
@@ -624,7 +668,10 @@
                 if (playing !== btn) return;
                 unfollow = transcript.whenPlaying(awosAudio, function () {  // ...shown once it plays
                     if (playing !== btn) return;
-                    transcript.render(list, lines);
+                    transcript.render(list, lines, false, function (i) {
+                        if (playing === btn) transcript.seek(awosAudio, lines, i);
+                        else start(btn, {line: i, lines: lines});  // it has ended; the words are still there
+                    });
                     sheet.hidden = false;
                     unfollow = transcript.follow(list, awosAudio, lines);
                 });
@@ -662,23 +709,25 @@
             stop();
             showOutput(codeOf(btn) + (isAtis(btn) ? ': no ATIS' : ': no spoken weather'), why);
         };
+        // from: {line, lines}, to start at that line of the ATIS
+        const start = function (btn, from) {
+            reset();
+            closeSheet();
+            playing = btn;
+            btn.setAttribute('aria-pressed', 'true');
+            btn.classList.add('loading');
+            awosAudio.src = urlOf(btn);
+            if (isAtis(btn)) openSheet(btn);
+            const started = awosAudio.play();
+            if (from) transcript.seek(awosAudio, from.lines, from.line);
+            if (started) started.catch(function (err) {
+                if (err.name !== 'AbortError' && playing === btn) failed(btn, err);
+            });
+        };
         document.querySelectorAll('[data-awos], [data-atis]').forEach(function (btn) {
             btn.addEventListener('click', function () {
-                if (playing === btn) {
-                    stop();
-                    return;
-                }
-                reset();
-                closeSheet();
-                playing = btn;
-                btn.setAttribute('aria-pressed', 'true');
-                btn.classList.add('loading');
-                awosAudio.src = urlOf(btn);
-                if (isAtis(btn)) openSheet(btn);
-                const started = awosAudio.play();
-                if (started) started.catch(function (err) {
-                    if (err.name !== 'AbortError' && playing === btn) failed(btn, err);
-                });
+                if (playing === btn) stop();
+                else start(btn);
             });
         });
         awosAudio.addEventListener('playing', function () { if (playing) playing.classList.remove('loading'); });
@@ -837,7 +886,7 @@
         const list = document.getElementById('tn-transcript');
         const audio = document.getElementById('tn-audio');
         const play = document.getElementById('tn-play');
-        let shown = false, lines = [], unfollow = function () {};
+        let shown = false, lines = [], unfollow = function () {}, start = function () {};
         const show = async function () {
             try {
                 lines = await transcript.lines(pick.value);
@@ -845,7 +894,10 @@
             } catch (err) {  // said in place of the lines: the page shows it on opening, unasked
                 lines = [{raw: '', said: "Couldn't get " + pick.value + "'s ATIS: " + String(err.message || err)}];
             }
-            transcript.render(list, lines);
+            transcript.render(list, lines, false, function (i) {  // a line clicked: straight to it, playing or not
+                if (play.getAttribute('aria-pressed') === 'true') transcript.seek(audio, lines, i);
+                else start(i);
+            });
         };
         // Play's three looks: idle (Play), getting (glowing: the ATIS is fetched and read, which can take half a
         // minute), playing (Stop: press it to stop)
@@ -867,12 +919,12 @@
         if (pick) {
             document.getElementById('tn-show').addEventListener('click', function () { stopPlaying(); show(); });
             pick.addEventListener('change', function () { stopPlaying(); show(); });
-            play.addEventListener('click', async function () {
-                if (play.getAttribute('aria-pressed') === 'true') { stopPlaying(); return; }
+            start = async function (line) {  // from line `line`, or the top
                 stopHearing();
                 playState('getting');
                 audio.src = '/api/atis/' + encodeURIComponent(pick.value) + '.audio';
                 const started = audio.play();  // in the press: a phone only plays sound in answer to a touch
+                if (line !== undefined) transcript.seek(audio, lines, line);
                 await show();
                 unfollow();
                 unfollow = transcript.follow(list, audio, lines);
@@ -886,6 +938,10 @@
                     stopPlaying();
                     showOutput(pick.value + ': no ATIS', why);
                 });
+            };
+            play.addEventListener('click', function () {
+                if (play.getAttribute('aria-pressed') === 'true') stopPlaying();
+                else start();
             });
             audio.addEventListener('playing', function () { playState('playing'); });
             audio.addEventListener('ended', function () { playState('idle'); });

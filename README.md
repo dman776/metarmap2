@@ -316,6 +316,7 @@ line being said lit and kept in view: a way to learn to read a D-ATIS. On the Co
 under the airports, in the Listen tab of an airport's popup on the Map page (the FAA's text only; closing the popup stops it), and on
 the METARs page in a panel at the bottom (× closes it and stops the audio). The voice
 doesn't say when it reaches each line, so the Chart works it out from the lines' lengths: close, not exact.
+Click a line to jump to it, while it plays or after; on the Pronunciation page's sample, before pressing Play too.
 
 **Pronunciation** (**Config > System > Spoken weather > Pronunciation**, `speech.tunings`): your own words for what
 the Chart doesn't say well, such as a fix or a local name (`MNSTR` said "monster"), a typo in the FAA's text

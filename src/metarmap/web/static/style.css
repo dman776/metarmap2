@@ -577,6 +577,8 @@ body.kiosk main.wrap { max-width: none; height: 100vh; height: var(--kiosk-h, 10
 .tx li { display: grid; gap: 4px; padding: 10px 14px; border-left: 3px solid transparent; border-radius: 8px; transition: background .2s; }
 .tx .tx-raw { font: 500 14px var(--mono); color: var(--text); overflow-wrap: anywhere; }
 .tx .tx-said { font-size: 14px; line-height: 1.4; color: var(--muted); }
+.tx-jump li { cursor: pointer; }
+@media (hover: hover) { .tx-jump li:hover:not(.current) { background: var(--surface-2); } }
 .tx li.current { background: var(--accent-soft); border-left-color: var(--accent); }
 .tx li.current .tx-said { color: var(--text); }
 .r-transcript { padding-bottom: 8px; }
