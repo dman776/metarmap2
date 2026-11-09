@@ -31,7 +31,7 @@
             Update
             % end
         </button>
-        <button class="btn danger" type="button" data-call="/restart" data-then="restart" data-confirm="Restart the chart now?">
+        <button class="btn danger" type="button" data-call="/restart" data-then="restart" data-confirm="Restart the Chart now?">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v9"/><path d="M6.3 6.3a8 8 0 1 0 11.4 0"/></svg>
             Restart
         </button>
@@ -117,7 +117,7 @@
                 <label class="lbl" for="oled-on">Micro</label>
                 <input id="oled-on" class="switch" type="checkbox"{{!' checked' if oled_on else ''}}>
             </div>
-            <p class="muted" style="margin: 0; font-size: 13px">Turns the screen, and its copy on the Map page, on or off. Temporary: it's back on when the chart restarts.</p>
+            <p class="muted" style="margin: 0; font-size: 13px">Turns the screen, and its copy on the Map page, on or off. Temporary: it's back on when the Chart restarts.</p>
         </div>
         % end
     </div>

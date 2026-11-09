@@ -493,7 +493,7 @@ body.kiosk main.wrap { max-width: none; height: 100vh; height: var(--kiosk-h, 10
 .r-tab:focus-visible { outline: 2px solid #ffd27d; outline-offset: 2px; }
 .r-host { margin-left: auto; }
 .host.offline::before { background: var(--ifr); }
-.host.offline::after { content: "can't reach the chart"; color: #ff8a8a; }
+.host.offline::after { content: "can't reach the Chart"; color: #ff8a8a; }
 .remote.offline .r-panel { opacity: .5; }
 .r-full .exit, .r-full[aria-pressed="true"] .enter { display: none; }
 .r-full[aria-pressed="true"] .exit { display: block; }

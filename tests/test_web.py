@@ -608,7 +608,7 @@ def test_led_count_on_a_strip_that_cant_resize(client):
     app.renderer._pixels = FixedStrip(len(app.renderer.pixels()))
     assert client("/config/edit/led.count/3")[0] == 200
     assert len(app.renderer.pixels()) == 50
-    assert "the new number takes effect after the chart restarts" in client("/config/airports")[1]
+    assert "the new number takes effect after the Chart restarts" in client("/config/airports")[1]
 
 
 @pytest.mark.parametrize(

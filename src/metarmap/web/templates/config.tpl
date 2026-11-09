@@ -154,7 +154,7 @@
         <div class="set">
             <div>
                 <label class="t" for="visualizer-active">Default visualizer</label>
-                <div class="d">Shown when the chart starts.</div>
+                <div class="d">Shown when the Chart starts.</div>
             </div>
             <select id="visualizer-active" data-key="visualizer.active">
                 % for v in visualizers:

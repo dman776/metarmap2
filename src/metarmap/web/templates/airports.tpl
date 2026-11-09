@@ -9,7 +9,7 @@
 <section class="banner" id="restart-banner" role="status"{{!'' if count != strip_leds else ' hidden'}}>
     <span>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f5b544" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.5"/></svg>
-        The strip is running {{strip_leds}} pixels; the new number takes effect after the chart restarts.
+        The strip is running {{strip_leds}} pixels; the new number takes effect after the Chart restarts.
     </span>
     <button class="btn primary" type="button" data-call="/restart" data-then="restart">Restart now</button>
 </section>

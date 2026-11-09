@@ -73,7 +73,7 @@
         const card = document.createElement('div');
         card.className = 'card restarting-card';
         const title = document.createElement('h2');
-        title.textContent = 'Restarting the chart';
+        title.textContent = 'Restarting the Chart';
         const label = document.createElement('p');
         const bar = document.createElement('progress');
         bar.className = 'update-bar';
@@ -97,7 +97,7 @@
             }
             clearInterval(countdown);
             bar.removeAttribute('value');  // indeterminate while waiting
-            label.textContent = 'Waiting for the chart to come back…';
+            label.textContent = 'Waiting for the Chart to come back…';
             const giveUp = Date.now() + RESTART_GIVE_UP_S * 1000;
             while (Date.now() < giveUp && !(await mapIsUp())) {
                 await new Promise(function (resolve) { setTimeout(resolve, RESTART_POLL_MS); });
@@ -140,7 +140,7 @@
             bar.value = 1;
             if (job.ok) {
                 label.textContent = job.changed
-                    ? (job.message || 'Update installed') + '. Restarting the chart…'
+                    ? (job.message || 'Update installed') + '. Restarting the Chart…'
                     : (job.message || 'Already up to date') + '.';
                 if (job.changed) {
                     setTimeout(function () { restartMap('/restart'); }, UPDATE_RESTART_MS);
@@ -510,8 +510,8 @@
                 delete data.confirm;
             } else if (form.dataset.then === 'wifi') {
                 const current = button.dataset.current;
-                if (!window.confirm('Switch the chart to the Wi-Fi network "' + data.ssid + '"?\n\nThis device must join that network too to reach the chart.'
-                        + (current ? ' If the chart can’t connect, it goes back to "' + current + '".' : ''))) return;
+                if (!window.confirm('Switch the Chart to the Wi-Fi network "' + data.ssid + '"?\n\nThis device must join that network too to reach the Chart.'
+                        + (current ? ' If the Chart can’t connect, it goes back to "' + current + '".' : ''))) return;
             }
             busy(button, true);
             try {
@@ -521,9 +521,9 @@
                         + '\n\nYour browser will ask you to log in again with the new details.');
                     form.querySelectorAll('input[type=password]').forEach(function (i) { i.value = ''; });
                 } else {
-                    showOutput('Switching Wi-Fi', 'In ' + result.delay + ' seconds the chart switches to "' + result.ssid + '".\n\n'
+                    showOutput('Switching Wi-Fi', 'In ' + result.delay + ' seconds the Chart switches to "' + result.ssid + '".\n\n'
                         + 'Join this device to "' + result.ssid + '", then open http://' + window.location.host + '/ again.'
-                        + (result.current ? '\nIf the chart can’t connect, it goes back to "' + result.current + '".' : ''));
+                        + (result.current ? '\nIf the Chart can’t connect, it goes back to "' + result.current + '".' : ''));
                 }
             } catch (err) {
                 showOutput('Not saved', err.message);
@@ -586,7 +586,7 @@
                     return pixel >= first + n && pixel < first + was && row.dataset.code;
                 })
                 .map(function (row) { return row.dataset.code; });
-            if (removed.length && !window.confirm('Remove ' + removed.join(', ') + ' from the chart?')) {
+            if (removed.length && !window.confirm('Remove ' + removed.join(', ') + ' from the Chart?')) {
                 input.value = was;
                 return;
             }
@@ -656,7 +656,7 @@
                 if (!res.ok) why = (await res.text()).trim() || why;
                 else if (err && err.name === 'NotAllowedError') why = 'The browser blocked sound: press ' + what + ' again.';
             } catch (e) {
-                why = "Can't reach the chart.";
+                why = "Can't reach the Chart.";
             }
             if (playing !== btn) return;  // switched or stopped meanwhile
             stop();
