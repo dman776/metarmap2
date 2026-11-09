@@ -1733,6 +1733,7 @@ def test_remote_page(client):
     assert status == 200
     assert "<title>Cockpit · MetarMap2</title>" in body  # MetarMap2 Cockpit (B56)
     assert '<meta name="apple-mobile-web-app-title" content="Cockpit">' in body
+    assert '<span class="r-brand-name">Cockpit</span>' in body  # beside the logo
     assert '<body class="kiosk">' in body and 'class="topbar"' not in body and 'class="foot"' not in body
     assert 'name="apple-mobile-web-app-capable" content="yes"' in body
     assert [t.split('"')[0] for t in body.split('data-tab="')[1:]] == ["visualizer", "map", "info"]

@@ -18,7 +18,7 @@
     </div>
 </section>
 
-<div id="map" class="live-map" role="region" aria-label="Map of airport LEDs"></div>
+<div id="map" class="live-map" role="region" aria-label="Map of airport pixels"></div>
 
 <div id="legend-source" hidden>
     %include("legend.tpl", legend=active['legend'], filtered=active['filtered'])

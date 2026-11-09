@@ -9,7 +9,9 @@
   the Chart and the Micro. Click an airport for its weather." The legends say "What the
   pixels mean" (Map, Home and the Cockpit). Home and the Cockpit say pixel for LED (Pixel brightness, "The pixels
   return to their normal schedule") and chart for the device ("Restart the chart now?", "Can't reach the chart",
-  "back on when the chart restarts"). Config: Physical display's **LED pixels** is **Chart pixels** (and the Micro's **Highlight active airport** pulses
+  "back on when the chart restarts"), and the Cockpit's
+  name is beside its logo. Config says so too: quiet hours force "the pixels' brightness" to 0% (the Micro blank), the
+  Wi-Fi switch moves "the chart", and the Airports page asks to remove airports "from the chart". Config: Physical display's **LED pixels** is **Chart pixels** (and the Micro's **Highlight active airport** pulses
   "the pixel of the airport on screen"), the **Virtual
   map** tab is **Web map**, and the Visualizers tab and the Airports page say pixel where they said LED, and chart
   where they meant the device ("Shown when the chart starts"). Only what you read changed: the URLs (`/remote`),

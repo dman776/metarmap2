@@ -481,6 +481,7 @@ body.kiosk main.wrap { max-width: none; height: 100vh; height: var(--kiosk-h, 10
 .remote { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
 .r-bar { display: flex; align-items: center; gap: 10px; }
 .r-brand { flex: none; }
+.r-brand-name { flex: none; margin-left: -2px; color: var(--text); font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }  /* as .brand */
 /* iPad Safari's own close button sits over the top left corner in fullscreen */
 @media (pointer: coarse) { .remote.fullscreen .r-bar { padding-left: 72px; } }
 .r-tabs { flex: 1 1 auto; min-width: 0; max-width: 560px; display: flex; gap: 4px; padding: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }

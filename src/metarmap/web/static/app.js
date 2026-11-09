@@ -510,8 +510,8 @@
                 delete data.confirm;
             } else if (form.dataset.then === 'wifi') {
                 const current = button.dataset.current;
-                if (!window.confirm('Switch the map to the Wi-Fi network "' + data.ssid + '"?\n\nThis device must join that network too to reach the map.'
-                        + (current ? ' If the map can’t connect, it goes back to "' + current + '".' : ''))) return;
+                if (!window.confirm('Switch the chart to the Wi-Fi network "' + data.ssid + '"?\n\nThis device must join that network too to reach the chart.'
+                        + (current ? ' If the chart can’t connect, it goes back to "' + current + '".' : ''))) return;
             }
             busy(button, true);
             try {
@@ -521,9 +521,9 @@
                         + '\n\nYour browser will ask you to log in again with the new details.');
                     form.querySelectorAll('input[type=password]').forEach(function (i) { i.value = ''; });
                 } else {
-                    showOutput('Switching Wi-Fi', 'In ' + result.delay + ' seconds the map switches to "' + result.ssid + '".\n\n'
+                    showOutput('Switching Wi-Fi', 'In ' + result.delay + ' seconds the chart switches to "' + result.ssid + '".\n\n'
                         + 'Join this device to "' + result.ssid + '", then open http://' + window.location.host + '/ again.'
-                        + (result.current ? '\nIf the map can’t connect, it goes back to "' + result.current + '".' : ''));
+                        + (result.current ? '\nIf the chart can’t connect, it goes back to "' + result.current + '".' : ''));
                 }
             } catch (err) {
                 showOutput('Not saved', err.message);
@@ -586,7 +586,7 @@
                     return pixel >= first + n && pixel < first + was && row.dataset.code;
                 })
                 .map(function (row) { return row.dataset.code; });
-            if (removed.length && !window.confirm('Remove ' + removed.join(', ') + ' from the map?')) {
+            if (removed.length && !window.confirm('Remove ' + removed.join(', ') + ' from the chart?')) {
                 input.value = was;
                 return;
             }
