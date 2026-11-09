@@ -7,7 +7,8 @@
   (the Config section, the Airports page's column, the Home and Cockpit switches, the Map page's copy). The brand
   beside the logo is "MetarMap2 Web", Home's **LED brightness** is **Pixel brightness**, and the Map page is a "Live mirror of
   the Chart and the Micro. Click an airport for its weather." Its legend says "What the
-  pixels mean". Config: Physical display's **LED pixels** is **Chart pixels**, the **Virtual
+  pixels mean". Config: Physical display's **LED pixels** is **Chart pixels** (and the Micro's **Highlight active airport** pulses
+  "the pixel of the airport on screen"), the **Virtual
   map** tab is **Web map**, and the Visualizers tab and the Airports page say pixel where they said LED, and chart
   where they meant the device ("Shown when the chart starts"). Only what you read changed: the URLs (`/remote`),
   settings (`display_screen.*`, `led.*`) and API fields are the same

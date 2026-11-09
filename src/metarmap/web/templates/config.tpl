@@ -142,7 +142,7 @@
         <h2>Micro</h2>
         % switch('display_screen.enabled', d.display_screen.enabled, 'Enabled', 'Show airport details on MetarMap2 Micro, the OLED screen.')
         <div class="sub" data-when="display_screen-enabled"{{!'' if d.display_screen.enabled else ' hidden'}}>
-        % switch('display_screen.locate_active', d.display_screen.locate_active, 'Highlight active airport', 'Pulse the LED of the airport on screen.')
+        % switch('display_screen.locate_active', d.display_screen.locate_active, 'Highlight active airport', 'Pulse the pixel of the airport on screen.')
         % slider('display_screen.delay', d.display_screen.delay, 'Delay per airport', lo=0, hi=30, step=1, fmt='sec')
         </div>
     </section>
