@@ -428,7 +428,7 @@
                 if (!res.ok) why = (await res.text()).trim() || why;
                 else if (err && err.name === 'NotAllowedError') why = 'The browser blocked sound: press again';
             } catch (e) {
-                why = "Can't reach the map";
+                why = "Can't reach the chart";
             }
             if (current === btn) stop(why);
         }

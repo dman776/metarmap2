@@ -61,12 +61,12 @@
                 </span>
             </div>
             <div class="r-foot-item r-brt" title="Until the next sunrise, sunset, dawn or dusk, which set it again">
-                <label class="lbl" for="brightness">LED brightness</label>
+                <label class="lbl" for="brightness">Pixel brightness</label>
                 <input id="brightness" type="range" min="0" max="1" step="0.01" value="{{brightness}}" data-label="brt_label" data-format="pct">
                 <span class="r-val" id="brt_label">{{int(round(brightness * 100))}}%</span>
             </div>
             % if oled_on is not None:
-            <div class="r-foot-item" title="Back on when the map restarts">
+            <div class="r-foot-item" title="Back on when the chart restarts">
                 <label class="lbl" for="oled-on">Micro</label>
                 <input id="oled-on" class="switch" type="checkbox"{{!' checked' if oled_on else ''}}>
             </div>
@@ -76,7 +76,7 @@
 
     <!-- the Map page's map; remote.js loads map.js the first time the tab opens (Leaflet can't lay out a hidden map) -->
     <section class="r-panel r-map" id="r-map" role="tabpanel" aria-labelledby="tab-map" hidden>
-        <div id="map" class="live-map" role="region" aria-label="Map of airport LEDs" data-script="/static/map.js?v={{assets}}"></div>
+        <div id="map" class="live-map" role="region" aria-label="Map of airport pixels" data-script="/static/map.js?v={{assets}}"></div>
         <div id="legend-source" hidden>
             %include("legend.tpl", legend=active['legend'], filtered=active['filtered'])
         </div>
@@ -114,7 +114,7 @@
             </button>
         </div>
         <audio id="r-speak-audio" preload="none"></audio>
-        <p class="muted r-no-atis" id="r-no-atis" hidden>No airport on this map has a digital ATIS. Only about 75 large US airports publish one.</p>
+        <p class="muted r-no-atis" id="r-no-atis" hidden>No airport on this chart has a digital ATIS. Only about 75 large US airports publish one.</p>
         % end
         <div class="r-grid{{' paused' if active['exclusive'] else ''}}">
             % for s in stations:

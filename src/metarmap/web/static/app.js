@@ -73,7 +73,7 @@
         const card = document.createElement('div');
         card.className = 'card restarting-card';
         const title = document.createElement('h2');
-        title.textContent = 'Restarting the map';
+        title.textContent = 'Restarting the chart';
         const label = document.createElement('p');
         const bar = document.createElement('progress');
         bar.className = 'update-bar';
@@ -97,7 +97,7 @@
             }
             clearInterval(countdown);
             bar.removeAttribute('value');  // indeterminate while waiting
-            label.textContent = 'Waiting for the map to come back…';
+            label.textContent = 'Waiting for the chart to come back…';
             const giveUp = Date.now() + RESTART_GIVE_UP_S * 1000;
             while (Date.now() < giveUp && !(await mapIsUp())) {
                 await new Promise(function (resolve) { setTimeout(resolve, RESTART_POLL_MS); });
@@ -140,7 +140,7 @@
             bar.value = 1;
             if (job.ok) {
                 label.textContent = job.changed
-                    ? (job.message || 'Update installed') + '. Restarting the map…'
+                    ? (job.message || 'Update installed') + '. Restarting the chart…'
                     : (job.message || 'Already up to date') + '.';
                 if (job.changed) {
                     setTimeout(function () { restartMap('/restart'); }, UPDATE_RESTART_MS);
@@ -656,7 +656,7 @@
                 if (!res.ok) why = (await res.text()).trim() || why;
                 else if (err && err.name === 'NotAllowedError') why = 'The browser blocked sound: press ' + what + ' again.';
             } catch (e) {
-                why = "Can't reach the map.";
+                why = "Can't reach the chart.";
             }
             if (playing !== btn) return;  // switched or stopped meanwhile
             stop();
