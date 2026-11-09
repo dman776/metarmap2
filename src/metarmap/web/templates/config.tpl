@@ -140,10 +140,23 @@
 
     <section class="card settings">
         <h2>Micro</h2>
-        % switch('display_screen.enabled', d.display_screen.enabled, 'Enabled', 'Show airport details on MetarMap2 Micro, the OLED screen.')
+        % switch('display_screen.enabled', d.display_screen.enabled, 'Enabled', 'Show the airports or the visualizer on MetarMap2 Micro, the OLED screen.')
         <div class="sub" data-when="display_screen-enabled"{{!'' if d.display_screen.enabled else ' hidden'}}>
+        <div class="set">
+            <div>
+                <label class="t" for="display_screen-shows">Micro shows</label>
+                <div class="d">The airports in turn, or the visualizer's name and icon.</div>
+            </div>
+            <select id="display_screen-shows" data-key="display_screen.shows">
+                % for value, label in (('airports', 'Airports'), ('visualizer', 'Visualizer')):
+                <option value="{{value}}"{{!' selected' if value == d.display_screen.shows else ''}}>{{label}}</option>
+                % end
+            </select>
+        </div>
+        <div class="sub" data-when="display_screen-shows" data-when-value="airports"{{!'' if d.display_screen.shows == 'airports' else ' hidden'}}>
         % switch('display_screen.locate_active', d.display_screen.locate_active, 'Highlight active airport', 'Pulse the pixel of the airport on screen.')
         % slider('display_screen.delay', d.display_screen.delay, 'Delay per airport', lo=0, hi=30, step=1, fmt='sec')
+        </div>
         </div>
     </section>
 </div>

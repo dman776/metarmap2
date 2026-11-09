@@ -1,6 +1,7 @@
 """
-The OLED loop: rotates through the airports set to show on the screen, two pages each. During quiet hours
-(led.quiet_hours) the screen is blank, like the LEDs.
+The OLED loop: rotates through the airports set to show on the screen, two pages each, or (display_screen.shows
+"visualizer") shows the active visualizer's name and icon. During quiet hours (led.quiet_hours) the screen is blank,
+like the LEDs.
 
 What each page says comes from metarmap.oled.screens; drawing is done by a screen driver
 (metarmap.oled.screen.SSD1306Screen on the Pi, FakeScreen elsewhere).
@@ -15,7 +16,14 @@ from zoneinfo import ZoneInfo
 from metarmap.config import Config
 from metarmap.sun import get_location, quiet_hours_active
 from metarmap.clock import Clock
-from metarmap.oled.screens import airports_to_show, message_screen, pages_for, screen_for, splash_screen
+from metarmap.oled.screens import (
+    airports_to_show,
+    message_screen,
+    pages_for,
+    screen_for,
+    splash_screen,
+    visualizer_screen,
+)
 
 log = logging.getLogger(__name__)
 
@@ -40,7 +48,8 @@ class Display:
     config:   config.Config (airports, display settings)
     data:     anything with a .data dict of airport -> Report or None (metar.Reports)
     screen:   a screen driver (show(screen), clear())
-    renderer: pulses the LED of the airport on screen (display_screen.locate_active); None for no pulse
+    renderer: pulses the LED of the airport on screen (display_screen.locate_active), and has the active visualizer
+              for Visualizer mode; None for neither
     """
 
     def __init__(self, config: Config, data, screen, renderer=None, clock: Clock = None, tz=None):
@@ -147,6 +156,9 @@ class Display:
         if held > 0 and self._clock.wait(event, held):  # the splash, while the rest of startup goes on
             return
         self._hold_until = 0.0
+        if self._config.data.display_screen.shows == "visualizer":
+            self.show_visualizer(event)
+            return
         while not event.is_set():
             # a fresh copy each pass: airports can be edited while the loop runs
             airports = airports_to_show(self._config.airports)
@@ -178,6 +190,38 @@ class Display:
             if not airports:
                 self.last_change = self._clock.time()
                 self._clock.wait(event, 5)  # nothing to show; don't spin
+
+    def show_visualizer(self, event):
+        """
+        Visualizer mode: the active visualizer's short name and icon, until the loop stops. A change of visualizer
+        restarts the loop (visualizer_changed()), so it's drawn at once; it's also looked at every
+        QUIET_CHECK_SECONDS, with quiet hours. No locate pulses: no airport is on the screen.
+        """
+        while not event.is_set():
+            if self.quiet():
+                if not self._wait_out_quiet_hours(event):
+                    return
+                continue
+            screen = self.visualizer_screen()
+            if screen != self._screen:
+                with self.lock:
+                    if event.is_set():
+                        return
+                    self._draw(screen)
+            self.last_change = self._clock.time()  # waiting on purpose, not stuck
+            if self._clock.wait(event, QUIET_CHECK_SECONDS):
+                return
+
+    def visualizer_screen(self):
+        if self._renderer is None:
+            return message_screen("Visualizer")
+        _, vis = self._renderer.visualizer
+        return visualizer_screen(vis.short_name, vis.icon)
+
+    def visualizer_changed(self):
+        """The renderer switched visualizers: in Visualizer mode the screen shows the new one now."""
+        if self._config.data.display_screen.shows == "visualizer":
+            self.restart(timeout=5)
 
     def quiet(self) -> bool:
         """Whether it's quiet hours now (led.quiet_hours): the screen stays blank."""

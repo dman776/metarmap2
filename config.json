@@ -43,7 +43,8 @@
     "display_screen": {
         "enabled": true,
         "delay": 5.0,
-        "locate_active": true
+        "locate_active": true,
+        "shows": "airports"
     },
     "visualizer": {
         "active": "flight_category",

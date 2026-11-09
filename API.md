@@ -59,6 +59,7 @@ Returns a read-only snapshot of the Chart's state as `application/json`. No auth
     "display_screen.enabled": true,
     "display_screen.locate_active": true,
     "display_screen.delay": 5.0,
+    "display_screen.shows": "airports",
     "led.inittest": true,
     "led.init_sequence": "comet",
     "led.init_sweep_from": "W",
@@ -194,7 +195,7 @@ What the physical map is doing right now. The Map page polls it every second. No
 | `leds[].atis` | The airport's real ATIS can be read aloud (`/api/atis/<code>.audio`): `speech.atis` and spoken weather are on, and it publishes a digital ATIS. The list of airports with one is refreshed every half hour. The ATIS buttons (METARs page, the Cockpit, the Map page popup's Listen tab) show only for these |
 | `locate` | The last white locate pulse: the pixel number `pixel` and Unix time `at`. `null` until the first one. A virtual airport's pulse is only shown on the Map page. |
 | `display.on` | Whether the screen is showing; `false` after `/display/off` (then `screen` is `null`) |
-| `display.screen` | What the Micro shows. `badge` is the flight category, with a `*` after one that's estimated from the visibility and ceiling (`VFR*`). `virtual` is true for a virtual airport, whose code is in a dashed box. `page` is 1 or 2 for an airport, 0 for "Data Unavailable" or a message (then `airport` is `null`). Icons: `wind`, `visibility`, `pressure`, `temp`, `dewpoint`, `date`. For the first 5 seconds after the Chart starts, the splash: a message with `splash: true` and the title `MetarMap2` (the Micro draws the logo under it). |
+| `display.screen` | What the Micro shows. `badge` is the flight category, with a `*` after one that's estimated from the visibility and ceiling (`VFR*`). `virtual` is true for a virtual airport, whose code is in a dashed box. `page` is 1 or 2 for an airport, 0 for "Data Unavailable" or a message (then `airport` is `null`). Icons: `wind`, `visibility`, `pressure`, `temp`, `dewpoint`, `date`. For the first 5 seconds after the Chart starts, the splash: a message with `splash: true` and the title `MetarMap2` (the Micro draws the logo under it). With `display_screen.shows` `visualizer`: a message whose title is the visualizer's short name, with `visualizer_icon` its icon name (as `visualizer.icon`), drawn under the title. |
 
 ### `GET /api/metar/<code>`
 
@@ -504,6 +505,7 @@ Settings that apply right away:
 - `lightning.color`: the flicker's color, `yellow` (the default) or `white`; anything else is a 400. Precipitation's thunderstorm stays yellow either way (its snow is white)
 - `display_screen.locate_active`
 - `display_screen.delay`
+- `display_screen.shows`: what the Micro shows: `airports` (each airport in turn, with its pixel's pulse; the default) or `visualizer` (the active visualizer's short name and icon, redrawn when it changes, with no pulses); anything else is a 400. Applies right away
 - `update.channel`: what **Update** installs: `releases` (the newest release tag, never an older one; the default), `latest` (the newest commit on GitHub, released or not, for testing) or, only with `dev_mode`, `branch` (the newest commit of `update.branch`, even after a force push)
 - `update.branch`: the branch on GitHub the `branch` channel follows, e.g. `/config/edit/update.branch/feature/radar`. A name starting with `-`, with `..` or with spaces is a 400
 

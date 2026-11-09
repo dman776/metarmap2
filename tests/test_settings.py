@@ -222,6 +222,7 @@ def test_every_numbered_visualizer_still_exists():
         ("update.branch", "-x", "update.branch: '-x' isn't a branch name"),
         ("update.channel", "nightly", "update.channel: 'nightly' is not one of releases, latest, branch"),
         ("update.channel", "branch", "update.channel: branch needs dev_mode in config.json"),
+        ("display_screen.shows", "both", "display_screen.shows: 'both' is not one of airports, visualizer"),
     ],
 )
 def test_set_checks_the_rule(key, value, error):
@@ -242,6 +243,7 @@ def test_set_checks_the_rule(key, value, error):
         ("geo.map.traffic_seconds", "60", 60),
         ("led.quiet_hours.end", "06:30", "06:30"),
         ("update.branch", "feature/x", "feature/x"),
+        ("display_screen.shows", "visualizer", "visualizer"),
     ],
 )
 def test_set_accepts_what_the_rule_allows(key, value, stored):

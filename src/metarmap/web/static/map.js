@@ -390,6 +390,14 @@
             oled.querySelector('.oled-status').textContent = 'starting';
             return;
         }
+        if (screen.visualizer_icon) {  // Visualizer mode: its short name, and its icon in one color, as the Micro
+            add('o-splash-title', screen.title);
+            const name = document.getElementById('vm-' + screen.visualizer_icon) ? 'vm-' : 'vi-';
+            add('o-logo o-vis-icon', '').innerHTML = '<svg aria-hidden="true"><use href="#' + name +
+                screen.visualizer_icon + '"/></svg>';
+            oled.querySelector('.oled-status').textContent = 'visualizer';
+            return;
+        }
         add('o-title' + (screen.virtual ? ' virtual' : ''), screen.title);
         add('o-badge', screen.badge || '');
         if (screen.icon && ICONS[screen.icon]) {

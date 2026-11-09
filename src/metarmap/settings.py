@@ -182,11 +182,16 @@ class Geo(_Section):
     map: MapPage = field(default_factory=MapPage)
 
 
+# what the Micro shows: the airports in turn (with their pixels' locate pulses), or the visualizer's name and icon
+DISPLAY_SHOWS = ("airports", "visualizer")
+
+
 @dataclass
 class DisplayScreen(_Section):
     enabled: bool = True
     delay: float = 5.0
     locate_active: bool = True
+    shows: str = setting("airports", choices=DISPLAY_SHOWS)
 
 
 @dataclass

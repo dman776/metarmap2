@@ -10,7 +10,9 @@ import pytest
 from conftest import airports
 from metarmap.models import Report, SkyLayer
 from metarmap.oled import screens
-from metarmap.oled.screen import GLYPHS, LOGO, logo_points
+from metarmap.oled.bitmaps import ICONS
+from metarmap.oled.screen import GLYPHS, LOGO, picture_points, screen_picture
+from metarmap.visualizers.visualizer import ICONS as ICON_NAMES
 
 CENTRAL = ZoneInfo("America/Chicago")
 
@@ -139,11 +141,36 @@ def test_the_logo_is_centered_on_the_blue_rows():
     """Rows 16-63 of the 128x64 OLED (0-15 are the yellow ones, the title's)."""
     assert len({len(row) for row in LOGO}) == 1  # every row as wide
     assert "#" in LOGO[0] and "#" in LOGO[-1]  # no empty rows at either end
-    points = logo_points(128, 16, 64)
+    points = picture_points(LOGO, 128, 16, 64)
     xs, ys = [x for x, _ in points], [y for _, y in points]
     assert min(ys) >= 16 and max(ys) <= 63
     assert abs((min(ys) - 16) - (63 - max(ys))) <= 1  # as much room above as below
     assert abs(min(xs) - (127 - max(xs))) <= 2  # and either side
+
+
+def test_every_visualizer_icon_has_a_bitmap():
+    assert set(ICONS) == set(ICON_NAMES)
+    for name, rows in ICONS.items():
+        assert len(rows) == 44 and {len(r) for r in rows} == {44}, name  # 44x44, inside the 48 blue rows
+        assert set("".join(rows)) == {"#", "."}, name  # something drawn
+        points = picture_points(rows, 128, 16, 64)
+        assert all(0 <= x < 128 and 16 <= y < 64 for x, y in points), name
+
+
+def test_visualizer_screen():
+    """A message, so anything that doesn't know the icon shows the short name."""
+    m = screens.visualizer_screen("Density Alt", "mountain")
+    assert m["kind"] == "message"
+    assert m["title"] == "Density Alt"
+    assert m["visualizer_icon"] == "mountain"
+    assert m["airport"] is None
+    assert screen_picture(m) is ICONS["mountain"]
+
+
+def test_screen_picture():
+    assert screen_picture(screens.splash_screen()) is LOGO
+    assert screen_picture(screens.message_screen("MAP")) is None
+    assert screen_picture(screens.visualizer_screen("X", "no-such-icon")) is None  # just the name
 
 
 def test_airports_to_show_keeps_led_order():
