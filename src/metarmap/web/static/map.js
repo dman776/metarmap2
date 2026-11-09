@@ -179,7 +179,10 @@
             name.append(title.textContent);
             text.append(name);
         }
-        legendBox.querySelector('summary').replaceChildren(text);
+        // not replaceChildren(): an older iPad's Safari (before 14) has none, and the map stopped short of its tiles
+        const summary = legendBox.querySelector('summary');
+        summary.textContent = '';
+        summary.appendChild(text);
         legendBox.append(list.cloneNode(true));
     }
     new LegendControl().addTo(map);

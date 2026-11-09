@@ -530,6 +530,9 @@ body.kiosk main.wrap { max-width: none; height: 100vh; height: var(--kiosk-h, 10
 .r-map .live-map { flex: 1; height: auto; min-height: 0; }
 
 /* Locator */
+/* nothing in the Info tab shrinks to fit: it scrolls instead. An older iPad's Safari shrinks the children of a
+   scrolling flex column below their content, and the airports were drawn over Locate, AWOS and ATIS */
+.r-air > * { flex-shrink: 0; }
 .r-air-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 .r-air-head:empty { display: none; }
 .r-search { flex: 1 1 200px; }
