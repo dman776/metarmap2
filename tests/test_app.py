@@ -521,6 +521,22 @@ def test_run_draws_the_visualizer_before_the_oled_loop_starts(make_app, monkeypa
     assert order == ["frame", ("display", 2.0)]  # and the first pulse waits 2 s
 
 
+def test_run_shows_the_splash_first(make_app, monkeypatch):
+    """ "MetarMap2" and the logo on the Micro before anything else starts; the OLED loop waits it out."""
+    app = make_app(**{"led.inittest": True, "display_screen.enabled": True})
+    monkeypatch.setattr(app_module, "create_app", lambda services: FakeWebApp(services))
+    monkeypatch.setattr(app_module, "serve", lambda web, host, port: None)
+    order = []
+    monkeypatch.setattr(app.display, "splash", lambda: order.append("splash"))
+    monkeypatch.setattr(app.renderer, "test_pattern", lambda: order.append("test pattern"))
+    monkeypatch.setattr(app.display, "start", lambda locate_delay: order.append("display"))
+    monkeypatch.setattr(app.renderer, "render", lambda: (_ for _ in ()).throw(KeyboardInterrupt()))
+
+    app_module.run(app)
+
+    assert order == ["splash", "test pattern", "display"]
+
+
 def test_run_on_another_port_for_this_run_only(make_app, monkeypatch):
     app = make_app(**{"led.inittest": False})
     webs = []

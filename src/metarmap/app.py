@@ -434,7 +434,7 @@ def run(app: App, port=None):
     """
     port = port or app.config.data.web_server.port
     if app.config.data.display_screen.enabled:
-        app.display.message("MAP", "info", "Starting..")
+        app.display.splash()  # "MetarMap2" and the logo, at least SPLASH_SECONDS while the rest starts
 
     # test pattern on pixels?
     if app.config.data.led.inittest:

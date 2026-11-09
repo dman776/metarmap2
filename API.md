@@ -194,7 +194,7 @@ What the physical map is doing right now. The Map page polls it every second. No
 | `leds[].atis` | The airport's real ATIS can be read aloud (`/api/atis/<code>.audio`): `speech.atis` and spoken weather are on, and it publishes a digital ATIS. The list of airports with one is refreshed every half hour. The ATIS buttons (METARs page, the Cockpit, the Map page popup's Listen tab) show only for these |
 | `locate` | The last white locate pulse: the pixel number `pixel` and Unix time `at`. `null` until the first one. A virtual airport's pulse is only shown on the Map page. |
 | `display.on` | Whether the screen is showing; `false` after `/display/off` (then `screen` is `null`) |
-| `display.screen` | What the Micro shows. `badge` is the flight category, with a `*` after one that's estimated from the visibility and ceiling (`VFR*`). `virtual` is true for a virtual airport, whose code is in a dashed box. `page` is 1 or 2 for an airport, 0 for "Data Unavailable" or a message (then `airport` is `null`). Icons: `wind`, `visibility`, `pressure`, `temp`, `dewpoint`, `date`. |
+| `display.screen` | What the Micro shows. `badge` is the flight category, with a `*` after one that's estimated from the visibility and ceiling (`VFR*`). `virtual` is true for a virtual airport, whose code is in a dashed box. `page` is 1 or 2 for an airport, 0 for "Data Unavailable" or a message (then `airport` is `null`). Icons: `wind`, `visibility`, `pressure`, `temp`, `dewpoint`, `date`. For the first 5 seconds after the Chart starts, the splash: a message with `splash: true` and the title `MetarMap2` (the Micro draws the logo under it). |
 
 ### `GET /api/metar/<code>`
 

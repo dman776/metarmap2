@@ -10,6 +10,7 @@ A screen is a dict:
            report one; see decode.estimate_category)
   page     1 (wind, visibility, pressure), 2 (temperature, dewpoint, time) or 0 (no data / a message)
   icon     message icon name (messages only)
+  splash   True for the startup screen (a message): the title centered on the top (yellow) rows, the logo below
   lines    three {"icon": name, "text": str} lines
 """
 
@@ -123,6 +124,16 @@ def message_screen(title, icon="", line1="", line2="", line3=""):
         "icon": icon,
         "lines": [{"icon": "", "text": t} for t in (line1, line2, line3)],
     }
+
+
+def splash_screen():
+    """
+    The startup screen: "MetarMap2" on the top (yellow) rows and the logo centered below. A message, so anything
+    that doesn't know `splash` shows it as one.
+    """
+    screen = message_screen("MetarMap2")
+    screen["splash"] = True
+    return screen
 
 
 # ---- which airports, which pages -------------------------------------------------------------------------------
