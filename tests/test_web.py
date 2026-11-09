@@ -8,6 +8,7 @@ import io
 import json
 import os
 import re
+import struct
 import subprocess
 import threading
 import time
@@ -32,6 +33,7 @@ from metarmap.traffic import Traffic
 from metarmap.visualizers import advisories as advisories_vis
 from metarmap.visualizers import flightcategory, rainbow, wind, wind_direction, windgusts
 from metarmap.visualizers import tfr as tfr_vis
+from metarmap.web import site
 from metarmap.visualizers.visualizer import ICONS
 from metarmap.web import api, control, create_app, icons, views
 
@@ -1741,6 +1743,14 @@ def test_the_web_pages_are_metarmap2_web(client):
     assert "Live mirror of the Chart and the Micro. Click an airport for its weather." in body
 
 
+def test_home_screen_icon_is_a_180_px_png():
+    """What iOS draws on the Home Screen (rounding the corners itself): the favicon's plane, filling the square."""
+    with open(os.path.join(site.STATIC_DIR, "apple-touch-icon.png"), "rb") as f:
+        data = f.read()
+    assert data.startswith(b"\x89PNG\r\n\x1a\n")
+    assert struct.unpack(">II", data[16:24]) == (180, 180)
+
+
 def test_remote_page(client):
     app = client.services
     status, body = client("/remote", auth=False)  # it changes nothing that's saved: no login
@@ -1750,6 +1760,8 @@ def test_remote_page(client):
     assert '<span class="r-brand-name">Cockpit</span>' in body  # beside the logo
     assert '<body class="kiosk">' in body and 'class="topbar"' not in body and 'class="foot"' not in body
     assert 'name="apple-mobile-web-app-capable" content="yes"' in body
+    assert '<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">' in body  # the Home Screen icon
+    assert "apple-touch-icon" not in client("/", auth=False)[1]  # the other pages are not Home Screen apps
     assert [t.split('"')[0] for t in body.split('data-tab="')[1:]] == ["visualizer", "map", "info"]
     assert 'id="info" role="tabpanel" aria-labelledby="tab-info" data-mode="locate" hidden' in body
     # the Map tab: map.js is only loaded when it opens
