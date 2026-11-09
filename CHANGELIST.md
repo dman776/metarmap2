@@ -14,7 +14,8 @@
   Wi-Fi switch moves "the chart", and the Airports page asks to remove airports "from the chart". Config: Physical display's **LED pixels** is **Chart pixels** (and the Micro's **Highlight active airport** pulses
   "the pixel of the airport on screen"), the **Virtual
   map** tab is **Web map**, and the Visualizers tab and the Airports page say pixel where they said LED, and chart
-  where they meant the device ("Shown when the chart starts"). Only what you read changed: the URLs (`/remote`),
+  where they meant the device ("Shown when the chart starts"). The README and API.md follow: pixel for the light at an airport (LED where it means the
+  hardware: the strip, the wiring), the Chart for the device. Only what you read changed: the URLs (`/remote`),
   settings (`display_screen.*`, `led.*`) and API fields are the same
 
 ### dman776 26.11.08 (2026-11-08)

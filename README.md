@@ -1,15 +1,15 @@
 # MetarMap2
 
-A Raspberry Pi turns a wall map into a live weather display: an LED at each airport shows its current conditions from
+A Raspberry Pi turns a wall map into a live weather display: a pixel (an LED) at each airport shows its current conditions from
 [aviationweather.gov](https://aviationweather.gov) (VFR green, MVFR blue, IFR red, LIFR purple, and more). An
 optional small OLED screen cycles through the details for the airports you pick, and a web UI lets you control and
-set up the map from your phone.
+set up the Chart from your phone.
 
 It comes in five pieces:
 
 | | |
 |---|---|
-| **MetarMap2 Chart** | The map on the wall: a Raspberry Pi and an LED at each airport |
+| **MetarMap2 Chart** | The map on the wall: a Raspberry Pi and a pixel (an LED) at each airport |
 | **MetarMap2 Micro** | The optional small OLED screen, cycling through the airports you pick |
 | **MetarMap2 Web** | The web UI, to watch, control and set up the Chart from a phone or computer |
 | **MetarMap2 Cockpit** | A remote control for a tablet in kiosk mode, at `/remote` |
@@ -17,7 +17,7 @@ It comes in five pieces:
 
 Written from the ground up with a web UI, an API and a Home Assistant integration (see [Credits](#credits)).
 
-![The MetarMap2 map on a wall: an FAA sectional chart with an LED at each airport](docs/images/physical_map.jpg)
+![The MetarMap2 map on a wall: an FAA sectional chart with a pixel at each airport](docs/images/physical_map.jpg)
 
 ## Features
 
@@ -25,21 +25,21 @@ Written from the ground up with a web UI, an API and a Home Assistant integratio
   visibility, density altitude, ceiling, dewpoint spread (fog risk), AIRMETs and SIGMETs (the advisory over each
   airport: IFR, mountain obscuration, turbulence, wind shear, strong wind or icing, and SIGMETs such as
   thunderstorms blinking on top) or TFRs (temporary flight restrictions in or near each airport, by type) on the
-  LEDs, plus Rainbow and Chase patterns.
-  Switch between them on the web UI, or let the map rotate through them.
+  pixels, plus Rainbow and Chase patterns.
+  Switch between them on the web UI, or let the Chart rotate through them.
 - **Lightning**: airports reporting lightning or a thunderstorm flicker yellow or white (a double flash every 2 s) in every weather visualizer, unless you turn the animation off in Config.
 - **Estimated flight categories**: a station that doesn't report its flight category, but does report its visibility
-  or clouds, gets an estimate from them. Its LED breathes slowly so you can tell, and the Micro shows it with a `*`
+  or clouds, gets an estimate from them. Its pixel breathes slowly so you can tell, and the Micro shows it with a `*`
   (`VFR*`).
-- **Dimming by time of day**: the LEDs dim at sunset, go nearly dark at dusk, dim again at dawn and are back to full
+- **Dimming by time of day**: the pixels dim at sunset, go nearly dark at dusk, dim again at dawn and are back to full
   brightness at sunrise, using the sun times for your city.
 - **MetarMap2 Micro**, the OLED screen (optional): wind, visibility, pressure, temperature, dewpoint and report time
-  for each airport you choose, with that airport's LED pulsing while it's shown.
-- **MetarMap2 Web**, the web UI: current conditions, a METAR list, a live map that mirrors the LEDs and the Micro, and
+  for each airport you choose, with that airport's pixel pulsing while it's shown.
+- **MetarMap2 Web**, the web UI: current conditions, a METAR list, a live map that mirrors the Chart and the Micro, and
   settings.
   Click an airport on the map for its weather in plain English, its raw METAR, or the METAR decoded line by line.
   The map can go fullscreen, and follows the visualizer as it changes. Tick **Live traffic** to see the aircraft
-  around your airports; click one for its details and the map follows it. Update and restart the map from the Home
+  around your airports; click one for its details and the map follows it. Update and restart the Chart from the Home
   page. **MetarMap2 Cockpit**, at `/remote`, is a remote control for a tablet in kiosk mode.
 - **API and Home Assistant**: everything in the web UI also works over HTTP (see [API.md](API.md)); the
   [metarmap2_ha](https://github.com/dman776/metarmap2_ha) integration adds the map to Home Assistant.
@@ -50,7 +50,7 @@ Written from the ground up with a web UI, an API and a Home Assistant integratio
 
 ### The map page
 
-The Map page mirrors the LEDs, with a copy of the Micro, over an FAA chart, satellite imagery or live radar.
+The Map page mirrors the Chart, with a copy of the Micro, over an FAA chart, satellite imagery or live radar.
 
 ![The Map page's Wind visualizer over the FAA sectional chart, with the legend and the Micro's copy](docs/images/map_sectional.jpg)
 
@@ -78,7 +78,7 @@ Click an aircraft for its details; the map follows it and draws its trail.
 
 ### Home and METARs
 
-The Home page has the map's status, the visualizer and its legend, brightness and the Micro switch, and the airports
+The Home page has the Chart's status, the visualizer and its legend, brightness and the Micro switch, and the airports
 that are below VFR. The METARs page lists every airport's report.
 
 ![The Home page: airports by flight category, the active visualizer with its legend, brightness and the Micro switch](docs/images/page_home.png)
@@ -89,23 +89,23 @@ that are below VFR. The METARs page lists every airport's report.
 
 Settings save as you change them.
 
-![Config, Physical display: the LED pixels (data pin, color order, brightness) and the Micro](docs/images/config_physical_display.png)
+![Config, Physical display: the Chart pixels (data pin, color order, brightness) and the Micro](docs/images/config_physical_display.png)
 
 ![Config, Visualizers: the default visualizer, auto-rotate and which visualizers take part](docs/images/config_visualizers.png)
 
-![Config, Airports: the airport at each LED, in the order the LEDs are wired](docs/images/config_airports.png)
+![Config, Airports: the airport at each pixel, in the order the pixels are wired](docs/images/config_airports.png)
 
 ![Config, Virtual map: the Map page's background, chart and starting view, and the live traffic settings](docs/images/config_virtual_map.png)
 
 ### Cockpit
 
 MetarMap2 Cockpit, at `/remote`, is a remote control for a tablet in kiosk mode, here on an iPad in landscape: pick a visualizer, or, on the
-**Info** tab, press an airport to find its LED (**Locate**), or, with spoken weather on, to hear its **AWOS** or
+**Info** tab, press an airport to find its pixel (**Locate**), or, with spoken weather on, to hear its **AWOS** or
 **ATIS**.
 
 ![The Cockpit's Visualizer tab](docs/images/remote_visualizer.png)
 
-![The Cockpit's Locator tab: an airport's button pulses its LED on the Chart](docs/images/remote_locator.png)
+![The Cockpit's Locator tab: an airport's button pulses its pixel on the Chart](docs/images/remote_locator.png)
 
 For a dedicated screen instead of a tablet, MetarMap2 Copilot
 ([metarmap2_remote](https://github.com/dman776/metarmap2_remote)) is a companion project: firmware for a 2.8" ESP32-S3
@@ -122,7 +122,7 @@ and updates itself from GitHub releases.
 Wiring:
 
 - **LEDs**: data to GPIO 18 (pin 12), ground to a Pi ground, power from the 5V supply. GPIO 12, 13, 21 or 10 also
-  work: pick it in Config > Physical display > LED pixels. See Adafruit's
+  work: pick it in Config > Physical display > Chart pixels. See Adafruit's
   [NeoPixels on Raspberry Pi](https://learn.adafruit.com/neopixels-on-raspberry-pi/raspberry-pi-wiring) guide.
 - **Micro (the OLED screen)**: SDA to GPIO 2 (pin 3), SCL to GPIO 3 (pin 5), VCC to 3.3V, GND to ground.
 
@@ -134,11 +134,11 @@ The original project's write-ups cover the build in detail:
 
 You don't need a Raspberry Pi, LEDs or an OLED screen to try MetarMap2. On your own computer it runs with in-memory
 stand-ins for the LED strip and the screen, and the web UI works as it does on a Pi, with live METARs: the Map page
-shows each airport's LED, colors and effects included, over an FAA chart, and a copy of the Micro.
+shows each airport's pixel, colors and effects included, over an FAA chart, and a copy of the Micro.
 
 These steps are for macOS or Linux, with Python 3.9 or newer and git installed.
 
-1. Download the map and install what it needs:
+1. Download MetarMap2 and install what it needs:
 
    ```sh
    git clone https://github.com/dman776/metarmap2
@@ -147,7 +147,7 @@ These steps are for macOS or Linux, with Python 3.9 or newer and git installed.
    .venv/bin/pip install -e .
    ```
 
-2. Start it on port 8080 (the map's own port, 80, usually needs `sudo` on a computer):
+2. Start it on port 8080 (the Chart's own port, 80, usually needs `sudo` on a computer):
 
    ```sh
    .venv/bin/python -m metarmap --port 8080
@@ -160,7 +160,7 @@ These steps are for macOS or Linux, with Python 3.9 or newer and git installed.
 
 It starts with the 50 example airports around Houston; change them on **Config > Airports**. Settings are saved in
 the `config.json` of the folder you start it from, and the log is `metarmap.log` in the same folder (warnings and
-errors also show in the terminal). Settings for the hardware, such as the LED data pin, are saved but have nothing to drive. Stop the map with Ctrl-C.
+errors also show in the terminal). Settings for the hardware, such as the pixels' data pin, are saved but have nothing to drive. Stop the Chart with Ctrl-C.
 
 ## Install
 
@@ -169,11 +169,11 @@ errors also show in the terminal). Settings for the hardware, such as the LED da
    - a hostname, such as `metarmap`
    - a user name and password
    - your Wi-Fi network
-   - your time zone (the map dims at your local sunset and sunrise)
+   - your time zone (the Chart dims at your local sunset and sunrise)
    - SSH turned on
 2. Put the card in the Pi, power it up, and wait a minute or two for it to join your Wi-Fi.
 3. Connect to it from your computer with `ssh pi@metarmap.local`, using your hostname and user name.
-4. Install git, download the map and run the installer:
+4. Install git, download MetarMap2 and run the installer:
 
    ```sh
    sudo apt update && sudo apt install -y git
@@ -182,12 +182,12 @@ errors also show in the terminal). Settings for the hardware, such as the LED da
    ./install.sh
    ```
 
-   The installer sets up everything the map needs and asks for:
+   The installer sets up everything the Chart needs and asks for:
    - a user name and password for the web UI's settings pages
    - your city, for the sunrise and sunset times (a larger city nearby works too)
 
    It installs the newest **release** (a tagged version), not the newest commit, which may be unfinished, then
-   starts the map and prints its web address. Installing takes a few minutes, longer on a Pi Zero. Running
+   starts the Chart and prints its web address. Installing takes a few minutes, longer on a Pi Zero. Running
    `./install.sh` again is safe; it keeps your settings, and leaves a folder that's already on a release (one you
    picked yourself) where it is. To install the newest commit instead, for testing, use `./install.sh --latest`.
 5. Open the web address, go to **Config > Airports**, and set up your airports (next section).
@@ -196,17 +196,17 @@ errors also show in the terminal). Settings for the hardware, such as the LED da
 
 On **Config > Airports**:
 
-1. Set **Number of LEDs** to the number of LEDs on your strip, then restart the map when it asks. (Without a
+1. Set **Number of pixels** to the number of LEDs on your strip, then restart the Chart when it asks. (Without a
    strip, the web map changes right away.)
-2. Enter the ICAO code (such as `KDFW`) of the airport at each LED, in the order the LEDs are wired, starting
-   from the one nearest the Pi. Leave a code empty for an LED that isn't at an airport.
+2. Enter the ICAO code (such as `KDFW`) of the airport at each pixel, in the order the pixels are wired, starting
+   from the one nearest the Pi. Leave a code empty for a pixel that isn't at an airport.
 3. Turn on **Micro** for the airports you want on the screen. Each airport's name fills itself in; change it if
    you like (an emptied name fills in again).
-4. Use the up and down arrows to move an airport to another LED; the others shift along.
+4. Use the up and down arrows to move an airport to another pixel; the others shift along.
 
 Changes save right away. To check the wiring order:
-- Choose the **Chase** visualizer on the Home page, which lights each LED in turn.
-- Or use the locate button next to an airport on the **METARs** page, which pulses that airport's LED.
+- Choose the **Chase** visualizer on the Home page, which lights each pixel in turn.
+- Or use the locate button next to an airport on the **METARs** page, which pulses that airport's pixel.
 
 ## Settings
 
@@ -216,15 +216,15 @@ Changes save right away. To check the wiring order:
   default), or stays dark
 - whether an estimated flight category breathes or shows a steady color (**Estimated flight category breathing**, on
   by default)
-- whether the legends list only what the LEDs are showing now (**Only show legend items in use**, off by
+- whether the legends list only what the pixels are showing now (**Only show legend items in use**, off by
   default)
 - lightning: the animation on or off, and its color (yellow or white)
 - the Micro (the OLED screen)
 - the map page's chart
-- the LED brightness for day, dawn and dusk, and night
-- optional **Quiet hours** with local start/end times (0% physical LED brightness during the interval);
+- the pixel brightness for day, dawn and dusk, and night
+- optional **Quiet hours** with local start/end times (0% pixel brightness during the interval);
   Home shows one quiet-hours row and mutes sun events that fall within the window
-- whether the LEDs fade down for a moment while new METARs download (**Dim while updating**, on by default)
+- whether the pixels fade down for a moment while new METARs download (**Dim while updating**, on by default)
 
 Every setting takes effect right away; none needs a restart.
 
@@ -232,21 +232,21 @@ Every setting takes effect right away; none needs a restart.
 - the web UI login. On a Raspberry Pi, the new password also becomes the password of the Pi's login user
   (e.g. `pi`), so you don't have two to remember. On any other machine only the web UI login changes.
 - the Wi-Fi network. The Pi switches a few seconds after you save, and keeps the old network: if it can't join
-  the new one, it goes back. To reach the map afterwards, put your phone or computer on the new network too.
+  the new one, it goes back. To reach the Chart afterwards, put your phone or computer on the new network too.
 
 Everything is saved in `config.json` in the `metarmap2` folder. To edit that file by hand, stop the map first
 (`./stop.sh`), then start it again (`./start.sh`).
 
 ## Updating
 
-The map checks GitHub for a new release when it starts and every 6 hours. When there is one, every page shows
+The Chart checks GitHub for a new release when it starts and every 6 hours. When there is one, every page shows
 **Update available** at the top, and the Home page's button reads **Update to v2.9.0** (for example). Click it, then
 use **Restart**. Your `config.json` is kept.
 
 **Config > System > Software** has more:
 - **Check now** asks GitHub straight away.
 - **Update to**: **Releases** (the default) installs only released versions, and never goes back to an older one.
-  **Latest commit** installs the newest code on GitHub, released or not. Use it on a map you test changes on.
+  **Latest commit** installs the newest code on GitHub, released or not. Use it on a Chart you test changes on.
 - **Install a release** installs any release, older ones too, to go back if a new one has a problem. It asks first
   before going back.
 
@@ -259,30 +259,30 @@ git checkout v2.9.0      # the release you want
 ./install.sh
 ```
 
-Running `./install.sh` after an update also installs any new packages the map needs. On a map that has installed a
+Running `./install.sh` after an update also installs any new packages the Chart needs. On a Chart that has installed a
 release, `git pull` says it isn't on a branch: `git checkout master` first (or pick **Latest commit** above).
 
 ## Spoken weather
 
-The map can read an airport's METAR aloud, as an AWOS does: an **AWOS** button beside each airport on the METARs
+The Chart can read an airport's METAR aloud, as an AWOS does: an **AWOS** button beside each airport on the METARs
 page, in the **Listen** tab of an airport's popup on the Map page (and the Cockpit's Map tab), an **AWOS** mode
 on the Cockpit's Info tab, and `http://metarmap.local/api/speak/KHOU.audio` for anything
 else (`/api/speak/KHOU` shows the words). It's off until you turn it on. It's for fun, not for flight planning: listen
 to the airport's own AWOS, ASOS or ATIS for that.
 
-A speech server on another computer reads the reports; the map sends it the words and keeps the audio it gets back,
+A speech server on another computer reads the reports; the Chart sends it the words and keeps the audio it gets back,
 so even a Pi Zero W can do it. Two kinds work:
 - **Piper in Home Assistant** (free, offline): install the **Piper** add-on, then in **Settings > Add-ons > Piper >
   Configuration > Network** set the port to `10200` and save (add-ons don't open their ports to your network until
-  you do). The map talks to it over the Wyoming protocol, as Home Assistant does; any
+  you do). The Chart talks to it over the Wyoming protocol, as Home Assistant does; any
   [wyoming-piper](https://github.com/rhasspy/wyoming-piper) server works the same way.
 - **[Kokoro](https://github.com/remsky/Kokoro-FastAPI)** (Kokoro-FastAPI, free, runs on your own computer): its
   address and port, e.g. `http://192.168.0.164:8880`.
 
-Then on the map: **Config > System > Spoken weather**, turn on **Enable speech**, pick the server and fill in its
+Then on the Chart: **Config > System > Spoken weather**, turn on **Enable speech**, pick the server and fill in its
 address. **Test** plays the first airport's report there and then, or says what's wrong.
 
-The first time an airport is asked for, the server takes a few seconds to make its report; after that the map keeps
+The first time an airport is asked for, the server takes a few seconds to make its report; after that the Chart keeps
 it until the next METAR, so playing it again is instant.
 
 Settings (`speech` in `config.json`):
@@ -300,42 +300,42 @@ reached (for Home Assistant, check the add-on's port), or the server's own reaso
 ### Spoken ATIS
 
 About 75 large US airports publish their ATIS as text (the FAA's digital ATIS, D-ATIS). With **Spoken ATIS** on
-(**Config > System > Spoken weather**, `speech.atis`), the map reads an airport's real ATIS aloud too, through the
+(**Config > System > Spoken weather**, `speech.atis`), the Chart reads an airport's real ATIS aloud too, through the
 same speech server: `http://metarmap.local/api/atis/KHOU.audio` (`/api/atis/KHOU` shows the words). Unlike the AWOS
 it has the information letter, the approaches and runways in use, and the NOTAMs. An airport with separate arrival
 and departure ATIS reads both, arrival first.
 
 The text comes from [atis.info](https://atis.info), an unofficial copy of the FAA's D-ATIS with no published terms,
-so it's off until you turn it on, and the map only asks it when someone plays an ATIS (at most once a minute, one
+so it's off until you turn it on, and the Chart only asks it when someone plays an ATIS (at most once a minute, one
 request for every airport) and every half hour to know which airports have one. The FAA writes ATIS in its
-contractions ("DEPG RY 15L", "TWY EA CLSD"); the map writes those out as words ("departing runway one five left",
+contractions ("DEPG RY 15L", "TWY EA CLSD"); the Chart writes those out as words ("departing runway one five left",
 "taxiway Echo Alpha closed") so the voice reads them right. A contraction it doesn't know is read as it's written.
 
 **Read along**: while an ATIS plays, the page shows it line by line, the FAA's text over how it's said, with the
 line being said lit and kept in view: a way to learn to read a D-ATIS. On the Cockpit's Info tab (ATIS mode)
 under the airports, in the Listen tab of an airport's popup on the Map page (the FAA's text only; closing the popup stops it), and on
 the METARs page in a panel at the bottom (× closes it and stops the audio). The voice
-doesn't say when it reaches each line, so the map works it out from the lines' lengths: close, not exact.
+doesn't say when it reaches each line, so the Chart works it out from the lines' lengths: close, not exact.
 
 **Pronunciation** (**Config > System > Spoken weather > Pronunciation**, `speech.tunings`): your own words for what
-the map doesn't say well, such as a fix or a local name (`MNSTR` said "monster"), a typo in the FAA's text
+the Chart doesn't say well, such as a fix or a local name (`MNSTR` said "monster"), a typo in the FAA's text
 (`GRO UND` said "ground"), or a word you'd rather hear another way (`RNAV` said "are nav"), for every airport or one.
-Each is matched as whole words, in any case, before the map's own rules, and is said exactly as you write it, in the
+Each is matched as whole words, in any case, before the Chart's own rules, and is said exactly as you write it, in the
 ATIS and the AWOS alike, the airport's name included (`Hobby` said "Hobbie" for KHOU). The speaker beside each row
 reads its "say it as" aloud right away, saved or not, so you can tweak the spelling until it sounds right. The page
-lists the words in your airports' ATIS now that the map reads as written (press one to tune it), and **Try it** shows
+lists the words in your airports' ATIS now that the Chart reads as written (press one to tune it), and **Try it** shows
 and plays an airport's ATIS with your tunings as saved.
 
 Like the spoken weather, it's for fun, not for flight planning.
 
 ## Web API, Home Assistant and MetarMap2 Copilot
 
-`GET /api/status` returns the map's state as JSON. The web UI's controls are plain HTTP requests too, so scripts and
+`GET /api/status` returns the Chart's state as JSON. The web UI's controls are plain HTTP requests too, so scripts and
 home automation can use them. See **[API.md](API.md)** for every endpoint.
 
 ```sh
 curl http://metarmap.local/api/status                            # current state (JSON)
-curl http://metarmap.local/brightness/0.25                       # set LED brightness
+curl http://metarmap.local/brightness/0.25                       # set the pixels' brightness
 curl http://metarmap.local/visualizer/next                       # next visualizer
 curl -u metar:map http://metarmap.local/config/edit/lightning.animation/false
 ```
@@ -350,7 +350,7 @@ through this API. It provides:
 
 MetarMap2 Copilot (the [metarmap2_remote](https://github.com/dman776/metarmap2_remote) firmware) uses the same API from a
 small touchscreen on your network: it reads `/api/live` and `/api/status`, and sends `/visualizer/...`, `/brightness/...` and
-`/locate/...`. It doesn't need the map's username and password.
+`/locate/...`. It doesn't need the Chart's username and password.
 
 ## Troubleshooting
 
@@ -358,20 +358,20 @@ small touchscreen on your network: it reads `/api/live` and `/api/status`, and s
 - **What happened?** The map's log is `metarmap.log` in the `metarmap2` folder (older ones are `metarmap.log.1`,
   `.2`, ...). Problems are marked `WARNING` or `ERROR` (`grep -E "WARNING|ERROR" metarmap.log`), and those, with
   crashes, also go to `journalctl -u metarmap`.
-- **LEDs stay dark or show the wrong colors**:
-  1. Check the data wire goes to the pin set in Config > Physical display > LED pixels (GPIO 18 unless you changed it) and that the
+- **Pixels stay dark or show the wrong colors**:
+  1. Check the data wire goes to the pin set in Config > Physical display > Chart pixels (GPIO 18 unless you changed it) and that the
      strip shares a ground with the Pi.
-  2. Run a test pattern: choose the **Chase** visualizer on the Home page (it lights each LED in turn), or turn on
+  2. Run a test pattern: choose the **Chase** visualizer on the Home page (it lights each pixel in turn), or turn on
      **Startup sequence** in Config > Physical display (turning it on plays it along the strip once, right away).
-  3. If red and green are swapped, change **Color order** in Config > Physical display > LED pixels (GRB or RGB) and restart.
+  3. If red and green are swapped, change **Color order** in Config > Physical display > Chart pixels (GRB or RGB) and restart.
 - **The Micro (OLED screen) stays blank**: `sudo i2cdetect -y 1` should show the screen at address `3c`. If it shows nothing,
   check the wiring, and that I2C is on (`sudo raspi-config`, Interface Options).
-- **An airport's LED is off**: it hasn't reported in the last 5 hours, or its code is wrong. The METARs page shows
+- **An airport's pixel is off**: it hasn't reported in the last 5 hours, or its code is wrong. The METARs page shows
   which airports have no data.
 
 ## Development
 
-You can work on the map without a Raspberry Pi. With no LED strip or OLED screen, the map uses in-memory stand-ins,
+You can work on the Chart without a Raspberry Pi. With no LED strip or OLED screen, it uses in-memory stand-ins,
 and the web UI (including the live Map page and its Micro window) works as usual with real METARs.
 
 - Set up: `uv sync --extra dev` (or `python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"`)
@@ -381,17 +381,17 @@ and the web UI (including the live Map page and its Micro window) works as usual
   with `config.json`. Without `--port` it uses `web_server.port` from `config.json` (80); `--version` prints the
   version
 
-For testing on a real map, set `"dev_mode": true` in `config.json` by hand (stop the map first). Then **Config >
+For testing on a real Chart, set `"dev_mode": true` in `config.json` by hand (stop the Chart first). Then **Config >
 System > Software > Update to** offers **Branch**, to install a branch you pushed to GitHub (**Check now** refreshes the list),
 and every row on **Config > Airports** gets a **Mock METAR** field: paste a raw METAR and it replaces that airport's
-real report on the LEDs and everywhere else, until you clear it. Mocked airports are marked `mock` on the web pages.
+real report on the pixels and everywhere else, until you clear it. Mocked airports are marked `mock` on the web pages.
 
 The code is the `metarmap` package in `src/metarmap/`:
-- `app.py` builds the map from `config.json` (settings, METARs, LED renderer, OLED loop, scheduled jobs) and runs it
-- `config.py` and `settings.py`: `config.json`, including the airport on each LED
+- `app.py` builds the Chart from `config.json` (settings, METARs, LED renderer, OLED loop, scheduled jobs) and runs it
+- `config.py` and `settings.py`: `config.json`, including the airport on each pixel
 - `metar.py`: reading METARs (`process()`, `parse_report()`) and fetching them (`METAR`); `decode.py`: a METAR in
   plain English; `renderer.py` and `leds/`: the LEDs; `display.py` and `oled/`: the OLED screen
-- `visualizers/`: how each visualizer colors the LEDs. Each is a module of functions (`legend()`, and `look()` or
+- `visualizers/`: how each visualizer colors the pixels. Each is a module of functions (`legend()`, and `look()` or
   `strip_look()`) that ends by declaring itself, `VISUALIZER = Visualizer(id=..., name=..., ...)`, which checks it
   (`visualizers/visualizer.py`); `visualizers.ALL` lists them in the web UI's order
 - `web/`: the web UI and API. `create_app()` builds it; the routes are in `pages.py`, `api.py` and `control.py`,
@@ -409,12 +409,12 @@ See [CHANGELIST.md](CHANGELIST.md).
 
 Releases are named by the date they're made, `vYY.MM.DD` (`v26.11.04`), with `.1`, `.2`... for another release
 the same day (`v26.11.04.1`). Releases up to `v3.2.0` used the older numbers; they sort below every date and can
-still be installed. A map on `3.2.0` or older only sees three-number releases, so the first release of a day is
+still be installed. A Chart on `3.2.0` or older only sees three-number releases, so the first release of a day is
 always a plain date.
 
 To make a release: set `__version__` in `src/metarmap/__init__.py` to the version (`"26.11.04"`), name the
 CHANGELIST's `### Unreleased` heading after it, commit, then tag it (`git tag v26.11.04`), push the tag and create
-the GitHub release from it. Python's packaging tools show the version without the zeros (`26.11.4`); the map shows
+the GitHub release from it. Python's packaging tools show the version without the zeros (`26.11.4`); the Chart shows
 it as written.
 
 ## Credits
