@@ -1,5 +1,10 @@
 ### Unreleased
 
+- **The Micro can show the visualizer**: Config > Physical display > Micro has **Micro shows**, Airports (each airport
+  in turn, as before) or Visualizer: the visualizer's short name on the top (yellow) rows and its icon below, like the
+  startup splash, redrawn as soon as the visualizer changes (the buttons, auto-rotate, Home Assistant). No pixel
+  pulses in Visualizer mode; quiet hours still blank it. Rainbow and Chase have one-color icons for it. The Map
+  page's Micro shows it too; `display_screen.shows` in the API
 - **The Micro's splash at startup**: "MetarMap2" on the top (yellow) rows and the airplane logo centered below, for 5
   seconds while the rest of the Chart starts (in place of "MAP / Starting.."); the airports follow. The Map page's
   Micro shows it too

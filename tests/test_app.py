@@ -380,6 +380,21 @@ def test_display_screen_enabled_turns_the_oled_on_and_off(quiet_app, monkeypatch
     assert calls == ["refresh", "turn_on", "refresh", "turn_off"]
 
 
+def test_what_the_micro_shows_changes_now(quiet_app):
+    app, calls = quiet_app
+    app.config.edit("display_screen.shows", "visualizer")
+    assert calls == ["display.restart"]  # and the LEDs aren't refreshed for it
+
+
+def test_a_new_visualizer_reaches_the_micro(make_app, monkeypatch):
+    app = make_app()
+    calls = []
+    monkeypatch.setattr(app.display, "restart", lambda timeout=None: calls.append(timeout))
+    app.config.data.display_screen.shows = "visualizer"
+    app.renderer.visualizer_next()
+    assert calls == [5]
+
+
 @pytest.mark.parametrize(
     "change",
     [

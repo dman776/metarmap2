@@ -129,6 +129,7 @@ def schedule_jobs(app: App):
     schedule_rotation(app)
     # a visualizer picked by hand (or the previous/next buttons) gets the full auto-rotate delay before the next change
     app.renderer.subscribe(lambda: schedule_rotation(app))
+    app.renderer.subscribe(app.display.visualizer_changed)  # the Micro's Visualizer mode shows the new one
 
 
 def schedule_fetch(app: App):
@@ -179,7 +180,7 @@ def next_rotation(app: App) -> Optional[float]:
 # ---- following config changes ----------------------------------------------------------------------------------
 
 # changes that don't change what the LEDs show
-NOT_ON_LEDS = ("airports.name", "web_server.*", "led.init_*")
+NOT_ON_LEDS = ("airports.name", "web_server.*", "led.init_*", "display_screen.shows")
 # changes to what the OLED loop shows, or in which order; it starts over with the new list (names aren't on it)
 OLED_AIRPORTS = (
     "airports.code",
@@ -223,6 +224,7 @@ def wire_config(app: App):
     on(("update.channel", "update.branch"), lambda keys: check_releases(app))  # "Update available" follows it
     on("display_screen.enabled", lambda keys: display_enabled(app))
     on(OLED_AIRPORTS, lambda keys: app.display.restart(timeout=15))
+    on("display_screen.shows", lambda keys: app.display.restart(timeout=15))  # airports or the visualizer, now
     on("airports.code", lambda keys: airport_codes_changed(app))
 
 

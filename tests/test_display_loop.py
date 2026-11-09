@@ -200,6 +200,95 @@ def test_a_loop_stopped_during_the_splash_draws_nothing():
     assert [s["title"] for s in screen.shown] == ["MetarMap2"]
 
 
+# ---- Visualizer mode (display_screen.shows) --------------------------------------------------------------------
+
+
+class VisRenderer(FakeRenderer):
+    def __init__(self):
+        super().__init__()
+        self.vis = SimpleNamespace(short_name="Wind Dir", icon="compass")
+
+    @property
+    def visualizer(self):
+        return 5, self.vis
+
+
+def visualizer_mode(**kw):
+    renderer = VisRenderer()
+    d, screen, clock, config = make(renderer=renderer, **kw)
+    config.data.display_screen.shows = "visualizer"
+    return d, screen, clock, renderer
+
+
+def test_visualizer_mode_shows_the_visualizer_and_no_airports():
+    d, screen, clock, renderer = visualizer_mode()
+    start = clock.time()
+    clock.wait = stop_after_waits(d, clock, 3)
+    run(d)
+    assert [(s["title"], s.get("visualizer_icon")) for s in screen.shown] == [("Wind Dir", "compass")]  # drawn once
+    assert renderer.located == []  # no airport on the screen: no pulses
+    assert d.last_change == start + 2 * QUIET_CHECK_SECONDS  # moved on each look: the watchdog leaves it be
+
+
+def test_visualizer_mode_follows_a_change_on_its_next_look():
+    d, screen, clock, renderer = visualizer_mode()
+
+    def wait(event, seconds):
+        clock.advance(seconds)
+        renderer.vis = SimpleNamespace(short_name="Precip", icon="rain")
+        if len(screen.shown) >= 2:
+            event.set()
+        return event.is_set()
+
+    clock.wait = wait
+    run(d)
+    assert [s["title"] for s in screen.shown] == ["Wind Dir", "Precip"]
+
+
+def test_a_visualizer_change_restarts_the_loop_only_in_visualizer_mode():
+    d, _, _, _ = make()
+    restarts = []
+    d.restart = lambda timeout=None: restarts.append(timeout)
+    d.visualizer_changed()
+    assert restarts == []  # Airports: the rotation goes on
+    d._config.data.display_screen.shows = "visualizer"
+    d.visualizer_changed()
+    assert restarts == [5]
+
+
+def test_visualizer_mode_is_blank_in_quiet_hours():
+    d, screen, clock, _ = visualizer_mode()
+    d.quiet = lambda: True
+    clock.wait = stop_after_waits(d, clock, 1)
+    run(d)
+    assert screen.shown == []
+    assert d.screen is None
+
+
+def test_visualizer_mode_waits_for_the_splash():
+    d, screen, clock, _ = visualizer_mode()
+    d.splash(5)
+    start = clock.time()
+    shown = []
+    screen.on_show = lambda s: (shown.append((s["title"], clock.time() - start)), d.event.set())
+    run(d)
+    assert shown == [("Wind Dir", 5.0)]
+
+
+def stop_after_waits(d, clock, n):
+    """A clock.wait that stops the loop on its n-th wait."""
+    count = [0]
+
+    def wait(event, seconds):
+        count[0] += 1
+        clock.advance(seconds)
+        if count[0] >= n:
+            event.set()
+        return event.is_set()
+
+    return wait
+
+
 # ---- recovering from problems -----------------------------------------------------------------------------------
 
 

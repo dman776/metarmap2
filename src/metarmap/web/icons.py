@@ -31,6 +31,20 @@ SHAPES = {
 }
 assert set(SHAPES) == set(ICONS), "every visualizer icon needs a shape"
 
+# one-color versions, for the Micro (a 1-bit screen) and its copy on the Map page: the icons above that rely on color
+# or opacity. Rainbow is three plain arcs; Chase is four solid dots, growing toward the front
+SOLID = {
+    "rainbow": '<path d="M2 18a10 10 0 0 1 20 0M5.5 18a6.5 6.5 0 0 1 13 0M9 18a3 3 0 0 1 6 0"/>',
+    "chase": '<g fill="currentColor" stroke="none"><circle cx="3.5" cy="12" r="1.3"/><circle cx="8.5" cy="12" r="1.7"/>'
+    '<circle cx="14.5" cy="12" r="2.1"/><circle cx="20.5" cy="12" r="2.5"/></g>',
+}
+
+
+def solid_shape(name: str) -> str:
+    """The icon's shape in one color (the Micro's version)."""
+    return SOLID.get(name, SHAPES[name])
+
+
 ATTRS = (
     'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"'
     ' stroke-linejoin="round"'
@@ -40,6 +54,8 @@ ATTRS = (
 def sprite() -> str:
     """Every icon, as symbols in one hidden SVG, for a page's use() and its scripts."""
     symbols = "".join(f'<symbol id="vi-{name}" {ATTRS}>{shape}</symbol>' for name, shape in SHAPES.items())
+    # the one-color ones the Micro's copy uses in their place (vm-<name>)
+    symbols += "".join(f'<symbol id="vm-{name}" {ATTRS}>{shape}</symbol>' for name, shape in SOLID.items())
     return f'<svg width="0" height="0" style="position:absolute" aria-hidden="true">{symbols}</svg>'
 
 

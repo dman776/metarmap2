@@ -110,6 +110,7 @@ def status(services: "App", ip):
             "display_screen.enabled": cfg.display_screen.enabled,
             "display_screen.locate_active": cfg.display_screen.locate_active,
             "display_screen.delay": cfg.display_screen.delay,
+            "display_screen.shows": cfg.display_screen.shows,
             "led.inittest": cfg.led.inittest,
             "led.init_sequence": cfg.led.init_sequence,
             "led.init_sweep_from": cfg.led.init_sweep_from,

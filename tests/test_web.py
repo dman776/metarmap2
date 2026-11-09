@@ -191,6 +191,15 @@ def test_brightness(client):
     assert client.services.renderer.pixels().brightness == 0.3
 
 
+def test_micro_shows_on_the_config_page(client):
+    body = client("/config")[1]
+    assert 'data-key="display_screen.shows"' in body and '<option value="airports" selected>Airports</option>' in body
+    assert client("/config/edit/display_screen.shows/visualizer")[0] == 200
+    assert client.services.config.data.display_screen.shows == "visualizer"
+    assert '<option value="visualizer" selected>Visualizer</option>' in client("/config")[1]
+    assert client("/config/edit/display_screen.shows/both")[0] == 400
+
+
 def test_config_edit(client):
     assert client("/config/edit/display_screen.delay/7")[0] == 200
     assert client.services.config.data.display_screen.delay == 7
@@ -516,6 +525,7 @@ def test_config_groups_show_under_their_switch(client):
     assert '<div class="sub" data-when="led-inittest">' in body  # on in the repo's config.json
     assert '<div class="sub" data-when="led-init-sequence" data-when-value="sweep" hidden>' in body  # Comet
     assert '<div class="sub" data-when="led-quiet_hours-enabled" hidden>' in body
+    assert '<div class="sub" data-when="display_screen-shows" data-when-value="airports">' in body
     for key in ("led.inittest", "led.quiet_hours.enabled", "display_screen.enabled", "lightning.animation"):
         app.config.edit(key, "false")
     app.config.edit("visualizer.auto_rotate.enabled", "true")
@@ -698,6 +708,7 @@ def test_status(services):
     ]
     assert (status["visualizer"]["shortName"], status["visualizer"]["icon"]) == ("Flight Cat", "plane")
     assert status["config"]["display_screen.delay"] == 5.0
+    assert status["config"]["display_screen.shows"] == "airports"
     assert status["suntimes"]["dawn"] == SUN["dawn"].isoformat()
     assert status["lastFetchTime"] == "2026-10-24T12:55:00"
     assert status["missingStations"] == ["KDKR"]

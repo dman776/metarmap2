@@ -11,6 +11,8 @@ A screen is a dict:
   page     1 (wind, visibility, pressure), 2 (temperature, dewpoint, time) or 0 (no data / a message)
   icon     message icon name (messages only)
   splash   True for the startup screen (a message): the title centered on the top (yellow) rows, the logo below
+  visualizer_icon  the icon name (visualizer.ICONS) on a visualizer's screen (a message, display_screen.shows
+           "visualizer"): its short name as the title, laid out like the splash
   lines    three {"icon": name, "text": str} lines
 """
 
@@ -133,6 +135,16 @@ def splash_screen():
     """
     screen = message_screen("MetarMap2")
     screen["splash"] = True
+    return screen
+
+
+def visualizer_screen(short_name, icon):
+    """
+    The Micro in Visualizer mode (display_screen.shows): the visualizer's short name on the top (yellow) rows and its
+    icon centered below, like the splash. A message, so anything that doesn't know the icon shows the name.
+    """
+    screen = message_screen(short_name)
+    screen["visualizer_icon"] = icon
     return screen
 
 
