@@ -54,6 +54,8 @@ VISUALIZER = Visualizer(
     id="ceiling",
     name="Ceiling",
     description="Display the ceiling: white above 3,000 ft, then yellow, orange and red as it gets lower.",
+    short_name="Ceiling",
+    icon="cloud",
     legend=legend,
     look=look,
 )

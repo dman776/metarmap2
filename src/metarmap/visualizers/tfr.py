@@ -97,6 +97,8 @@ VISUALIZER = Visualizer(
     description="Display the TFR each airport is in or near: VIP red, hazards orange, security magenta, special blue, "
     "air shows and sports yellow, drone gatherings cyan. Solid inside, dim nearby, breathing when it "
     "starts within 24 hours; none is dim white.",
+    short_name="TFR",
+    icon="ban",
     legend=legend,
     look=look,
     areas="tfrs",  # the Map page draws the TFRs (/api/tfrs)

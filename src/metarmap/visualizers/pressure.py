@@ -37,6 +37,8 @@ VISUALIZER = Visualizer(
     id="pressure",
     name="Pressure",
     description="Display the atmospheric pressure (inHg).",
+    short_name="Pressure",
+    icon="gauge",
     legend=legend,
     look=look,
 )

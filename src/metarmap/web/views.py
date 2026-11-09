@@ -115,7 +115,7 @@ def visualizer(renderer):
 def visualizer_choices(renderer):
     """Every visualizer, in order, with what the Remote page shows when it's picked, before its legend loads."""
     return [
-        {"id": v.id, "name": v.name, "description": v.description, "exclusive": v.exclusive}
+        {"id": v.id, "name": v.name, "icon": v.icon, "description": v.description, "exclusive": v.exclusive}
         for v in renderer.visualizers
     ]
 

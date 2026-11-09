@@ -1,5 +1,10 @@
 ### Unreleased
 
+- **Visualizer icons and short names**: each visualizer has an icon (a cloud for Ceiling, a droplet for Dewpoint
+  Spread...) and a short name for small screens ("Density Alt", "Wind Dir"). The Remote page's visualizer chips
+  show the icons, and the Map page's legend shows the running visualizer's beside its name. `/api/status` and
+  `/api/live` send both as `shortName` and `icon` (the icon by name, from a fixed list in API.md), for the
+  touchscreen remote's new visualizer picker
 - **Pronunciation for the AWOS and the airport's name**: the Pronunciation page's tunings (`speech.tunings`) are now
   said in the AWOS too (`/api/speak/<code>`, its audio), not only the ATIS, and in both the airport's name follows
   them (the ATIS's first line, the AWOS's first words), as an airport's own or every airport's

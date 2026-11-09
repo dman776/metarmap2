@@ -37,6 +37,8 @@ VISUALIZER = Visualizer(
     id="visibility",
     name="Visibility",
     description="Display the visibility: white over 5 miles, then yellow, orange and red as it gets worse.",
+    short_name="Visibility",
+    icon="eye",
     legend=legend,
     look=look,
 )

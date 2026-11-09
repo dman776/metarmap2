@@ -25,6 +25,8 @@ VISUALIZER = Visualizer(
     name="Chase",
     description="Display a simple chase pattern of BLUE LEDS in sequence. "
     "Runs one complete cycle across all of the LEDs, then repeats.",
+    short_name="Chase",
+    icon="chase",
     legend=legend,
     strip_look=strip_look,
     covers_virtual=False,  # a wiring check: the virtual airports have no wire, so they stay dark

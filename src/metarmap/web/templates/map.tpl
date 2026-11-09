@@ -1,5 +1,7 @@
 %include("header.tpl", title="Map", page="map", leaflet=True)
 % import json
+% from metarmap.web import icons
+{{!icons.sprite()}}
 <section class="page-head">
     <div>
         <h1>Map</h1>
@@ -9,7 +11,7 @@
         <button class="btn icon" type="button" aria-label="Previous visualizer" data-call="/visualizer/previous" data-then="none">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg>
         </button>
-        <div class="vis-name" data-active="{{active['index']}}"><span class="lbl">Visualizer</span><b>{{active['name']}}</b></div>
+        <div class="vis-name" data-active="{{active['index']}}" data-icon="{{active['icon']}}"><span class="lbl">Visualizer</span><b>{{active['name']}}</b></div>
         <button class="btn icon" type="button" aria-label="Next visualizer" data-call="/visualizer/next" data-then="none">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
         </button>

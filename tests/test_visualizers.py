@@ -85,6 +85,8 @@ def test_info(settings):
     assert visualizer.info(wind.VISUALIZER, settings) == {
         "id": "wind",
         "name": "Wind",
+        "short_name": "Wind",
+        "icon": "wind",
         "description": wind.VISUALIZER.description,
         "exclusive": False,
         "legend": visualizer.legend(wind.VISUALIZER, settings),
@@ -103,7 +105,8 @@ def off_strip(settings):
 
 
 def make_visualizer(**fields):
-    return Visualizer(**{"id": "test", "name": "Test", "description": "A test.", "legend": lambda s: [], **fields})
+    defaults = {"id": "test", "name": "Test", "description": "A test.", "short_name": "Test", "icon": "plane"}
+    return Visualizer(**{**defaults, "legend": lambda s: [], **fields})
 
 
 @pytest.mark.parametrize(
@@ -115,6 +118,9 @@ def make_visualizer(**fields):
         ({"look": off_look, "areas": "clouds"}, "areas 'clouds' is not one of advisories, tfrs"),
         ({"look": off_look, "id": "Wind Gusts"}, "lower case letters, digits and _"),
         ({"look": off_look, "id": "2wind"}, "lower case letters, digits and _"),
+        ({"look": off_look, "short_name": ""}, "needs 1-11 characters"),
+        ({"look": off_look, "short_name": "Twelve chars"}, "needs 1-11 characters"),
+        ({"look": off_look, "icon": "sun"}, "icon 'sun' is not one of plane, "),
     ],
 )
 def test_a_visualizer_that_breaks_the_contract_is_refused(fields, error):
@@ -134,6 +140,12 @@ def test_ids_are_unique_and_index_of_finds_them():
     for unknown in ("nope", "Wind", len(ALL), str(len(ALL)), -1):
         with pytest.raises(LookupError):
             visualizers.index_of(unknown)
+
+
+def test_every_visualizer_has_its_own_icon_and_short_name():
+    """The remote's picker tells them apart by both."""
+    assert len({v.icon for v in ALL}) == len({v.short_name for v in ALL}) == len(ALL)
+    assert {v.icon for v in ALL} == set(visualizer.ICONS)
 
 
 def test_every_module_declares_its_visualizer():

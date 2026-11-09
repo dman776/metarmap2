@@ -40,6 +40,8 @@ VISUALIZER = Visualizer(
     id="temperature",
     name="Temperature",
     description="Display the temperature in degrees Fahrenheit.",
+    short_name="Temp",
+    icon="thermometer",
     legend=legend,
     look=look,
 )

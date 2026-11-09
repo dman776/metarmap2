@@ -348,6 +348,8 @@ body.map-full-open { overflow: hidden; }
 
 .map-key { width: 290px; max-width: calc(100vw - 32px); background: rgba(11, 17, 23, .92); border: 1px solid var(--control); border-radius: 12px; box-shadow: 0 6px 18px rgba(0, 0, 0, .35); color: var(--text); font-family: var(--sans); }
 .map-key summary { min-height: 44px; padding: 0 14px; display: flex; align-items: center; cursor: pointer; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-2); }
+.map-key summary .vis { white-space: nowrap; }
+.map-key summary .vi { margin-right: 5px; vertical-align: -2px; }
 .map-key summary:hover { color: var(--text); }
 .map-key summary:focus-visible { outline: 2px solid #ffd27d; outline-offset: -2px; border-radius: 12px; }
 .map-key[open] summary { border-bottom: 1px solid var(--line); }

@@ -82,6 +82,8 @@ VISUALIZER = Visualizer(
     name="Wind Direction",
     description="Display the direction the wind blows from: red from the north, then orange, yellow, green, cyan, "
     "blue, purple and magenta around the compass.",
+    short_name="Wind Dir",
+    icon="compass",
     legend=legend,
     look=look,
     barbs=True,  # the Map page draws each airport's wind barb

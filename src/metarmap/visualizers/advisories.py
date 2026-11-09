@@ -134,6 +134,8 @@ VISUALIZER = Visualizer(
     description="Display the advisory over each airport, below 18,000 ft. G-AIRMETs in steady colors: IFR orange, "
     "mountain obscuration magenta, turbulence yellow, wind shear red, strong surface wind blue, icing "
     "cyan; two at once alternate, none is dim white. A SIGMET takes over, blinking in its hazard's color.",
+    short_name="Advisories",
+    icon="warning",
     legend=legend,
     look=look,
     areas="advisories",  # the Map page draws the G-AIRMET and SIGMET areas (/api/advisories)
