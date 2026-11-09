@@ -35,7 +35,7 @@
                     MetarMap2 Web
                 </a>
                 <nav class="nav" aria-label="Main">
-                    % for href, key, label in (('/', 'home', 'Home'), ('/metars', 'metars', 'METARs'), ('/map', 'map', 'Map'), ('/config', 'config', 'Config')):
+                    % for href, key, label in (('/', 'home', 'Home'), ('/metars', 'metars', 'METARs'), ('/map', 'map', 'Map'), ('/remote', 'remote', 'Cockpit'), ('/config', 'config', 'Config')):
                     <a href="{{href}}"{{!' aria-current="page"' if page == key else ''}}>{{label}}</a>
                     % end
                 </nav>

@@ -1,5 +1,6 @@
 ### Unreleased
 
+- **Cockpit in the top menu**, between Map and Config: it opens the Cockpit (`/remote`), the kiosk page for a tablet
 - **Names for the five pieces**: MetarMap2 is now **Chart** (the map on the wall: the Pi and its LEDs), **Micro** (the
   OLED screen), **Web** (the web UI), **Cockpit** (the kiosk page at `/remote`) and **Copilot** (the touchscreen,
   metarmap2_remote). The README introduces them; page titles say "MetarMap2 Web" (the Cockpit, "Cockpit · MetarMap2",
