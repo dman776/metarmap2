@@ -631,7 +631,8 @@
         if (listen.btn === btn) stopListening(btn.dataset.code + kind.none + ': ' + why);
     }
 
-    function play(btn, parts) {
+    // from: {line, lines}, to start at that line of the ATIS
+    function play(btn, parts, from) {
         if (listen.btn === btn) {
             stopListening();
             return;
@@ -647,6 +648,7 @@
         markPlay(btn, 'loading');
         audio.src = KINDS[btn.dataset.kind].base + encodeURIComponent(code) + '.audio';
         const started = audio.play();
+        if (from) window.metarmapTranscript.seek(audio, from.lines, from.line);
         if (started) started.catch(function (err) {
             if (err.name !== 'AbortError' && listen.btn === btn) listenFailed(btn, err);  // Abort: switched or stopped
         });
@@ -671,7 +673,10 @@
             if (listen.btn !== btn) return;
             listen.unfollow = t.whenPlaying(audio, function () {
                 if (listen.btn !== btn) return;
-                t.render(parts.list, lines, true);  // the FAA's text only
+                t.render(parts.list, lines, true, function (i) {  // the FAA's text only
+                    if (listen.btn === btn) t.seek(audio, lines, i);
+                    else play(btn, parts, {line: i, lines: lines});  // it has ended; the words are still there
+                });
                 listen.unfollow = t.follow(parts.list, audio, lines, parts.list);
                 parts.resized();
             });

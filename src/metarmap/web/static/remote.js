@@ -376,7 +376,8 @@
             else showBar('', IDLE[mode] || idleText, '');
         };
         quiet();
-        function speak(btn) {
+        // from: {line, lines}, to start at that line of the ATIS
+        function speak(btn, from) {
             if (mode === 'locate') return;  // app.js's data-call locates it
             const code = btn.dataset.speak;
             if (current === btn) {
@@ -392,6 +393,7 @@
             showBar(code, mode === 'atis' ? 'Getting the ATIS...' : 'Getting the weather...', 'loading');
             audio.src = base + encodeURIComponent(code) + '.audio';
             const playing = audio.play();
+            if (from) window.metarmapTranscript.seek(audio, from.lines, from.line);
             if (playing) playing.catch(function (err) {
                 if (err.name !== 'AbortError' && current === btn) failed(btn, err);  // Abort: switched or stopped
             });
@@ -404,7 +406,10 @@
                     words = lines.length ? lines[0].said : null;
                     unfollow = t.whenPlaying(audio, function () {
                         if (current !== btn) return;
-                        t.render(said, lines);
+                        t.render(said, lines, false, function (i) {
+                            if (current === btn) t.seek(audio, lines, i);
+                            else speak(btn, {line: i, lines: lines});  // it has ended; the words are still there
+                        });
                         unfollow = t.follow(said, audio, lines);
                         if (btn.classList.contains('speaking')) showBar(code, words || 'Speaking...', 'speaking');
                     });

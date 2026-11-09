@@ -1,5 +1,9 @@
 ### Unreleased
 
+- **Click a line of an ATIS to hear it**: on the Pronunciation page's sample, the Cockpit's ATIS, the METARs page and
+  the Map popup's Listen tab, a click on a line jumps the audio to it. It also works before you've pressed Play (the
+  Pronunciation page) and after the reading has ended. The start of a line is worked out from its words, so a jump
+  lands half a second early, not to miss it
 - **The Micro can show the visualizer**: Config > Physical display > Micro has **Micro shows**, Airports (each airport
   in turn, as before) or Visualizer: the visualizer's short name on the top (yellow) rows and its icon below, like the
   startup splash, redrawn as soon as the visualizer changes (the buttons, auto-rotate, Home Assistant). No pixel
