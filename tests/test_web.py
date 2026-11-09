@@ -415,8 +415,8 @@ def test_config_tabs(client):
         ("system", " hidden"),
     ]
     panel = body[body.index('data-panel="physical"') : body.index('data-panel="visualizers"')]
-    assert "<h2>LED pixels</h2>" in panel and "<h2>Micro</h2>" in panel  # the OLED screen
-    assert "<h2>Virtual map</h2>" in body and 'class="subnav"' not in body
+    assert "<h2>Chart pixels</h2>" in panel and "<h2>Micro</h2>" in panel  # the OLED screen
+    assert "<h2>Web map</h2>" in body and 'class="subnav"' not in body
 
     airports = client("/config/airports")[1]
     tabs = re.findall(r'<a class="tab" href="([^"]+)" data-tab="(\w+)"( aria-current="page")?', airports)
@@ -442,10 +442,10 @@ def test_airports_page(client):
     app = client.services
     body = client("/config/airports")[1]
     assert body.count('data-field="code"') == app.config.data.led.count
-    assert "50 LEDs in the order they're wired: 50 with an airport." in body
+    assert "50 pixels in the order they're wired: 50 with an airport." in body
     client("/config/edit/led.count/52")
     client("/config/airports/0/code/-")
-    assert "52 LEDs in the order they're wired: 49 with an airport, 3 without." in client("/config/airports")[1]
+    assert "52 pixels in the order they're wired: 49 with an airport, 3 without." in client("/config/airports")[1]
     assert 'id="restart-banner" role="status" hidden' in body
 
 
@@ -586,7 +586,7 @@ def test_virtual_airports_page(client):
     assert client("/config/airports/50/code/KDWH")[0] == 303
     assert client("/config/airports/50/display/true")[0] == 303  # on the OLED too, with its code in a dashed box
     body = client("/config/airports")[1]
-    assert "50 LEDs in the order they're wired and 2 virtual airports: 51 with an airport, 1 without." in body
+    assert "50 pixels in the order they're wired and 2 virtual airports: 51 with an airport, 1 without." in body
     assert body.count('class="ap-divider"') == 1 and body.count('<span class="tag">virtual</span>') == 2
     assert 'data-led="50" data-field="display" checked>' in body
     assert 'data-led="51" data-field="display" disabled>' in body  # no airport yet
@@ -608,7 +608,7 @@ def test_led_count_on_a_strip_that_cant_resize(client):
     app.renderer._pixels = FixedStrip(len(app.renderer.pixels()))
     assert client("/config/edit/led.count/3")[0] == 200
     assert len(app.renderer.pixels()) == 50
-    assert "the new number takes effect after the map restarts" in client("/config/airports")[1]
+    assert "the new number takes effect after the chart restarts" in client("/config/airports")[1]
 
 
 @pytest.mark.parametrize(
@@ -1723,6 +1723,7 @@ def test_the_web_pages_are_metarmap2_web(client):
     """B56: the web UI is MetarMap2 Web; the kiosk page has its own name (test_remote_page)."""
     status, body = client("/map", auth=False)
     assert status == 200 and "<title>Map · MetarMap2 Web</title>" in body
+    assert "MetarMap2 Web\n" in body  # the brand beside the logo
     assert "Live mirror of the LEDs and the Micro." in body
 
 

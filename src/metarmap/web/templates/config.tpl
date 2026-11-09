@@ -54,7 +54,7 @@
 
 <div class="tab-panel" id="panel-physical" data-panel="physical">
     <section class="card settings">
-        <h2>LED pixels</h2>
+        <h2>Chart pixels</h2>
         <div class="set">
             <div>
                 <label class="t" for="led-pin">Data pin <span class="rs">Restart</span></label>
@@ -154,7 +154,7 @@
         <div class="set">
             <div>
                 <label class="t" for="visualizer-active">Default visualizer</label>
-                <div class="d">Shown when the map starts.</div>
+                <div class="d">Shown when the chart starts.</div>
             </div>
             <select id="visualizer-active" data-key="visualizer.active">
                 % for v in visualizers:
@@ -162,15 +162,15 @@
                 % end
             </select>
         </div>
-        % switch('visualizer.missing_data_blink', d.visualizer.missing_data_blink, 'Missing data blink', 'Slow red blink on an airport whose report lacks what the visualizer shows, such as no flight category, visibility or sky condition. Off leaves its LED dark.')
-        % switch('visualizer.estimated_category_breathing', d.visualizer.estimated_category_breathing, 'Estimated flight category breathing', 'Estimated flight categories breathe slowly. Off shows them in a steady color, like a reported one (the OLED still shows VFR*).')
-        % switch('visualizer.legend_in_use_only', d.visualizer.legend_in_use_only, 'Only show legend items in use', 'The legends on Home, Map and Cockpit list only what the LEDs are showing now, e.g. just VFR and MVFR. Off lists everything the visualizer can show.')
+        % switch('visualizer.missing_data_blink', d.visualizer.missing_data_blink, 'Missing data blink', 'Slow red blink on an airport whose report lacks what the visualizer shows, such as no flight category, visibility or sky condition. Off leaves its pixel dark.')
+        % switch('visualizer.estimated_category_breathing', d.visualizer.estimated_category_breathing, 'Estimated flight category breathing', 'Estimated flight categories breathe slowly. Off shows them in a steady color, like a reported one (the Micro still shows VFR*).')
+        % switch('visualizer.legend_in_use_only', d.visualizer.legend_in_use_only, 'Only show legend items in use', 'The legends on Home, Map and Cockpit list only what the pixels are showing now, e.g. just VFR and MVFR. Off lists everything the visualizer can show.')
         % switch('lightning.animation', d.lightning.animation, 'Lightning animation', 'Two quick flashes on airports with lightning or a thunderstorm, in every weather visualizer.')
         <div class="sub" data-when="lightning-animation"{{!'' if d.lightning.animation else ' hidden'}}>
         <div class="set">
             <div>
                 <label class="t" for="lightning-color">Lightning color</label>
-                <div class="d">The color of the flashes, on the LEDs and the Map page.</div>
+                <div class="d">The color of the flashes, on the pixels and the Map page.</div>
             </div>
             <select id="lightning-color" data-key="lightning.color">
                 % for color in lightning_colors:
@@ -200,13 +200,13 @@
         % switch('visualizer.auto_rotate.enabled', d.visualizer.auto_rotate.enabled, 'Auto-rotate visualizers', 'Cycle through the visualizers on a timer. Picking one by hand shows it for the whole delay before the next change.')
         <div class="sub" data-when="visualizer-auto_rotate-enabled"{{!'' if d.visualizer.auto_rotate.enabled else ' hidden'}}>
         % slider('visualizer.auto_rotate.delay_seconds', d.visualizer.auto_rotate.delay_seconds, 'Auto-rotate delay', 'Time on each visualizer.', lo=10, hi=600, step=10, fmt='sec')
-        % switch('visualizer.auto_rotate.skip_dark', d.visualizer.auto_rotate.skip_dark, 'Skip visualizers with nothing to show', 'Leave out a visualizer while every LED would be off with it, e.g. Precipitation on a dry day. A red "METAR not available" blink counts as something to show.')
+        % switch('visualizer.auto_rotate.skip_dark', d.visualizer.auto_rotate.skip_dark, 'Skip visualizers with nothing to show', 'Leave out a visualizer while every pixel would be off with it, e.g. Precipitation on a dry day. A red "METAR not available" blink counts as something to show.')
         <div class="set">
             <div>
                 <span class="t" id="rotate-label">Visualizers in auto-rotate</span>
                 <div class="d">Untick the ones to leave out.
                     % left_out = [v['name'] for v in rotation if v['exclusive']]
-                    {{' and '.join(filter(None, [', '.join(left_out[:-1]), left_out[-1]])) if left_out else ''}} {{'is' if len(left_out) == 1 else 'are'}} always left out: {{'it uses' if len(left_out) == 1 else 'they use'}} the whole strip. The buttons still show every visualizer.</div>
+                    {{' and '.join(filter(None, [', '.join(left_out[:-1]), left_out[-1]])) if left_out else ''}} {{'is' if len(left_out) == 1 else 'are'}} always left out. The buttons still show every visualizer.</div>
             </div>
             <div class="rotate-list" role="group" aria-labelledby="rotate-label">
                 % for v in rotation:
@@ -223,7 +223,7 @@
 <div class="tab-panel" id="panel-map" data-panel="map" hidden>
     % m = map_settings
     <section class="card settings">
-        <h2>Virtual map</h2>
+        <h2>Web map</h2>
         <div class="set">
             <div><label class="t" for="map-bg">Default background</label><div class="d">Viewers can still switch on the Map page.</div></div>
             <select id="map-bg" data-key="geo.map.background">
