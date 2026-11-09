@@ -29,14 +29,14 @@
     <div class="set">
         <div>
             <label class="t" for="virtual-count">Virtual airports</label>
-            <div class="d">Airports after the LEDs, with no LED of their own: shown on the Map page (in a dashed circle), in Home Assistant, and on the OLED if switched on (the code in a dashed box). Lowering it removes the last ones. {{max_leds}} airports at most, LEDs and virtual together.</div>
+            <div class="d">Airports after the LEDs, with no LED of their own: shown on the Map page (in a dashed circle), in Home Assistant, and on the Micro if switched on (the code in a dashed box). Lowering it removes the last ones. {{max_leds}} airports at most, LEDs and virtual together.</div>
         </div>
         <input id="virtual-count" class="led-count" type="number" inputmode="numeric" min="0" max="{{max_leds - count}}" value="{{virtual}}" data-led-count="{{virtual}}" data-first="{{count}}" data-count-key="led.virtual_count">
     </div>
 </section>
 
 <section class="card">
-    <div class="ap-row trow head" style="border-top: 0"><span>LED</span><span>ICAO</span><span class="ap-name">Name</span><span>OLED</span><span class="ap-move">Move</span></div>
+    <div class="ap-row trow head" style="border-top: 0"><span>LED</span><span>ICAO</span><span class="ap-name">Name</span><span>Micro</span><span class="ap-move">Move</span></div>
     % for led in leds:
     % n = led['pixel'] + 1
     % if led['virtual'] and led['pixel'] == count:
@@ -46,7 +46,7 @@
         <span class="mono muted">{{n}}{{!'<span class="tag">virtual</span>' if led['virtual'] else ''}}{{!'<span class="tag mock-tag">mock</span>' if dev_mode and led['mock'] else ''}}</span>
         <input class="code" type="text" value="{{led['code']}}" maxlength="4" spellcheck="false" placeholder="—" aria-label="Airport for LED {{n}}" data-led="{{led['pixel']}}" data-field="code">
         <input class="ap-name" type="text" value="{{led['name']}}" maxlength="40" placeholder="Name" aria-label="Name for LED {{n}}" data-led="{{led['pixel']}}" data-field="name">
-        <input class="switch" type="checkbox" aria-label="Show LED {{n}} on the OLED display" data-led="{{led['pixel']}}" data-field="display"{{!' checked' if led['display'] else ''}}{{!'' if led['code'] else ' disabled'}}>
+        <input class="switch" type="checkbox" aria-label="Show LED {{n}} on the Micro" data-led="{{led['pixel']}}" data-field="display"{{!' checked' if led['display'] else ''}}{{!'' if led['code'] else ' disabled'}}>
         <span class="ap-move">
             <button class="btn icon sm" type="button" aria-label="Move LED {{n}} up" data-call="/config/airports/move/{{led['pixel']}}/{{led['pixel'] - 1}}"{{!' disabled' if led['pixel'] == 0 else ''}}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="m6 15 6-6 6 6"/></svg>

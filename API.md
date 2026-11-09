@@ -141,11 +141,11 @@ Returns a read-only snapshot of the map's state as `application/json`. No authen
 | `visualizer.legend` | What the LEDs mean for that visualizer. `colors` are CSS hex colors; two or more mean a gradient across the range. `effect` is `solid`, `blink`, `pulse`, `flash` (the first color with flashes of the second), `chase` or `off`. `period` is the seconds per blink or pulse, or `null`. `key` names the entry (stable, unlike `label`, which can change with the settings); `inUse` is whether an LED (or a virtual airport) shows it now, always `true` for a whole-strip visualizer (Rainbow, Chase). |
 | `visualizers` | Every visualizer, in index order: `index` is its number and `id` its id, both accepted by `/visualizer/<id>`; `shortName` and `icon` as in `visualizer` |
 | `config` | The saved `config.json` values, keyed by the dotted path accepted by `/config/edit` |
-| `display` | The OLED screen: `enabled` is the Config setting (`display_screen.enabled`); `on` is whether it's showing now (false after `/display/off`, or when not enabled) |
+| `display` | MetarMap2 Micro, the OLED screen: `enabled` is the Config setting (`display_screen.enabled`); `on` is whether it's showing now (false after `/display/off`, or when not enabled) |
 | `suntimes` | Today's dimming schedule (ISO 8601 with time zone) |
 | `lastFetchTime` | When METARs were last fetched, in the map's local time (ISO 8601, no time zone); `null` before the first fetch |
 | `missingStations` | Airports that had no METAR in the last fetch |
-| `airports` | Airports in LED order, skipping LEDs with no airport. `pixel` is the LED index (counting from 0). `text` is the airport's name (`""` if none) and `display` whether it's shown on the OLED. `virtual` is true for a virtual airport (after the LEDs, `pixel` at least `led.count`): no LED, so only on the Map page, here, and on the OLED if `display` is on (its code in a dashed box). An airport on two LEDs is listed twice. The METAR fields are `null` when the map has no data for the airport. `windDir` is a string because it can be `VRB`. |
+| `airports` | Airports in LED order, skipping LEDs with no airport. `pixel` is the LED index (counting from 0). `text` is the airport's name (`""` if none) and `display` whether it's shown on the Micro. `virtual` is true for a virtual airport (after the LEDs, `pixel` at least `led.count`): no LED, so only on the Map page, here, and on the Micro if `display` is on (its code in a dashed box). An airport on two LEDs is listed twice. The METAR fields are `null` when the map has no data for the airport. `windDir` is a string because it can be `VRB`. |
 
 ### `GET /api/live`
 
@@ -190,11 +190,11 @@ What the physical map is doing right now. The Map page polls it every second. No
 | `visualizer.legendInUse` | The `key`s of the legend entries the LEDs (and virtual airports) show now, in the legend's order (see `/api/status`'s `visualizer.legend`); `null` for a whole-strip visualizer (Rainbow, Chase), whose legend is always shown whole. Follows the LEDs: a fetch, an airport change or a different visualizer changes it |
 | `visualizer.legendInUseOnly` | The `visualizer.legend_in_use_only` setting: whether the web pages list only those entries |
 | `strip` | Set when one effect drives the whole strip instead: `rainbow` (`period`) or `chase` (`step`, `size`, `spacing`). The virtual airports keep their own `look` meanwhile: the same rainbow, or `off` for a chase (a wiring check). |
-| `speech` | Whether spoken weather can be asked for (`/api/speak/<code>.audio`): `speech.enabled` on, with a server set for `speech.engine`. The METARs page's AWOS buttons, the Remote page's AWOS mode (Info tab), the Map page popup's Listen tab and the touchscreen remote's hold-to-hear show only then |
-| `leds[].atis` | The airport's real ATIS can be read aloud (`/api/atis/<code>.audio`): `speech.atis` and spoken weather are on, and it publishes a digital ATIS. The list of airports with one is refreshed every half hour. The ATIS buttons (METARs page, Remote page, the Map page popup's Listen tab) show only for these |
+| `speech` | Whether spoken weather can be asked for (`/api/speak/<code>.audio`): `speech.enabled` on, with a server set for `speech.engine`. The METARs page's AWOS buttons, the Cockpit's AWOS mode (Info tab), the Map page popup's Listen tab and the touchscreen remote's hold-to-hear show only then |
+| `leds[].atis` | The airport's real ATIS can be read aloud (`/api/atis/<code>.audio`): `speech.atis` and spoken weather are on, and it publishes a digital ATIS. The list of airports with one is refreshed every half hour. The ATIS buttons (METARs page, the Cockpit, the Map page popup's Listen tab) show only for these |
 | `locate` | The last white locate pulse: LED `pixel` and Unix time `at`. `null` until the first one. A virtual airport's pulse is only shown on the Map page. |
 | `display.on` | Whether the screen is showing; `false` after `/display/off` (then `screen` is `null`) |
-| `display.screen` | What the OLED shows. `badge` is the flight category, with a `*` after one that's estimated from the visibility and ceiling (`VFR*`). `virtual` is true for a virtual airport, whose code is in a dashed box. `page` is 1 or 2 for an airport, 0 for "Data Unavailable" or a message (then `airport` is `null`). Icons: `wind`, `visibility`, `pressure`, `temp`, `dewpoint`, `date`. |
+| `display.screen` | What the Micro shows. `badge` is the flight category, with a `*` after one that's estimated from the visibility and ceiling (`VFR*`). `virtual` is true for a virtual airport, whose code is in a dashed box. `page` is 1 or 2 for an airport, 0 for "Data Unavailable" or a message (then `airport` is `null`). Icons: `wind`, `visibility`, `pressure`, `temp`, `dewpoint`, `date`. |
 
 ### `GET /api/metar/<code>`
 
@@ -441,11 +441,11 @@ These endpoints change the map immediately. Except for auto-rotate, nothing they
 | Endpoint | Description |
 |---|---|
 | `GET /brightness/<level>` | Set LED brightness, `0.0`–`1.0`; the map ignores values outside that range. The dimming schedule overrides it at the next dawn, sunrise, sunset or dusk. |
-| `GET /display/on`, `GET /display/off` | Turn the OLED screen on or off (blank). Not saved: it's back on when the map restarts. A 409 if the screen is turned off in Config (`display_screen.enabled`), which is the saved setting. |
+| `GET /display/on`, `GET /display/off` | Turn the Micro on or off (blank). Not saved: it's back on when the map restarts. A 409 if the screen is turned off in Config (`display_screen.enabled`), which is the saved setting. |
 | `GET /visualizer/<id>` | Switch to a visualizer by its id, e.g. `/visualizer/wind_direction`, or by its number, `/visualizer/3` (see the table below). A 404 for one there isn't. |
 | `GET /visualizer/next` | Next visualizer; after the last one it goes back to the first |
 | `GET /visualizer/previous` | Previous visualizer; before the first one it goes to the last |
-| `GET /visualizer/auto_rotate/on`, `GET /visualizer/auto_rotate/off` | Turn auto-rotate on or off (the Remote page's switch). Saved, as `visualizer.auto_rotate.enabled`, though it needs no login: it changes only that setting. The timer starts again now. |
+| `GET /visualizer/auto_rotate/on`, `GET /visualizer/auto_rotate/off` | Turn auto-rotate on or off (the Cockpit's switch). Saved, as `visualizer.auto_rotate.enabled`, though it needs no login: it changes only that setting. The timer starts again now. |
 | `GET /locate/<pixel>` | Pulse one LED white. Ignored while an exclusive visualizer is running. |
 | `GET /led/init_sequence/play` | Play the startup sequence (`led.init_sequence`) once now, whether or not `led.inittest` is on. Returns at once. |
 | `GET /fetch` | Fetch METARs from aviationweather.gov now. **The request does not return until the fetch finishes**, which can take up to about 30 seconds; other requests are answered in the meantime. The next regular fetch is then a whole 10 minutes later (`/api/live`'s `fetch.next`). |
@@ -495,12 +495,12 @@ Saves one value to `config.json`, then refreshes the active visualizer. `key` is
 Each value is checked against the setting's type: an unknown setting or a value that doesn't fit is a 400 with the reason.
 
 Settings that apply right away:
-- `display_screen.enabled`: turns the OLED screen on or off (blank)
+- `display_screen.enabled`: turns the Micro on or off (blank)
 - `tfr.nearby_nm`: the TFR visualizer also shows a TFR this close to an airport (dim), 0 to 50 NM; 0 is inside only. 10 by default. Applies right away
 - `lightning.animation`: a double flicker every 2 s on airports with lightning (`LTG` in the report) or a thunderstorm (`TS`, `TSRA`, `VCTS`...), over whatever every weather visualizer shows; Rainbow and Chase are unaffected. Off: no flashes anywhere (Precipitation still shows a thunderstorm: its precipitation, else yellow)
 - `visualizer.missing_data_blink`: the slow red blink on an airport whose report lacks what the visualizer shows (no flight category, visibility or sky condition; no wind speed; weather codes the map doesn't know...), in every visualizer. `false`: those LEDs stay dark, and the legends say *Off*. `true` by default
-- `visualizer.estimated_category_breathing`: an estimated flight category (the station reported visibility or clouds, but no category) breathes slowly. `false`: a steady color, like a reported category; the OLED still marks it (`VFR*`). `true` by default
-- `visualizer.legend_in_use_only`: the legends on Home, Map and Remote list only the entries the LEDs are showing now (e.g. only VFR and MVFR), and follow them as they change. `false` (everything the visualizer can show) by default
+- `visualizer.estimated_category_breathing`: an estimated flight category (the station reported visibility or clouds, but no category) breathes slowly. `false`: a steady color, like a reported category; the Micro still marks it (`VFR*`). `true` by default
+- `visualizer.legend_in_use_only`: the legends on Home, Map and Cockpit list only the entries the LEDs are showing now (e.g. only VFR and MVFR), and follow them as they change. `false` (everything the visualizer can show) by default
 - `lightning.color`: the flicker's color, `yellow` (the default) or `white`; anything else is a 400. Precipitation's thunderstorm stays yellow either way (its snow is white)
 - `display_screen.locate_active`
 - `display_screen.delay`
@@ -509,12 +509,12 @@ Settings that apply right away:
 
 `dev_mode` (top level, `false` by default) can only be changed by editing `config.json` by hand: `/config/edit/dev_mode/…` is a 400. With it on, Config > System > Software offers **Branch** under *Update to*, with a list of GitHub's branches (refreshed by each check: push a branch, then **Check now**). Turning it off makes a `branch` channel act as `releases`; the saved channel and branch stay. It also turns on mock METARs on the Airports page (see *Mock METARs*).
 - `led.brightness.normal`, `led.brightness.dimmed`, `led.brightness.off`: the level in use now changes right away; the others take over at their sun time
-- `led.quiet_hours.enabled`, `led.quiet_hours.start`, `led.quiet_hours.end`: the LEDs are off (0%), and the OLED screen blank, from the start time to the end time, in the Pi's local time; the window can cross midnight. Times are 24-hour `HH:MM` (e.g. `/config/edit/led.quiet_hours.start/22:30`); anything else is a 400. Changes apply right away
+- `led.quiet_hours.enabled`, `led.quiet_hours.start`, `led.quiet_hours.end`: the LEDs are off (0%), and the Micro blank, from the start time to the end time, in the Pi's local time; the window can cross midnight. Times are 24-hour `HH:MM` (e.g. `/config/edit/led.quiet_hours.start/22:30`); anything else is a 400. Changes apply right away
 - `led.inittest`: whether the startup sequence plays when the map starts; turning it on also plays it once now. With quiet hours on, it also plays when they end, and when they begin the same sequence takes the map dark (the same path, each LED from its color to dark; Comet runs the other way, leaving the strip dark). Only at the scheduled times, not when a settings change starts or ends quiet hours, and not while the LEDs are at 0% anyway
 - `led.init_sequence`: the startup sequence: `comet` (a rainbow along the strip; the default), `center_out` (the map fades in from the middle of the box around the airports out to its edges), `edges_in` (from the edges in to the middle), `sweep` (across the map, from `led.init_sweep_from`), `radar` (a beam from north, clockwise) or `sparkle` (one LED at a time, in random order). All but `comet` fade each LED in to its visualizer color over 3 seconds. Changing it plays it once now
 - `led.init_sweep_from`: where `sweep` starts: `W` (west to east; the default), `NW`, `N`, `NE`, `E`, `SE`, `S` or `SW`. Changing it plays the sequence once now
 - `led.dim_on_refresh`: the LEDs fade to half their brightness while METARs are fetched (at least a second), then fade back
-- `speech.enabled`: spoken weather on or off (`/api/speak/<code>.audio`, and the AWOS buttons on the METARs and Remote pages)
+- `speech.enabled`: spoken weather on or off (`/api/speak/<code>.audio`, and the AWOS buttons on the METARs page and the Cockpit)
 - `speech.engine`: the speech server: `wyoming` (Piper, e.g. Home Assistant's add-on) or `kokoro` (Kokoro-FastAPI)
 - `speech.wyoming_host`, `speech.wyoming_port`, `speech.wyoming_voice`: the Piper server (Home Assistant's address; port 10200) and the voice to ask it for (e.g. `en_US-lessac-medium`; empty: its own). An empty host or voice is sent as `-`
 - `speech.atis`: the spoken ATIS on or off (`/api/atis`, from atis.info; off by default)
@@ -545,7 +545,7 @@ curl -u metar:map http://metarmap.local/config/edit/display_screen.delay/10
 The airports are the `airports` list in `config.json`, one entry per LED in the order the LEDs are wired:
 `{"code": "KHOU", "name": "Hobby", "display": true}`. An LED with no airport has `"code": ""`. The list has
 `led.count` entries, then `led.virtual_count` virtual airports: airports with no LED, shown on the Map page and in
-`/api/status` (for Home Assistant), and on the OLED if their `display` is on, with the code in a dashed box. `/config/edit/led.count/<n>`
+`/api/status` (for Home Assistant), and on the Micro if their `display` is on, with the code in a dashed box. `/config/edit/led.count/<n>`
 also adds LEDs with no airport at the end of the strip, or removes the airports on the last LEDs; the virtual
 airports after them are kept. `/config/edit/led.virtual_count/<n>` adds or removes virtual airports at the end. The
 two together are at most 1000 airports (each is part of every METAR fetch). A new LED count takes effect after a
@@ -557,7 +557,7 @@ restart, except without an LED strip (the in-memory one), where it takes effect 
 |---|---|
 | `GET /config/airports/<led>/code/<code>` | Set the airport on an LED: a 3-4 character ICAO code, or `-` for none. A new code replaces the name with the new airport's (from aviationweather.gov's station information), and METARs are fetched in the background. |
 | `GET /config/airports/<led>/name/<name>` | Set the airport's name, shown in the web UI. An empty name (`-`) is filled in with the airport's name after the next METAR fetch. |
-| `GET /config/airports/<led>/display/<true\|false>` | Whether the airport is shown on the OLED screen |
+| `GET /config/airports/<led>/display/<true\|false>` | Whether the airport is shown on the Micro |
 | `GET /config/airports/move/<from>/<to>` | Move the airport on LED `from` to LED `to`; the airports in between shift by one |
 | `POST /config/airports/mock` | `dev_mode` only (a 400 without it): the Airports page's *Mock METAR* field. `{"pixel": 0, "metar": "METAR KDWH 272353Z AUTO 08003KT 9SM CLR 21/18 A3014"}` saves it as the airport's `mock_metar` in `config.json` and shows it at once, and after every fetch, in place of the fetched report; `"metar": ""` goes back to the real one. Text that doesn't start like a METAR (airport code, then the time) is a 400. Answers `{"code", "mock", "flightCategory"}`. See *Mock METARs* below. |
 | `GET /config/airports/edit/<oldcode>/<newcode>` | Older, by code: change the first airport with `oldcode` to `newcode` |
@@ -565,9 +565,9 @@ restart, except without an LED strip (the in-memory one), where it takes effect 
 
 #### Mock METARs (`dev_mode`)
 
-To test a report on the physical map, type a raw METAR in an airport's *Mock METAR* field on the Airports page (shown only with `dev_mode`), or put it in `config.json` as the airport's `"mock_metar"` (then restart). It replaces that airport's real report everywhere: the LEDs, the OLED, Home Assistant and the web pages, until it's cleared. The map reads the report's body (not the remarks): wind (`KT` or `MPS`), visibility (`9SM`, `1 1/2SM`, `M1/4SM`, `P6SM`, meters, `CAVOK`), weather codes, clouds and `VV`, temperature/dewpoint, and the altimeter (`A` or `Q`); `LTG` anywhere is lightning. The flight category comes from the visibility and ceiling (FAA limits), and the time from `DDHHMMZ` (this month, or last month if that day is still ahead). The airport's name and position stay its real station's. A mocked airport says `mock` on the Home, METARs and Airports pages and in the Map popup, and has `"mock": true` in `/api/status`, `/api/live` and `/api/metar/<code>`; the LEDs and OLED look as a real report would. With `dev_mode` off, saved mocks are ignored. Changing the airport's code removes its mock.
+To test a report on the physical map, type a raw METAR in an airport's *Mock METAR* field on the Airports page (shown only with `dev_mode`), or put it in `config.json` as the airport's `"mock_metar"` (then restart). It replaces that airport's real report everywhere: the LEDs, the Micro, Home Assistant and the web pages, until it's cleared. The map reads the report's body (not the remarks): wind (`KT` or `MPS`), visibility (`9SM`, `1 1/2SM`, `M1/4SM`, `P6SM`, meters, `CAVOK`), weather codes, clouds and `VV`, temperature/dewpoint, and the altimeter (`A` or `Q`); `LTG` anywhere is lightning. The flight category comes from the visibility and ceiling (FAA limits), and the time from `DDHHMMZ` (this month, or last month if that day is still ahead). The airport's name and position stay its real station's. A mocked airport says `mock` on the Home, METARs and Airports pages and in the Map popup, and has `"mock": true` in `/api/status`, `/api/live` and `/api/metar/<code>`; the LEDs and the Micro look as a real report would. With `dev_mode` off, saved mocks are ignored. Changing the airport's code removes its mock.
 
-All of them save `config.json`, update the LEDs, restart the OLED display loop, and redirect to `/config/airports`.
+All of them save `config.json`, update the LEDs, restart the Micro's loop, and redirect to `/config/airports`.
 An LED number or code that doesn't exist is a 404; a bad code or value is a 400.
 
 Older maps kept the airports in a separate `airports.json`. The first start of a version with the `airports` list
@@ -605,9 +605,9 @@ curl -u metar:map -H 'Content-Type: application/json' -d '{"user": "pilot", "pas
 |---|---|---|
 | `GET /` | | Home: flight category counts, visualizer controls and legend, brightness and sun times |
 | `GET /metars` | | Table of METARs for every airport |
-| `GET /map` | | Live mirror of the LEDs and the OLED screen on an FAA chart, satellite or radar background (a new radar scan every 5 minutes while radar is shown). An airport's popup has Summary, Raw and Decoded tabs, and with spoken weather on a Listen tab: its AWOS (showing the raw METAR), and its ATIS (the FAA's text, read along) where `leds[].atis` |
-| `GET /map/legend` | | The active visualizer's legend (HTML), which the Map page and the Remote page swap in when the visualizer changes |
-| `GET /remote` | | A remote control laid out for an iPad in kiosk mode, in three tabs: Visualizer (the visualizers and the legend, with a footer of controls: the auto-rotate switch with a countdown to the next visualizer, which is saved, and LED brightness and the OLED switch, which aren't), Map (the Map page's live map) and Info (every airport; a press locates it, or with spoken weather on, reads its AWOS, or with `speech.atis` its ATIS: Locate, AWOS and ATIS modes, ATIS showing only the airports with one). It follows changes made anywhere else (it polls `/api/live`). `/remote#map` or `#info` opens that tab, and `#locator`, `#awos` or `#atis` the Info tab in that mode; otherwise it opens the tab and mode last used on that device. *Add to Home Screen* opens it full screen |
+| `GET /map` | | Live mirror of the LEDs and the Micro on an FAA chart, satellite or radar background (a new radar scan every 5 minutes while radar is shown). An airport's popup has Summary, Raw and Decoded tabs, and with spoken weather on a Listen tab: its AWOS (showing the raw METAR), and its ATIS (the FAA's text, read along) where `leds[].atis` |
+| `GET /map/legend` | | The active visualizer's legend (HTML), which the Map page and the Cockpit swap in when the visualizer changes |
+| `GET /remote` | | MetarMap2 Cockpit: a remote control laid out for an iPad in kiosk mode, in three tabs: Visualizer (the visualizers and the legend, with a footer of controls: the auto-rotate switch with a countdown to the next visualizer, which is saved, and LED brightness and the Micro switch, which aren't), Map (the Map page's live map) and Info (every airport; a press locates it, or with spoken weather on, reads its AWOS, or with `speech.atis` its ATIS: Locate, AWOS and ATIS modes, ATIS showing only the airports with one). It follows changes made anywhere else (it polls `/api/live`). `/remote#map` or `#info` opens that tab, and `#locator`, `#awos` or `#atis` the Info tab in that mode; otherwise it opens the tab and mode last used on that device. *Add to Home Screen* opens it full screen |
 | `GET /raw` | | Raw METAR text for every airport, followed by the full parsed data |
 | `GET /raw/<code>` | | Raw METAR text for one airport |
 | `GET /debug` | | Debug information |

@@ -5,6 +5,16 @@ A Raspberry Pi turns a wall map into a live weather display: an LED at each airp
 optional small OLED screen cycles through the details for the airports you pick, and a web UI lets you control and
 set up the map from your phone.
 
+It comes in five pieces:
+
+| | |
+|---|---|
+| **MetarMap2 Chart** | The map on the wall: a Raspberry Pi and an LED at each airport |
+| **MetarMap2 Micro** | The optional small OLED screen, cycling through the airports you pick |
+| **MetarMap2 Web** | The web UI, to watch, control and set up the Chart from a phone or computer |
+| **MetarMap2 Cockpit** | A remote control for a tablet in kiosk mode, at `/remote` |
+| **MetarMap2 Copilot** | An optional 2.8" touchscreen beside the Chart ([metarmap2_remote](https://github.com/dman776/metarmap2_remote)) |
+
 Written from the ground up with a web UI, an API and a Home Assistant integration (see [Credits](#credits)).
 
 ![The MetarMap2 map on a wall: an FAA sectional chart with an LED at each airport](docs/images/physical_map.jpg)
@@ -19,29 +29,30 @@ Written from the ground up with a web UI, an API and a Home Assistant integratio
   Switch between them on the web UI, or let the map rotate through them.
 - **Lightning**: airports reporting lightning or a thunderstorm flicker yellow or white (a double flash every 2 s) in every weather visualizer, unless you turn the animation off in Config.
 - **Estimated flight categories**: a station that doesn't report its flight category, but does report its visibility
-  or clouds, gets an estimate from them. Its LED breathes slowly so you can tell, and the OLED shows it with a `*`
+  or clouds, gets an estimate from them. Its LED breathes slowly so you can tell, and the Micro shows it with a `*`
   (`VFR*`).
 - **Dimming by time of day**: the LEDs dim at sunset, go nearly dark at dusk, dim again at dawn and are back to full
   brightness at sunrise, using the sun times for your city.
-- **OLED screen** (optional): wind, visibility, pressure, temperature, dewpoint and report time for each airport you
-  choose, with that airport's LED pulsing while it's shown.
-- **Web UI**: current conditions, a METAR list, a live map that mirrors the LEDs and the OLED screen, and settings.
+- **MetarMap2 Micro**, the OLED screen (optional): wind, visibility, pressure, temperature, dewpoint and report time
+  for each airport you choose, with that airport's LED pulsing while it's shown.
+- **MetarMap2 Web**, the web UI: current conditions, a METAR list, a live map that mirrors the LEDs and the Micro, and
+  settings.
   Click an airport on the map for its weather in plain English, its raw METAR, or the METAR decoded line by line.
   The map can go fullscreen, and follows the visualizer as it changes. Tick **Live traffic** to see the aircraft
   around your airports; click one for its details and the map follows it. Update and restart the map from the Home
-  page. `/remote` is a remote control for a tablet in kiosk mode.
+  page. **MetarMap2 Cockpit**, at `/remote`, is a remote control for a tablet in kiosk mode.
 - **API and Home Assistant**: everything in the web UI also works over HTTP (see [API.md](API.md)); the
   [metarmap2_ha](https://github.com/dman776/metarmap2_ha) integration adds the map to Home Assistant.
-- **A touchscreen remote** (optional): [metarmap2_remote](https://github.com/dman776/metarmap2_remote) is firmware for
-  a small ESP32-S3 touch display that sits beside the map and works like the `/remote` page.
+- **MetarMap2 Copilot** (optional): [metarmap2_remote](https://github.com/dman776/metarmap2_remote) is firmware for
+  a small ESP32-S3 touch display that sits beside the Chart and works like the Cockpit.
 
 ## Screenshots
 
 ### The map page
 
-The Map page mirrors the LEDs, with a copy of the OLED screen, over an FAA chart, satellite imagery or live radar.
+The Map page mirrors the LEDs, with a copy of the Micro, over an FAA chart, satellite imagery or live radar.
 
-![The Map page's Wind visualizer over the FAA sectional chart, with the legend and the OLED copy](docs/images/map_sectional.jpg)
+![The Map page's Wind visualizer over the FAA sectional chart, with the legend and the Micro's copy](docs/images/map_sectional.jpg)
 
 The Wind Direction visualizer, with wind barbs, over the radar background:
 
@@ -67,10 +78,10 @@ Click an aircraft for its details; the map follows it and draws its trail.
 
 ### Home and METARs
 
-The Home page has the map's status, the visualizer and its legend, brightness and the OLED switch, and the airports
+The Home page has the map's status, the visualizer and its legend, brightness and the Micro switch, and the airports
 that are below VFR. The METARs page lists every airport's report.
 
-![The Home page: airports by flight category, the active visualizer with its legend, brightness and the OLED switch](docs/images/page_home.png)
+![The Home page: airports by flight category, the active visualizer with its legend, brightness and the Micro switch](docs/images/page_home.png)
 
 ![The METARs page: every airport's flight category and raw report](docs/images/page_metars.png)
 
@@ -78,7 +89,7 @@ that are below VFR. The METARs page lists every airport's report.
 
 Settings save as you change them.
 
-![Config, Physical display: the LED pixels (data pin, color order, brightness) and the OLED screen](docs/images/config_physical_display.png)
+![Config, Physical display: the LED pixels (data pin, color order, brightness) and the Micro](docs/images/config_physical_display.png)
 
 ![Config, Visualizers: the default visualizer, auto-rotate and which visualizers take part](docs/images/config_visualizers.png)
 
@@ -86,33 +97,34 @@ Settings save as you change them.
 
 ![Config, Virtual map: the Map page's background, chart and starting view, and the live traffic settings](docs/images/config_virtual_map.png)
 
-### Remote control
+### Cockpit
 
-`/remote` is a remote control for a tablet in kiosk mode, here on an iPad in landscape: pick a visualizer, or, on the
+MetarMap2 Cockpit, at `/remote`, is a remote control for a tablet in kiosk mode, here on an iPad in landscape: pick a visualizer, or, on the
 **Info** tab, press an airport to find its LED (**Locate**), or, with spoken weather on, to hear its **AWOS** or
 **ATIS**.
 
-![The remote page's Visualizer tab](docs/images/remote_visualizer.png)
+![The Cockpit's Visualizer tab](docs/images/remote_visualizer.png)
 
-![The remote page's Locator tab: an airport's button pulses its LED on the map](docs/images/remote_locator.png)
+![The Cockpit's Locator tab: an airport's button pulses its LED on the Chart](docs/images/remote_locator.png)
 
-For a dedicated screen instead of a tablet, [metarmap2_remote](https://github.com/dman776/metarmap2_remote) is a
-companion project: firmware for a 2.8" ESP32-S3 touchscreen (the LCDwiki ES3C28P) with the same Visualizer and Locator
-screens, which updates itself from GitHub releases.
+For a dedicated screen instead of a tablet, MetarMap2 Copilot
+([metarmap2_remote](https://github.com/dman776/metarmap2_remote)) is a companion project: firmware for a 2.8" ESP32-S3
+touchscreen (the LCDwiki ES3C28P) that sits beside the Chart, controls the visualizer and finds or reads out an airport,
+and updates itself from GitHub releases.
 
 ## What you need
 
 - A Raspberry Pi with Wi-Fi (a Zero W, 3, 4 or 5) and a microSD card
 - A strip or string of WS2811/WS2812 ("NeoPixel") LEDs, one per airport, and a 5V power supply big enough for them
 - A map, and a frame or board to mount it and the LEDs
-- Optional: a 128x64 SSD1306 I2C OLED screen
+- Optional, for the Micro: a 128x64 SSD1306 I2C OLED screen
 
 Wiring:
 
 - **LEDs**: data to GPIO 18 (pin 12), ground to a Pi ground, power from the 5V supply. GPIO 12, 13, 21 or 10 also
   work: pick it in Config > Physical display > LED pixels. See Adafruit's
   [NeoPixels on Raspberry Pi](https://learn.adafruit.com/neopixels-on-raspberry-pi/raspberry-pi-wiring) guide.
-- **OLED screen**: SDA to GPIO 2 (pin 3), SCL to GPIO 3 (pin 5), VCC to 3.3V, GND to ground.
+- **Micro (the OLED screen)**: SDA to GPIO 2 (pin 3), SCL to GPIO 3 (pin 5), VCC to 3.3V, GND to ground.
 
 The original project's write-ups cover the build in detail:
 [making the map](https://slingtsi.rueker.com/making-a-led-powered-metar-map-for-your-wall/) and
@@ -122,7 +134,7 @@ The original project's write-ups cover the build in detail:
 
 You don't need a Raspberry Pi, LEDs or an OLED screen to try MetarMap2. On your own computer it runs with in-memory
 stand-ins for the LED strip and the screen, and the web UI works as it does on a Pi, with live METARs: the Map page
-shows each airport's LED, colors and effects included, over an FAA chart, and a copy of the OLED screen.
+shows each airport's LED, colors and effects included, over an FAA chart, and a copy of the Micro.
 
 These steps are for macOS or Linux, with Python 3.9 or newer and git installed.
 
@@ -188,7 +200,7 @@ On **Config > Airports**:
    strip, the web map changes right away.)
 2. Enter the ICAO code (such as `KDFW`) of the airport at each LED, in the order the LEDs are wired, starting
    from the one nearest the Pi. Leave a code empty for an LED that isn't at an airport.
-3. Turn on **OLED** for the airports you want on the screen. Each airport's name fills itself in; change it if
+3. Turn on **Micro** for the airports you want on the screen. Each airport's name fills itself in; change it if
    you like (an emptied name fills in again).
 4. Use the up and down arrows to move an airport to another LED; the others shift along.
 
@@ -207,7 +219,7 @@ Changes save right away. To check the wiring order:
 - whether the legends list only what the LEDs are showing now (**Only show legend items in use**, off by
   default)
 - lightning: the animation on or off, and its color (yellow or white)
-- the OLED screen
+- the Micro (the OLED screen)
 - the map page's chart
 - the LED brightness for day, dawn and dusk, and night
 - optional **Quiet hours** with local start/end times (0% physical LED brightness during the interval);
@@ -253,8 +265,8 @@ release, `git pull` says it isn't on a branch: `git checkout master` first (or p
 ## Spoken weather
 
 The map can read an airport's METAR aloud, as an AWOS does: an **AWOS** button beside each airport on the METARs
-page, in the **Listen** tab of an airport's popup on the Map page (and the Remote page's Map tab), an **AWOS** mode
-on the Remote page's Info tab, and `http://metarmap.local/api/speak/KHOU.audio` for anything
+page, in the **Listen** tab of an airport's popup on the Map page (and the Cockpit's Map tab), an **AWOS** mode
+on the Cockpit's Info tab, and `http://metarmap.local/api/speak/KHOU.audio` for anything
 else (`/api/speak/KHOU` shows the words). It's off until you turn it on. It's for fun, not for flight planning: listen
 to the airport's own AWOS, ASOS or ATIS for that.
 
@@ -300,7 +312,7 @@ contractions ("DEPG RY 15L", "TWY EA CLSD"); the map writes those out as words (
 "taxiway Echo Alpha closed") so the voice reads them right. A contraction it doesn't know is read as it's written.
 
 **Read along**: while an ATIS plays, the page shows it line by line, the FAA's text over how it's said, with the
-line being said lit and kept in view: a way to learn to read a D-ATIS. On the Remote page's Info tab (ATIS mode)
+line being said lit and kept in view: a way to learn to read a D-ATIS. On the Cockpit's Info tab (ATIS mode)
 under the airports, in the Listen tab of an airport's popup on the Map page (the FAA's text only; closing the popup stops it), and on
 the METARs page in a panel at the bottom (× closes it and stops the audio). The voice
 doesn't say when it reaches each line, so the map works it out from the lines' lengths: close, not exact.
@@ -316,7 +328,7 @@ and plays an airport's ATIS with your tunings as saved.
 
 Like the spoken weather, it's for fun, not for flight planning.
 
-## Web API, Home Assistant and the touchscreen remote
+## Web API, Home Assistant and MetarMap2 Copilot
 
 `GET /api/status` returns the map's state as JSON. The web UI's controls are plain HTTP requests too, so scripts and
 home automation can use them. See **[API.md](API.md)** for every endpoint.
@@ -336,8 +348,8 @@ through this API. It provides:
 - flight-category sensors
 - a `metarmap.locate` action
 
-The [metarmap2_remote](https://github.com/dman776/metarmap2_remote) firmware uses the same API from a small touchscreen
-on your network: it reads `/api/live` and `/api/status`, and sends `/visualizer/...`, `/brightness/...` and
+MetarMap2 Copilot (the [metarmap2_remote](https://github.com/dman776/metarmap2_remote) firmware) uses the same API from a
+small touchscreen on your network: it reads `/api/live` and `/api/status`, and sends `/visualizer/...`, `/brightness/...` and
 `/locate/...`. It doesn't need the map's username and password.
 
 ## Troubleshooting
@@ -352,7 +364,7 @@ on your network: it reads `/api/live` and `/api/status`, and sends `/visualizer/
   2. Run a test pattern: choose the **Chase** visualizer on the Home page (it lights each LED in turn), or turn on
      **Startup sequence** in Config > Physical display (turning it on plays it along the strip once, right away).
   3. If red and green are swapped, change **Color order** in Config > Physical display > LED pixels (GRB or RGB) and restart.
-- **OLED screen stays blank**: `sudo i2cdetect -y 1` should show the screen at address `3c`. If it shows nothing,
+- **The Micro (OLED screen) stays blank**: `sudo i2cdetect -y 1` should show the screen at address `3c`. If it shows nothing,
   check the wiring, and that I2C is on (`sudo raspi-config`, Interface Options).
 - **An airport's LED is off**: it hasn't reported in the last 5 hours, or its code is wrong. The METARs page shows
   which airports have no data.
@@ -360,7 +372,7 @@ on your network: it reads `/api/live` and `/api/status`, and sends `/visualizer/
 ## Development
 
 You can work on the map without a Raspberry Pi. With no LED strip or OLED screen, the map uses in-memory stand-ins,
-and the web UI (including the live Map page and its OLED window) works as usual with real METARs.
+and the web UI (including the live Map page and its Micro window) works as usual with real METARs.
 
 - Set up: `uv sync --extra dev` (or `python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"`)
 - Run the tests: `.venv/bin/pytest`

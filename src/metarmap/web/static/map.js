@@ -343,8 +343,8 @@
         options: {position: 'bottomright'},
         onAdd: function () {
             const box = L.DomUtil.create('div', 'oled');
-            box.setAttribute('aria-label', 'OLED screen');
-            box.innerHTML = '<div class="oled-screen" aria-live="off"></div><div class="oled-cap"><span>OLED · 128×64</span><span class="oled-status"></span></div>';
+            box.setAttribute('aria-label', 'Micro');
+            box.innerHTML = '<div class="oled-screen" aria-live="off"></div><div class="oled-cap"><span>Micro · 128×64</span><span class="oled-status"></span></div>';
             L.DomEvent.disableClickPropagation(box);
             oled = box;
             return box;

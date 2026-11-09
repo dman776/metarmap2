@@ -114,7 +114,7 @@
         % if oled_on is not None:
         <div class="card pad">
             <div class="set-inline">
-                <label class="lbl" for="oled-on">OLED display</label>
+                <label class="lbl" for="oled-on">Micro</label>
                 <input id="oled-on" class="switch" type="checkbox"{{!' checked' if oled_on else ''}}>
             </div>
             <p class="muted" style="margin: 0; font-size: 13px">Turns the screen, and its copy on the Map page, on or off. Temporary: it's back on when the map restarts.</p>

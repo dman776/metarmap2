@@ -139,8 +139,8 @@
     </section>
 
     <section class="card settings">
-        <h2>OLED screen</h2>
-        % switch('display_screen.enabled', d.display_screen.enabled, 'Enabled', 'Show airport details on the OLED screen.')
+        <h2>Micro</h2>
+        % switch('display_screen.enabled', d.display_screen.enabled, 'Enabled', 'Show airport details on MetarMap2 Micro, the OLED screen.')
         <div class="sub" data-when="display_screen-enabled"{{!'' if d.display_screen.enabled else ' hidden'}}>
         % switch('display_screen.locate_active', d.display_screen.locate_active, 'Highlight active airport', 'Pulse the LED of the airport on screen.')
         % slider('display_screen.delay', d.display_screen.delay, 'Delay per airport', lo=0, hi=30, step=1, fmt='sec')
@@ -164,7 +164,7 @@
         </div>
         % switch('visualizer.missing_data_blink', d.visualizer.missing_data_blink, 'Missing data blink', 'Slow red blink on an airport whose report lacks what the visualizer shows, such as no flight category, visibility or sky condition. Off leaves its LED dark.')
         % switch('visualizer.estimated_category_breathing', d.visualizer.estimated_category_breathing, 'Estimated flight category breathing', 'Estimated flight categories breathe slowly. Off shows them in a steady color, like a reported one (the OLED still shows VFR*).')
-        % switch('visualizer.legend_in_use_only', d.visualizer.legend_in_use_only, 'Only show legend items in use', 'The legends on Home, Map and Remote list only what the LEDs are showing now, e.g. just VFR and MVFR. Off lists everything the visualizer can show.')
+        % switch('visualizer.legend_in_use_only', d.visualizer.legend_in_use_only, 'Only show legend items in use', 'The legends on Home, Map and Cockpit list only what the LEDs are showing now, e.g. just VFR and MVFR. Off lists everything the visualizer can show.')
         % switch('lightning.animation', d.lightning.animation, 'Lightning animation', 'Two quick flashes on airports with lightning or a thunderstorm, in every weather visualizer.')
         <div class="sub" data-when="lightning-animation"{{!'' if d.lightning.animation else ' hidden'}}>
         <div class="set">
@@ -369,9 +369,9 @@
 
     <section class="card settings" id="speech">
         <h2>Spoken weather</h2>
-        <p class="muted" style="margin: 0; padding: 0 24px 6px; font-size: 13px">Airports' METARs read aloud, as an AWOS reads them: the Remote page's Info tab, and <code>/api/speak/&lt;code&gt;.audio</code>. A speech server on another computer reads them; the map keeps each one until the next METAR.</p>
+        <p class="muted" style="margin: 0; padding: 0 24px 6px; font-size: 13px">Airports' METARs read aloud, as an AWOS reads them: the Cockpit's Info tab, and <code>/api/speak/&lt;code&gt;.audio</code>. A speech server on another computer reads them; the map keeps each one until the next METAR.</p>
         % s = d.speech
-        % switch('speech.enabled', s.enabled, 'Enable speech', 'Read METARs aloud: AWOS buttons on the METARs page and an AWOS mode on the Remote page\'s Info tab.')
+        % switch('speech.enabled', s.enabled, 'Enable speech', 'Read METARs aloud: AWOS buttons on the METARs page and an AWOS mode on the Cockpit\'s Info tab.')
         <div class="sub" data-when="speech-enabled"{{!'' if s.enabled else ' hidden'}}>
         <div class="set">
             <div><label class="t" for="speech-engine">Speech server</label><div class="d">Piper in Home Assistant, or a Kokoro server (Kokoro-FastAPI).</div></div>

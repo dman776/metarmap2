@@ -415,7 +415,7 @@ def test_config_tabs(client):
         ("system", " hidden"),
     ]
     panel = body[body.index('data-panel="physical"') : body.index('data-panel="visualizers"')]
-    assert "<h2>LED pixels</h2>" in panel and "<h2>OLED screen</h2>" in panel
+    assert "<h2>LED pixels</h2>" in panel and "<h2>Micro</h2>" in panel  # the OLED screen
     assert "<h2>Virtual map</h2>" in body and 'class="subnav"' not in body
 
     airports = client("/config/airports")[1]
@@ -1719,10 +1719,19 @@ def test_no_oled_switch_when_turned_off_in_config(client):
 # ---- the Remote page ---------------------------------------------------------------------------------------------
 
 
+def test_the_web_pages_are_metarmap2_web(client):
+    """B56: the web UI is MetarMap2 Web; the kiosk page has its own name (test_remote_page)."""
+    status, body = client("/map", auth=False)
+    assert status == 200 and "<title>Map · MetarMap2 Web</title>" in body
+    assert "Live mirror of the LEDs and the Micro." in body
+
+
 def test_remote_page(client):
     app = client.services
     status, body = client("/remote", auth=False)  # it changes nothing that's saved: no login
     assert status == 200
+    assert "<title>Cockpit · MetarMap2</title>" in body  # MetarMap2 Cockpit (B56)
+    assert '<meta name="apple-mobile-web-app-title" content="Cockpit">' in body
     assert '<body class="kiosk">' in body and 'class="topbar"' not in body and 'class="foot"' not in body
     assert 'name="apple-mobile-web-app-capable" content="yes"' in body
     assert [t.split('"')[0] for t in body.split('data-tab="')[1:]] == ["visualizer", "map", "info"]

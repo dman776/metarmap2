@@ -1,3 +1,12 @@
+### Unreleased
+
+- **Names for the five pieces**: MetarMap2 is now **Chart** (the map on the wall: the Pi and its LEDs), **Micro** (the
+  OLED screen), **Web** (the web UI), **Cockpit** (the kiosk page at `/remote`) and **Copilot** (the touchscreen,
+  metarmap2_remote). The README introduces them; page titles say "MetarMap2 Web" (the Cockpit, "Cockpit · MetarMap2",
+  and "Cockpit" on an iPad's Home Screen); the web UI says Cockpit where it said Remote, and Micro where it said OLED
+  (the Config section, the Airports page's column, the Home and Cockpit switches, the Map page's copy). Only what you
+  read changed: the URLs (`/remote`), settings (`display_screen.*`) and API fields are the same
+
 ### dman776 26.11.08 (2026-11-08)
 
 - **Visualizer icons and short names**: each visualizer has an icon (a cloud for Ceiling, a droplet for Dewpoint

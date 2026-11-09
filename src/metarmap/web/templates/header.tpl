@@ -4,7 +4,7 @@
 <html lang="en">
     <head>
         <meta charset="utf-8">
-        <title>{{title}} · MetarMap2</title>
+        <title>{{title}} · {{'MetarMap2' if kiosk else 'MetarMap2 Web'}}</title>
         % if kiosk:
         <!-- kiosk: no zooming, under the iPhone's notch, and full screen when added to the Home Screen -->
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">

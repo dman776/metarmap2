@@ -5,7 +5,7 @@
 <section class="page-head">
     <div>
         <h1>Map</h1>
-        <p>Live mirror of the LEDs and the OLED screen. Click an LED for its weather.</p>
+        <p>Live mirror of the LEDs and the Micro. Click an LED for its weather.</p>
     </div>
     <div class="vis-switch">
         <button class="btn icon" type="button" aria-label="Previous visualizer" data-call="/visualizer/previous" data-then="none">
