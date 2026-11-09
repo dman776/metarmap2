@@ -1724,6 +1724,9 @@ def test_the_web_pages_are_metarmap2_web(client):
     status, body = client("/map", auth=False)
     assert status == 200 and "<title>Map · MetarMap2 Web</title>" in body
     assert "MetarMap2 Web\n" in body  # the brand beside the logo
+    menu = body[body.index('<nav class="nav"') : body.index("</nav>")]
+    assert [x.split('"')[1] for x in menu.split("<a href=")[1:]] == ["/", "/metars", "/map", "/remote", "/config"]
+    assert '<a href="/remote">Cockpit</a>' in menu
     assert "Live mirror of the Chart and the Micro. Click an airport for its weather." in body
 
 
