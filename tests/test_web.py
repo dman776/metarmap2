@@ -1724,7 +1724,7 @@ def test_the_web_pages_are_metarmap2_web(client):
     status, body = client("/map", auth=False)
     assert status == 200 and "<title>Map · MetarMap2 Web</title>" in body
     assert "MetarMap2 Web\n" in body  # the brand beside the logo
-    assert "Live mirror of the LEDs and the Micro." in body
+    assert "Live mirror of the Chart and the Micro. Click an airport for its weather." in body
 
 
 def test_remote_page(client):
