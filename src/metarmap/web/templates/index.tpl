@@ -85,7 +85,7 @@
 
     <div class="side">
         <div class="card pad">
-            <label class="lbl" for="brightness">LED brightness</label>
+            <label class="lbl" for="brightness">Pixel brightness</label>
             <div class="big" id="brt_label">{{int(round(brightness * 100))}}%</div>
             <input id="brightness" type="range" min="0" max="1" step="0.01" value="{{brightness}}" data-label="brt_label" data-format="pct">
             % if quiet_hours.enabled and quiet_hours.start != quiet_hours.end:
