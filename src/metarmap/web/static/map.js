@@ -170,7 +170,7 @@
         const title = document.querySelector('.vis-name b');
         // one inline span, so the icon sits in the line instead of splitting the flex row
         const text = document.createElement('span');
-        text.textContent = 'What the LEDs mean' + (title ? ' · ' : '');
+        text.textContent = 'What the pixels mean' + (title ? ' · ' : '');
         if (title) {  // the icon and name stay together when it wraps
             const name = document.createElement('span');
             name.className = 'vis';
@@ -343,8 +343,8 @@
         options: {position: 'bottomright'},
         onAdd: function () {
             const box = L.DomUtil.create('div', 'oled');
-            box.setAttribute('aria-label', 'OLED screen');
-            box.innerHTML = '<div class="oled-screen" aria-live="off"></div><div class="oled-cap"><span>OLED · 128×64</span><span class="oled-status"></span></div>';
+            box.setAttribute('aria-label', 'Micro');
+            box.innerHTML = '<div class="oled-screen" aria-live="off"></div><div class="oled-cap"><span>Micro · 128×64</span><span class="oled-status"></span></div>';
             L.DomEvent.disableClickPropagation(box);
             oled = box;
             return box;
@@ -605,7 +605,7 @@
             if (!res.ok) why = (await res.text()).trim() || why;
             else if (err && err.name === 'NotAllowedError') why = 'The browser blocked sound: press ' + kind.label + ' again.';
         } catch (e) {
-            why = "Can't reach the map.";
+            why = "Can't reach the Chart.";
         }
         if (listen.btn === btn) stopListening(btn.dataset.code + kind.none + ': ' + why);
     }

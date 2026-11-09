@@ -481,6 +481,7 @@ body.kiosk main.wrap { max-width: none; height: 100vh; height: var(--kiosk-h, 10
 .remote { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
 .r-bar { display: flex; align-items: center; gap: 10px; }
 .r-brand { flex: none; }
+.r-brand-name { flex: none; margin-left: -2px; color: var(--text); font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }  /* as .brand */
 /* iPad Safari's own close button sits over the top left corner in fullscreen */
 @media (pointer: coarse) { .remote.fullscreen .r-bar { padding-left: 72px; } }
 .r-tabs { flex: 1 1 auto; min-width: 0; max-width: 560px; display: flex; gap: 4px; padding: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
@@ -492,7 +493,7 @@ body.kiosk main.wrap { max-width: none; height: 100vh; height: var(--kiosk-h, 10
 .r-tab:focus-visible { outline: 2px solid #ffd27d; outline-offset: 2px; }
 .r-host { margin-left: auto; }
 .host.offline::before { background: var(--ifr); }
-.host.offline::after { content: "can't reach the map"; color: #ff8a8a; }
+.host.offline::after { content: "can't reach the Chart"; color: #ff8a8a; }
 .remote.offline .r-panel { opacity: .5; }
 .r-full .exit, .r-full[aria-pressed="true"] .enter { display: none; }
 .r-full[aria-pressed="true"] .exit { display: block; }

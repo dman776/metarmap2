@@ -5,7 +5,7 @@
 <section class="page-head">
     <div>
         <h1>Map</h1>
-        <p>Live mirror of the LEDs and the OLED screen. Click an LED for its weather.</p>
+        <p>Live mirror of the Chart and the Micro. Click an airport for its weather.</p>
     </div>
     <div class="vis-switch">
         <button class="btn icon" type="button" aria-label="Previous visualizer" data-call="/visualizer/previous" data-then="none">
@@ -18,7 +18,7 @@
     </div>
 </section>
 
-<div id="map" class="live-map" role="region" aria-label="Map of airport LEDs"></div>
+<div id="map" class="live-map" role="region" aria-label="Map of airport pixels"></div>
 
 <div id="legend-source" hidden>
     %include("legend.tpl", legend=active['legend'], filtered=active['filtered'])

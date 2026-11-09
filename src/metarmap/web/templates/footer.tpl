@@ -9,7 +9,7 @@
             <div class="body"></div>
             <form method="dialog" class="foot-actions">
                 <button class="btn" type="submit">Close</button>
-                <button class="btn primary" type="button" data-call="/restart" data-then="restart" data-confirm="Restart the map now?">Restart</button>
+                <button class="btn primary" type="button" data-call="/restart" data-then="restart" data-confirm="Restart the Chart now?">Restart</button>
             </form>
         </dialog>
         <dialog id="update-dialog" aria-labelledby="update-title">

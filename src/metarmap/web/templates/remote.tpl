@@ -1,11 +1,12 @@
-%include("header.tpl", title="Remote", page="remote", kiosk=True, leaflet=True)
+%include("header.tpl", title="Cockpit", page="remote", kiosk=True, leaflet=True)
 % import json
 % from metarmap.web import icons
 {{!icons.sprite()}}
 <div class="remote" data-version="{{version}}">
     <header class="r-bar">
         <svg class="r-brand" width="22" height="22" viewBox="0 0 24 24" aria-label="MetarMap2" role="img"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z" fill="none" stroke="#f5b544" stroke-width="1.8" stroke-linejoin="round"/></svg>
-        <div class="r-tabs" role="tablist" aria-label="Remote">
+        <span class="r-brand-name">Cockpit</span>
+        <div class="r-tabs" role="tablist" aria-label="Cockpit">
             <button class="r-tab" type="button" role="tab" id="tab-visualizer" aria-controls="visualizer" aria-selected="true" data-tab="visualizer">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="6" cy="12" r="2.5"/><circle cx="12" cy="6" r="2.5"/><circle cx="18" cy="12" r="2.5"/><circle cx="12" cy="18" r="2.5"/></svg>
                 <span>Visualizer</span>
@@ -61,13 +62,13 @@
                 </span>
             </div>
             <div class="r-foot-item r-brt" title="Until the next sunrise, sunset, dawn or dusk, which set it again">
-                <label class="lbl" for="brightness">LED brightness</label>
+                <label class="lbl" for="brightness">Pixel brightness</label>
                 <input id="brightness" type="range" min="0" max="1" step="0.01" value="{{brightness}}" data-label="brt_label" data-format="pct">
                 <span class="r-val" id="brt_label">{{int(round(brightness * 100))}}%</span>
             </div>
             % if oled_on is not None:
-            <div class="r-foot-item" title="Back on when the map restarts">
-                <label class="lbl" for="oled-on">OLED</label>
+            <div class="r-foot-item" title="Back on when the Chart restarts">
+                <label class="lbl" for="oled-on">Micro</label>
                 <input id="oled-on" class="switch" type="checkbox"{{!' checked' if oled_on else ''}}>
             </div>
             % end
@@ -76,7 +77,7 @@
 
     <!-- the Map page's map; remote.js loads map.js the first time the tab opens (Leaflet can't lay out a hidden map) -->
     <section class="r-panel r-map" id="r-map" role="tabpanel" aria-labelledby="tab-map" hidden>
-        <div id="map" class="live-map" role="region" aria-label="Map of airport LEDs" data-script="/static/map.js?v={{assets}}"></div>
+        <div id="map" class="live-map" role="region" aria-label="Map of airport pixels" data-script="/static/map.js?v={{assets}}"></div>
         <div id="legend-source" hidden>
             %include("legend.tpl", legend=active['legend'], filtered=active['filtered'])
         </div>
@@ -114,7 +115,7 @@
             </button>
         </div>
         <audio id="r-speak-audio" preload="none"></audio>
-        <p class="muted r-no-atis" id="r-no-atis" hidden>No airport on this map has a digital ATIS. Only about 75 large US airports publish one.</p>
+        <p class="muted r-no-atis" id="r-no-atis" hidden>No airport on this Chart has a digital ATIS. Only about 75 large US airports publish one.</p>
         % end
         <div class="r-grid{{' paused' if active['exclusive'] else ''}}">
             % for s in stations:

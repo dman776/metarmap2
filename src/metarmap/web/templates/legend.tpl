@@ -1,6 +1,6 @@
 % if legend:
 <div style="display: flex; flex-direction: column; gap: 10px">
-    <div class="lbl">What the LEDs mean</div>
+    <div class="lbl">What the pixels mean</div>
     <ul class="legend">
         % for item in legend:
         %   colors = item['colors']

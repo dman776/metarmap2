@@ -2,7 +2,7 @@
 % on_airports = active == 'airports' or get('own_page', False)  # a page of its own: the tabs link to /config
 % release = get('release')
 <nav class="tabs" aria-label="Config sections">
-    % for key, label in (('physical', 'Physical display'), ('visualizers', 'Visualizers'), ('airports', 'Airports'), ('map', 'Virtual map'), ('system', 'System')):
+    % for key, label in (('physical', 'Physical display'), ('visualizers', 'Visualizers'), ('airports', 'Airports'), ('map', 'Web map'), ('system', 'System')):
     %   href = '/config/airports' if key == 'airports' else ('/config#' if on_airports else '#') + key
     <a class="tab" href="{{href}}" data-tab="{{key}}"{{!' aria-current="page"' if key == active else ''}}>{{label}}
         % if key == 'system' and release and release['badge']:

@@ -1,3 +1,23 @@
+### Unreleased
+
+- **Names for the five pieces**: MetarMap2 is now **Chart** (the map on the wall: the Pi and its LEDs), **Micro** (the
+  OLED screen), **Web** (the web UI), **Cockpit** (the kiosk page at `/remote`) and **Copilot** (the touchscreen,
+  metarmap2_remote). The README introduces them; page titles say "MetarMap2 Web" (the Cockpit, "Cockpit · MetarMap2",
+  and "Cockpit" on an iPad's Home Screen); the web UI says Cockpit where it said Remote, and Micro where it said OLED
+  (the Config section, the Airports page's column, the Home and Cockpit switches, the Map page's copy). The brand
+  beside the logo is "MetarMap2 Web", Home's **LED brightness** is **Pixel brightness**, and the Map page is a "Live mirror of
+  the Chart and the Micro. Click an airport for its weather." The legends say "What the
+  pixels mean" (Map, Home and the Cockpit). Home and the Cockpit say pixel for LED (Pixel brightness, "The pixels
+  return to their normal schedule") and the Chart for the device ("Restart the Chart now?", "Can't reach the Chart",
+  "back on when the Chart restarts"), and the Cockpit's
+  name is beside its logo. Config says so too: quiet hours force "the pixels' brightness" to 0% (the Micro blank), the
+  Wi-Fi switch moves "the Chart", and the Airports page asks to remove airports "from the Chart". Config: Physical display's **LED pixels** is **Chart pixels** (and the Micro's **Highlight active airport** pulses
+  "the pixel of the airport on screen"), the **Virtual
+  map** tab is **Web map**, and the Visualizers tab and the Airports page say pixel where they said LED, and the Chart
+  where they meant the device ("Shown when the Chart starts"). The README and API.md follow: pixel for the light at an airport (LED where it means the
+  hardware: the strip, the wiring), the Chart for the device. Only what you read changed: the URLs (`/remote`),
+  settings (`display_screen.*`, `led.*`) and API fields are the same
+
 ### dman776 26.11.08 (2026-11-08)
 
 - **Visualizer icons and short names**: each visualizer has an icon (a cloud for Ceiling, a droplet for Dewpoint

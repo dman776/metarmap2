@@ -4,7 +4,7 @@
 <html lang="en">
     <head>
         <meta charset="utf-8">
-        <title>{{title}} · MetarMap2</title>
+        <title>{{title}} · {{'MetarMap2' if kiosk else 'MetarMap2 Web'}}</title>
         % if kiosk:
         <!-- kiosk: no zooming, under the iPhone's notch, and full screen when added to the Home Screen -->
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -32,7 +32,7 @@
             <div class="wrap">
                 <a class="brand" href="/">
                     <svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z" fill="none" stroke="#f5b544" stroke-width="1.8" stroke-linejoin="round"/><circle cx="5" cy="4.5" r="2" fill="#3ddc84" style="filter: drop-shadow(0 0 2px #3ddc84)"/></svg>
-                    MetarMap2
+                    MetarMap2 Web
                 </a>
                 <nav class="nav" aria-label="Main">
                     % for href, key, label in (('/', 'home', 'Home'), ('/metars', 'metars', 'METARs'), ('/map', 'map', 'Map'), ('/config', 'config', 'Config')):
