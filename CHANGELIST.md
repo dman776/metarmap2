@@ -1,4 +1,4 @@
-### Unreleased
+### dman776 26.11.08 (2026-11-08)
 
 - **Visualizer icons and short names**: each visualizer has an icon (a cloud for Ceiling, a droplet for Dewpoint
   Spread...) and a short name for small screens ("Density Alt", "Wind Dir"). The Remote page's visualizer chips
