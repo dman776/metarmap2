@@ -170,7 +170,7 @@
         const title = document.querySelector('.vis-name b');
         // one inline span, so the icon sits in the line instead of splitting the flex row
         const text = document.createElement('span');
-        text.textContent = 'What the LEDs mean' + (title ? ' · ' : '');
+        text.textContent = 'What the pixels mean' + (title ? ' · ' : '');
         if (title) {  // the icon and name stay together when it wraps
             const name = document.createElement('span');
             name.className = 'vis';
