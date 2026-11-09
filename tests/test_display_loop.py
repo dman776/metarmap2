@@ -164,6 +164,42 @@ def test_message():
     assert screen.current is d.screen
 
 
+def test_splash():
+    d, screen, _, _ = make()
+    d.splash()
+    assert d.screen["splash"] is True
+    assert d.screen["title"] == "MetarMap2"
+    assert screen.current is d.screen
+
+
+def test_the_first_airport_waits_for_the_splash():
+    """The splash stays its 5 s from when it was drawn, however long the rest of startup took."""
+    d, screen, clock, _ = make(stop_after=2)
+    d.splash(5)
+    start = clock.time()
+    clock.advance(2)  # the LED test pattern, the web server...
+    shown = []
+    screen.on_show = lambda s: (shown.append((s["title"], clock.time() - start)), d.event.set())
+    run(d)
+    assert shown == [("KHOU", 5.0)]
+
+
+def test_without_a_splash_the_first_airport_comes_at_once():
+    d, screen, clock, _ = make()
+    start = clock.time()
+    screen.on_show = lambda s: (setattr(d, "first_at", clock.time() - start), d.event.set())
+    run(d)
+    assert d.first_at == 0
+
+
+def test_a_loop_stopped_during_the_splash_draws_nothing():
+    d, screen, _, _ = make()
+    d.splash(5)
+    d.event.set()
+    run(d)
+    assert [s["title"] for s in screen.shown] == ["MetarMap2"]
+
+
 # ---- recovering from problems -----------------------------------------------------------------------------------
 
 

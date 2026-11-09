@@ -22,6 +22,53 @@ GLYPHS = {
     "": "",
 }
 
+# the splash screen's logo: the web UI's airplane (favicon.svg's path), drawn 1 px to a "#"
+LOGO = (
+    ".....................................#####..",
+    "...................................########.",
+    ".................................##########.",
+    "................................#######.####",
+    "...............................#####.....###",
+    "..............................####......####",
+    ".............................####.......###.",
+    "............................####........###.",
+    "...#######.................####........####.",
+    "..#############...........####........####..",
+    "..##################.....####.........####..",
+    ".####....###################.........####...",
+    ".####........##############.........####....",
+    ".#####............########.........####.....",
+    "..#####...............###.........####......",
+    "...######........................####.......",
+    "....######......................####........",
+    "......######...................####.........",
+    ".......######.................####..........",
+    ".........######..............####...........",
+    "..........######.............####...........",
+    "............#####............####...........",
+    ".............####.............###...........",
+    "............####..............###...........",
+    "............####..............####..........",
+    "...........####...............####..........",
+    "..........####.................###..........",
+    "...###########.......##........###..........",
+    "..###########......#####.......###..........",
+    ".###########......#######......####.........",
+    ".####...........#########......####.........",
+    ".#####.........######.####......###.........",
+    "..######......#####....####.....###.........",
+    "...######.....####.....####.....###.........",
+    ".....#####....###.......####....####........",
+    "......#####...###........####....###........",
+    "........####..###........####....###........",
+    "........####..###.........####...###........",
+    ".........####.###..........####..###........",
+    "..........#######..........#########........",
+    "..........#######...........########........",
+    "...........#####.............######.........",
+    "............###...............###...........",
+)
+
 
 class FakeScreen:
     """Keeps what would have been drawn. Used off the Pi, and in tests."""
@@ -46,6 +93,7 @@ class SSD1306Screen:
 
     WIDTH, HEIGHT = 128, 64
     OFFSET = -3
+    TOP = 16  # rows 0-15 are yellow on a two-color OLED, the rest blue
 
     def __init__(self):
         from board import SCL, SDA
@@ -83,8 +131,15 @@ class SSD1306Screen:
                 8: BigLine(last_icon_x, 52 + o, **icon),
             }
 
+        # the splash: "MetarMap2" centered on the yellow rows (the logo is drawn below it, in show())
+        title = BigLine(0, 0, size=18)
+        left, top, right, bottom = title.font.getbbox("MetarMap2")
+        title.x = (self.WIDTH - (right - left)) // 2 - left
+        title.y = (self.TOP - (bottom - top)) // 2 - top
+
         # page 1's pressure icon sits a little to the right; page 0 (no data) uses page 1's layout
         return {
+            "splash": {1: title},
             "message": message,
             1: airport(6),
             2: airport(0),
@@ -94,7 +149,10 @@ class SSD1306Screen:
 
     def show(self, screen: dict) -> None:
         oled = self._oled
-        if screen["kind"] == "message":
+        if screen.get("splash"):
+            oled.layout = self._layouts["splash"]
+            oled.text(screen["title"])
+        elif screen["kind"] == "message":
             oled.layout = self._layouts["message"]
             oled.text(screen["title"])
             oled.text(GLYPHS.get(screen.get("icon", ""), ""), 2)
@@ -110,15 +168,23 @@ class SSD1306Screen:
                 oled.text(GLYPHS[line["icon"]], 4 + n * 2)
         # drawn before the text, each time the screen is
         title = oled.layout[1]
-        oled.on_draw = (
-            (lambda draw: dashed_rectangle(draw, dashed_box(title, screen["title"])))
-            if screen["kind"] == "airport" and screen.get("virtual")
-            else None
-        )
+        if screen.get("splash"):
+            oled.on_draw = lambda draw: draw.point(logo_points(self.WIDTH, self.TOP, self.HEIGHT), fill=255)
+        elif screen["kind"] == "airport" and screen.get("virtual"):
+            oled.on_draw = lambda draw: dashed_rectangle(draw, dashed_box(title, screen["title"]))
+        else:
+            oled.on_draw = None
         oled.show()
 
     def clear(self) -> None:
         self._oled.clear()
+
+
+def logo_points(width, top, bottom):
+    """The logo's pixels as (x, y), centered across the screen and between rows `top` and `bottom`."""
+    left = (width - len(LOGO[0])) // 2
+    top += (bottom - top - len(LOGO)) // 2
+    return [(left + x, top + y) for y, row in enumerate(LOGO) for x, c in enumerate(row) if c == "#"]
 
 
 def dashed_box(line, text, pad=2):

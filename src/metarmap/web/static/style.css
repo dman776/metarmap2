@@ -344,6 +344,10 @@ body.map-full-open { overflow: hidden; }
 .o-ico svg { width: 100%; height: 100%; display: block; }
 .o-i0 { top: 40px; } .o-i1 { top: 74px; } .o-i2 { top: 106px; }
 .o-ico-title { left: 220px; top: 2px; }
+/* the splash at startup: the title centered on the yellow rows (0-15), the 44 px logo centered below (x2 here) */
+.o-splash-title { left: 0; right: 0; top: -1px; text-align: center; font-size: 34px; }
+.o-logo { left: 84px; top: 34px; width: 88px; height: 88px; }
+.o-logo svg { width: 100%; height: 100%; display: block; }
 .oled-cap { display: flex; justify-content: space-between; gap: 12px; margin-top: 8px; font: 11px var(--mono); color: #6f8096; }
 
 .map-key { width: 290px; max-width: calc(100vw - 32px); background: rgba(11, 17, 23, .92); border: 1px solid var(--control); border-radius: 12px; box-shadow: 0 6px 18px rgba(0, 0, 0, .35); color: var(--text); font-family: var(--sans); }

@@ -10,7 +10,7 @@ import pytest
 from conftest import airports
 from metarmap.models import Report, SkyLayer
 from metarmap.oled import screens
-from metarmap.oled.screen import GLYPHS
+from metarmap.oled.screen import GLYPHS, LOGO, logo_points
 
 CENTRAL = ZoneInfo("America/Chicago")
 
@@ -123,6 +123,27 @@ def test_message_screen():
     assert m["airport"] is None
     assert m["icon"] == "info"
     assert texts(m) == ["Starting..", "", ""]
+
+
+def test_splash_screen():
+    """A message, so anything that doesn't know the splash still shows its title."""
+    m = screens.splash_screen()
+    assert m["splash"] is True
+    assert m["kind"] == "message"
+    assert m["title"] == "MetarMap2"
+    assert m["airport"] is None
+    assert texts(m) == ["", "", ""]
+
+
+def test_the_logo_is_centered_on_the_blue_rows():
+    """Rows 16-63 of the 128x64 OLED (0-15 are the yellow ones, the title's)."""
+    assert len({len(row) for row in LOGO}) == 1  # every row as wide
+    assert "#" in LOGO[0] and "#" in LOGO[-1]  # no empty rows at either end
+    points = logo_points(128, 16, 64)
+    xs, ys = [x for x, _ in points], [y for _, y in points]
+    assert min(ys) >= 16 and max(ys) <= 63
+    assert abs((min(ys) - 16) - (63 - max(ys))) <= 1  # as much room above as below
+    assert abs(min(xs) - (127 - max(xs))) <= 2  # and either side
 
 
 def test_airports_to_show_keeps_led_order():

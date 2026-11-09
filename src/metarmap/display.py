@@ -15,12 +15,14 @@ from zoneinfo import ZoneInfo
 from metarmap.config import Config
 from metarmap.sun import get_location, quiet_hours_active
 from metarmap.clock import Clock
-from metarmap.oled.screens import airports_to_show, message_screen, pages_for, screen_for
+from metarmap.oled.screens import airports_to_show, message_screen, pages_for, screen_for, splash_screen
 
 log = logging.getLogger(__name__)
 
 # at startup, seconds the LEDs show the visualizer before the first "Highlight active airport" pulse (app.run)
 STARTUP_LOCATE_DELAY = 2.0
+# at startup, seconds the splash ("MetarMap2" and the logo) stays before the first airport (app.run)
+SPLASH_SECONDS = 5.0
 # during quiet hours, how often the loop looks whether they're over (well inside the watchdog's 60 s; turning quiet
 # hours off or changing them restarts the loop, so that's at once)
 QUIET_CHECK_SECONDS = 30
@@ -57,6 +59,7 @@ class Display:
         self.on = False  # whether the screen should be showing: start()/turn_on() set it, turn_off() clears it
         self._locate_delay = 0.0  # seconds the next locate pulse waits (start(locate_delay=...)); then 0
         self.locate_thread: Optional[threading.Thread] = None  # a delayed pulse, waiting or running
+        self._hold_until = 0.0  # the splash stays until then (clock time): the loop's first airport waits for it
 
     def _local_timezone(self):
         location = get_location(self._config.data.geo.city)
@@ -140,6 +143,10 @@ class Display:
     # ---- the loop ----------------------------------------------------------------------------------------------
 
     def loop(self, event):
+        held = self._hold_until - self._clock.time()
+        if held > 0 and self._clock.wait(event, held):  # the splash, while the rest of startup goes on
+            return
+        self._hold_until = 0.0
         while not event.is_set():
             # a fresh copy each pass: airports can be edited while the loop runs
             airports = airports_to_show(self._config.airports)
@@ -230,6 +237,15 @@ class Display:
         """Shows a message, e.g. message("MAP", "info", "Starting..")."""
         with self.lock:
             self._draw(message_screen(title, icon, line1, line2, line3))
+
+    def splash(self, seconds=SPLASH_SECONDS):
+        """
+        Shows the startup screen ("MetarMap2" and the logo). The loop, started meanwhile, shows its first airport
+        once it has been up `seconds`.
+        """
+        with self.lock:
+            self._draw(splash_screen())
+        self._hold_until = self._clock.time() + seconds
 
     def _draw(self, screen):
         try:

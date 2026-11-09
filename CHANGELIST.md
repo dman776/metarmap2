@@ -1,5 +1,8 @@
 ### Unreleased
 
+- **The Micro's splash at startup**: "MetarMap2" on the top (yellow) rows and the airplane logo centered below, for 5
+  seconds while the rest of the Chart starts (in place of "MAP / Starting.."); the airports follow. The Map page's
+  Micro shows it too
 - **Cockpit and Map page on an older iPad's Safari**: the map's background (the sectional, satellite or radar) shows
   again; the legend's title used a call older Safari doesn't have, and the map stopped before loading its tiles. The
   Cockpit's Info tab shows Locate, AWOS and ATIS again instead of drawing the airports over them
