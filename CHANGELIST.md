@@ -1,5 +1,7 @@
 ### Unreleased
 
+- **The Cockpit has an icon on the Home Screen**: saving it to an iPad's (or iPhone's) Home Screen shows the MetarMap2
+  plane instead of a blank page thumbnail. An icon already added stays as it was: remove it and add it again
 - **Click a line of an ATIS to hear it**: on the Pronunciation page's sample, the Cockpit's ATIS, the METARs page and
   the Map popup's Listen tab, a click on a line jumps the audio to it. It also works before you've pressed Play (the
   Pronunciation page) and after the reading has ended. The start of a line is worked out from its words, so a jump
