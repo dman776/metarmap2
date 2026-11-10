@@ -1,5 +1,10 @@
 ### Unreleased
 
+- **Config > Visualizers has a card for each visualizer with settings of its own**: the old **Visualizer** card is
+  now **Global** (default visualizer, missing data blink, only show legend items in use, auto-rotate), followed by
+  **Flight Category** (estimated category breathing), **Flight Category Forecast** (step time, TEMPO and PROB),
+  **Lightning** and **TFR** (nearby distance). A new visualizer with settings gets a card named after it. The settings
+  and the API are unchanged
 - **Flight Category Forecast shows its step**: the Map page's legend, the Cockpit and Home list Now, +3h, +6h and
   +12h with the one on lit, and the Micro in Visualizer mode shows it as its title ("FC +3h"). They follow the pixels,
   not the page: a step is the time you set plus a second of fade. `/api/live`'s `visualizer.step`. An airport with

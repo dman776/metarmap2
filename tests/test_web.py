@@ -2147,3 +2147,29 @@ def test_the_forecast_step_follows_the_clock(client):
     assert client("/visualizer/flight_category") and json.loads(client("/api/live")[1])["visualizer"]["step"] is None
     assert 'class="steps"' not in client("/map/legend")[1]
     assert app.renderer.step() is None
+
+
+def test_config_visualizers_tab_has_a_card_for_each_visualizer_with_settings(client):
+    """Global first, then one card per visualizer (or effect) that has settings of its own."""
+    import re
+
+    body = client("/config")[1]
+    panel = body[body.index('id="panel-visualizers"') : body.index('id="panel-map"')]
+    cards = re.split(r'<section class="card settings"', panel)[1:]
+    found = {re.search(r"<h2>(.*?)</h2>", c).group(1): set(re.findall(r'data-key="([^"]+)"', c)) for c in cards}
+    assert list(found) == ["Global", "Flight Category", "Flight Category Forecast", "Lightning", "TFR"]
+    assert found["Global"] >= {
+        "visualizer.active",
+        "visualizer.missing_data_blink",
+        "visualizer.legend_in_use_only",
+        "visualizer.auto_rotate.enabled",
+        "visualizer.auto_rotate.delay_seconds",
+        "visualizer.auto_rotate.skip_dark",
+    }
+    assert found["Flight Category"] == {"visualizer.estimated_category_breathing"}
+    assert found["Flight Category Forecast"] == {
+        "visualizer.forecast_step_seconds",
+        "visualizer.forecast_include_tempo",
+    }
+    assert found["Lightning"] == {"lightning.animation", "lightning.color"}
+    assert found["TFR"] == {"tfr.nearby_nm"}
