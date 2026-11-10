@@ -342,14 +342,14 @@
                     % end
                 </div>
             </div>
-            <button class="btn" type="button" data-call="/update/check">Check now</button>
+            <button class="btn" type="button" id="update-check" data-call="/update/check">Check now</button>
         </div>
         <div class="set">
             <div>
                 <label class="t" for="update-channel">Update to</label>
                 <div class="d">Releases: the newest release. Latest commit: the newest code on GitHub, released or not, for testing.{{' Branch: the newest commit of a branch on GitHub (dev_mode).' if release['dev_mode'] else ''}}</div>
             </div>
-            <select id="update-channel" data-key="update.channel">
+            <select id="update-channel" data-key="update.channel" data-check-update>
                 % channels = (('releases', 'Releases'), ('latest', 'Latest commit')) + ((('branch', 'Branch'),) if release['dev_mode'] else ())
                 % for value, label in channels:
                 <option value="{{value}}"{{!' selected' if release['channel'] == value else ''}}>{{label}}</option>
@@ -364,7 +364,7 @@
                 <label class="t" for="update-branch">Branch</label>
                 <div class="d">Branches on GitHub. Push a new one, then Check now to see it here.</div>
             </div>
-            <select id="update-branch" data-key="update.branch">
+            <select id="update-branch" data-key="update.branch" data-check-update>
                 % if not release['branch']:
                 <option value="" selected disabled>Pick a branch</option>
                 % end

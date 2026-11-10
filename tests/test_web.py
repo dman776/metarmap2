@@ -1335,6 +1335,8 @@ def test_no_branch_choice_without_dev_mode(release_client):
     c.services.releases.check()
     body = c("/config")[1]
     assert '<option value="branch"' not in body and 'id="update-branch"' not in body
+    assert 'id="update-channel" data-key="update.channel" data-check-update>' in body
+    assert 'id="update-check" data-call="/update/check"' in body
     assert c("/config/edit/update.channel/branch")[0] == 400
     assert c("/config/edit/dev_mode/true")[0] == 400  # config.json only
     assert c.services.config.data.dev_mode is False
@@ -1347,6 +1349,8 @@ def test_dev_mode_lists_the_branches(dev_client):
     assert '<option value="branch">Branch</option>' in body
     assert 'id="update-branch-row" hidden' in body  # until Branch is picked
     assert '<option value="" selected disabled>Pick a branch</option>' in body
+    assert 'id="update-branch" data-key="update.branch" data-check-update>' in body  # a pick runs Check now
+    assert 'id="update-channel" data-key="update.channel" data-check-update>' in body
     assert '<option value="feature/radar">feature/radar</option>' in body
     assert c.json("/api/status", auth=False)["update"]["branches"] == ["feature/radar", "master"]
 

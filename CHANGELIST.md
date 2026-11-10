@@ -1,5 +1,9 @@
 ### Unreleased
 
+- **Changing Update to or Branch checks GitHub right away**: in Config > System > Software, picking a new channel or
+  branch saves it and then runs Check now for you, the button glowing while it checks, so the status line is current
+  without pressing anything. It only checks, never installs. If the setting can't be saved nothing is checked, and
+  choosing Branch with none picked yet waits until you pick one
 - **Lightning on forecasts**: Flight Category Forecast and Precipitation Forecast no longer flash lightning (or list it
   in the legend) by default, where a flash over the steps can be distracting. A new switch in Config > Visualizers >
   Forecast turns it back on. The other visualizers keep flashing. It shows only while Lightning animation is on, and that
