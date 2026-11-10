@@ -9,7 +9,7 @@
   API.md). Its icon is a new `umbrella`; the Copilot draws none for it until it learns the name
 - **Config > Visualizers has a card for each visualizer with settings of its own**: the old **Visualizer** card is
   now **Global** (default visualizer, missing data blink, only show legend items in use, lightning, auto-rotate),
-  followed by **Flight Category** (estimated category breathing), **Flight Category Forecast** (step time, TEMPO and
+  followed by **Flight Category** (estimated category breathing), **Forecast** (step time, TEMPO and
   PROB) and **TFR** (nearby distance). A new visualizer with settings gets a card named after it. The settings
   and the API are unchanged
 - **Flight Category Forecast shows its step**: the Map page's legend, the Cockpit and Home list Now, +3h, +6h and
