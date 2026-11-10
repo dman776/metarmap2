@@ -125,3 +125,13 @@ def test_web_ui_gets_the_floor():
         "low": 0.3,
     }
     assert len(Look.blink((0, 0, 255), period=1, background=(0, 0, 76)).to_dict()["colors"]) == 2
+
+
+def test_look_interval_is_how_often_a_look_changes():
+    from metarmap.leds.animations import PULSE_SPEED, PULSE_STEPS, look_interval
+
+    assert look_interval(Look.solid((0, 255, 0))) is None and look_interval(Look.off()) is None
+    assert look_interval(Look.cycle([(0, 0, 0), (1, 1, 1)], step=0.2)) == 0.2
+    assert look_interval(Look.blink((0, 255, 0), period=2.0)) == 1.0
+    assert look_interval(Look.pulse((0, 255, 0), period=4.0, low=0.3)) == 4.0 / PULSE_STEPS
+    assert look_interval(Look.pulse((0, 255, 0), period=4.0)) == PULSE_SPEED

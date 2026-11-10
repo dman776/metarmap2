@@ -601,3 +601,15 @@ def test_brightness_ignores_out_of_range(config, clock):
     r.brightness(0.3)
     r.brightness(1.5)
     assert strip.brightness == 0.3
+
+
+def test_render_ticks_no_faster_than_the_looks_change(config, clock):
+    """A look that changes every 0.2 s (Flight Category Forecast, on every LED) doesn't need 100 frames a second."""
+    from metarmap import renderer
+
+    r, _ = make(config, clock)
+    assert r.frame_seconds() == renderer.FRAME_SECONDS  # solid looks: only the rainbow-less default
+    r._looks = [Look.cycle([(0, 0, 0), (1, 1, 1)], step=0.2)] * 3
+    assert r.frame_seconds() == 0.05
+    r._looks = [Look.cycle([(0, 0, 0), (1, 1, 1)], step=0.2), Look.cycle([(0, 0, 0), (1, 1, 1)], step=0.02)]
+    assert r.frame_seconds() == renderer.FRAME_SECONDS  # the fastest look sets the pace, not below FRAME_SECONDS

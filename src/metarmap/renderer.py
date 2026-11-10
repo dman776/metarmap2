@@ -10,7 +10,7 @@ from contextlib import contextmanager
 import metarmap.lib.colors as colors_lib
 from metarmap.clock import Clock
 from metarmap.leds import intro
-from metarmap.leds.animations import animation_for
+from metarmap.leds.animations import animation_for, look_interval
 from metarmap.models import Look
 from metarmap.sun import SunTimes, brightness_for, level_at, quiet_hours_active
 from metarmap.visualizers import index_of, visualizer
@@ -27,6 +27,7 @@ log = logging.getLogger(__name__)
 # The animations decide when each effect moves on (the fastest changes every 0.1 s); between frames the loop rests,
 # instead of asking them "is it time yet?" thousands of times a second, which used a whole CPU core.
 FRAME_SECONDS = 0.01
+MAX_FRAME_SECONDS = 0.05  # the slowest tick the render loop settles to, whatever the looks need
 
 INTRO_FRAME_SECONDS = 0.02  # a startup sequence's frames: 50 a second is smooth, and leaves the Pi time to spare
 DIM_FACTOR = 0.5  # how bright the LEDs are while METARs are fetched, as a part of their brightness
@@ -140,9 +141,21 @@ class Renderer:
         except Exception as e:
             log.warning("draw_frame error: " + str(e))
 
+    def frame_seconds(self):
+        """
+        How long the render loop waits between frames: a quarter of the shortest step of the looks on the LEDs, within
+        FRAME_SECONDS and MAX_FRAME_SECONDS. Ticking at 100 Hz for a look that changes every 0.2 s (Flight Category
+        Forecast, with every LED animating) kept a Pi's CPU at 100%.
+        """
+        looks = list(self._looks) + ([self._strip_look] if self._strip_look is not None else [])
+        steps = [look_interval(look) for look in looks]
+        steps = [step for step in steps if step]
+        return min(MAX_FRAME_SECONDS, max(FRAME_SECONDS, min(steps) / 4)) if steps else FRAME_SECONDS
+
     def render(self):
         try:
             built = self._animations
+            wait = self.frame_seconds()
             animations = AnimateOnce(AnimationGroup(*built), auto_clear=False)
             self._animationloop = animations
             while True:
@@ -156,7 +169,7 @@ class Renderer:
                     self._pixels.show()  # one physical transfer per frame
                     if not running:
                         break
-                time.sleep(FRAME_SECONDS)  # outside the lock, so locate() and the web UI can get in
+                time.sleep(wait)  # outside the lock, so locate() and the web UI can get in
         except Exception as e:
             log.warning("render error: " + str(e))
             time.sleep(FRAME_SECONDS)  # the main loop calls render() again at once: no hot loop of errors

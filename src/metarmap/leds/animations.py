@@ -28,6 +28,19 @@ def pulse_colors(color, low):
     return [tuple(int(round(c * level)) for c in color) for level in levels]
 
 
+def look_interval(look: Look):
+    """The seconds between changes of what an LED with `look` shows, or None for one that never changes (solid, off)."""
+    if look.effect == "blink":
+        return look.period / 2
+    if look.effect == "pulse":
+        return look.period / PULSE_STEPS if look.low else PULSE_SPEED
+    if look.effect == "cycle" or look.effect == "chase":
+        return look.step
+    if look.effect == "rainbow":
+        return PULSE_SPEED
+    return None
+
+
 def animation_for(look: Look, pixel_object):
     """
     pixel_object is one LED (a PixelSubset) for per-airport looks, or the whole strip for rainbow/chase.
