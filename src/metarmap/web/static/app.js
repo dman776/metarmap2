@@ -426,6 +426,24 @@
         });
     }
 
+    // Config > System > Software: a new Update to / Branch runs Check now (never installs), the button glowing meanwhile
+    async function checkUpdate() {
+        const channel = document.getElementById('update-channel');
+        const branch = document.getElementById('update-branch');
+        if (channel && channel.value === 'branch' && !(branch && branch.value)) return;  // no branch picked yet
+        const btn = document.getElementById('update-check');
+        busy(btn, true);
+        if (btn) btn.classList.add('loading');
+        try {
+            await call('/update/check');
+            window.location.reload();
+        } catch (err) {
+            showOutput('Error', String(err));
+            busy(btn, false);
+            if (btn) btn.classList.remove('loading');
+        }
+    }
+
     // config settings: <input data-key="a.b" data-restart> / <select data-key>
     document.querySelectorAll('[data-key]').forEach(function (el) {
         el.addEventListener('change', async function () {
@@ -439,7 +457,9 @@
                 }
             } catch (err) {
                 showOutput('Could not save', String(err));
+                return;
             }
+            if (el.hasAttribute('data-check-update')) checkUpdate();
         });
     });
 
