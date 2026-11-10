@@ -65,6 +65,9 @@ class Report:
     airmets: Optional[List[dict]] = None  # G-AIRMET hazards over the airport (metar.with_advisories)
     sigmets: Optional[List[dict]] = None
     tfrs: Optional[List[dict]] = None  # TFRs at or near it (metar.with_tfrs)
+    # the TAF's flight category 3, 6 and 12 hours ahead (forecast.HOURS; metar.with_forecast), None for an hour it
+    # doesn't cover; the whole field is None while the airport has no TAF (only about 700 US stations issue one)
+    forecast: Optional[Tuple[Optional[str], ...]] = None
 
     @property
     def wind_gust(self) -> bool:

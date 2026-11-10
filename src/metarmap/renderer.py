@@ -10,7 +10,7 @@ from contextlib import contextmanager
 import metarmap.lib.colors as colors_lib
 from metarmap.clock import Clock
 from metarmap.leds import intro
-from metarmap.leds.animations import animation_for
+from metarmap.leds.animations import animation_for, look_interval
 from metarmap.models import Look
 from metarmap.sun import SunTimes, brightness_for, level_at, quiet_hours_active
 from metarmap.visualizers import index_of, visualizer
@@ -27,6 +27,7 @@ log = logging.getLogger(__name__)
 # The animations decide when each effect moves on (the fastest changes every 0.1 s); between frames the loop rests,
 # instead of asking them "is it time yet?" thousands of times a second, which used a whole CPU core.
 FRAME_SECONDS = 0.01
+MAX_FRAME_SECONDS = 0.05  # the slowest tick the render loop settles to, whatever the looks need
 
 INTRO_FRAME_SECONDS = 0.02  # a startup sequence's frames: 50 a second is smooth, and leaves the Pi time to spare
 DIM_FACTOR = 0.5  # how bright the LEDs are while METARs are fetched, as a part of their brightness
@@ -85,6 +86,7 @@ class Renderer:
             # longer than led.count (a NeoPixel strip until the restart) keeps its extra LEDs dark
             animations = [animation_for(look, pixel) for look, pixel in zip(looks[: settings.led.count], self._pix)]
         self._looks, self._strip_look, self._animations = looks, strip_look, animations
+        self._look_dicts = None  # led_states()'s cache
 
     @property
     def looks(self):
@@ -116,10 +118,16 @@ class Renderer:
         What every LED is doing right now, for the web UI: {pixel: look} plus any look that drives the whole strip.
         While one does, the virtual airports get their own look: the strip's (rainbow) or off (chase, a wiring check).
         """
-        leds = {i: look.to_dict() for i, look in enumerate(self._looks)}
-        strip = None
+        # converted once per rebuild, not at every poll of every open page: a stepping look has ~140 colors per LED
+        # (Flight Category Forecast), which pegged a Pi's CPU
+        if self._look_dicts is None:
+            self._look_dicts = (
+                [look.to_dict() for look in self._looks],
+                self._strip_look.to_dict() if self._strip_look is not None else None,
+            )
+        looks, strip = self._look_dicts
+        leds = dict(enumerate(looks))
         if self._strip_look is not None:
-            strip = self._strip_look.to_dict()
             settings = self._config.data
             virtual = strip if self._vis.covers_virtual else Look.off().to_dict()
             leds.update({i: virtual for i in range(settings.led.count, len(settings.airports))})
@@ -140,9 +148,23 @@ class Renderer:
         except Exception as e:
             log.warning("draw_frame error: " + str(e))
 
+    def frame_seconds(self):
+        """
+        How long the render loop waits between frames. A whole-strip look (Rainbow, Chase) is one animation, cheap to
+        run, so it gets FRAME_SECONDS: slower ticks make its steps uneven (stutter). Looks per LED are one animation
+        each, 50 of them: an eighth of the shortest step of those, within FRAME_SECONDS and MAX_FRAME_SECONDS (ticking
+        at 100 Hz for a look that changes every 0.2 s kept a Pi's CPU at 100% with Flight Category Forecast).
+        """
+        if self._strip_look is not None:
+            return FRAME_SECONDS
+        steps = [look_interval(look) for look in self._looks]
+        steps = [step for step in steps if step]
+        return min(MAX_FRAME_SECONDS, max(FRAME_SECONDS, min(steps) / 8)) if steps else FRAME_SECONDS
+
     def render(self):
         try:
             built = self._animations
+            wait = self.frame_seconds()
             animations = AnimateOnce(AnimationGroup(*built), auto_clear=False)
             self._animationloop = animations
             while True:
@@ -156,7 +178,7 @@ class Renderer:
                     self._pixels.show()  # one physical transfer per frame
                     if not running:
                         break
-                time.sleep(FRAME_SECONDS)  # outside the lock, so locate() and the web UI can get in
+                time.sleep(wait)  # outside the lock, so locate() and the web UI can get in
         except Exception as e:
             log.warning("render error: " + str(e))
             time.sleep(FRAME_SECONDS)  # the main loop calls render() again at once: no hot loop of errors

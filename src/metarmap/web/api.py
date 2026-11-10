@@ -104,6 +104,8 @@ def status(services: "App", ip):
             "visualizer.auto_rotate.skip_dark": cfg.visualizer.auto_rotate.skip_dark,
             "visualizer.missing_data_blink": cfg.visualizer.missing_data_blink,
             "visualizer.estimated_category_breathing": cfg.visualizer.estimated_category_breathing,
+            "visualizer.forecast_step_seconds": cfg.visualizer.forecast_step_seconds,
+            "visualizer.forecast_include_tempo": cfg.visualizer.forecast_include_tempo,
             "visualizer.legend_in_use_only": cfg.visualizer.legend_in_use_only,
             "lightning.animation": cfg.lightning.animation,
             "lightning.color": cfg.lightning.color,

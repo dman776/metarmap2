@@ -28,6 +28,7 @@ SHAPES = {
     "chase": '<g fill="currentColor" stroke="none"><circle cx="4" cy="12" r="2" opacity=".25"/>'
     '<circle cx="10" cy="12" r="2" opacity=".5"/><circle cx="16" cy="12" r="2.5" opacity=".8"/>'
     '<circle cx="21" cy="12" r="2"/></g>',
+    "clock": '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
 }
 assert set(SHAPES) == set(ICONS), "every visualizer icon needs a shape"
 

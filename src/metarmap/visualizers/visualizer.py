@@ -31,6 +31,7 @@ ICONS = (
     "ban",
     "rainbow",
     "chase",
+    "clock",
 )
 SHORT_NAME_MAX = 11  # characters: fits a tile of the touchscreen remote's visualizer picker
 

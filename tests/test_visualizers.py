@@ -967,6 +967,7 @@ def test_the_patterns_are_last():
         "Dewpoint Spread",
         "Advisories",
         "TFR",
+        "Flight Category Forecast",
         "Rainbow",
         "Chase",
     ]

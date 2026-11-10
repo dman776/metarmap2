@@ -1,5 +1,17 @@
 ### Unreleased
 
+- **Flight Category Forecast** (new visualizer): every airport steps through its flight category now (the METAR) and
+  as its TAF forecasts it 3, 6 and 12 hours ahead, fading from one step to the next, all airports together. A TEMPO
+  or PROB group counts when it is worse than the base forecast (turn that off in Config > Visualizers); each step
+  shows for 6 seconds by default (also a setting). An airport that issues no TAF (only about 700 US stations do) shows
+  a dim white for the forecast steps. TAFs come from aviationweather.gov, fetched at most every 30 minutes. It is
+  number 13, after TFR: Rainbow is now 14 and Chase 15 (use ids, see API.md). Its icon is a new `clock`; the
+  touchscreen draws none for it until it learns the name
+- **Less CPU while pixels animate**: the LED loop ticked 100 times a second whatever the pixels were doing, which kept a
+  Pi's CPU at 100% with Flight Category Forecast (every pixel animating). It now ticks at an eighth of the shortest
+  step of the looks on the pixels (at most every 0.05 s); Rainbow and Chase keep the full speed. The pages' poll (`/api/live`) also converts the looks once per
+  rebuild instead of at every poll: with Flight Category Forecast that was 17 times the work of Flight Category,
+  for every open page, every second
 - **The Chart starts without waiting for the airport lookup**: where the airports without a report are, and their
   names, are looked up in the background at startup. aviationweather.gov's station lookup has taken 20 s (and answered
   504), which held the LEDs back that long. The pixels come first; the Map page's rings and any empty airport names

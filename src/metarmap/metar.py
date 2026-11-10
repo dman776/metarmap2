@@ -331,12 +331,25 @@ def with_tfrs(data, tfrs):
     return result
 
 
+def with_forecast(data, forecasts, include_temporary=True):
+    """
+    The METARs, each with forecast: its TAF's flight category 3, 6 and 12 hours ahead (forecast.Forecasts.forecast), or
+    None while it has no TAF. Airports with no report stay None.
+    """
+    return {
+        code: m if m is None else replace(m, forecast=forecasts.forecast(code, include_temporary))
+        for code, m in data.items()
+    }
+
+
 class Reports:
     """
     Fetches the METARs and keeps each airport's Report (None when it isn't reporting) in .data, by code.
     """
 
-    def __init__(self, cfg, fetch=False, clock: Clock = None, advisories=None, tfrs=None, locate_now=True):
+    def __init__(
+        self, cfg, fetch=False, clock: Clock = None, advisories=None, tfrs=None, locate_now=True, forecasts=None
+    ):
         """
         advisories: metarmap.advisories.Advisories, whose hazards are added to each report
         (with_advisories); None for none. tfrs: metarmap.tfr.Tfrs, the same for TFRs (with_tfrs).
@@ -347,6 +360,7 @@ class Reports:
         self._config = cfg
         self.advisories = advisories
         self.tfrs = tfrs
+        self.forecasts = forecasts
         self._clock = clock or Clock()
         self._is_fetching = False
         self._missing_stations = []
@@ -475,7 +489,16 @@ class Reports:
         data = with_mocks(self._real, airports, self.positions, self._clock.now())
         if self.advisories is not None:
             data = with_advisories(data, self.advisories)
-        self.data = with_tfrs(data, self.tfrs) if self.tfrs is not None else data
+        if self.tfrs is not None:
+            data = with_tfrs(data, self.tfrs)
+        if self.forecasts is not None:
+            data = with_forecast(data, self.forecasts, self._include_temporary())
+        self.data = data
+
+    def _include_temporary(self):
+        """Whether the forecast counts TEMPO and PROB groups (visualizer.forecast_include_tempo; yes without it)."""
+        visualizer = getattr(getattr(self._config, "data", None), "visualizer", None)
+        return getattr(visualizer, "forecast_include_tempo", True)
 
     def missing_stations(self):
         """
