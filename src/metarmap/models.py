@@ -68,6 +68,10 @@ class Report:
     # the TAF's flight category 3, 6 and 12 hours ahead (forecast.HOURS; metar.with_forecast), None for an hour it
     # doesn't cover; the whole field is None while the airport has no TAF (only about 700 US stations issue one)
     forecast: Optional[Tuple[Optional[str], ...]] = None
+    # its TAF's weather at the same hours: for each, the weather codes in effect ("-RA BR") and those of any TEMPO or
+    # PROB group, none for a dry forecast, None for an hour the TAF doesn't cover (forecast.weather_at); None too
+    # while there's no TAF
+    forecast_weather: Optional[Tuple[Optional[Tuple[str, ...]], ...]] = None
 
     @property
     def wind_gust(self) -> bool:

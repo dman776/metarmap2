@@ -1,5 +1,12 @@
 ### Unreleased
 
+- **Precipitation Forecast** (new visualizer): every airport steps through its weather now (the METAR) and as its TAF
+  forecasts it 3, 6 and 12 hours ahead, fading from one step to the next, all airports together, each step looking as it
+  does in Precipitation (the color is what it is, the effect how heavy). A TEMPO or PROB group counts when its weather is
+  more significant (thunderstorms, then ice, snow, rain...; the heavier of two of one kind). A dry forecast is off, and a
+  step with no TAF is the dim white of Flight Category Forecast. It shares that visualizer's settings, so the Config
+  card is now **Forecast**, and its step indicator. It is number 14: Rainbow is now 15 and Chase 16 (use ids, see
+  API.md). Its icon is a new `umbrella`; the Copilot draws none for it until it learns the name
 - **Config > Visualizers has a card for each visualizer with settings of its own**: the old **Visualizer** card is
   now **Global** (default visualizer, missing data blink, only show legend items in use, lightning, auto-rotate),
   followed by **Flight Category** (estimated category breathing), **Flight Category Forecast** (step time, TEMPO and

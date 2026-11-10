@@ -188,3 +188,50 @@ def test_lightning_keeps_the_steps_going(settings):
     assert len(stormy.colors) * stormy.step == pytest.approx(len(look.colors) * look.step)  # 28 s, a multiple of 4
     quiet = [c for c in stormy.colors if c != style.LIGHTNING]
     assert flightcategory.COLORS["IFR"] in quiet and flightcategory.COLORS["VFR"] in quiet
+
+
+# ---- weather ------------------------------------------------------------------------------------------------------
+
+
+def test_parses_a_groups_weather(tafs):
+    khou = tafs["KHOU"]
+    assert [g.wx for g in khou.groups] == ["-SHRA", "-SHRA", "BR", "BR", None]
+    assert [g.wx for g in tafs["KJFK"].groups] == [None] * 5
+
+
+def test_weather_follows_the_groups(tafs):
+    khou = tafs["KHOU"]
+    assert forecast.weather_at(khou, START + 3600, include_temporary=False) == ("-SHRA",)
+    assert forecast.weather_at(khou, START + 3600) == ("-SHRA",)  # the TEMPO says the same: once
+    assert forecast.weather_at(khou, 1794300000, include_temporary=False) == ("BR",)
+    assert forecast.weather_at(khou, 1794300000) == ("BR",)  # the TEMPO BR says the same: once
+    assert forecast.weather_at(khou, 1794300000, include_temporary=False) == ("BR",)
+    assert forecast.weather_at(khou, 1794320000) == ()  # FM with no weather: dry
+    assert forecast.weather_at(tafs["KJFK"], 1794320000) == ()
+    assert forecast.weather_at(khou, START - 3600) is None and forecast.weather_at(khou, 1794355200) is None
+
+
+def test_becmg_weather_changes_only_when_named_and_nsw_clears_it():
+    taf = forecast.Taf(
+        valid_to=10_000,
+        groups=[
+            forecast.Group(0, 10_000, None, 10.0, (), None, "-RA"),
+            forecast.Group(3000, 3000, "BECMG", 6.0),  # names no weather: the rain goes on
+            forecast.Group(5000, 5000, "BECMG", None, (), None, ""),  # NSW: it stops
+            forecast.Group(7000, 10_000, "FM", 10.0, (), None, None),  # an FM names all it has: dry
+            forecast.Group(8000, 9000, "TEMPO", None, (), None, "+TSRA"),
+        ],
+    )
+    assert forecast.weather_at(taf, 4000) == ("-RA",)
+    assert forecast.weather_at(taf, 6000) == ()
+    assert forecast.weather_at(taf, 8500) == ("+TSRA",)
+    assert forecast.weather_at(taf, 8500, include_temporary=False) == ()
+
+
+def test_forecasts_weather_for_the_hours_ahead(fixture_bytes):
+    forecasts = Forecasts(clock=lambda: START + 3600.0)
+    forecasts._tafs = parse_tafs(json.loads(fixture_bytes("taf.json")))
+    assert forecasts.weather("KHOU") == (("BR",), ("BR",), ())
+    assert forecasts.weather("KXXX") is None
+    reports = with_forecast({"KHOU": Report(), "KXXX": None}, forecasts)
+    assert reports["KHOU"].forecast_weather == (("BR",), ("BR",), ()) and reports["KXXX"] is None

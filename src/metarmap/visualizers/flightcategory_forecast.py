@@ -13,19 +13,13 @@ is worked out with the reports, not here).
 
 from typing import Optional
 
-import metarmap.lib.colors as colors_lib
 from metarmap.decode import estimate_category
 from metarmap.forecast import HOURS
 from metarmap.models import FlightCategory as Category, Look, Report
-from metarmap.visualizers import style
+from metarmap.visualizers import forecast_steps, style
 from metarmap.visualizers.flightcategory import COLORS
+from metarmap.visualizers.forecast_steps import FRAME, NO_FORECAST, NO_FORECAST_COLOR
 from metarmap.visualizers.visualizer import Visualizer, legend_item
-
-NO_FORECAST = "no_forecast"
-NO_FORECAST_COLOR = style.dim(colors_lib.color(colors_lib.WHITE), 0.25)
-FRAME = 0.2  # seconds per frame (the LED library steps a look through its colors at one speed)
-FADE = 1.0  # seconds a step takes to fade into the next
-STEPS = ("Now",) + tuple(f"+{h}h" for h in HOURS)
 
 
 def legend(settings):
@@ -56,29 +50,18 @@ def step_color(category):
     return COLORS[category] if category in COLORS else NO_FORECAST_COLOR
 
 
-def blend(a, b, amount):
-    return tuple(int(round(x + (y - x) * amount)) for x, y in zip(a, b))
-
-
 def step_seconds(settings):
-    """How long one step lasts: it is shown for forecast_step_seconds, then fades into the next for FADE."""
-    return settings.visualizer.forecast_step_seconds + FADE
+    return forecast_steps.step_seconds(settings)
 
 
 def steps(settings):
-    return {"labels": list(STEPS), "seconds": step_seconds(settings), "prefix": "FC"}
+    return forecast_steps.steps(settings, "FC")
 
 
 def frames(colors, seconds):
     """The colors a look steps through: each of `colors` held for `seconds`, fading into the next."""
     held = max(1, round(seconds / FRAME))
-    fades = max(0, round(FADE / FRAME))  # the frames between two colors; a step is `seconds` + FADE long
-    out = []
-    for n, color in enumerate(colors):
-        following = colors[(n + 1) % len(colors)]
-        out += [color] * held
-        out += [blend(color, following, (i + 1) / (fades + 1)) for i in range(fades)]
-    return out
+    return forecast_steps.sequence([[color] * held for color in colors])
 
 
 def look(metar: Optional[Report], settings) -> Look:

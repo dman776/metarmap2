@@ -969,6 +969,7 @@ def test_the_patterns_are_last():
         "Advisories",
         "TFR",
         "Flight Category Forecast",
+        "Precipitation Forecast",
         "Rainbow",
         "Chase",
     ]

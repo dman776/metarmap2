@@ -1833,7 +1833,7 @@ def test_remote_page_follows_the_map(client):
     app = client.services
     app.display.start()
     assert 'id="oled-on" class="switch" type="checkbox" checked' in client("/remote")[1]
-    client("/visualizer/14")  # Rainbow: locate is paused
+    client("/visualizer/15")  # Rainbow: locate is paused
     client("/config/edit/led.virtual_count/1")
     client("/config/airports/50/code/KDWH")
     body = client("/remote")[1]
@@ -2157,7 +2157,7 @@ def test_config_visualizers_tab_has_a_card_for_each_visualizer_with_settings(cli
     panel = body[body.index('id="panel-visualizers"') : body.index('id="panel-map"')]
     cards = re.split(r'<section class="card settings"', panel)[1:]
     found = {re.search(r"<h2>(.*?)</h2>", c).group(1): set(re.findall(r'data-key="([^"]+)"', c)) for c in cards}
-    assert list(found) == ["Global", "Flight Category", "Flight Category Forecast", "TFR"]
+    assert list(found) == ["Global", "Flight Category", "Forecast", "TFR"]
     assert found["Global"] >= {
         "visualizer.active",
         "visualizer.missing_data_blink",
@@ -2169,7 +2169,7 @@ def test_config_visualizers_tab_has_a_card_for_each_visualizer_with_settings(cli
         "visualizer.auto_rotate.skip_dark",
     }
     assert found["Flight Category"] == {"visualizer.estimated_category_breathing"}
-    assert found["Flight Category Forecast"] == {
+    assert found["Forecast"] == {
         "visualizer.forecast_step_seconds",
         "visualizer.forecast_include_tempo",
     }
