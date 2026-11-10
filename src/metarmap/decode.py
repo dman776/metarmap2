@@ -164,22 +164,31 @@ def ceiling_ft(layers: Sequence["SkyLayer"], vert_vis_ft=None):
 CATEGORIES = ("VFR", "MVFR", "IFR", "LIFR")  # best to worst
 
 
-def estimate_category(metar: "Report"):
+def category_from(visibility_sm, layers=(), vert_vis_ft=None):
     """
-    The flight category from the visibility and ceiling the report has (FAA limits), for a station that doesn't
-    report one; None if it has neither. The worse of the two decides; a sky with no broken or overcast layer (or a
-    clear one) has no ceiling. With only one of the two, the real category could be worse, never better.
+    The flight category from a visibility (statute miles) and sky layers (FAA limits), or None if both are missing.
+    The worse of the two decides; a sky with no broken or overcast layer (or a clear one) has no ceiling. With only
+    one of the two, the real category could be worse, never better.
     """
     found = []
-    miles = metar.visibility_sm
-    if miles is not None:
-        found.append("LIFR" if miles < 1 else "IFR" if miles < 3 else "MVFR" if miles <= 5 else "VFR")
-    if metar.sky_conditions:
-        feet = ceiling_ft(metar.sky_conditions, metar.vert_vis_ft)
+    if visibility_sm is not None:
+        found.append(
+            "LIFR" if visibility_sm < 1 else "IFR" if visibility_sm < 3 else "MVFR" if visibility_sm <= 5 else "VFR"
+        )
+    if layers:
+        feet = ceiling_ft(layers, vert_vis_ft)
         found.append(
             "VFR" if feet is None or feet > 3000 else "MVFR" if feet >= 1000 else "IFR" if feet >= 500 else "LIFR"
         )
     return max(found, key=CATEGORIES.index) if found else None
+
+
+def estimate_category(metar: "Report"):
+    """
+    The flight category from the visibility and ceiling the report has (FAA limits), for a station that doesn't
+    report one; None if it has neither (see category_from).
+    """
+    return category_from(metar.visibility_sm, metar.sky_conditions, metar.vert_vis_ft)
 
 
 def density_altitude_sentence(metar: "Report"):

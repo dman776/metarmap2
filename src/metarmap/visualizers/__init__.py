@@ -9,6 +9,7 @@ from metarmap.visualizers import (
     chase,
     density_altitude,
     flightcategory,
+    flightcategory_forecast,
     precipitation,
     pressure,
     rainbow,
@@ -40,6 +41,7 @@ WEATHER = tuple(
         spread,
         advisories,
         tfr,
+        flightcategory_forecast,
     )
 )
 # one look for the whole strip

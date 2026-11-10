@@ -56,6 +56,8 @@
         },
         "missing_data_blink": true,
         "estimated_category_breathing": true,
+        "forecast_step_seconds": 6,
+        "forecast_include_tempo": true,
         "legend_in_use_only": false
     },
     "lightning": {

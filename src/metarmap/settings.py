@@ -214,6 +214,10 @@ class VisualizerSettings(_Section):
     missing_data_blink: bool = True
     # an estimated flight category breathes slowly; off: it shows in a steady color
     estimated_category_breathing: bool = True
+    # the Flight Category Forecast visualizer: seconds each step (now, +3, +6, +12 hours) is shown, and whether it
+    # counts the TEMPO and PROB groups of a TAF (the worst category in effect) or only the base forecast
+    forecast_step_seconds: int = setting(6, between=(2, 30), unit=" s")
+    forecast_include_tempo: bool = True
     # the legends on Home, Map and Remote list only what the LEDs are showing now (e.g. only VFR and MVFR)
     legend_in_use_only: bool = False
 

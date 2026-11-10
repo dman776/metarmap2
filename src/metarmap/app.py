@@ -24,6 +24,7 @@ from metarmap import __version__, logs, service, visualizers
 from metarmap.atis import Atis
 from metarmap.speech import Speech
 from metarmap.advisories import Advisories
+from metarmap.forecast import Forecasts
 from metarmap.tfr import Tfrs
 from metarmap.clock import Clock
 from metarmap.config import Config
@@ -62,6 +63,7 @@ class App:
     tfrs: Optional[Tfrs] = None  # TFRs, for the TFR visualizer (fetched in the background with the METARs)
     speech: Optional[Speech] = None  # the METARs read aloud by a speech server (Piper or Kokoro), when one is set
     atis: Optional[Atis] = None  # the digital ATIS from atis.info, for the spoken ATIS (speech.atis)
+    forecasts: Optional[Forecasts] = None  # TAFs, for the forecast visualizers (fetched in the background)
 
 
 # ---- building ------------------------------------------------------------------------------------------------
@@ -80,7 +82,10 @@ def build(config_file=CONFIG_FILE, strip=None, screen=None, clock: Clock = None,
     advisories = Advisories()  # fetched in the background below: the map doesn't wait for them
     tfrs = Tfrs(nearby=lambda: config.data.tfr.nearby_nm)
     # the station lookup (where airports without a report are, and the names) is done in the background below
-    metars = Reports(config, fetch=fetch, clock=clock, advisories=advisories, tfrs=tfrs, locate_now=False)
+    forecasts = Forecasts()
+    metars = Reports(
+        config, fetch=fetch, clock=clock, advisories=advisories, tfrs=tfrs, locate_now=False, forecasts=forecasts
+    )
 
     if strip is None:
         strip = open_strip(config.data.led)  # the NeoPixel strip on the Pi; an in-memory strip anywhere else
@@ -104,7 +109,19 @@ def build(config_file=CONFIG_FILE, strip=None, screen=None, clock: Clock = None,
     speech = Speech(lambda: config.data.speech)
     atis = Atis(lambda: config.data.speech.enabled and config.data.speech.atis)
     app = App(
-        config, sun, metars, renderer, display, schedule.Scheduler(), releases, traffic, advisories, tfrs, speech, atis
+        config,
+        sun,
+        metars,
+        renderer,
+        display,
+        schedule.Scheduler(),
+        releases,
+        traffic,
+        advisories,
+        tfrs,
+        speech,
+        atis,
+        forecasts,
     )
     fill_names(app)
     schedule_jobs(app)
@@ -114,6 +131,7 @@ def build(config_file=CONFIG_FILE, strip=None, screen=None, clock: Clock = None,
         # they come (the first TFR list has a few dozen details to fetch)
         fetch_advisories_soon(app)
         fetch_tfrs(app)
+        fetch_forecasts(app)
         locate_soon(app)
         atis.available()  # with spoken ATIS on, which airports have one (in the background): the pages' ATIS buttons
     return app
@@ -207,7 +225,7 @@ def wire_config(app: App):
     # the in-memory strip changes now; a NeoPixel strip after a restart
     on("led.count", lambda keys: renderer.resize(app.config.data.led.count))
     # reprocessed: the TFRs near each airport, measured with the new distance; a mock METAR in place of the real one
-    on(("tfr.nearby_nm", "airports.mock"), lambda keys: show_areas(app))
+    on(("tfr.nearby_nm", "airports.mock", "visualizer.forecast_include_tempo"), lambda keys: show_areas(app))
     on("*", lambda keys: renderer.refresh() if any(not _matches(k, NOT_ON_LEDS) for k in keys) else None)
     on("visualizer.auto_rotate.*", lambda keys: schedule_rotation(app))
     on(
@@ -257,6 +275,7 @@ def airport_codes_changed(app: App):
     unnamed = {a.code for a in app.config.airports if a.code and not a.name}
     app.config.fill_names({code: app.metars.name_for(code) for code in unnamed})
     threading.Thread(target=refetch_metars, args=(app,), name="fetch", daemon=True).start()
+    fetch_forecasts(app)  # fetches only if the airports differ from the last TAF fetch's
 
 
 def refetch_metars(app: App):
@@ -273,6 +292,7 @@ def refetch_metars(app: App):
 def update_data(app: App):
     fetch_advisories(app)
     fetch_tfrs(app)
+    fetch_forecasts(app)
     with app.renderer.dimmed():
         app.metars.fetch()  # adds the G-AIRMET hazards to each report
     app.renderer.update_data(app.metars)
@@ -324,6 +344,13 @@ def fetch_tfrs(app: App):
     """Fetches the TFRs in the background; the LEDs show them when it's done."""
     if app.tfrs is not None:
         app.tfrs.fetch_soon(then=lambda: show_areas(app))
+
+
+def fetch_forecasts(app: App, force=False):
+    """The TAFs in the background (not more often than they change); the LEDs show them when they come."""
+    if app.forecasts is not None:
+        codes = [a.code for a in app.config.airports if a.code]
+        app.forecasts.fetch_soon(codes, then=lambda: show_areas(app), force=force)
 
 
 def show_areas(app: App):
