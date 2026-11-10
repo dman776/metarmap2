@@ -177,6 +177,23 @@
         </div>
         % switch('visualizer.missing_data_blink', d.visualizer.missing_data_blink, 'Missing data blink', 'Slow red blink on an airport whose report lacks what the visualizer shows, such as no flight category, visibility or sky condition. Off leaves its pixel dark.')
         % switch('visualizer.legend_in_use_only', d.visualizer.legend_in_use_only, 'Only show legend items in use', 'The legends on Home, Map and Cockpit list only what the pixels are showing now, e.g. just VFR and MVFR. Off lists everything the visualizer can show.')
+        % switch('lightning.animation', d.lightning.animation, 'Lightning animation', 'Two quick flashes on airports with lightning or a thunderstorm, in every weather visualizer.')
+        <div class="sub" data-when="lightning-animation"{{!'' if d.lightning.animation else ' hidden'}}>
+        <div class="set">
+            <div>
+                <label class="t" for="lightning-color">Lightning color</label>
+                <div class="d">The color of the flashes, on the pixels and the Map page.</div>
+            </div>
+            <select id="lightning-color" data-key="lightning.color">
+                % for color in lightning_colors:
+                <option value="{{color}}"{{!' selected' if color == d.lightning.color else ''}}>{{color.title()}}</option>
+                % end
+                % if d.lightning.color not in lightning_colors:
+                <option value="{{d.lightning.color}}" selected disabled>{{d.lightning.color}}</option>
+                % end
+            </select>
+        </div>
+        </div>
         % switch('visualizer.auto_rotate.enabled', d.visualizer.auto_rotate.enabled, 'Auto-rotate visualizers', 'Cycle through the visualizers on a timer. Picking one by hand shows it for the whole delay before the next change.')
         <div class="sub" data-when="visualizer-auto_rotate-enabled"{{!'' if d.visualizer.auto_rotate.enabled else ' hidden'}}>
         % slider('visualizer.auto_rotate.delay_seconds', d.visualizer.auto_rotate.delay_seconds, 'Auto-rotate delay', 'Time on each visualizer.', lo=10, hi=600, step=10, fmt='sec')
@@ -206,26 +223,6 @@
         <h2>Flight Category Forecast</h2>
         % slider('visualizer.forecast_step_seconds', d.visualizer.forecast_step_seconds, 'Forecast step time', 'How long each step (now, +3, +6 and +12 hours) is shown.', lo=2, hi=30, step=1, fmt='sec')
         % switch('visualizer.forecast_include_tempo', d.visualizer.forecast_include_tempo, 'Forecast counts TEMPO and PROB', 'A TEMPO or PROB group in the TAF counts when it is worse than the base forecast. Off follows the base forecast only.')
-    </section>
-    <section class="card settings">
-        <h2>Lightning</h2>
-        % switch('lightning.animation', d.lightning.animation, 'Lightning animation', 'Two quick flashes on airports with lightning or a thunderstorm, in every weather visualizer.')
-        <div class="sub" data-when="lightning-animation"{{!'' if d.lightning.animation else ' hidden'}}>
-        <div class="set">
-            <div>
-                <label class="t" for="lightning-color">Lightning color</label>
-                <div class="d">The color of the flashes, on the pixels and the Map page.</div>
-            </div>
-            <select id="lightning-color" data-key="lightning.color">
-                % for color in lightning_colors:
-                <option value="{{color}}"{{!' selected' if color == d.lightning.color else ''}}>{{color.title()}}</option>
-                % end
-                % if d.lightning.color not in lightning_colors:
-                <option value="{{d.lightning.color}}" selected disabled>{{d.lightning.color}}</option>
-                % end
-            </select>
-        </div>
-        </div>
     </section>
     <section class="card settings">
         <h2>TFR</h2>

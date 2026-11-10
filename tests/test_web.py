@@ -2157,11 +2157,13 @@ def test_config_visualizers_tab_has_a_card_for_each_visualizer_with_settings(cli
     panel = body[body.index('id="panel-visualizers"') : body.index('id="panel-map"')]
     cards = re.split(r'<section class="card settings"', panel)[1:]
     found = {re.search(r"<h2>(.*?)</h2>", c).group(1): set(re.findall(r'data-key="([^"]+)"', c)) for c in cards}
-    assert list(found) == ["Global", "Flight Category", "Flight Category Forecast", "Lightning", "TFR"]
+    assert list(found) == ["Global", "Flight Category", "Flight Category Forecast", "TFR"]
     assert found["Global"] >= {
         "visualizer.active",
         "visualizer.missing_data_blink",
         "visualizer.legend_in_use_only",
+        "lightning.animation",
+        "lightning.color",
         "visualizer.auto_rotate.enabled",
         "visualizer.auto_rotate.delay_seconds",
         "visualizer.auto_rotate.skip_dark",
@@ -2171,5 +2173,4 @@ def test_config_visualizers_tab_has_a_card_for_each_visualizer_with_settings(cli
         "visualizer.forecast_step_seconds",
         "visualizer.forecast_include_tempo",
     }
-    assert found["Lightning"] == {"lightning.animation", "lightning.color"}
     assert found["TFR"] == {"tfr.nearby_nm"}
