@@ -164,14 +164,16 @@ class Renderer:
 
     def frame_seconds(self):
         """
-        How long the render loop waits between frames: a quarter of the shortest step of the looks on the LEDs, within
-        FRAME_SECONDS and MAX_FRAME_SECONDS. Ticking at 100 Hz for a look that changes every 0.2 s (Flight Category
-        Forecast, with every LED animating) kept a Pi's CPU at 100%.
+        How long the render loop waits between frames. A whole-strip look (Rainbow, Chase) is one animation, cheap to
+        run, so it gets FRAME_SECONDS: slower ticks make its steps uneven (stutter). Looks per LED are one animation
+        each, 50 of them: an eighth of the shortest step of those, within FRAME_SECONDS and MAX_FRAME_SECONDS (ticking
+        at 100 Hz for a look that changes every 0.2 s kept a Pi's CPU at 100% with Flight Category Forecast).
         """
-        looks = list(self._looks) + ([self._strip_look] if self._strip_look is not None else [])
-        steps = [look_interval(look) for look in looks]
+        if self._strip_look is not None:
+            return FRAME_SECONDS
+        steps = [look_interval(look) for look in self._looks]
         steps = [step for step in steps if step]
-        return min(MAX_FRAME_SECONDS, max(FRAME_SECONDS, min(steps) / 4)) if steps else FRAME_SECONDS
+        return min(MAX_FRAME_SECONDS, max(FRAME_SECONDS, min(steps) / 8)) if steps else FRAME_SECONDS
 
     def render(self):
         try:

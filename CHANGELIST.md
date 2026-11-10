@@ -12,8 +12,8 @@
   number 13, after TFR: Rainbow is now 14 and Chase 15 (use ids, see API.md). Its icon is a new `clock`; the
   touchscreen draws none for it until it learns the name
 - **Less CPU while pixels animate**: the LED loop ticked 100 times a second whatever the pixels were doing, which kept a
-  Pi's CPU at 100% with Flight Category Forecast (every pixel animating). It now ticks at a quarter of the shortest
-  step of the looks on the pixels (at most every 0.05 s). The pages' poll (`/api/live`) also converts the looks once per
+  Pi's CPU at 100% with Flight Category Forecast (every pixel animating). It now ticks at an eighth of the shortest
+  step of the looks on the pixels (at most every 0.05 s); Rainbow and Chase keep the full speed. The pages' poll (`/api/live`) also converts the looks once per
   rebuild instead of at every poll: with Flight Category Forecast that was 17 times the work of Flight Category,
   for every open page, every second
 - **The Chart starts without waiting for the airport lookup**: where the airports without a report are, and their
