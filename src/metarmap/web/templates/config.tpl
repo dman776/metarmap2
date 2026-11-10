@@ -163,7 +163,7 @@
 
 <div class="tab-panel" id="panel-visualizers" data-panel="visualizers" hidden>
     <section class="card settings">
-        <h2>Visualizer</h2>
+        <h2>Global</h2>
         <div class="set">
             <div>
                 <label class="t" for="visualizer-active">Default visualizer</label>
@@ -176,9 +176,6 @@
             </select>
         </div>
         % switch('visualizer.missing_data_blink', d.visualizer.missing_data_blink, 'Missing data blink', 'Slow red blink on an airport whose report lacks what the visualizer shows, such as no flight category, visibility or sky condition. Off leaves its pixel dark.')
-        % switch('visualizer.estimated_category_breathing', d.visualizer.estimated_category_breathing, 'Estimated flight category breathing', 'Estimated flight categories breathe slowly. Off shows them in a steady color, like a reported one (the Micro still shows VFR*).')
-        % slider('visualizer.forecast_step_seconds', d.visualizer.forecast_step_seconds, 'Forecast step time', 'Flight Category Forecast: how long each step (now, +3, +6 and +12 hours) is shown.', lo=2, hi=30, step=1, fmt='sec')
-        % switch('visualizer.forecast_include_tempo', d.visualizer.forecast_include_tempo, 'Forecast counts TEMPO and PROB', 'Flight Category Forecast: a TEMPO or PROB group in the TAF counts when it is worse than the base forecast. Off follows the base forecast only.')
         % switch('visualizer.legend_in_use_only', d.visualizer.legend_in_use_only, 'Only show legend items in use', 'The legends on Home, Map and Cockpit list only what the pixels are showing now, e.g. just VFR and MVFR. Off lists everything the visualizer can show.')
         % switch('lightning.animation', d.lightning.animation, 'Lightning animation', 'Two quick flashes on airports with lightning or a thunderstorm, in every weather visualizer.')
         <div class="sub" data-when="lightning-animation"{{!'' if d.lightning.animation else ' hidden'}}>
@@ -196,21 +193,6 @@
                 % end
             </select>
         </div>
-        </div>
-        <div class="set">
-            <div>
-                <label class="t" for="tfr-nearby">TFR nearby distance</label>
-                <div class="d">The TFR visualizer also shows a TFR this close to an airport, dimmed.</div>
-            </div>
-            <select id="tfr-nearby" data-key="tfr.nearby_nm">
-                % choices = [(0, 'Inside only'), (5, '5 NM'), (10, '10 NM'), (15, '15 NM'), (20, '20 NM'), (30, '30 NM'), (50, '50 NM')]
-                % for value, label in choices:
-                <option value="{{value}}"{{!' selected' if value == d.tfr.nearby_nm else ''}}>{{label}}</option>
-                % end
-                % if d.tfr.nearby_nm not in [c[0] for c in choices]:
-                <option value="{{d.tfr.nearby_nm}}" selected>{{'%g NM' % d.tfr.nearby_nm}}</option>
-                % end
-            </select>
         </div>
         % switch('visualizer.auto_rotate.enabled', d.visualizer.auto_rotate.enabled, 'Auto-rotate visualizers', 'Cycle through the visualizers on a timer. Picking one by hand shows it for the whole delay before the next change.')
         <div class="sub" data-when="visualizer-auto_rotate-enabled"{{!'' if d.visualizer.auto_rotate.enabled else ' hidden'}}>
@@ -231,6 +213,33 @@
                 % end
             </div>
         </div>
+        </div>
+    </section>
+    <section class="card settings">
+        <h2>Flight Category</h2>
+        % switch('visualizer.estimated_category_breathing', d.visualizer.estimated_category_breathing, 'Estimated flight category breathing', 'Estimated flight categories breathe slowly. Off shows them in a steady color, like a reported one (the Micro still shows VFR*).')
+    </section>
+    <section class="card settings">
+        <h2>Flight Category Forecast</h2>
+        % slider('visualizer.forecast_step_seconds', d.visualizer.forecast_step_seconds, 'Forecast step time', 'How long each step (now, +3, +6 and +12 hours) is shown.', lo=2, hi=30, step=1, fmt='sec')
+        % switch('visualizer.forecast_include_tempo', d.visualizer.forecast_include_tempo, 'Forecast counts TEMPO and PROB', 'A TEMPO or PROB group in the TAF counts when it is worse than the base forecast. Off follows the base forecast only.')
+    </section>
+    <section class="card settings">
+        <h2>TFR</h2>
+        <div class="set">
+            <div>
+                <label class="t" for="tfr-nearby">TFR nearby distance</label>
+                <div class="d">The TFR visualizer also shows a TFR this close to an airport, dimmed.</div>
+            </div>
+            <select id="tfr-nearby" data-key="tfr.nearby_nm">
+                % choices = [(0, 'Inside only'), (5, '5 NM'), (10, '10 NM'), (15, '15 NM'), (20, '20 NM'), (30, '30 NM'), (50, '50 NM')]
+                % for value, label in choices:
+                <option value="{{value}}"{{!' selected' if value == d.tfr.nearby_nm else ''}}>{{label}}</option>
+                % end
+                % if d.tfr.nearby_nm not in [c[0] for c in choices]:
+                <option value="{{d.tfr.nearby_nm}}" selected>{{'%g NM' % d.tfr.nearby_nm}}</option>
+                % end
+            </select>
         </div>
     </section>
 </div>
