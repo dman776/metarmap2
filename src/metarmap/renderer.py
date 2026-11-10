@@ -87,6 +87,7 @@ class Renderer:
             animations = [animation_for(look, pixel) for look, pixel in zip(looks[: settings.led.count], self._pix)]
         self._looks, self._strip_look, self._animations = looks, strip_look, animations
         self._started = self._clock.time()  # the steps of a stepping visualizer count from here (step())
+        self._look_dicts = None  # led_states()'s cache
 
     @property
     def looks(self):
@@ -131,10 +132,16 @@ class Renderer:
         What every LED is doing right now, for the web UI: {pixel: look} plus any look that drives the whole strip.
         While one does, the virtual airports get their own look: the strip's (rainbow) or off (chase, a wiring check).
         """
-        leds = {i: look.to_dict() for i, look in enumerate(self._looks)}
-        strip = None
+        # converted once per rebuild, not at every poll of every open page: a stepping look has ~140 colors per LED
+        # (Flight Category Forecast), which pegged a Pi's CPU
+        if self._look_dicts is None:
+            self._look_dicts = (
+                [look.to_dict() for look in self._looks],
+                self._strip_look.to_dict() if self._strip_look is not None else None,
+            )
+        looks, strip = self._look_dicts
+        leds = dict(enumerate(looks))
         if self._strip_look is not None:
-            strip = self._strip_look.to_dict()
             settings = self._config.data
             virtual = strip if self._vis.covers_virtual else Look.off().to_dict()
             leds.update({i: virtual for i in range(settings.led.count, len(settings.airports))})

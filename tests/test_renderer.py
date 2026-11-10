@@ -631,3 +631,17 @@ def test_step_counts_from_when_the_leds_were_built(config, clock):
     r.refresh()  # rebuilt: counted from now
     clock.advance(seconds * 2.1)
     assert r.step()["index"] == 2
+
+
+def test_led_states_are_converted_once_per_rebuild(config, clock, monkeypatch):
+    """/api/live is polled by every open page every second: a look with ~140 colors must not be redone each time."""
+    r, _ = make(config, clock)
+    calls = []
+    real = Look.to_dict
+    monkeypatch.setattr(Look, "to_dict", lambda self: calls.append(1) or real(self))
+    first = r.led_states()
+    count = len(calls)
+    assert count and r.led_states() == first and len(calls) == count
+    r.refresh()  # rebuilt: converted again
+    r.led_states()
+    assert len(calls) > count
