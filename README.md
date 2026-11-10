@@ -25,7 +25,8 @@ Written from the ground up with a web UI, an API and a Home Assistant integratio
   visibility, density altitude, ceiling, dewpoint spread (fog risk), AIRMETs and SIGMETs (the advisory over each
   airport: IFR, mountain obscuration, turbulence, wind shear, strong wind or icing, and SIGMETs such as
   thunderstorms blinking on top) or TFRs (temporary flight restrictions in or near each airport, by type) on the
-  pixels, plus Rainbow and Chase patterns.
+  pixels, plus Flight Category Forecast and Precipitation Forecast (each airport steps through now and the TAF's
+  3, 6 and 12 hours ahead) and the Rainbow and Chase patterns.
   Switch between them on the web UI, or let the Chart rotate through them.
 - **Lightning**: airports reporting lightning or a thunderstorm flicker yellow or white (a double flash every 2 s) in every weather visualizer, unless you turn the animation off in Config.
 - **Estimated flight categories**: a station that doesn't report its flight category, but does report its visibility
@@ -95,7 +96,7 @@ Settings save as you change them.
 
 ![Config, Airports: the airport at each pixel, in the order the pixels are wired](docs/images/config_airports.png)
 
-![Config, Virtual map: the Map page's background, chart and starting view, and the live traffic settings](docs/images/config_virtual_map.png)
+![Config, Web map: the Map page's background, chart and starting view, and the live traffic settings](docs/images/config_virtual_map.png)
 
 ### Cockpit
 
@@ -216,6 +217,8 @@ Changes save right away. To check the wiring order:
   default), or stays dark
 - whether an estimated flight category breathes or shows a steady color (**Estimated flight category breathing**, on
   by default)
+- how long the two forecast visualizers show each step, and whether they count a TEMPO or PROB group of the TAF
+  (**Forecast step time**, **Forecast counts TEMPO and PROB**, in the **Forecast** card of Config > Visualizers)
 - whether the legends list only what the pixels are showing now (**Only show legend items in use**, off by
   default)
 - lightning: the animation on or off, and its color (yellow or white)
