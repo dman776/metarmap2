@@ -1,5 +1,9 @@
 ### Unreleased
 
+- **Flight Category Forecast shows its step**: the Map page's legend, the Cockpit and Home list Now, +3h, +6h and
+  +12h with the one on lit, and the Micro in Visualizer mode shows it as its title ("FC +3h"). They follow the pixels,
+  not the page: a step is the time you set plus a second of fade. `/api/live`'s `visualizer.step`. An airport with
+  lightning now flashes over all of the steps instead of only the first four seconds of them
 - **Flight Category Forecast** (new visualizer): every airport steps through its flight category now (the METAR) and
   as its TAF forecasts it 3, 6 and 12 hours ahead, fading from one step to the next, all airports together. A TEMPO
   or PROB group counts when it is worse than the base forecast (turn that off in Config > Visualizers); each step

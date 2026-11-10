@@ -89,6 +89,7 @@ def test_info(settings):
         "icon": "wind",
         "description": wind.VISUALIZER.description,
         "exclusive": False,
+        "steps": None,
         "legend": visualizer.legend(wind.VISUALIZER, settings),
     }
 

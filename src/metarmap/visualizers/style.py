@@ -127,7 +127,10 @@ def with_lightning(look: Look, settings) -> Look:
     _, flash = lightning_color(settings)
     every = round(LIGHTNING_EVERY / LIGHTNING_STEP)
     frames = []
-    for n in range(round(LIGHTNING_CYCLE / LIGHTNING_STEP)):
+    cycle = LIGHTNING_CYCLE
+    if look.effect == "cycle":  # a look that steps through colors (Flight Category Forecast): all of its steps
+        cycle = max(cycle, math.ceil(len(look.colors) * look.step / LIGHTNING_CYCLE) * LIGHTNING_CYCLE)
+    for n in range(round(cycle / LIGHTNING_STEP)):
         i = n % every
         if i < len(FLICKER) and FLICKER[i]:
             frames.append(flash)

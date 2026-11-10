@@ -86,6 +86,7 @@ class Renderer:
             # longer than led.count (a NeoPixel strip until the restart) keeps its extra LEDs dark
             animations = [animation_for(look, pixel) for look, pixel in zip(looks[: settings.led.count], self._pix)]
         self._looks, self._strip_look, self._animations = looks, strip_look, animations
+        self._started = self._clock.time()  # the steps of a stepping visualizer count from here (step())
 
     @property
     def looks(self):
@@ -103,6 +104,19 @@ class Renderer:
         used = self.legend_in_use()
         items = visualizer.legend(self._vis, self._config.data)
         return [{**item, "inUse": not used or item["key"] in used} for item in items]
+
+    def step(self):
+        """
+        Which step a stepping visualizer (Visualizer.steps: Flight Category Forecast) is on now, as {"labels": [...],
+        "index": n}, counted from when the LEDs were last built; None for any other visualizer.
+        """
+        if self._vis.steps is None or self._vis.look is None:
+            return None
+        steps = self._vis.steps(self._config.data)
+        seconds = steps["seconds"]
+        elapsed = max(0.0, self._clock.time() - self._started)
+        index = int((elapsed % (len(steps["labels"]) * seconds)) // seconds)
+        return {"labels": steps["labels"], "index": index, "prefix": steps.get("prefix", "")}
 
     @property
     def strip_look(self):

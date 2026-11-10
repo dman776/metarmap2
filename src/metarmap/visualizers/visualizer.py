@@ -54,6 +54,10 @@ class Visualizer:
     covers_virtual: with strip_look, whether the web map's virtual airports show it too (else they stay dark)
     barbs:       the Map page draws each airport's wind barb
     areas:       the areas the Map page draws (one of AREAS), or None
+    steps:       steps(settings) -> {"labels": [...], "seconds": s, "prefix": "FC"} for a visualizer whose looks go
+                 through the same steps together (Flight Category Forecast), each lasting `seconds`, counted from when
+                 the LEDs were built (Renderer.step()). The pages show which step is on, the Micro "<prefix> <label>".
+                 None for the rest
     Lightning isn't a visualizer's job: looks() and legend() below add it to every one with a look per airport.
     """
 
@@ -68,6 +72,7 @@ class Visualizer:
     covers_virtual: bool = False
     barbs: bool = False
     areas: Optional[str] = None
+    steps: Optional[Callable[[object], dict]] = None
 
     def __post_init__(self):
         if not ID.fullmatch(self.id):
@@ -191,5 +196,6 @@ def info(vis, settings) -> dict:
         "icon": vis.icon,
         "description": vis.description,
         "exclusive": vis.exclusive,
+        "steps": vis.steps(settings)["labels"] if vis.steps else None,
         "legend": legend(vis, settings),
     }

@@ -38,6 +38,9 @@ class FakeRenderer:
         self.located = []
         self.fail = fail
 
+    def step(self):
+        return None
+
     def locate(self, pixel):
         self.located.append(pixel)
         if self.fail:
@@ -524,3 +527,21 @@ def test_quiet_hours_off_shows_the_airports():
     config.data.led.quiet_hours.enabled = False
     run(d)
     assert pages(screen) == [("KHOU", 1), ("KHOU", 2)]
+
+
+def test_a_stepping_visualizer_is_looked_at_every_second():
+    """Flight Category Forecast's Micro screen carries its step in the title, so it follows the step."""
+    from metarmap.display import STEP_CHECK_SECONDS
+
+    d, screen, clock, renderer = visualizer_mode()
+    start = clock.time()
+    renderer.step = lambda: {
+        "labels": ["Now", "+3h", "+6h", "+12h"],
+        "index": int(clock.time() - start) % 4,
+        "prefix": "FC",
+    }
+    renderer.vis = SimpleNamespace(short_name="FC Forecast", icon="clock")
+    clock.wait = stop_after_waits(d, clock, 3)
+    run(d)
+    assert [s["title"] for s in screen.shown][:3] == ["FC Now", "FC +3h", "FC +6h"]
+    assert clock.time() - start <= 4 * STEP_CHECK_SECONDS

@@ -138,11 +138,13 @@ def splash_screen():
     return screen
 
 
-def visualizer_screen(short_name, icon):
+def visualizer_screen(short_name, icon, step=None):
     """
     The Micro in Visualizer mode (display_screen.shows): the visualizer's short name on the top (yellow) rows and its
     icon centered below, like the splash. A message, so anything that doesn't know the icon shows the name.
     """
+    if step:  # a stepping visualizer's step now takes the title: "FC +3h" (the name has no room beside it)
+        short_name = f"{step['prefix']} {step['labels'][step['index']]}".strip()
     screen = message_screen(short_name)
     screen["visualizer_icon"] = icon
     return screen

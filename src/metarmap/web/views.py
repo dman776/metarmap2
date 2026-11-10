@@ -109,6 +109,7 @@ def visualizer(renderer):
         **visualizer_info(vis, renderer.config.data),
         "legend": renderer.legend(),
         "filtered": renderer.config.data.visualizer.legend_in_use_only,
+        "step": renderer.step(),
     }
 
 

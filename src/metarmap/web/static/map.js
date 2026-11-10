@@ -139,7 +139,7 @@
             box.addEventListener('toggle', function () {
                 try { window.localStorage.setItem(LEGEND_KEY, box.open ? 'open' : 'closed'); } catch (e) { /* not remembered */ }
             });
-            showLegend(document.querySelector('#legend-source .legend'));
+            showLegend(document.querySelector('#legend-source .legend'), document.querySelector('#legend-source .steps'));
             L.DomEvent.disableClickPropagation(box);
             L.DomEvent.disableScrollPropagation(box);
             return box;
@@ -162,9 +162,11 @@
     }
 
     // `list` is the legend's <ul> (none for a visualizer without one)
-    function showLegend(list) {
+    function showLegend(list, steps) {
         const old = legendBox.querySelector('.legend');
         if (old) old.remove();
+        const oldSteps = legendBox.querySelector('.steps');
+        if (oldSteps) oldSteps.remove();
         legendBox.hidden = !list;
         if (!list) return;
         const title = document.querySelector('.vis-name b');
@@ -183,7 +185,15 @@
         const summary = legendBox.querySelector('summary');
         summary.textContent = '';
         summary.appendChild(text);
+        // a stepping visualizer's steps (Flight Category Forecast) above the entries; markStep() follows the pixels
+        if (steps) legendBox.append(steps.cloneNode(true));
         legendBox.append(list.cloneNode(true));
+    }
+
+    // which of a stepping visualizer's steps is on now (/api/live's visualizer.step: {labels, index}, or null)
+    function markStep(root, step) {
+        const items = root ? root.querySelectorAll('.steps li') : [];
+        for (let i = 0; i < items.length; i++) items[i].classList.toggle('on', !!step && i === step.index);
     }
     new LegendControl().addTo(map);
 
@@ -206,7 +216,7 @@
                 visName.dataset.icon = vis.icon || '';
             }
             if (fullVisName) fullVisName.textContent = vis.name;
-            showLegend(html.querySelector('.legend'));
+            showLegend(html.querySelector('.legend'), html.querySelector('.steps'));
             shownVisualizer = vis.active;
         } catch (err) {
             console.error('[map] legend failed', err);
@@ -1332,6 +1342,7 @@
             strip = live.strip;
             followVisualizer(live.visualizer);
             filterLegend(legendBox && legendBox.querySelector('.legend'), live.visualizer, shownVisualizer);
+            markStep(legendBox, live.visualizer.step);
             syncAreas(live.visualizer.areas);
             setView();
             const screen = live.display.screen;

@@ -292,6 +292,12 @@
         }
     }
 
+    // which of a stepping visualizer's steps is on now (/api/live's visualizer.step: {labels, index}, or null)
+    function markStep(root, step) {
+        const items = root.querySelectorAll('.steps li');
+        for (let i = 0; i < items.length; i++) items[i].classList.toggle('on', !!step && i === step.index);
+    }
+
     async function poll() {
         try {
             const res = await fetch('/api/live', {cache: 'no-store'});
@@ -300,6 +306,7 @@
             online(true);
             followVisualizer(live.visualizer.active);
             filterLegend(legend.querySelector('.legend'), live.visualizer, shown);
+            if (live.visualizer.active === shown) markStep(legend, live.visualizer.step);
             showRotation(live.visualizer.autoRotate, live.now);
             showBrightness(live.brightness);
             showOled(live.display);
