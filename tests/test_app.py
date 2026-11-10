@@ -644,6 +644,59 @@ def test_a_failed_fetch_at_startup_is_retried(tmp_path, monkeypatch):
     assert len(app.scheduler.get_jobs("retry")) == 1
 
 
+def _build_with_a_fetch(tmp_path, monkeypatch, locate):
+    """Builds a map that fetches (METARs fine, nothing from the network) whose station lookup is `locate`."""
+    from metarmap import metar
+    from metarmap.leds.strip import FakeStrip
+    from metarmap.oled.screen import FakeScreen
+
+    def fetch(self, callback=None, locate=True):
+        self.last_fetch_ok = True
+        return True
+
+    monkeypatch.setattr(metar.Reports, "fetch", fetch)
+    monkeypatch.setattr(metar.Reports, "locate", locate)
+    (tmp_path / "config.json").write_text((REPO / "config.json").read_text())
+    return app_module.build(str(tmp_path / "config.json"), strip=FakeStrip(50), screen=FakeScreen())
+
+
+def _wait_for_the_lookup():
+    for thread in threading.enumerate():
+        if thread.name == "stations":
+            thread.join(timeout=5)
+            assert not thread.is_alive()
+
+
+def test_the_station_lookup_does_not_hold_up_startup(tmp_path, monkeypatch):
+    """aviationweather.gov's station lookup has taken 20 s; the map is built while it is still going."""
+    release, finished = threading.Event(), []
+
+    def slow_locate(self):
+        release.wait(timeout=5)
+        finished.append(True)
+        return True
+
+    app = _build_with_a_fetch(tmp_path, monkeypatch, slow_locate)
+    try:
+        assert finished == []  # build() came back before the lookup did
+        assert app.metars.last_fetch_ok is True
+    finally:
+        release.set()
+    _wait_for_the_lookup()
+    assert finished == [True]
+    assert app.scheduler.get_jobs("retry") == []
+
+
+def test_a_failed_station_lookup_at_startup_is_retried(tmp_path, monkeypatch):
+    def failing_locate(self):
+        self.locate_failed = True
+        return False
+
+    app = _build_with_a_fetch(tmp_path, monkeypatch, failing_locate)
+    _wait_for_the_lookup()
+    assert len(app.scheduler.get_jobs("retry")) == 1  # redone every RETRY_SECONDS, like a failed fetch
+
+
 def test_a_failed_position_lookup_is_retried_on_its_own(make_app, monkeypatch):
     """The METARs arrived but the lookup of where non-reporting airports are got a 502: only the lookup is redone."""
     app = make_app()
@@ -697,7 +750,8 @@ def test_startup_doesnt_wait_for_the_advisories(tmp_path, monkeypatch):
     shown = threading.Event()
     monkeypatch.setattr(advisories.Advisories, "fetch", slow_fetch)
     monkeypatch.setattr(tfr.Tfrs, "fetch_soon", lambda self, then=None: None)
-    monkeypatch.setattr(metar.Reports, "fetch", lambda self, callback=None: True)
+    monkeypatch.setattr(metar.Reports, "fetch", lambda self, callback=None, locate=True: True)
+    monkeypatch.setattr(app_module, "locate_soon", lambda app: None)  # it shows the areas too: not what this is about
     monkeypatch.setattr(app_module, "show_areas", lambda app: shown.set())
     (tmp_path / "config.json").write_text((REPO / "config.json").read_text())
 

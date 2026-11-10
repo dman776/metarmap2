@@ -42,6 +42,7 @@ log = logging.getLogger(__name__)
 CONFIG_FILE = "config.json"
 METAR_MINUTES = 10  # how often METARs are fetched
 RETRY_SECONDS = 60  # after a failed fetch or lookup (e.g. aviationweather.gov answering 502), how soon to try again
+_retry_lock = threading.Lock()  # retry_soon() runs on the scheduler's thread and the startup lookup's
 WATCHDOG_SECONDS = 15  # how often the OLED loop is checked
 
 
@@ -78,7 +79,8 @@ def build(config_file=CONFIG_FILE, strip=None, screen=None, clock: Clock = None,
     log.info("Get weather for all airports...")
     advisories = Advisories()  # fetched in the background below: the map doesn't wait for them
     tfrs = Tfrs(nearby=lambda: config.data.tfr.nearby_nm)
-    metars = Reports(config, fetch=fetch, clock=clock, advisories=advisories, tfrs=tfrs)
+    # the station lookup (where airports without a report are, and the names) is done in the background below
+    metars = Reports(config, fetch=fetch, clock=clock, advisories=advisories, tfrs=tfrs, locate_now=False)
 
     if strip is None:
         strip = open_strip(config.data.led)  # the NeoPixel strip on the Pi; an in-memory strip anywhere else
@@ -112,6 +114,7 @@ def build(config_file=CONFIG_FILE, strip=None, screen=None, clock: Clock = None,
         # they come (the first TFR list has a few dozen details to fetch)
         fetch_advisories_soon(app)
         fetch_tfrs(app)
+        locate_soon(app)
         atis.available()  # with spoken ATIS on, which airports have one (in the background): the pages' ATIS buttons
     return app
 
@@ -297,6 +300,26 @@ def fetch_advisories_soon(app: App):
         threading.Thread(target=fetch, name="advisories", daemon=True).start()
 
 
+def locate_soon(app: App):
+    """
+    At startup: where the airports without a report are, and the names, in the background (aviationweather.gov's
+    station lookup has taken 20 s and answered 504). Only the Map page's positions and the empty names need it, not
+    the LEDs. A failed lookup is retried like any other (retry_soon).
+    """
+
+    def locate():
+        started = time.monotonic()
+        ok = app.metars.locate()
+        log.info(f"stations looked up in {time.monotonic() - started:.1f}s" + ("" if ok else " (failed)"))
+        fill_names(app)
+        if ok:
+            show_areas(app)  # an airport's position places it in the advisory and TFR areas
+        else:
+            retry_soon(app)
+
+    threading.Thread(target=locate, name="stations", daemon=True).start()
+
+
 def fetch_tfrs(app: App):
     """Fetches the TFRs in the background; the LEDs show them when it's done."""
     if app.tfrs is not None:
@@ -323,10 +346,11 @@ def needs_retry(app: App):
 
 def retry_soon(app: App):
     """Tries again every RETRY_SECONDS until it works, instead of waiting for the next regular fetch."""
-    if not app.scheduler.get_jobs("retry"):
-        what = "METAR fetch" if app.metars.last_fetch_ok is False else "airport position lookup"
-        log.warning(f"{what} failed; trying again every {RETRY_SECONDS} s until it works")
-        app.scheduler.every(RETRY_SECONDS).seconds.do(retry_fetch, app).tag("retry")
+    with _retry_lock:  # the startup lookup's thread and the scheduler's thread can both get here
+        if not app.scheduler.get_jobs("retry"):
+            what = "METAR fetch" if app.metars.last_fetch_ok is False else "airport position lookup"
+            log.warning(f"{what} failed; trying again every {RETRY_SECONDS} s until it works")
+            app.scheduler.every(RETRY_SECONDS).seconds.do(retry_fetch, app).tag("retry")
 
 
 def retry_fetch(app: App):
