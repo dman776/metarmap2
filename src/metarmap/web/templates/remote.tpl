@@ -49,7 +49,7 @@
             </div>
         </div>
         <div class="r-legend" id="r-legend">
-            %include("legend.tpl", legend=active['legend'], filtered=active['filtered'])
+            %include("legend.tpl", legend=active['legend'], filtered=active['filtered'], step=active['step'])
         </div>
         <!-- the controls, under the legend (it scrolls on its own); spaced with margins: Safari before 14.1 has no flex gap -->
         <div class="r-foot">
@@ -79,7 +79,7 @@
     <section class="r-panel r-map" id="r-map" role="tabpanel" aria-labelledby="tab-map" hidden>
         <div id="map" class="live-map" role="region" aria-label="Map of airport pixels" data-script="/static/map.js?v={{assets}}"></div>
         <div id="legend-source" hidden>
-            %include("legend.tpl", legend=active['legend'], filtered=active['filtered'])
+            %include("legend.tpl", legend=active['legend'], filtered=active['filtered'], step=active['step'])
         </div>
         <script id="map-settings" type="application/json">{{!json.dumps(settings).replace('</', '<\\/')}}</script>
     </section>

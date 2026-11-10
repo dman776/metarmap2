@@ -791,6 +791,7 @@ def test_live_whole_strip_visualizer(services):
         "autoRotate": {"enabled": False, "seconds": 60, "next": None},
         "legendInUse": None,  # a whole-strip look: its legend is always shown whole
         "legendInUseOnly": False,
+        "step": None,
     }
 
 
@@ -2128,3 +2129,21 @@ def test_the_map_popup_can_read_along(client, page):
     """The popup's Listen tab (map.js) reads an ATIS along with app.js's window.metarmapTranscript."""
     body = client(page)[1]
     assert "/static/app.js?v=" in body and "/static/map.js?v=" in body
+
+
+def test_the_forecast_step_follows_the_clock(client):
+    """Flight Category Forecast: the legend lists the steps, the one on now lit, and /api/live says which."""
+    from metarmap.visualizers import flightcategory_forecast as fcf
+
+    app = client.services
+    client(f"/visualizer/{fcf.VISUALIZER.id}")
+    live = json.loads(client("/api/live")[1])["visualizer"]
+    assert live["step"] == {"labels": ["Now", "+3h", "+6h", "+12h"], "index": 0, "prefix": "FC"}
+    body = client("/map/legend")[1]
+    assert (
+        '<ol class="steps"' in body
+        and '<li class="on">Now</li><li>+3h</li>'.replace("</li><li>", "</li>\n        <li>") in body
+    )
+    assert client("/visualizer/flight_category") and json.loads(client("/api/live")[1])["visualizer"]["step"] is None
+    assert 'class="steps"' not in client("/map/legend")[1]
+    assert app.renderer.step() is None

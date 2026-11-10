@@ -97,7 +97,8 @@ def remote(services: "App", site):
 
 def legend(services: "App", site):
     """The active visualizer's legend on its own: the Map page swaps it in when the visualizer changes."""
-    return render(site, "legend.tpl", legend=views.visualizer(services.renderer)["legend"])
+    active = views.visualizer(services.renderer)
+    return render(site, "legend.tpl", legend=active["legend"], step=active["step"])
 
 
 def debug(services: "App", site):

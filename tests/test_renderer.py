@@ -12,6 +12,7 @@ from metarmap.models import Look, Report
 from metarmap.settings import Settings
 from metarmap.sun import SunTimes
 from metarmap.renderer import Renderer
+from metarmap import visualizers as visualizer_module
 from metarmap.visualizers import chase, flightcategory, precipitation, rainbow, visualizer, wind
 
 NOON = datetime(2026, 10, 24, 17, 0, tzinfo=timezone.utc)
@@ -613,6 +614,23 @@ def test_render_ticks_no_faster_than_the_looks_change(config, clock):
     assert r.frame_seconds() == 0.025
     r._looks = [Look.cycle([(0, 0, 0), (1, 1, 1)], step=0.2), Look.cycle([(0, 0, 0), (1, 1, 1)], step=0.02)]
     assert r.frame_seconds() == renderer.FRAME_SECONDS  # the fastest look sets the pace, not below FRAME_SECONDS
+
+
+def test_step_counts_from_when_the_leds_were_built(config, clock):
+    """A stepping visualizer's step now, for the pages and the Micro; none for the others."""
+    fcf = visualizer_module.BY_ID["flight_category_forecast"]
+    r, _ = make(config, clock, visualizers=[FLIGHT, fcf])
+    assert r.step() is None
+    r.visualizer = 1
+    seconds = fcf.steps(config.data)["seconds"]
+    assert r.step() == {"labels": ["Now", "+3h", "+6h", "+12h"], "index": 0, "prefix": "FC"}
+    clock.advance(seconds * 1.5)
+    assert r.step()["index"] == 1
+    clock.advance(seconds * 3)  # round again
+    assert r.step()["index"] == 0
+    r.refresh()  # rebuilt: counted from now
+    clock.advance(seconds * 2.1)
+    assert r.step()["index"] == 2
 
 
 def test_a_whole_strip_look_ticks_at_full_speed(config, clock):

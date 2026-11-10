@@ -34,6 +34,7 @@ SPLASH_SECONDS = 5.0
 # during quiet hours, how often the loop looks whether they're over (well inside the watchdog's 60 s; turning quiet
 # hours off or changing them restarts the loop, so that's at once)
 QUIET_CHECK_SECONDS = 30
+STEP_CHECK_SECONDS = 1  # in Visualizer mode, how often a stepping visualizer's step is looked at
 
 
 def watchdog_limit(delay: float) -> float:
@@ -209,14 +210,16 @@ class Display:
                         return
                     self._draw(screen)
             self.last_change = self._clock.time()  # waiting on purpose, not stuck
-            if self._clock.wait(event, QUIET_CHECK_SECONDS):
+            # a stepping visualizer's screen shows its step: look every second, to change with it
+            stepping = self._renderer is not None and self._renderer.step() is not None
+            if self._clock.wait(event, STEP_CHECK_SECONDS if stepping else QUIET_CHECK_SECONDS):
                 return
 
     def visualizer_screen(self):
         if self._renderer is None:
             return message_screen("Visualizer")
         _, vis = self._renderer.visualizer
-        return visualizer_screen(vis.short_name, vis.icon)
+        return visualizer_screen(vis.short_name, vis.icon, self._renderer.step())
 
     def visualizer_changed(self):
         """The renderer switched visualizers: in Visualizer mode the screen shows the new one now."""

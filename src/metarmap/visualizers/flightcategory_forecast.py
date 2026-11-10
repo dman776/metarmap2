@@ -60,10 +60,19 @@ def blend(a, b, amount):
     return tuple(int(round(x + (y - x) * amount)) for x, y in zip(a, b))
 
 
+def step_seconds(settings):
+    """How long one step lasts: it is shown for forecast_step_seconds, then fades into the next for FADE."""
+    return settings.visualizer.forecast_step_seconds + FADE
+
+
+def steps(settings):
+    return {"labels": list(STEPS), "seconds": step_seconds(settings), "prefix": "FC"}
+
+
 def frames(colors, seconds):
     """The colors a look steps through: each of `colors` held for `seconds`, fading into the next."""
     held = max(1, round(seconds / FRAME))
-    fades = max(0, round(FADE / FRAME) - 1)
+    fades = max(0, round(FADE / FRAME))  # the frames between two colors; a step is `seconds` + FADE long
     out = []
     for n, color in enumerate(colors):
         following = colors[(n + 1) % len(colors)]
@@ -96,4 +105,5 @@ VISUALIZER = Visualizer(
     icon="clock",
     legend=legend,
     look=look,
+    steps=steps,
 )

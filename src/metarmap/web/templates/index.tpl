@@ -74,7 +74,7 @@
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
                 </button>
             </div>
-            %include("legend.tpl", legend=active['legend'], filtered=active['filtered'])
+            %include("legend.tpl", legend=active['legend'], filtered=active['filtered'], step=active['step'])
             <div class="chip-row" role="group" aria-label="Choose a visualizer">
                 % for v in visualizers:
                 <button class="chip" type="button" aria-pressed="{{'true' if v['id'] == active['id'] else 'false'}}" data-call="/visualizer/{{v['id']}}" data-then="home">{{v['name']}}</button>

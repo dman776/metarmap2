@@ -129,7 +129,7 @@ def test_look_steps_through_the_categories(settings):
     colors = look.colors
     c = flightcategory.COLORS
     assert colors[0] == colors[held - 1] == c["VFR"]
-    assert colors[held + 4] == c["IFR"]  # the next step, once the fade (4 frames) is over
+    assert colors[held + 5] == c["IFR"]  # the next step, once the fade (5 frames) is over
     assert set(colors) >= {c["VFR"], c["IFR"]} and len(colors) > 2 * held
     assert look.legend == ("VFR", "IFR")
 
@@ -171,3 +171,20 @@ def test_estimated_now_when_the_station_reports_no_category(settings):
 def test_legend_and_registration(settings):
     labels = [item["label"] for item in visualizer.legend(fcf.VISUALIZER, settings)]
     assert labels[:5] == ["VFR", "MVFR", "IFR", "LIFR", "No forecast"]
+
+
+def test_a_step_lasts_the_hold_plus_the_fade(settings):
+    """The pages and the Micro count steps by this: it has to be how long the frames of one step take."""
+    look = fcf.look(report(), settings)
+    assert len(look.colors) * look.step == pytest.approx(4 * fcf.step_seconds(settings))
+    assert fcf.steps(settings) == {"labels": ["Now", "+3h", "+6h", "+12h"], "seconds": 7.0, "prefix": "FC"}
+
+
+def test_lightning_keeps_the_steps_going(settings):
+    """An airport with lightning flashes over all of the steps, not over the first 4 seconds of them."""
+    look = fcf.look(report(), settings)
+    stormy = style.with_lightning(look, settings)
+    assert stormy.step == style.LIGHTNING_STEP
+    assert len(stormy.colors) * stormy.step == pytest.approx(len(look.colors) * look.step)  # 28 s, a multiple of 4
+    quiet = [c for c in stormy.colors if c != style.LIGHTNING]
+    assert flightcategory.COLORS["IFR"] in quiet and flightcategory.COLORS["VFR"] in quiet

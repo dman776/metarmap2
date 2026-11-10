@@ -1,6 +1,13 @@
 % if legend:
 <div style="display: flex; flex-direction: column; gap: 10px">
     <div class="lbl">What the pixels mean</div>
+    % if defined('step') and step:
+    <ol class="steps" aria-label="Forecast step">
+        % for n, label in enumerate(step['labels']):
+        <li{{!' class="on"' if n == step['index'] else ''}}>{{label}}</li>
+        % end
+    </ol>
+    % end
     <ul class="legend">
         % for item in legend:
         %   colors = item['colors']

@@ -380,6 +380,9 @@
                 const res = await fetch('/api/live', {cache: 'no-store'});
                 if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
                 const live = await res.json();
+                const step = live.visualizer.step;  // a stepping visualizer's step now: Flight Category Forecast
+                const items = document.querySelectorAll('.steps li');
+                for (let i = 0; i < items.length; i++) items[i].classList.toggle('on', !!step && i === step.index);
                 const f = live.fetch;
                 if (f && f.fetched !== null && (pageFetched === null || f.fetched > pageFetched + 1)) {
                     window.location.reload();  // new METARs: show them

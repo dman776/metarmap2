@@ -167,6 +167,13 @@ def test_visualizer_screen():
     assert screen_picture(m) is ICONS["mountain"]
 
 
+def test_visualizer_screen_shows_the_step_in_the_title():
+    step = {"labels": ["Now", "+3h", "+6h", "+12h"], "index": 3, "prefix": "FC"}
+    m = screens.visualizer_screen("FC Forecast", "clock", step)
+    assert m["title"] == "FC +12h" and m["visualizer_icon"] == "clock"
+    assert screens.visualizer_screen("Wind", "wind", None)["title"] == "Wind"
+
+
 def test_screen_picture():
     assert screen_picture(screens.splash_screen()) is LOGO
     assert screen_picture(screens.message_screen("MAP")) is None

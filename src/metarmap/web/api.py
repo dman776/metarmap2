@@ -233,6 +233,8 @@ def live(services: "App", now=None):
             # legendInUseOnly (visualizer.legend_in_use_only)
             "legendInUse": renderer.legend_in_use(),
             "legendInUseOnly": services.config.data.visualizer.legend_in_use_only,
+            # a stepping visualizer's step now ({"labels": [...], "index": n}), else null
+            "step": renderer.step(),
         },
         "fetch": fetch_schedule(services),
         "strip": strip,
