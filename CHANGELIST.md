@@ -1,5 +1,9 @@
 ### Unreleased
 
+- **The Chart starts without waiting for the airport lookup**: where the airports without a report are, and their
+  names, are looked up in the background at startup. aviationweather.gov's station lookup has taken 20 s (and answered
+  504), which held the LEDs back that long. The pixels come first; the Map page's rings and any empty airport names
+  follow when the lookup is done, and a failed lookup is tried again every minute, as before
 - **The Cockpit has an icon on the Home Screen**: saving it to an iPad's (or iPhone's) Home Screen shows the MetarMap2
   plane instead of a blank page thumbnail. An icon already added stays as it was: remove it and add it again
 - **Click a line of an ATIS to hear it**: on the Pronunciation page's sample, the Cockpit's ATIS, the METARs page and

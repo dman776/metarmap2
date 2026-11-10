@@ -273,6 +273,15 @@ def test_airports_without_a_report_are_looked_up(monkeypatch, make_config, fixtu
     assert len(asked) == 1  # each code is looked up once, including ones it doesn't know
 
 
+def test_the_startup_fetch_can_leave_the_lookup_to_the_caller(monkeypatch, make_config, fixture_bytes):
+    asked = stations_api(monkeypatch, fixture_bytes)
+    m = metar.Reports(make_config("KHOU", "KDKR"), fetch=True, clock=CLOCK, locate_now=False)
+    assert m.last_fetch_ok is True and m.data["KHOU"] is not None  # the METARs are in
+    assert asked == [] and m.positions == {} and m.locate_failed is False  # nothing asked for the stations yet
+    assert m.locate() is True  # the app does this in the background
+    assert asked == [["KHOU", "KDKR"]] and m.position("KDKR") == (31.307, -95.404)
+
+
 def test_a_failed_lookup_is_tried_again(monkeypatch, make_config, fixture_bytes):
     stations_api(monkeypatch, fixture_bytes, fail=True)
     m = metar.Reports(make_config("KDKR"), clock=CLOCK)

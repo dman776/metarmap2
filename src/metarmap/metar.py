@@ -336,10 +336,12 @@ class Reports:
     Fetches the METARs and keeps each airport's Report (None when it isn't reporting) in .data, by code.
     """
 
-    def __init__(self, cfg, fetch=False, clock: Clock = None, advisories=None, tfrs=None):
+    def __init__(self, cfg, fetch=False, clock: Clock = None, advisories=None, tfrs=None, locate_now=True):
         """
         advisories: metarmap.advisories.Advisories, whose hazards are added to each report
         (with_advisories); None for none. tfrs: metarmap.tfr.Tfrs, the same for TFRs (with_tfrs).
+        locate_now: whether the fetch at startup also looks up where airports are (locate); False leaves that to the
+        caller, to do in the background (the lookup can take 20 s, and the LEDs don't need it).
         """
 
         self._config = cfg
@@ -357,10 +359,13 @@ class Reports:
         self.locate_failed = False  # whether the last position lookup failed (e.g. a 502); locate() tries again
         self.apply_mocks()  # mocks show before the first fetch, and without a network
         if fetch:
-            self.fetch()
+            self.fetch(locate=locate_now)
 
-    def fetch(self, callback=None):
-        """Fetches and processes the METARs. Returns True if it worked; on an error the old data is kept."""
+    def fetch(self, callback=None, locate=True):
+        """
+        Fetches and processes the METARs, then looks up the airports it doesn't know yet (unless locate is False).
+        Returns True if the METARs worked; on an error the old data is kept.
+        """
         ok = False
         try:
             self._is_fetching = True
@@ -374,7 +379,8 @@ class Reports:
             log.info("Fetching completed.")
             self._process(content)
             ok = True
-            self.locate()
+            if locate:
+                self.locate()
         except requests.exceptions.RequestException as e:
             log.warning(f"Error occurred (RequestException): {e}")
         except Exception as e:
