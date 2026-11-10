@@ -221,7 +221,8 @@ Changes save right away. To check the wiring order:
   (**Forecast step time**, **Forecast counts TEMPO and PROB**, in the **Forecast** card of Config > Visualizers)
 - whether the legends list only what the pixels are showing now (**Only show legend items in use**, off by
   default)
-- lightning: the animation on or off, and its color (yellow or white)
+- lightning: the animation on or off, its color (yellow or white), and whether the two forecast visualizers flash it (off by default)
+  (**Lightning on forecasts**, in the **Forecast** card of Config > Visualizers, shown while the animation is on)
 - the Micro (the OLED screen)
 - the map page's chart
 - the pixel brightness for day, dawn and dusk, and night
@@ -342,6 +343,7 @@ curl http://metarmap.local/api/status                            # current state
 curl http://metarmap.local/brightness/0.25                       # set the pixels' brightness
 curl http://metarmap.local/visualizer/next                       # next visualizer
 curl -u metar:map http://metarmap.local/config/edit/lightning.animation/false
+curl -u metar:map http://metarmap.local/config/edit/lightning.forecast/true   # lightning on the forecast visualizers too (off by default)
 ```
 
 The [metarmap2_ha](https://github.com/dman776/metarmap2_ha) custom integration controls the map from Home Assistant

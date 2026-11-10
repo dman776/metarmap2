@@ -230,6 +230,9 @@ LIGHTNING_COLORS = ("yellow", "white")
 class Lightning(_Section):
     animation: bool = True
     color: str = setting("yellow", choices=LIGHTNING_COLORS)
+    # with animation on, whether the forecast visualizers (the ones that step through the TAF) flash it too; off (the
+    # default): neither their LEDs nor their legend show lightning
+    forecast: bool = False
 
 
 # tfr.nearby_nm: the most a TFR can be from an airport and still show on its LED (0: inside only)

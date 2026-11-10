@@ -457,6 +457,7 @@ def test_lightning_flickers_over_the_category(settings):
 
 @pytest.mark.parametrize("v", visualizers.WEATHER)
 def test_every_weather_visualizer_shows_lightning(v, settings):
+    settings.lightning.forecast = True  # off by default, and only the forecast visualizers care
     look = lit(v, settings, lightning=True)
     yellow = style.LIGHTNING
     assert look.effect == "cycle" and look.colors[:3] == (yellow,) * 3 and look.colors[40:43] == (yellow,) * 3
@@ -538,6 +539,49 @@ def test_unknown_lightning_color_in_config_json_is_yellow():
 
 def test_every_lightning_color_has_an_led_color():
     assert set(style.LIGHTNING_COLORS) == set(LIGHTNING_COLORS)
+
+
+FORECASTS = [v for v in visualizers.WEATHER if v.steps is not None]
+
+
+def test_the_forecast_visualizers_are_the_ones_with_steps():
+    assert {v.id for v in FORECASTS} == {"flight_category_forecast", "precipitation_forecast"}
+
+
+def test_lightning_forecast_is_off_by_default(settings):
+    assert settings.lightning.forecast is False
+    assert not any(visualizer.shows_lightning(v, settings) for v in FORECASTS)
+
+
+@pytest.mark.parametrize("v", FORECASTS)
+def test_lightning_forecast_on_shows_it_on_the_forecast_visualizers(v, settings):
+    settings.lightning.forecast = True
+    m = metar(lightning=True, weather="TSRA")
+    assert visualizer.shows_lightning(v, settings)
+    assert visualizer.look(v, m, settings) != v.look(m, settings)
+    assert any(i["label"] == "Lightning or a thunderstorm" for i in visualizer.legend(v, settings))
+
+
+@pytest.mark.parametrize("v", FORECASTS)
+def test_lightning_forecast_off_drops_it_from_the_forecast_visualizers(v, settings):
+    m = metar(lightning=True, weather="TSRA")
+    assert not visualizer.shows_lightning(v, settings)
+    assert visualizer.look(v, m, settings) == v.look(m, settings)
+    assert all(i["label"] != "Lightning or a thunderstorm" for i in visualizer.legend(v, settings))
+
+
+@pytest.mark.parametrize("v", [v for v in visualizers.WEATHER if v.steps is None])
+def test_lightning_forecast_off_leaves_the_other_visualizers_alone(v, settings):
+    look = lit(v, settings, lightning=True)
+    assert look.effect == "cycle" and look.colors[:3] == (style.LIGHTNING,) * 3
+    assert any(i["label"] == "Lightning or a thunderstorm" for i in visualizer.legend(v, settings))
+
+
+@pytest.mark.parametrize("v", FORECASTS)
+def test_lightning_animation_off_wins_over_lightning_forecast(v, settings):
+    settings.lightning.forecast = True
+    settings.lightning.animation = False
+    assert not visualizer.shows_lightning(v, settings)
 
 
 def test_lightning_isnt_added_to_whole_strip_patterns(settings):

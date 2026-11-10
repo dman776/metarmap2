@@ -109,6 +109,7 @@ def status(services: "App", ip):
             "visualizer.legend_in_use_only": cfg.visualizer.legend_in_use_only,
             "lightning.animation": cfg.lightning.animation,
             "lightning.color": cfg.lightning.color,
+            "lightning.forecast": cfg.lightning.forecast,
             "display_screen.enabled": cfg.display_screen.enabled,
             "display_screen.locate_active": cfg.display_screen.locate_active,
             "display_screen.delay": cfg.display_screen.delay,
