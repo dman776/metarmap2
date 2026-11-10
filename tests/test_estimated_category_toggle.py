@@ -62,7 +62,7 @@ def test_missing_data_blink_setting_remains_independent():
     settings.visualizer.missing_data_blink = False
     assert (
         visualizer.look(
-            flightcategory,
+            flightcategory.VISUALIZER,
             Report(flight_category=None),
             settings,
         )

@@ -58,6 +58,7 @@ Returns a read-only snapshot of the Chart's state as `application/json`. No auth
     "visualizer.forecast_include_tempo": true,
     "lightning.animation": true,
     "lightning.color": "yellow",
+    "lightning.forecast": false,
     "display_screen.enabled": true,
     "display_screen.locate_active": true,
     "display_screen.delay": 5.0,
@@ -509,6 +510,7 @@ Settings that apply right away:
 - `visualizer.forecast_step_seconds`: Flight Category Forecast and Precipitation Forecast show each step (now, +3, +6 and +12 hours) this many seconds (2-30), fading into the next. `6` by default (Config > Visualizers > Forecast)
 - `visualizer.forecast_include_tempo`: the forecast visualizers count a TEMPO or PROB group of the TAF when it is worse than the base forecast: the worst flight category in effect (Flight Category Forecast), the most significant weather (Precipitation Forecast). `false`: the base forecast, FM and BECMG groups only. `true` by default (Config > Visualizers > Forecast)
 - `visualizer.legend_in_use_only`: the legends on Home, Map and Cockpit list only the entries the pixels are showing now (e.g. only VFR and MVFR), and follow them as they change. `false` (everything the visualizer can show) by default
+- `lightning.forecast`: `true`: Flight Category Forecast and Precipitation Forecast flash lightning too; `false`: they show no lightning flashes and no lightning legend entry. The other visualizers always follow `lightning.animation` (off there means no lightning anywhere). `false` by default (Config > Visualizers > Forecast, shown only while Lightning animation is on)
 - `lightning.color`: the flicker's color, `yellow` (the default) or `white`; anything else is a 400. Precipitation's thunderstorm stays yellow either way (its snow is white)
 - `display_screen.locate_active`
 - `display_screen.delay`

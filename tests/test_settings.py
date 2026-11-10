@@ -61,6 +61,7 @@ def test_save_and_load(tmp_path):
         ("lightning.animation", "false", False),
         ("lightning.animation", "True", True),
         ("lightning.animation", True, True),
+        ("lightning.forecast", "false", False),
         ("display_screen.delay", "7.5", 7.5),
         ("display_screen.delay", "5", 5),
         ("visualizer.active", "3", "wind_direction"),  # by number

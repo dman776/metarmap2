@@ -140,7 +140,13 @@ def looks(vis, codes, data, settings) -> List[Look]:
 
 
 def shows_lightning(vis: Visualizer, settings) -> bool:
-    return vis.look is not None and settings.lightning.animation
+    """
+    Whether lightning goes over the visualizer's looks and into its legend: lightning.animation, for one with a look
+    per airport. A forecast visualizer (one with steps) also needs lightning.forecast.
+    """
+    if vis.look is None or not settings.lightning.animation:
+        return False
+    return vis.steps is None or settings.lightning.forecast
 
 
 def look(vis, metar, settings) -> Look:

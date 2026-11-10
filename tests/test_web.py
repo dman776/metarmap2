@@ -409,6 +409,18 @@ def test_lightning_color(client):
     assert '<option value="white" selected>White</option>' in client("/config")[1]
 
 
+def test_lightning_forecast(client):
+    def forecast():
+        return client.services.config.data.lightning.forecast
+
+    assert forecast() is False
+    assert client.json("/api/status", auth=False)["config"]["lightning.forecast"] is False
+    assert client("/config/edit/lightning.forecast/true")[0] == 200
+    assert forecast() is True
+    assert client("/config/edit/lightning.forecast/maybe")[0] == 400
+    assert client.json("/api/status", auth=False)["config"]["lightning.forecast"] is True
+
+
 def test_config_tabs(client):
     body = client("/config")[1]
     tabs = re.findall(r'<a class="tab" href="([^"]+)" data-tab="(\w+)"', body)
@@ -2149,6 +2161,18 @@ def test_the_forecast_step_follows_the_clock(client):
     assert app.renderer.step() is None
 
 
+def test_config_lightning_forecast_toggle_renders_under_lightning_animation(client):
+    body = client("/config")[1]
+    assert 'data-key="lightning.forecast"' in body
+    assert "Lightning on forecasts" in body
+    wrapper = body[body.index('data-when="lightning-animation"', body.index("Forecast counts TEMPO")) :]
+    assert wrapper.index('data-key="lightning.forecast"') < wrapper.index("</section>")
+    client("/config/edit/lightning.animation/false")
+    wrapper = client("/config")[1]
+    wrapper = wrapper[wrapper.index('data-when="lightning-animation"', wrapper.index("Forecast counts TEMPO")) :]
+    assert " hidden" in wrapper[: wrapper.index(">")]
+
+
 def test_config_visualizers_tab_has_a_card_for_each_visualizer_with_settings(client):
     """Global first, then one card per visualizer (or effect) that has settings of its own."""
     import re
@@ -2172,5 +2196,6 @@ def test_config_visualizers_tab_has_a_card_for_each_visualizer_with_settings(cli
     assert found["Forecast"] == {
         "visualizer.forecast_step_seconds",
         "visualizer.forecast_include_tempo",
+        "lightning.forecast",
     }
     assert found["TFR"] == {"tfr.nearby_nm"}

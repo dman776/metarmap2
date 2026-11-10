@@ -1,5 +1,9 @@
 ### Unreleased
 
+- **Lightning on forecasts**: Flight Category Forecast and Precipitation Forecast no longer flash lightning (or list it
+  in the legend) by default, where a flash over the steps can be distracting. A new switch in Config > Visualizers >
+  Forecast turns it back on. The other visualizers keep flashing. It shows only while Lightning animation is on, and that
+  setting still wins: with it off there is no lightning anywhere. `lightning.forecast`, off by default
 - **Precipitation Forecast** (new visualizer): every airport steps through its weather now (the METAR) and as its TAF
   forecasts it 3, 6 and 12 hours ahead, fading from one step to the next, all airports together, each step looking as it
   does in Precipitation (the color is what it is, the effect how heavy). A TEMPO or PROB group counts when its weather is
