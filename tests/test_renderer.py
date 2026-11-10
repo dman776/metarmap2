@@ -608,11 +608,20 @@ def test_render_ticks_no_faster_than_the_looks_change(config, clock):
     from metarmap import renderer
 
     r, _ = make(config, clock)
-    assert r.frame_seconds() == renderer.FRAME_SECONDS  # solid looks: only the rainbow-less default
+    assert r.frame_seconds() == renderer.FRAME_SECONDS  # solid looks
     r._looks = [Look.cycle([(0, 0, 0), (1, 1, 1)], step=0.2)] * 3
-    assert r.frame_seconds() == 0.05
+    assert r.frame_seconds() == 0.025
     r._looks = [Look.cycle([(0, 0, 0), (1, 1, 1)], step=0.2), Look.cycle([(0, 0, 0), (1, 1, 1)], step=0.02)]
     assert r.frame_seconds() == renderer.FRAME_SECONDS  # the fastest look sets the pace, not below FRAME_SECONDS
+
+
+def test_a_whole_strip_look_ticks_at_full_speed(config, clock):
+    """Rainbow steps every 0.1 s: a slower tick makes the steps uneven, which shows as stutter."""
+    from metarmap import renderer
+
+    r, _ = make(config, clock)
+    r.visualizer = 3  # rainbow
+    assert r.strip_look is not None and r.frame_seconds() == renderer.FRAME_SECONDS
 
 
 def test_led_states_are_converted_once_per_rebuild(config, clock, monkeypatch):
