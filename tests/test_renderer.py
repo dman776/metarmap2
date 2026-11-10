@@ -613,3 +613,17 @@ def test_render_ticks_no_faster_than_the_looks_change(config, clock):
     assert r.frame_seconds() == 0.05
     r._looks = [Look.cycle([(0, 0, 0), (1, 1, 1)], step=0.2), Look.cycle([(0, 0, 0), (1, 1, 1)], step=0.02)]
     assert r.frame_seconds() == renderer.FRAME_SECONDS  # the fastest look sets the pace, not below FRAME_SECONDS
+
+
+def test_led_states_are_converted_once_per_rebuild(config, clock, monkeypatch):
+    """/api/live is polled by every open page every second: a look with ~140 colors must not be redone each time."""
+    r, _ = make(config, clock)
+    calls = []
+    real = Look.to_dict
+    monkeypatch.setattr(Look, "to_dict", lambda self: calls.append(1) or real(self))
+    first = r.led_states()
+    count = len(calls)
+    assert count and r.led_states() == first and len(calls) == count
+    r.refresh()  # rebuilt: converted again
+    r.led_states()
+    assert len(calls) > count
