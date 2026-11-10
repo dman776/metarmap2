@@ -333,11 +333,17 @@ def with_tfrs(data, tfrs):
 
 def with_forecast(data, forecasts, include_temporary=True):
     """
-    The METARs, each with forecast: its TAF's flight category 3, 6 and 12 hours ahead (forecast.Forecasts.forecast), or
-    None while it has no TAF. Airports with no report stay None.
+    The METARs, each with forecast: its TAF's flight category 3, 6 and 12 hours ahead (forecast.Forecasts.forecast), and
+    forecast_weather: its weather then (Forecasts.weather); None while it has no TAF. Airports with no report stay None.
     """
     return {
-        code: m if m is None else replace(m, forecast=forecasts.forecast(code, include_temporary))
+        code: m
+        if m is None
+        else replace(
+            m,
+            forecast=forecasts.forecast(code, include_temporary),
+            forecast_weather=forecasts.weather(code, include_temporary),
+        )
         for code, m in data.items()
     }
 

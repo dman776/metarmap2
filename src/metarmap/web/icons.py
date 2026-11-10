@@ -29,6 +29,7 @@ SHAPES = {
     '<circle cx="10" cy="12" r="2" opacity=".5"/><circle cx="16" cy="12" r="2.5" opacity=".8"/>'
     '<circle cx="21" cy="12" r="2"/></g>',
     "clock": '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    "umbrella": '<path d="M3 12a9 9 0 0 1 18 0Z"/><path d="M12 3v-1M12 12v6.5a2 2 0 0 1-4 0"/>',
 }
 assert set(SHAPES) == set(ICONS), "every visualizer icon needs a shape"
 

@@ -220,9 +220,9 @@
         % switch('visualizer.estimated_category_breathing', d.visualizer.estimated_category_breathing, 'Estimated flight category breathing', 'Estimated flight categories breathe slowly. Off shows them in a steady color, like a reported one (the Micro still shows VFR*).')
     </section>
     <section class="card settings">
-        <h2>Flight Category Forecast</h2>
-        % slider('visualizer.forecast_step_seconds', d.visualizer.forecast_step_seconds, 'Forecast step time', 'How long each step (now, +3, +6 and +12 hours) is shown.', lo=2, hi=30, step=1, fmt='sec')
-        % switch('visualizer.forecast_include_tempo', d.visualizer.forecast_include_tempo, 'Forecast counts TEMPO and PROB', 'A TEMPO or PROB group in the TAF counts when it is worse than the base forecast. Off follows the base forecast only.')
+        <h2>Forecast</h2>
+        % slider('visualizer.forecast_step_seconds', d.visualizer.forecast_step_seconds, 'Forecast step time', 'Flight Category Forecast and Precipitation Forecast: how long each step (now, +3, +6 and +12 hours) is shown.', lo=2, hi=30, step=1, fmt='sec')
+        % switch('visualizer.forecast_include_tempo', d.visualizer.forecast_include_tempo, 'Forecast counts TEMPO and PROB', 'A TEMPO or PROB group in the TAF counts when its flight category is worse (Flight Category Forecast) or its weather more significant (Precipitation Forecast) than the base forecast. Off follows the base forecast only.')
     </section>
     <section class="card settings">
         <h2>TFR</h2>

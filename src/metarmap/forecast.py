@@ -48,6 +48,7 @@ class Group:
     vis: Optional[float] = None  # statute miles
     layers: Tuple[SkyLayer, ...] = ()
     vert_vis_ft: Optional[int] = None
+    wx: Optional[str] = None  # weather codes ("-RA BR"); "" for NSW (none); None when the group doesn't name any
 
 
 @dataclass
@@ -79,7 +80,9 @@ def parse_group(f) -> Optional[Group]:
     except (ValueError, ZeroDivisionError):
         vis = None
     vert = _number(f.get("vertVis"))
-    return Group(int(start), int(end), kind, vis, tuple(layers), int(vert) if vert is not None else None)
+    wx = f.get("wxString")
+    wx = None if not isinstance(wx, str) or not wx.strip() else ("" if wx.strip() == "NSW" else wx.strip())
+    return Group(int(start), int(end), kind, vis, tuple(layers), int(vert) if vert is not None else None, wx)
 
 
 def parse_tafs(data) -> Dict[str, Taf]:
@@ -105,30 +108,59 @@ def _worse(a, b):
     return max(a, b, key=CATEGORIES.index)
 
 
+def _in_taf(taf: Taf, when: float) -> bool:
+    return not (when < min(g.start for g in taf.groups) or (taf.valid_to and when >= taf.valid_to))
+
+
+def _prevailing(taf: Taf, when: float):
+    """
+    What the base forecast and its FM and BECMG groups say at `when`, as (visibility, sky layers, vertical visibility,
+    weather): a BECMG group changes only what it names, an FM group (or the base forecast) says everything, so a
+    weather it leaves out is no weather.
+    """
+    vis, layers, vert, wx = None, (), None, ""
+    for g in sorted((g for g in taf.groups if g.kind not in TEMPORARY), key=lambda g: g.start):
+        if g.start > when:
+            break
+        if g.kind in (None, "FM"):  # everything changes
+            vis, layers, vert, wx = g.vis, g.layers, g.vert_vis_ft, g.wx or ""
+            continue
+        vis = g.vis if g.vis is not None else vis
+        layers = g.layers or layers
+        vert = g.vert_vis_ft if g.vert_vis_ft is not None else vert
+        wx = g.wx if g.wx is not None else wx
+    return vis, layers, vert, wx
+
+
 def category_at(taf: Taf, when: float, include_temporary: bool = True) -> Optional[str]:
     """
     The flight category the TAF forecasts at `when` (epoch seconds), or None when it doesn't cover that time or names
     neither a visibility nor a sky. With include_temporary, a TEMPO or PROB group in effect then counts when it is
     worse (the worst category in effect); without, only the base forecast, FM and BECMG groups do.
     """
-    if when < min(g.start for g in taf.groups) or (taf.valid_to and when >= taf.valid_to):
+    if not _in_taf(taf, when):
         return None
-    vis, layers, vert = None, (), None
-    for g in sorted((g for g in taf.groups if g.kind not in TEMPORARY), key=lambda g: g.start):
-        if g.start > when:
-            break
-        if g.kind == "FM":  # everything changes
-            vis, layers, vert = g.vis, g.layers, g.vert_vis_ft
-            continue
-        vis = g.vis if g.vis is not None else vis
-        layers = g.layers or layers
-        vert = g.vert_vis_ft if g.vert_vis_ft is not None else vert
+    vis, layers, vert, _ = _prevailing(taf, when)
     best = category_from(vis, layers, vert)
     if include_temporary:
         for g in taf.groups:
             if g.kind in TEMPORARY and g.start <= when < g.end:
                 best = _worse(best, category_from(g.vis if g.vis is not None else vis, g.layers or layers, vert))
     return best
+
+
+def weather_at(taf: Taf, when: float, include_temporary: bool = True) -> Optional[Tuple[str, ...]]:
+    """
+    The weather the TAF forecasts at `when`: the weather codes of the forecast in effect ("-RA BR") and, with
+    include_temporary, of each TEMPO or PROB group in effect, leaving out the groups with none and repeats. An empty
+    tuple is a dry forecast; None, a time the TAF doesn't cover.
+    """
+    if not _in_taf(taf, when):
+        return None
+    found = [_prevailing(taf, when)[3]]
+    if include_temporary:
+        found += [g.wx for g in taf.groups if g.kind in TEMPORARY and g.start <= when < g.end and g.wx]
+    return tuple(dict.fromkeys(wx for wx in found if wx))  # each once
 
 
 class Forecasts:
@@ -198,3 +230,15 @@ class Forecasts:
             return None
         now = self._clock()
         return tuple(category_at(taf, now + hours * 3600, include_temporary) for hours in HOURS)
+
+    def weather(self, code, include_temporary=True) -> Optional[Tuple[Optional[Tuple[str, ...]], ...]]:
+        """
+        The weather forecast for the airport HOURS ahead (weather_at(); None for an hour its TAF doesn't reach), or
+        None when it has no TAF.
+        """
+        with self._lock:
+            taf = self._tafs.get(code)
+        if taf is None:
+            return None
+        now = self._clock()
+        return tuple(weather_at(taf, now + hours * 3600, include_temporary) for hours in HOURS)
