@@ -7,6 +7,7 @@ import base64
 import io
 import json
 import os
+import pathlib
 import re
 import struct
 import subprocess
@@ -808,7 +809,7 @@ def test_live_whole_strip_visualizer(services):
         "icon": "rainbow",
         "exclusive": True,
         "areas": None,
-        "autoRotate": {"enabled": False, "seconds": 60, "next": None},
+        "autoRotate": {"enabled": False, "seconds": 60, "next": None, "skip": []},
         "legendInUse": None,  # a whole-strip look: its legend is always shown whole
         "legendInUseOnly": False,
         "step": None,
@@ -1794,10 +1795,10 @@ def test_remote_page(client):
     assert 'data-script="/static/map.js?v=' in body and '<script src="/static/map.js' not in body
     assert 'id="map-settings"' in body and "leaflet.js" in body
     assert body.count("data-vis=") == len(app.renderer.visualizers)
-    assert 'data-vis="0" data-name="Flight Category"' in body
+    assert 'data-vis="0" data-id="flight_category" data-name="Flight Category"' in body
     # each chip has its visualizer's icon, from the page's sprite
     assert body.count('<symbol id="vi-') == len(icons.SHAPES)
-    assert '<use href="#vi-plane"/></svg>Flight Category</button>' in body
+    assert '<use href="#vi-plane"/></svg>Flight Category<span class="skip-badge"' in body
     assert 'id="r-legend"' in body and 'class="legend"' in body
     assert 'id="brightness"' in body and "data-update" not in body
     assert "<dialog" not in body  # nothing opens them here; a browser without <dialog> would show them
@@ -1842,6 +1843,7 @@ def test_remote_auto_rotate_switch(client):
         "enabled": False,
         "seconds": app.config.data.visualizer.auto_rotate.delay_seconds,
         "next": None,
+        "skip": [],
     }
     assert client("/visualizer/auto_rotate/on", auth=False)[0] == 200  # saved, but no login: only this setting
     assert app.config.data.visualizer.auto_rotate.enabled
@@ -1851,6 +1853,91 @@ def test_remote_auto_rotate_switch(client):
     assert client("/visualizer/auto_rotate/off", auth=False)[0] == 200
     assert not app.config.data.visualizer.auto_rotate.enabled and not app.scheduler.get_jobs("rotate_visualizer")
     assert client("/visualizer/auto_rotate/maybe", auth=False)[0] == 400
+
+
+def test_skip_and_unskip_a_visualizer(client):
+    """Press and hold on the Cockpit (and the Copilot): saved in visualizer.auto_rotate.skip, no login."""
+    app = client.services
+    skip = lambda: app.config.data.visualizer.auto_rotate.skip  # noqa: E731
+
+    status, body = client("/visualizer/wind/skip", auth=False)
+    assert status == 200
+    assert json.loads(body) == {"id": "wind", "skipped": True, "skip": ["wind"]}
+    assert skip() == ["wind"]
+    assert json.loads(client("/visualizer/wind/skip", auth=False)[1])["skip"] == ["wind"]  # again: the same
+    assert json.loads(client("/visualizer/3/skip", auth=False)[1])["skip"] == ["wind", "wind_direction"]  # a number
+
+    # saved to config.json, and the same list /config/edit shows
+    assert json.loads(pathlib.Path(app.config._file).read_text())["visualizer"]["auto_rotate"]["skip"] == [
+        "wind",
+        "wind_direction",
+    ]
+    assert client.json("/api/status", auth=False)["config"]["visualizer.auto_rotate.skip"] == skip()
+
+    assert json.loads(client("/visualizer/wind/unskip", auth=False)[1]) == {
+        "id": "wind",
+        "skipped": False,
+        "skip": ["wind_direction"],
+    }
+    assert json.loads(client("/visualizer/wind/unskip", auth=False)[1])["skip"] == ["wind_direction"]  # again
+    assert skip() == ["wind_direction"]
+
+    # the running one can be skipped: it keeps running, and the buttons still pick it
+    client("/visualizer/precipitation")
+    assert client("/visualizer/precipitation/skip", auth=False)[0] == 200
+    assert app.renderer.visualizer[1].id == "precipitation"
+    assert client("/visualizer/precipitation", auth=False)[0] == 200
+
+    for unknown in ("nope", "99", "-1"):
+        assert client(f"/visualizer/{unknown}/skip", auth=False)[0] == 400
+        assert client(f"/visualizer/{unknown}/unskip", auth=False)[0] == 400
+    assert client("/visualizer/next/skip", auth=False)[0] == 400
+    assert client("/visualizer/auto_rotate/skip", auth=False)[0] == 400
+
+
+def test_skip_leaves_at_least_one_visualizer_and_never_an_exclusive_one(client):
+    app = client.services
+    rotating = [v.id for v in app.renderer.visualizers if not v.exclusive]
+    exclusive = [v.id for v in app.renderer.visualizers if v.exclusive]
+    assert exclusive
+    for vid in rotating[:-1]:
+        assert client(f"/visualizer/{vid}/skip", auth=False)[0] == 200
+    last = rotating[-1]
+    status, body = client(f"/visualizer/{last}/skip", auth=False)
+    assert status == 400 and "last visualizer" in body
+    assert app.config.data.visualizer.auto_rotate.skip == rotating[:-1]
+    assert client(f"/visualizer/{rotating[0]}/unskip", auth=False)[0] == 200  # and one more can go
+    assert client(f"/visualizer/{last}/skip", auth=False)[0] == 200
+
+    for vid in exclusive:  # always left out already: nothing to save
+        status, body = client(f"/visualizer/{vid}/skip", auth=False)
+        assert status == 400 and "always left out" in body
+        assert json.loads(client(f"/visualizer/{vid}/unskip", auth=False)[1])["skipped"] is False
+
+
+def test_skipped_visualizers_in_the_api_and_the_cockpit(client):
+    app = client.services
+    status = lambda: {v["id"]: v["skipped"] for v in client.json("/api/status", auth=False)["visualizers"]}  # noqa: E731
+    assert not any(status().values())
+    assert client.json("/api/live", auth=False)["visualizer"]["autoRotate"]["skip"] == []
+    client("/visualizer/wind/skip", auth=False)
+    assert status()["wind"] is True and status()["wind_gusts"] is False
+    assert client.json("/api/live", auth=False)["visualizer"]["autoRotate"]["skip"] == ["wind"]
+
+    body = client("/remote", auth=False)[1]
+    assert body.count('<span class="skip-badge"') == len(app.renderer.visualizers)  # the badge is in each chip
+    assert body.count('class="chip skipped"') == 1
+    assert 'class="chip skipped" type="button" aria-pressed="false" data-call="/visualizer/wind"' in body
+    assert 'data-id="wind"' in body and 'id="r-toast"' in body
+    js = client("/static/remote.js", auth=False)[1]
+    for text in ("PRESS_MS = 600", "touchstart", "mousedown", "contextmenu", "/skip", "/unskip", "autoRotate.skip"):
+        assert text in js
+    assert (
+        "PointerEvent" not in js
+        and "pointerdown" not in js.split("press and hold a visualizer")[1].split("auto-rotate: the switch")[0]
+    )
+    css = client("/static/style.css", auth=False)[1]
+    assert "-webkit-touch-callout: none" in css and ".skip-badge" in css
 
 
 def test_remote_page_follows_the_map(client):
@@ -2212,3 +2299,65 @@ def test_config_visualizers_tab_has_a_card_for_each_visualizer_with_settings(cli
         "lightning.forecast",
     }
     assert found["TFR"] == {"tfr.nearby_nm"}
+
+
+def test_skip_refusals_say_why_in_json(client):
+    app = client.services
+    rotating = [v.id for v in app.renderer.visualizers if not v.exclusive]
+    exclusive = next(v.id for v in app.renderer.visualizers if v.exclusive)
+    for vid in rotating[:-1]:
+        client(f"/visualizer/{vid}/skip", auth=False)
+    for path, reason in (
+        (f"/visualizer/{rotating[-1]}/skip", "last"),
+        (f"/visualizer/{exclusive}/skip", "exclusive"),
+        ("/visualizer/nope/skip", "unknown"),
+    ):
+        status, body = client(path, auth=False)
+        assert status == 400
+        assert json.loads(body)["reason"] == reason and json.loads(body)["error"]
+
+
+@pytest.mark.parametrize("key", ["%C2%B2", "%DB%B3", "%D9%A3", "%EF%BC%91"])  # superscript two, other scripts' digits
+def test_unicode_digits_are_not_visualizer_numbers(client, key):
+    """str.isdigit() is true for them but int() refuses; they're an unknown visualizer, not a 500."""
+    assert client(f"/visualizer/{key}", auth=False)[0] == 404
+    assert client(f"/visualizer/{key}/skip", auth=False)[0] == 400
+    assert client(f"/visualizer/{key}/unskip", auth=False)[0] == 400
+
+
+def test_skips_at_once_all_land(client):
+    """Read, check and save happen as one step: simultaneous skips can't overwrite each other."""
+    app = client.services
+    ids = [v.id for v in app.renderer.visualizers if not v.exclusive][:6]
+    for _ in range(5):
+        app.config.edit("visualizer.auto_rotate.skip", "[]")
+        barrier = threading.Barrier(len(ids))
+        statuses = []
+
+        def skip(vid):
+            barrier.wait()
+            statuses.append(client(f"/visualizer/{vid}/skip", auth=False)[0])
+
+        threads = [threading.Thread(target=skip, args=(vid,)) for vid in ids]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        assert statuses == [200] * len(ids)
+        assert sorted(app.config.data.visualizer.auto_rotate.skip) == sorted(ids)
+
+
+def test_skipping_neither_restarts_the_countdown_nor_refreshes_the_leds(client, monkeypatch):
+    app = client.services
+    app.config.edit("visualizer.auto_rotate.enabled", "true")
+    before = app_module.next_rotation(app)
+    refreshed = []
+    monkeypatch.setattr(app.renderer, "refresh", lambda *a, **k: refreshed.append(1))
+    time.sleep(1.1)  # a restarted countdown would end later
+    client("/visualizer/wind/skip", auth=False)
+    client("/visualizer/wind/unskip", auth=False)
+    client('/config/edit/visualizer.auto_rotate.skip/["wind_gusts"]')
+    assert app_module.next_rotation(app) == before
+    assert refreshed == []
+    app.config.edit("visualizer.auto_rotate.delay_seconds", "45")  # the others still reschedule
+    assert app_module.next_rotation(app) != before

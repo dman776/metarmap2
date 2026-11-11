@@ -531,7 +531,13 @@ body.kiosk main.wrap { max-width: none; height: 100vh; height: var(--kiosk-h, 10
 .r-clock circle { fill: none; stroke-width: 4; }
 .r-clock .track { stroke: var(--line); }
 .r-clock .left { stroke: var(--accent); stroke-linecap: round; transition: stroke-dasharray .25s linear; }
-.r-chips .chip { min-height: 44px; }
+.r-chips .chip { min-height: 44px; position: relative; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+/* left out of auto-rotate (press and hold): a dimmed icon and a small "skip" badge */
+.r-chips .chip.skipped svg { opacity: .35; }
+.r-chips .chip .skip-badge { display: none; margin-left: 6px; padding: 1px 6px; border-radius: 6px; border: 1px solid var(--control); color: var(--muted); font: 600 10px var(--sans); text-transform: uppercase; letter-spacing: .04em; }
+.r-chips .chip.skipped .skip-badge { display: inline-block; }
+.r-toast { position: fixed; left: 50%; bottom: max(24px, env(safe-area-inset-bottom)); -webkit-transform: translateX(-50%); transform: translateX(-50%); z-index: 20; padding: 10px 18px; border-radius: 10px; background: var(--surface); border: 1px solid var(--accent); color: var(--text); font: 600 15px var(--sans); box-shadow: 0 6px 24px rgba(0, 0, 0, .5); pointer-events: none; }
+.r-toast[hidden] { display: none; }
 .r-legend .legend { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .r-legend .legend li { padding: 8px 10px; font-size: 13px; }
 

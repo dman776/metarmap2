@@ -43,8 +43,9 @@ Returns a read-only snapshot of the Chart's state as `application/json`. No auth
   },
   "visualizers": [
     { "index": 0, "id": "flight_category", "name": "Flight Category", "shortName": "Flight Cat", "icon": "plane",
-      "exclusive": false },
-    { "index": 1, "id": "wind", "name": "Wind", "shortName": "Wind", "icon": "wind", "exclusive": false }
+      "exclusive": false, "skipped": false },
+    { "index": 1, "id": "wind", "name": "Wind", "shortName": "Wind", "icon": "wind", "exclusive": false,
+      "skipped": true }
   ],
   "config": {
     "visualizer.active": "flight_category",
@@ -161,7 +162,7 @@ What the physical map is doing right now. The Map page polls it every second. No
   "brightness": 0.5,
   "visualizer": { "active": 0, "id": "flight_category", "name": "Flight Category", "shortName": "Flight Cat",
                   "icon": "plane", "exclusive": false, "areas": null,
-                  "autoRotate": { "enabled": true, "seconds": 60, "next": 1792854560.0 },
+                  "autoRotate": { "enabled": true, "seconds": 60, "next": 1792854560.0, "skip": ["wind"] },
                   "legendInUse": ["VFR", "IFR", "lightning"], "legendInUseOnly": false },
   "fetch": { "next": 1792854900.0, "seconds": 600, "fetched": 1792854300.2 },
   "strip": null,
@@ -192,7 +193,7 @@ What the physical map is doing right now. The Map page polls it every second. No
 | `visualizer.shortName`, `visualizer.icon` | As in `/api/status`, for the visualizer running now |
 | `visualizer.areas` | Which areas the Map page draws while the visualizer runs: `advisories` (Advisories, from `/api/advisories`), `tfrs` (TFR, from `/api/tfrs`), else `null` |
 | `fetch` | The METAR fetch: `next` is when it next happens (Unix time, compare it with `now`; `null` if none is scheduled), `seconds` how long that wait is (600 for the regular fetch every 10 minutes; 60 for a retry after a failed fetch, which comes first), `fetched` when METARs were last fetched (`null` before the first). `GET /fetch` restarts the 10-minute wait. The Home page's Fetch METARs button counts down with it, and reloads once the next fetch has come |
-| `visualizer.autoRotate` | Auto-rotate: `enabled` and `seconds` are its settings (`visualizer.auto_rotate`); `next` is when it next changes the visualizer (Unix time, compare it with `now`), `null` while it's off. Picking a visualizer by hand (`/visualizer/...`) starts the wait again, so `next` moves a whole delay ahead |
+| `visualizer.autoRotate` | Auto-rotate: `enabled` and `seconds` are its settings (`visualizer.auto_rotate`); `next` is when it next changes the visualizer (Unix time, compare it with `now`), `null` while it's off. Picking a visualizer by hand (`/visualizer/...`) starts the wait again, so `next` moves a whole delay ahead. `skip` is the list of visualizer ids auto-rotate leaves out (`visualizer.auto_rotate.skip`; `[]` for none), so a client sees a change made elsewhere within a second |
 | `visualizer.legendInUse` | The `key`s of the legend entries the pixels (and virtual airports) show now, in the legend's order (see `/api/status`'s `visualizer.legend`); `null` for a whole-strip visualizer (Rainbow, Chase), whose legend is always shown whole. Follows the pixels: a fetch, an airport change or a different visualizer changes it |
 | `visualizer.step` | For a visualizer whose pixels step through the same steps together (Flight Category Forecast, Precipitation Forecast): `{"labels": ["Now", "+3h", "+6h", "+12h"], "index": 1, "prefix": "FC"}` (`prefix` is `FC` or `PF`, the Micro's title is the prefix and the label: "PF +3h"), `index` being the step on now (counted from when the pixels were last rebuilt: a fetch, a setting or a different visualizer); `null` for every other visualizer |
 | `visualizer.legendInUseOnly` | The `visualizer.legend_in_use_only` setting: whether the web pages list only those entries |
@@ -468,6 +469,7 @@ These endpoints change the Chart immediately. Except for auto-rotate, nothing th
 | `GET /visualizer/next` | Next visualizer; after the last one it goes back to the first |
 | `GET /visualizer/previous` | Previous visualizer; before the first one it goes to the last |
 | `GET /visualizer/auto_rotate/on`, `GET /visualizer/auto_rotate/off` | Turn auto-rotate on or off (the Cockpit's switch). Saved, as `visualizer.auto_rotate.enabled`, though it needs no login: it changes only that setting. The timer starts again now. |
+| `GET /visualizer/<id>/skip`, `GET /visualizer/<id>/unskip` | Leave a visualizer out of auto-rotate, or put it back (the Cockpit's press-and-hold; any client may use it). `<id>` is an id or a number, as in `/visualizer/<id>`. Saved in `visualizer.auto_rotate.skip` (checked like `/config/edit`), though it needs no login: it changes only that setting. Unlike the other routes here, the answer is JSON: `{"id": "wind", "skipped": true, "skip": ["wind"]}` (`skip` is the whole list after the change). Repeating one changes nothing. Changing the skip list neither restarts the auto-rotate countdown (`next` stays) nor refreshes the LEDs (this holds for `/config/edit/visualizer.auto_rotate.skip` too; `enabled` and `seconds` still restart it). A 400 for an unknown visualizer, for skipping an exclusive one (Rainbow, Chase: always left out, nothing to save; unskipping one is a harmless 200 with `"skipped": false`), and for skipping the last one that auto-rotate still shows (at least one non-exclusive visualizer always stays); its body is JSON, `{"error": "message", "reason": "unknown" | "exclusive" | "last"}`. Skipping the running visualizer is fine: it keeps running, and picking a skipped one by hand still works. `skipped` in `/api/status`'s `visualizers` and `skip` in `/api/live`'s `visualizer.autoRotate` say which are left out (an exclusive visualizer is always left out but shows `"skipped": false`, since it isn't in the list). |
 | `GET /locate/<pixel>` | Pulse one pixel white. Ignored while an exclusive visualizer is running. |
 | `GET /led/init_sequence/play` | Play the startup sequence (`led.init_sequence`) once now, whether or not `led.inittest` is on. Returns at once. |
 | `GET /fetch` | Fetch METARs from aviationweather.gov now. **The request does not return until the fetch finishes**, which can take up to about 30 seconds; other requests are answered in the meantime. The next regular fetch is then a whole 10 minutes later (`/api/live`'s `fetch.next`). |
@@ -551,7 +553,7 @@ Settings that apply right away:
 - `visualizer.active`, the default visualizer used at startup, by id (`/config/edit/visualizer.active/wind`); a number is taken too and saved as the id. An unknown one is a 400. Saving it doesn't change the visualizer that's running now; use `/visualizer/<id>` for that.
 - `visualizer.auto_rotate.enabled`
 - `visualizer.auto_rotate.delay_seconds` (the new delay starts counting when it's saved)
-- `visualizer.auto_rotate.skip`: the visualizers auto-rotate leaves out, as a JSON list of ids, e.g. `/config/edit/visualizer.auto_rotate.skip/%5B%22wind%22%2C%22wind_gusts%22%5D` for `["wind","wind_gusts"]` (`[]` leaves none out). Names and numbers are taken too, and saved as ids; an unknown one is a 400. Exclusive visualizers (`"exclusive": true` in `/api/status`) are always left out. The previous/next buttons still go to every visualizer.
+- `visualizer.auto_rotate.skip`: the visualizers auto-rotate leaves out, as a JSON list of ids, e.g. `/config/edit/visualizer.auto_rotate.skip/%5B%22wind%22%2C%22wind_gusts%22%5D` for `["wind","wind_gusts"]` (`[]` leaves none out). Names and numbers are taken too, and saved as ids; an unknown one is a 400. Exclusive visualizers (`"exclusive": true` in `/api/status`) are always left out. `/visualizer/<id>/skip` and `/unskip` edit this list one visualizer at a time, with no login (see *Control*); here, a list that leaves out every visualizer is accepted, and auto-rotate then stays on the current one. The previous/next buttons still go to every visualizer.
 - `visualizer.auto_rotate.skip_dark`: auto-rotate also leaves out a visualizer while it would show nothing: every pixel and virtual airport off (e.g. Precipitation on a dry day, or Advisories with none in effect). A red "METAR not available" blink counts as showing something. If every other visualizer is dark, the current one stays
 
 Map page settings (apply the next time the Map page is opened):

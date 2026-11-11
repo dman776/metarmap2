@@ -43,10 +43,12 @@
             </div>
             <div class="chip-row r-chips" role="group" aria-label="Choose a visualizer">
                 % for i, v in enumerate(visualizers):
-                <button class="chip" type="button" aria-pressed="{{'true' if v['id'] == active['id'] else 'false'}}" data-call="/visualizer/{{v['id']}}" data-then="none"
-                        data-vis="{{i}}" data-name="{{v['name']}}" data-desc="{{v['description']}}" data-exclusive="{{'true' if v['exclusive'] else 'false'}}">{{!icons.use(v['icon'])}}{{v['name']}}</button>
+                <button class="chip{{' skipped' if v['skipped'] else ''}}" type="button" aria-pressed="{{'true' if v['id'] == active['id'] else 'false'}}" data-call="/visualizer/{{v['id']}}" data-then="none"
+                        data-vis="{{i}}" data-id="{{v['id']}}" data-name="{{v['name']}}" data-desc="{{v['description']}}" data-exclusive="{{'true' if v['exclusive'] else 'false'}}">{{!icons.use(v['icon'])}}{{v['name']}}<span class="skip-badge" aria-hidden="true">skip</span></button>
                 % end
             </div>
+            <!-- press and hold a visualizer to leave it out of auto-rotate, or put it back (remote.js) -->
+            <div class="r-toast" id="r-toast" role="status" aria-live="polite" hidden></div>
         </div>
         <div class="r-legend" id="r-legend">
             %include("legend.tpl", legend=active['legend'], filtered=active['filtered'], step=active['step'])

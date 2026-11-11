@@ -182,6 +182,122 @@
         c.addEventListener('click', function () { showVisualizer(+c.dataset.vis); });
     });
 
+    // ---- press and hold a visualizer: leave it out of auto-rotate, or put it back (visualizer.auto_rotate.skip) ----
+    // A tap still picks it. Touch and mouse events, not pointer events: iOS 12 Safari has no Pointer Events.
+    const PRESS_MS = 600;
+    const toast = document.getElementById('r-toast');
+    let toastTimer = null;
+    let skipTouched = 0;
+    let held = false;   // a hold fired: the click that follows the release is dropped
+    let lastTouch = 0;  // the mouse events a touch makes up afterwards are ignored
+
+    function say(text) {
+        toast.textContent = text;
+        toast.hidden = false;
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () { toast.hidden = true; }, 1800);
+    }
+
+    function markSkipped(chip, skipped) {
+        chip.classList.toggle('skipped', skipped);
+        chip.dataset.skipped = skipped ? 'true' : 'false';
+    }
+
+    function showSkipped(ids) {  // /api/live's autoRotate.skip
+        if (!ids || Date.now() - skipTouched < HOLD_MS) return;
+        chips.forEach(function (c) { markSkipped(c, ids.indexOf(c.dataset.id) >= 0); });
+    }
+
+    async function toggleSkip(chip) {
+        if (chip.dataset.exclusive === 'true') {
+            say(chip.dataset.name + ' is always left out of auto-rotate');
+            return;
+        }
+        const skip = !chip.classList.contains('skipped');
+        skipTouched = Date.now();
+        try {
+            const res = await fetch('/visualizer/' + chip.dataset.id + (skip ? '/skip' : '/unskip'), {cache: 'no-store'});
+            if (res.status === 400) {
+                let reason = '';
+                try { reason = (await res.json()).reason; } catch (e) { /* no JSON: a generic message */ }
+                say(reason === 'last' ? "Can't skip the last visualizer in auto-rotate" : "Couldn't change " + chip.dataset.name);
+                return;
+            }
+            if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+            markSkipped(chip, skip);
+            say(skip ? chip.dataset.name + ': skipped' : chip.dataset.name + ': back in rotation');
+        } catch (err) {
+            console.error('[remote] skip failed', err);
+            say('Could not change auto-rotate');
+        }
+    }
+
+    chips.forEach(function (chip) {
+        let timer = null;
+        let x = 0, y = 0;
+        let heldTimer = null;
+
+        function start(px, py) {
+            x = px;
+            y = py;
+            held = false;
+            clearTimeout(timer);
+            timer = setTimeout(function () {
+                timer = null;
+                held = true;
+                toggleSkip(chip);
+            }, PRESS_MS);
+        }
+
+        function stop() {
+            clearTimeout(timer);
+            timer = null;
+        }
+
+        // the click that follows a release comes at once; if none does (the release was elsewhere, or the touch
+        // was cancelled) a hold must not swallow a later click from another source (the keyboard)
+        function release(wait) {
+            stop();
+            if (!held) return;
+            clearTimeout(heldTimer);
+            heldTimer = setTimeout(function () { held = false; }, wait);
+        }
+
+        chip.addEventListener('touchstart', function (e) {
+            lastTouch = Date.now();
+            const t = e.touches[0];
+            clearTimeout(heldTimer);
+            start(t.clientX, t.clientY);
+        }, {passive: true});
+        chip.addEventListener('touchmove', function (e) {
+            const t = e.touches[0];
+            if (Math.abs(t.clientX - x) > 10 || Math.abs(t.clientY - y) > 10) stop();  // a scroll, not a hold
+        }, {passive: true});
+        chip.addEventListener('touchend', function (e) {
+            lastTouch = Date.now();
+            if (held && e.cancelable) e.preventDefault();  // no click after a hold
+            release(500);
+        });
+        chip.addEventListener('touchcancel', function () { release(0); });
+        chip.addEventListener('mousedown', function (e) {
+            if (e.button !== 0 || Date.now() - lastTouch < 800) return;
+            clearTimeout(heldTimer);
+            start(e.clientX, e.clientY);
+        });
+        chip.addEventListener('mouseup', function () { release(500); });
+        chip.addEventListener('mouseleave', function () { release(0); });  // let go elsewhere: no click follows
+        chip.addEventListener('contextmenu', function (e) { e.preventDefault(); });  // the long-press menu
+    });
+
+    // in the capture phase, ahead of app.js's data-call click: a hold doesn't also pick the visualizer
+    document.querySelector('.r-chips').addEventListener('click', function (e) {
+        if (held) {
+            held = false;
+            e.stopPropagation();
+            e.preventDefault();
+        }
+    }, true);
+
     // ---- auto-rotate: the switch (saved), and a countdown to the next visualizer ------------------------------
     const rotate = document.getElementById('auto-rotate');
     const clock = document.getElementById('r-clock');
@@ -308,6 +424,7 @@
             filterLegend(legend.querySelector('.legend'), live.visualizer, shown);
             if (live.visualizer.active === shown) markStep(legend, live.visualizer.step);
             showRotation(live.visualizer.autoRotate, live.now);
+            showSkipped(live.visualizer.autoRotate.skip);
             showBrightness(live.brightness);
             showOled(live.display);
             showAirports(live.leds, live.locate, live.now);

@@ -15,6 +15,7 @@ import bottle
 from metarmap import system
 from metarmap.config import parse_user
 from metarmap import update
+from metarmap.visualizers import index_of
 from metarmap.lib import versions
 from metarmap.web import api, pages
 
@@ -141,6 +142,37 @@ def add_routes(app, services: "App", site, auth, updates=None):
             bottle.abort(400, "Use /visualizer/auto_rotate/on or /visualizer/auto_rotate/off")
         config.edit("visualizer.auto_rotate.enabled", "true" if state == "on" else "false")
         return pages.index(services, site)
+
+    def skip_visualizer(key, skip):
+        """
+        The Cockpit's and the Copilot's press-and-hold: leaves a visualizer out of auto-rotate (skip) or puts it back,
+        in visualizer.auto_rotate.skip. Saved, but needs no login (it's only that one setting). Idempotent. The one
+        running keeps running until auto-rotate moves on; picking it by hand still works.
+        """
+
+        def refuse(reason, message):  # a small JSON body the Cockpit reads: "reason" says which
+            return as_json({"error": message, "reason": reason}, 400)
+
+        try:
+            vis = renderer.visualizers[index_of(key, renderer.visualizers)]
+        except LookupError:
+            return refuse("unknown", f"No visualizer {key!r}")
+        with config._lock:  # read, check and save as one step: two requests at once mustn't lose one (RLock)
+            left_out = list(config.data.visualizer.auto_rotate.skip)
+            if skip and vis.id not in left_out:
+                if vis.exclusive:
+                    return refuse("exclusive", f"{vis.name} is always left out of auto-rotate")
+                if all(v.exclusive or v.id in left_out or v.id == vis.id for v in renderer.visualizers):
+                    return refuse("last", f"{vis.name} is the last visualizer in auto-rotate; at least one must stay")
+                left_out.append(vis.id)
+            elif not skip and vis.id in left_out:
+                left_out.remove(vis.id)
+            try:
+                config.edit("visualizer.auto_rotate.skip", json.dumps(left_out))
+            except ValueError as e:
+                return refuse("invalid", str(e))
+            left_out = list(config.data.visualizer.auto_rotate.skip)
+        return as_json({"id": vis.id, "skipped": vis.id in left_out, "skip": left_out})
 
     def brightness(level):
         renderer.brightness(float(level))
@@ -318,6 +350,8 @@ def add_routes(app, services: "App", site, auth, updates=None):
     app.route("/visualizer/next", "GET", visualizer_next)
     app.route("/visualizer/previous", "GET", visualizer_previous)
     app.route("/visualizer/auto_rotate/<state>", "GET", auto_rotate)
+    app.route("/visualizer/<key>/skip", "GET", lambda key: skip_visualizer(key, True))
+    app.route("/visualizer/<key>/unskip", "GET", lambda key: skip_visualizer(key, False))
     app.route("/brightness/<level>", "GET", brightness)
     app.route("/display/<state>", "GET", display_power)
     app.route("/locate/<pixnum>", "GET", locate)
