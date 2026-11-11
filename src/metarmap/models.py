@@ -5,9 +5,11 @@ Data models shared across the map: parsed METARs (Report), flight categories and
 from dataclasses import dataclass, field, replace
 from datetime import datetime
 from enum import Enum
+from functools import cached_property
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 import metarmap.lib.colors as colors_lib
+from metarmap import remarks as remarks_lib
 
 # A color as the LEDs take it, from lib/colors.py's color(): (green, red, blue), each 0-255
 Color = Tuple[int, int, int]
@@ -76,6 +78,14 @@ class Report:
     @property
     def wind_gust(self) -> bool:
         return self.wind_gust_speed > 0
+
+    @cached_property
+    def remarks(self) -> remarks_lib.Remarks:
+        """
+        What the report's remarks (after RMK in raw) say, read once per Report (cached_property writes past frozen;
+        replace() makes a new Report, which reads its own raw again). Remarks() for a report with none.
+        """
+        return remarks_lib.parse(self.raw)
 
     @property
     def vis(self) -> int:

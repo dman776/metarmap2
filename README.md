@@ -38,7 +38,8 @@ Written from the ground up with a web UI, an API and a Home Assistant integratio
   for each airport you choose, with that airport's pixel pulsing while it's shown.
 - **MetarMap2 Web**, the web UI: current conditions, a METAR list, a live map that mirrors the Chart and the Micro, and
   settings.
-  Click an airport on the map for its weather in plain English, its raw METAR, or the METAR decoded line by line.
+  Click an airport on the map for its weather in plain English, its raw METAR, or the METAR decoded line by line,
+  remarks included (exact temperature, hourly precipitation, peak wind, wind shifts...).
   The map can go fullscreen, and follows the visualizer as it changes. Tick **Live traffic** to see the aircraft
   around your airports; click one for its details and the map follows it. Update and restart the Chart from the Home
   page. **MetarMap2 Cockpit**, at `/remote`, is a remote control for a tablet in kiosk mode.
@@ -59,7 +60,8 @@ The Wind Direction visualizer, with wind barbs, over the radar background:
 
 ![The Wind Direction visualizer over live radar: each airport in the color of the direction its wind blows from, with a barb](docs/images/map_wind_direction_with_barbs.jpg)
 
-Click an airport for its weather in plain English, the raw METAR, or the METAR decoded line by line. With
+Click an airport for its weather in plain English, the raw METAR, or the METAR decoded line by line, with its
+remarks explained (those it can't read yet, like lightning, icing and local winds, stay as raw text). With
 [spoken weather](#spoken-weather) on, its **Listen** tab plays the airport's AWOS, and its ATIS where it publishes one
 (with [Spoken ATIS](#spoken-atis) on). While it plays, the popup shows the raw METAR (AWOS), or the ATIS as the FAA
 wrote it, the line being read lit:

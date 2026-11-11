@@ -10,9 +10,11 @@ from fractions import Fraction
 from typing import TYPE_CHECKING, Optional, Sequence, Tuple
 
 from metarmap.lib.units import celsius_to_fahrenheit
+from metarmap.remarks import SENSORS, TENDENCIES
 
 if TYPE_CHECKING:  # models imports nothing from here, but metar imports both
     from metarmap.models import Report, SkyLayer
+    from metarmap.remarks import Remarks
 
 INTENSITY = {"-": "light", "+": "heavy"}
 DESCRIPTORS = {
@@ -78,6 +80,8 @@ def decode(metar: Optional["Report"]):
     altim = metar.altimeter_inhg
     add("Altimeter", f"{altim:.2f} inHg" if altim else None)
     add("Lightning", "Lightning observed" if metar.lightning else None)
+    for label, text in remarks(metar.remarks):
+        add(label, text)
     return lines
 
 
@@ -322,3 +326,130 @@ def dewpoint(celsius, temperature_c=None):
     if text and temperature_c is not None:
         text += f" (spread {temperature_c - celsius}°C)"
     return text
+
+
+# ---- the remarks (metarmap.remarks) ------------------------------------------------------------------------------
+
+STATION_TYPES = {
+    "AO1": "Automated, without a precipitation discriminator",
+    "AO2": "Automated, with a precipitation discriminator",
+}
+# P: since the last METAR (FMH-1 12.7.2 a), which a SPECI isn't. Others: "Precipitation (last 6 hours)"
+PRECIPITATION_LABELS = {1: "Precipitation (since the last hourly report)"}
+
+
+def remarks(rmk: "Remarks"):
+    """
+    (label, text) for each thing the remarks say, in a fixed order (not the report's); a label continued on the
+    next line is "". Groups it doesn't read are one "Other remarks" line, as reported.
+    """
+    found = []
+
+    def add(label, *texts):
+        texts = [t for t in texts if t]
+        found.extend((label if n == 0 else "", t) for n, t in enumerate(texts))
+
+    if rmk.station_type:
+        augmented = ", augmented by an observer" if rmk.station_type.endswith("A") else ""
+        add("Station type", STATION_TYPES[rmk.station_type[:3]] + augmented)
+    if rmk.sea_level_pressure_hpa is not None:
+        add("Sea-level pressure", f"{rmk.sea_level_pressure_hpa:.1f} hPa")
+    elif rmk.sea_level_pressure_missing:
+        add("Sea-level pressure", "Not available")
+    add("Precise temperature", precise(rmk.temp_c))
+    add("Precise dewpoint", precise(rmk.dewpoint_c))
+    add("Temperature (last 6 hours)", high_low(rmk.max_temp_6h_c, rmk.min_temp_6h_c))
+    add("Temperature (last 24 hours)", high_low(rmk.max_temp_24h_c, rmk.min_temp_24h_c))
+    add("Pressure tendency", tendency(rmk.pressure_tendency), (rmk.pressure_change or "").capitalize())
+    wind = rmk.peak_wind
+    if wind:
+        add("Peak wind", f"{wind.direction:03d}° at {wind.speed_kt} kt ({clock(wind.hour, wind.minute)})")
+    shift = rmk.wind_shift
+    if shift:
+        fropa = ", frontal passage" if shift.frontal_passage else ""
+        add("Wind shift", f"At {clock(shift.hour, shift.minute)}{fropa}")
+    add("Tower visibility", visibility(rmk.tower_visibility_sm))
+    add("Surface visibility", visibility(rmk.surface_visibility_sm))
+    if rmk.variable_visibility_sm:
+        low, high = rmk.variable_visibility_sm
+        add("Variable visibility", f"{visibility(low).rsplit(' ', 1)[0]} to {visibility(high)}")
+    if rmk.variable_ceiling_ft:
+        add("Variable ceiling", "{:,} to {:,} ft".format(*rmk.variable_ceiling_ft))
+    for amount in rmk.precipitation:
+        hours = amount.hours
+        label = PRECIPITATION_LABELS.get(hours) or f"Precipitation (last {hours or '3 or 6'} hours)"
+        add(label, inches(amount.inches))
+    for amount in rmk.ice_accretion:
+        when = "since the last hourly report" if amount.hours == 1 else f"last {amount.hours} hours"
+        add(f"Ice accretion ({when})", inches(amount.inches))
+    if rmk.snow_depth_in is not None:
+        add("Snow depth", inches(rmk.snow_depth_in, 0))
+    if rmk.snowfall_6h_in is not None:
+        add("Snowfall (last 6 hours)", inches(rmk.snowfall_6h_in, 1))
+    if rmk.snow_water_in is not None:
+        add("Snow water equivalent", inches(rmk.snow_water_in, 1))
+    add("Precipitation began/ended", *began_ended(e for e in rmk.events if e.weather != "TS"))
+    add("Thunderstorm began/ended", *began_ended(e for e in rmk.events if e.weather == "TS"))
+    sensors = ", ".join(sensor_name(code) for code in rmk.sensors_out)
+    add("Sensors out of service", sensors[:1].upper() + sensors[1:])
+    add("Special reports", "Not sent by this station" if rmk.no_speci else None)
+    add("Maintenance", "The station needs maintenance" if rmk.maintenance else None)
+    add("Other remarks", " ".join(rmk.other))
+    return found
+
+
+def precise(celsius):
+    """ "16.1°C / 61.0°F", to a tenth."""
+    if celsius is None:
+        return None
+    return f"{celsius:.1f}°C / {celsius_to_fahrenheit(celsius):.1f}°F"
+
+
+def high_low(high, low):
+    """ "High 27.2°C / 81.0°F, low 14.4°C / 57.9°F" (either may be missing)."""
+    parts = [f"{word} {precise(value)}" for word, value in (("high", high), ("low", low)) if value is not None]
+    text = ", ".join(parts)
+    return text[:1].upper() + text[1:] or None
+
+
+def tendency(found):
+    """ "Up 1.6 hPa in 3 hours (rising, then steady)"."""
+    if found is None:
+        return None
+    change = found.change_hpa
+    how = "Unchanged" if change == 0 else f"{'Up' if change > 0 else 'Down'} {abs(change):.1f} hPa"
+    return f"{how} in 3 hours ({TENDENCIES[found.character]})"
+
+
+def inches(amount, places=2):
+    """
+    "0.01 in", "Couldn't be measured" for None (an amount reported as ////), and "Trace" for 0. Every group this
+    shows is coded only when something fell or lies on the ground, so all zeros mean less than the group's unit:
+    P0000 and 60000 are a trace (FMH-1 12.7.2 a 3 a and b; the ASOS User's Guide: "If only a trace of precipitation
+    has occurred, the Prrrr remark will report P0000"), and so is a 7, 931 (tenths), 933 (tenths) or I (hundredths)
+    group of zeros. 4/sss is coded only for more than a trace of snow, and the NWS reports a depth under half an inch
+    as a trace, so a 4/000 is one too. Sources: remarks.py's docstring.
+    """
+    if amount is None:
+        return "Couldn't be measured"
+    return f"{amount:.{places}f} in" if amount else "Trace"
+
+
+def clock(hour, minute):
+    """ "03:09Z", or ":09 past the hour" when the hour isn't known."""
+    return f"{hour:02d}:{minute:02d}Z" if hour is not None else f":{minute:02d} past the hour"
+
+
+def began_ended(events):
+    """One line per weather, in the order reported: "Rain began 03:09Z, ended 03:27Z"."""
+    by_weather = {}
+    for event in events:
+        when = f"{'began' if event.began else 'ended'} {clock(event.hour, event.minute)}"
+        by_weather.setdefault(event.weather, []).append(when)
+    return [f"{weather_group(code).capitalize()} {', '.join(times)}" for code, times in by_weather.items()]
+
+
+def sensor_name(code):
+    """ "TSNO" -> "lightning detector"; "VISNO RWY06" -> "visibility sensor at RWY06"."""
+    sensor, _, where = code.partition(" ")
+    return SENSORS.get(sensor, sensor) + (f" at {where}" if where else "")
