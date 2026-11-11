@@ -1,9 +1,12 @@
 ### Unreleased
 
-- **Press and hold a visualizer to skip it**: on the Cockpit, hold a visualizer's icon for about half a second to
-  leave it out of auto-rotate, and hold it again to put it back. A skipped visualizer shows a dimmed icon and a small
-  "skip" badge, and a message confirms ("skipped", "back in rotation"); a tap still picks it. It is the same list as
-  Config > Visualizers > *Visualizers in auto-rotate*, kept on the Chart, so every Cockpit sees the same marks.
+- **Press and hold a visualizer to skip it**: on the Cockpit and on the Copilot, hold a visualizer's icon for about
+  half a second to leave it out of auto-rotate, and hold it again to put it back. A skipped visualizer shows a dimmed
+  icon and a small "skip" badge (the Cockpit also confirms with a message; the Copilot says something only when it
+  can't, and plays a high pop for a skip and a low pop for putting it back); a tap still picks it. It is the same list
+  as Config > Visualizers > *Visualizers in auto-rotate*, kept on the Chart, so every Cockpit and Copilot sees the same
+  marks. The Copilot needs firmware newer than v26.11.10 for this (its other news: a chime when it reaches the Chart,
+  a **Sounds** setting on its web page, and a speaker button on its logo's splash for the volume).
   Rainbow and Chase can't be skipped (auto-rotate always leaves them out), nor can the last visualizer auto-rotate
   still shows. New for clients: `GET /visualizer/<id>/skip` and `/unskip` (saved, no login, answer
   JSON), `skipped` on each entry of `/api/status`'s `visualizers`, and `skip` in `/api/live`'s
