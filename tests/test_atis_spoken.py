@@ -54,7 +54,10 @@ def test_no_atis():
         ),
         (
             "BOS ATIS INFO D 1754Z. 03006KT 1 1/2SM R04R/6000VP6000FT BR OVC005 14/13 A2967 RMK RAB1655E15B31.",
-            "Visibility one and one half. Weather mist. Sky condition ceiling five hundred overcast.",
+            "Visibility one and one half. "
+            "Runway four right R V R variable from six thousand to more than six thousand feet. Weather mist. "
+            "Sky condition ceiling five hundred overcast. Temperature one four, dew point one tree. "
+            "Altimeter two niner six seven.",  # the runway visual range as the AWOS says it; not the remarks (RAB...)
         ),
         (
             "DEN ARR INFO N 1753Z. VRB04KT 10SM FEW220 16/M03 A3022.",

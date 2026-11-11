@@ -252,14 +252,26 @@ dew point one six. Altimeter tree zero zero five. VFR.
 ```
 
 Everything is spelled out as words, so a speech model can't read a number two ways: digit by digit for the wind, the
-time, the temperature and the altimeter, in English for cloud heights and visibility fractions. The digits are said
+times, the temperature and the altimeter, in English for cloud heights, runway visual range and visibility
+fractions. The digits are said
 as pilots and controllers say them: `tree` for 3 and `niner` for 9. In order: the
 airport's name (the Chart's own, else the station's, with `Rgnl`, `Muni`, `Intl`... written out; else its letters), the
-observation time in Zulu, the wind, the visibility, the weather, the lightning (a sentence per lightning group: how
+observation time in Zulu, the wind, the visibility, the runway visual range (a sentence per runway, as the Decoded
+tab shows it: `Runway two eight R V R two thousand four hundred feet.`, `Runway one tree R V R variable from two
+thousand six hundred to more than six thousand feet, improving.`, `less than` for an `M`; a runway reported as
+`R24/////` isn't said), the weather, the lightning (a sentence per lightning group: how
 often, how far and which way, not its kind: `Occasional lightning distant north.`, `Frequent lightning overhead.`,
 `Lightning in the vicinity, east and southwest.`; `Lightning observed.` when the report says no more), the sky (the first broken or
-overcast layer is the `ceiling`), the temperature and dew point (`minus` below zero), the altimeter and the flight
-category. What the report leaves out is said to be `not reported`; an airport with no report says so. The words, the
+overcast layer is the `ceiling`), the temperature and dew point (`minus` below zero), the altimeter, then from the
+remarks the peak wind (`PK WND 29035/1450`: `Peak wind two niner zero at tree five, at one four five zero Zulu.`),
+a wind shift (`WSHFT 0520 FROPA`: `Wind shift at zero five two zero Zulu, frontal passage.`) and when precipitation
+began and ended, a sentence per kind in the order reported (`RAB0309E0327`: `Rain began zero tree zero niner Zulu,
+ended zero tree two seven Zulu.`; a thunderstorm's own times, `TSB07`, aren't said), and last the flight category.
+A time given only as minutes (`RAB09`) is in the report's hour, or the hour before; in a report with no time of its
+own it's said as minutes past the hour (`Rain began zero niner past the hour.`). The runway visual range and these
+remarks are said only when the report has them; nothing else from the remarks is said (no sea-level pressure,
+pressure tendency or precise temperature). What the report leaves out of the rest is said to be `not reported`; an
+airport with no report says so. The words, the
 airport's name too, follow `speech.tunings` (the Pronunciation page), as the ATIS does.
 
 ### `GET /api/speak/<code>.audio`
@@ -294,7 +306,8 @@ Advise you have information Quebec.
 
 The FAA's contractions are written out as words (`DEPG` departing, `OTS` out of service, `TWY EA` taxiway Echo
 Alpha, `RY8R` runway eight right, `126.225` one two six point two two five), and the weather groups are read as the
-AWOS reads them; the altimeter's own words in parentheses and the remarks are left out. Letters said as letters
+AWOS reads them, the runway visual range too; the altimeter's own words in parentheses and the remarks are left out
+(so no peak wind, wind shift or precipitation began and ended). Letters said as letters
 (`ILS`, `VOR`) and identifiers (`VNY`) stay in capitals.
 
 `GET /api/atis/<code>/lines` is the same ATIS line by line, for reading along: each line the FAA's text (`raw`, as

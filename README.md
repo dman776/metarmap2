@@ -283,6 +283,13 @@ on the Cockpit's Info tab, and `http://metarmap.local/api/speak/KHOU.audio` for 
 else (`/api/speak/KHOU` shows the words). It's off until you turn it on. It's for fun, not for flight planning: listen
 to the airport's own AWOS, ASOS or ATIS for that.
 
+It reads the time, wind, visibility, weather, lightning, sky, temperature, altimeter and flight category, with the
+digits as pilots say them ("tree", "niner"). When the METAR has them, it also reads the runway visual range after the
+visibility ("Runway two eight R V R two thousand four hundred feet."), and after the altimeter the peak wind, a wind
+shift and when rain or snow began and ended ("Peak wind two niner zero at tree five, at one four five zero Zulu.",
+"Wind shift at zero five two zero Zulu, frontal passage.", "Rain began zero tree zero niner Zulu, ended zero tree two
+seven Zulu."). The spoken ATIS reads the runway visual range the same way.
+
 A speech server on another computer reads the reports; the Chart sends it the words and keeps the audio it gets back,
 so even a Pi Zero W can do it. Two kinds work:
 - **Piper in Home Assistant** (free, offline): install the **Piper** add-on, then in **Settings > Add-ons > Piper >
