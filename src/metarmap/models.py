@@ -188,11 +188,25 @@ class Look:
         """
         The look for the web UI (/api/live): CSS colors plus only the timing fields the effect uses.
         A solid black LED is reported as off.
+        A cycle sends its frames as palette + runs (a Flight Category Forecast LED has ~140 frames of a few colors):
+        colors is each distinct color once, in order of first appearance, and runs is [[colorIndex, frames], ...]
+        in frame order, one full loop (the last run is not merged into the first: the client loops).
         """
         css = [colors_lib.to_css(c) for c in self.colors]
         if self.effect == "off" or (self.effect == "solid" and css == ["#000000"]):
             return {"effect": "off", "colors": []}
         out: Dict[str, Any] = {"effect": self.effect, "colors": css}
+        if self.effect == "cycle":
+            palette: Dict[str, int] = {}
+            runs: List[List[int]] = []
+            for c in css:
+                index = palette.setdefault(c, len(palette))
+                if runs and runs[-1][0] == index:
+                    runs[-1][1] += 1
+                else:
+                    runs.append([index, 1])
+            out["colors"] = list(palette)
+            out["runs"] = runs
         if self.effect in ("blink", "pulse", "rainbow"):
             out["period"] = self.period
         if self.effect == "pulse" and self.low:

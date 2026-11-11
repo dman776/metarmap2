@@ -6,6 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
+import metarmap.lib.colors as colors_lib
 from metarmap import forecast
 from metarmap.forecast import Forecasts, category_at, parse_tafs
 from metarmap.metar import with_forecast
@@ -149,6 +150,18 @@ def test_no_taf_is_a_dim_white_not_good_weather(settings):
 
 def test_a_forecast_that_never_changes_is_solid(settings):
     assert fcf.look(report("MVFR", ("MVFR", "MVFR", "MVFR")), settings) == Look.solid(flightcategory.COLORS["MVFR"])
+
+
+def test_the_web_ui_gets_the_frames_as_palette_and_runs(settings):
+    """/api/live: ~140 frames of a few colors are sent as each color once plus how long each is held."""
+    look = fcf.look(report("VFR", ("IFR", "LIFR", "VFR")), settings)
+    d = look.to_dict()
+    frames = [d["colors"][i] for i, n in d["runs"] for _ in range(n)]
+    assert frames == [colors_lib.to_css(c) for c in look.colors]
+    assert len(d["colors"]) == len(set(d["colors"])) and d["step"] == fcf.FRAME
+    every_frame = dict(d, colors=frames)
+    del every_frame["runs"]
+    assert len(json.dumps(d)) < len(json.dumps(every_frame)) / 2
 
 
 def test_the_step_time_sets_how_long_each_is_shown(settings):

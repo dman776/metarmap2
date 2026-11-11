@@ -7,6 +7,7 @@ from adafruit_led_animation.animation.blink import Blink
 from adafruit_led_animation.animation.colorcycle import ColorCycle
 from adafruit_led_animation.animation.pulse import Pulse
 
+import metarmap.lib.colors as colors_lib
 from metarmap.leds.animations import PULSE_STEPS, animation_for
 from metarmap.leds.strip import FakeStrip
 from metarmap.models import FlightCategory, Look
@@ -125,6 +126,45 @@ def test_web_ui_gets_the_floor():
         "low": 0.3,
     }
     assert len(Look.blink((0, 0, 255), period=1, background=(0, 0, 76)).to_dict()["colors"]) == 2
+
+
+def expand(d):
+    """A cycle's palette + runs back into one CSS color per frame."""
+    return [d["colors"][i] for i, n in d["runs"] for _ in range(n)]
+
+
+def test_a_cycle_is_sent_as_palette_and_runs():
+    red, green, blue = (0, 255, 0), (255, 0, 0), (0, 0, 255)  # (green, red, blue)
+    frames = [green] * 3 + [red] * 2 + [green] + [blue] * 4 + [green] * 2
+    d = Look.cycle(frames, step=0.05).to_dict()
+    assert d == {
+        "effect": "cycle",
+        "colors": ["#00ff00", "#ff0000", "#0000ff"],  # distinct, in order of first appearance
+        "runs": [[0, 3], [1, 2], [0, 1], [2, 4], [0, 2]],  # the last run is not merged into the first: it loops
+        "step": 0.05,
+    }
+    assert expand(d) == [colors_lib.to_css(c) for c in frames]
+    assert sum(n for _, n in d["runs"]) == len(frames)
+
+
+def test_a_cycle_of_one_color_is_one_run():
+    d = Look.cycle([(0, 255, 0)] * 5, step=0.2).to_dict()
+    assert d["colors"] == ["#ff0000"] and d["runs"] == [[0, 5]]  # (green, red, blue): red
+    assert Look.cycle([(0, 0, 255)], step=0.2).to_dict()["runs"] == [[0, 1]]
+
+
+def test_only_a_cycle_gets_runs():
+    looks = [
+        Look.solid((0, 255, 0)),
+        Look.blink((0, 0, 255), period=1, background=(0, 0, 255)),  # two equal colors stay two
+        Look.pulse((0, 0, 255), period=4),
+        Look.chase((0, 0, 255), step=0.1, size=2, spacing=3),
+        Look.rainbow(5),
+    ]
+    for look in looks:
+        d = look.to_dict()
+        assert "runs" not in d and d["colors"] == [colors_lib.to_css(c) for c in look.colors]
+    assert Look.solid((0, 0, 0)).to_dict() == {"effect": "off", "colors": []}  # solid black is still off
 
 
 def test_look_interval_is_how_often_a_look_changes():

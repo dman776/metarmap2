@@ -19,6 +19,7 @@ from types import SimpleNamespace
 import pytest
 import schedule
 
+import metarmap.lib.colors as colors_lib
 from metarmap import __version__
 from metarmap import app as app_module
 from metarmap.app import App
@@ -31,7 +32,7 @@ from metarmap.settings import Airport, Settings
 from metarmap.sun import SunTimes
 from metarmap.traffic import Traffic
 from metarmap.visualizers import advisories as advisories_vis
-from metarmap.visualizers import flightcategory, rainbow, wind, wind_direction, windgusts
+from metarmap.visualizers import flightcategory, rainbow, style, wind, wind_direction, windgusts
 from metarmap.visualizers import tfr as tfr_vis
 from metarmap.web import site
 from metarmap.visualizers.visualizer import ICONS
@@ -743,6 +744,13 @@ def test_live(services):
     assert live["leds"][1]["lat"] == 29.6
     assert live["leds"][2]["look"]["effect"] == "off"  # no report
     assert live["strip"] is None
+    # KHOU's lightning flicker is a cycle: each color once, plus [colorIndex, frames] runs over one loop
+    cycle = live["leds"][0]["look"]
+    assert cycle["effect"] == "cycle" and set(cycle) == {"effect", "colors", "runs", "step"}
+    assert cycle["colors"] == [colors_lib.to_css(style.LIGHTNING), colors_lib.to_css(flightcategory.COLORS["VFR"])]
+    assert cycle["runs"][:3] == [[0, 3], [1, 2], [0, 3]]
+    assert sum(n for _, n in cycle["runs"]) == 80  # 4 s of 0.05 s frames
+    json.dumps(live)
     assert (live["visualizer"]["shortName"], live["visualizer"]["icon"]) == ("Flight Cat", "plane")
     assert live["display"] == {"enabled": True, "on": True, "screen": {"kind": "message", "title": "MAP"}}
     services.config.data.display_screen.enabled = False

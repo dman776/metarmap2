@@ -168,7 +168,8 @@ What the physical map is doing right now. The Map page polls it every second. No
   "leds": [
     { "code": "KLBX", "pixel": 4, "name": "", "virtual": false, "lat": 29.11, "lon": -95.46, "flightCategory": "IFR",
       "raw": "KLBX 241453Z ... LTG DSNT", "lightning": true,
-      "look": { "effect": "cycle", "colors": ["#ff0000", "...", "#ffff00"], "step": 0.1 }, "wind": null }
+      "look": { "effect": "cycle", "colors": ["#00ff00", "#2ad400", "#ff0000"],
+                "runs": [[0, 30], [1, 1], [2, 65], [1, 1], [0, 35]], "step": 0.2 }, "wind": null }
   ],
   "locate": { "pixel": 5, "at": 1792854523.96 },
   "display": {
@@ -184,7 +185,7 @@ What the physical map is doing right now. The Map page polls it every second. No
 | Field | Description |
 |---|---|
 | `leds[].lat`, `leds[].lon` | Where the airport is: from its METAR, or for an airport without a report, from aviationweather.gov's station information. `null` if neither knows it. `raw` is `null` for an airport without a report. |
-| `leds[].look` | The pixel's current effect: `solid`, `off`, `blink` (`period` seconds per on/off cycle; with two `colors` it alternates between them instead of turning off), `pulse` (`period`; `low`, if present, is its dimmest point, e.g. `0.3`, otherwise it fades to off), or `cycle` (steps through `colors`, `step` seconds each). Colors are CSS hex colors. |
+| `leds[].look` | The pixel's current effect: `solid`, `off`, `blink` (`period` seconds per on/off cycle; with two `colors` it alternates between them instead of turning off), `pulse` (`period`; `low`, if present, is its dimmest point, e.g. `0.3`, otherwise it fades to off), or `cycle` (steps through a loop of frames, `step` seconds each). Colors are CSS hex colors. A `cycle` look is sent as a palette plus runs, which keeps a Flight Category Forecast pixel to a few hundred bytes: `colors` are the distinct colors in order of first appearance, and `runs` is `[[colorIndex, frames], ...]` (`colorIndex` indexes into `colors`, `frames` is how many consecutive frames show it). The runs are one full loop, which the client repeats; the last run may repeat the first run's color. At time `t` the frame is `floor(t / step) % total`, `total` being the sum of the runs' frame counts. `runs` is present only when `effect` is `cycle`; for every other effect `colors` is as before. A client that read `colors` as the whole sequence must use `runs` to expand it. |
 | `leds[].wind` | While a wind visualizer runs (Wind, Wind Gusts, Wind Direction): the airport's wind for its barb on the Map page, `{"dir": 270.0, "kt": 12}` (the direction it blows from, and the sustained speed). `null` when it's calm, variable (`VRB`), has no direction or no report, and for every other visualizer. |
 | `leds[].virtual` | A virtual airport: no pixel on the strip, so the Map page draws it in a dashed circle. |
 | `visualizer.shortName`, `visualizer.icon` | As in `/api/status`, for the visualizer running now |
@@ -194,7 +195,7 @@ What the physical map is doing right now. The Map page polls it every second. No
 | `visualizer.legendInUse` | The `key`s of the legend entries the pixels (and virtual airports) show now, in the legend's order (see `/api/status`'s `visualizer.legend`); `null` for a whole-strip visualizer (Rainbow, Chase), whose legend is always shown whole. Follows the pixels: a fetch, an airport change or a different visualizer changes it |
 | `visualizer.step` | For a visualizer whose pixels step through the same steps together (Flight Category Forecast, Precipitation Forecast): `{"labels": ["Now", "+3h", "+6h", "+12h"], "index": 1, "prefix": "FC"}` (`prefix` is `FC` or `PF`, the Micro's title is the prefix and the label: "PF +3h"), `index` being the step on now (counted from when the pixels were last rebuilt: a fetch, a setting or a different visualizer); `null` for every other visualizer |
 | `visualizer.legendInUseOnly` | The `visualizer.legend_in_use_only` setting: whether the web pages list only those entries |
-| `strip` | Set when one effect drives the whole strip instead: `rainbow` (`period`) or `chase` (`step`, `size`, `spacing`). The virtual airports keep their own `look` meanwhile: the same rainbow, or `off` for a chase (a wiring check). |
+| `strip` | Set when one effect drives the whole strip instead: `rainbow` (`period`) or `chase` (`step`, `size`, `spacing`); it is never a `cycle`, so it has no `runs`. The virtual airports keep their own `look` meanwhile: the same rainbow, or `off` for a chase (a wiring check). |
 | `speech` | Whether spoken weather can be asked for (`/api/speak/<code>.audio`): `speech.enabled` on, with a server set for `speech.engine`. The METARs page's AWOS buttons, the Cockpit's AWOS mode (Info tab), the Map page popup's Listen tab and the touchscreen remote's hold-to-hear show only then |
 | `leds[].atis` | The airport's real ATIS can be read aloud (`/api/atis/<code>.audio`): `speech.atis` and spoken weather are on, and it publishes a digital ATIS. The list of airports with one is refreshed every half hour. The ATIS buttons (METARs page, the Cockpit, the Map page popup's Listen tab) show only for these |
 | `locate` | The last white locate pulse: the pixel number `pixel` and Unix time `at`. `null` until the first one. A virtual airport's pulse is only shown on the Map page. |

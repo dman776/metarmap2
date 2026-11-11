@@ -1,3 +1,12 @@
+### Unreleased
+
+- **The Web map polls less data**: a pixel that steps through colors, like the Flight Category Forecast, used to send
+  every frame of its loop to the browser, about 79 KB per poll for 50 pixels. It now sends each color once and how
+  many frames it holds, 12 to 26 KB, and looks the same. API: in `/api/live` a `cycle` look (`leds[].look`) keeps
+  `colors` as the distinct colors in order of first appearance and adds `runs`, `[[colorIndex, frames], ...]`, one
+  full loop; `step` is unchanged and other effects are unchanged. The Copilot only uses the distinct colors and is
+  unaffected
+
 ### dman776 26.11.10 (2026-11-10)
 
 - **Changing Update to or Branch checks GitHub right away**: in Config > System > Software, picking a new channel or
