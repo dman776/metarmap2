@@ -2,6 +2,7 @@
 
 import json
 import logging
+import random
 from collections import Counter
 from dataclasses import replace
 from datetime import datetime, timezone
@@ -11,10 +12,22 @@ import pytest
 
 from metarmap import decode, metar, remarks
 from metarmap.models import Report
-from metarmap.remarks import Amount, PeakWind, PressureTendency, Remarks, WeatherEvent, WindShift, parse
+from metarmap.remarks import (
+    Amount,
+    Lightning,
+    PeakWind,
+    Place,
+    PressureTendency,
+    Remarks,
+    WeatherEvent,
+    WindShift,
+    parse,
+)
 
 # real reports from aviationweather.gov's JSON, with the JSON's own remark fields (slp, precip...) to check against
 CORPUS = json.loads((Path(__file__).parent / "fixtures" / "metars_remarks.json").read_text())["reports"]
+# real reports with lightning remarks of more forms (manual stations: OHD, AND DSNT, CONS...), in the same shape
+LIGHTNING = json.loads((Path(__file__).parent / "fixtures" / "metars_lightning.json").read_text())["reports"]
 
 KHOU = (
     "METAR KHOU 110353Z 00000KT 8SM -TSRA SCT022CB BKN070 OVC090 16/15 A3015 RMK AO2 SLP214 OCNL LTGICCG E AND SW "
@@ -37,7 +50,8 @@ def test_khou():
         dewpoint_c=15.0,
         precipitation=(Amount(1, 0.01),),
         maintenance=True,
-        other=("OCNL LTGICCG E AND SW TS E AND SW MOV NE",),  # lightning and thunderstorm text: not read yet, kept
+        lightning=(Lightning("OCNL", ("IC", "CG"), (Place(None, (("E",), ("SW",))),)),),
+        other=("TS E AND SW MOV NE",),  # the thunderstorm's place: not read yet, kept
     )
 
 
@@ -303,8 +317,8 @@ def test_snow():
 
 
 def test_what_it_doesnt_read_is_kept_in_order():
-    found = rmk("AO2 LTG DSNT S RAE12B34 SLP198 HARBOR WIND 11015KT P0000 VIRGA $")
-    assert found.other == ("LTG DSNT S", "HARBOR WIND 11015KT", "VIRGA")
+    found = rmk("AO2 RAE12B34 TS DSNT S SLP198 HARBOR WIND 11015KT P0000 VIRGA $")
+    assert found.other == ("TS DSNT S", "HARBOR WIND 11015KT", "VIRGA")
     assert found.events and found.sea_level_pressure_hpa == 1019.8 and found.maintenance
 
 
@@ -316,6 +330,234 @@ def test_a_group_inside_free_text_is_still_read():
 def test_remarks_are_immutable():
     with pytest.raises(AttributeError):
         parse(KHOU).station_type = "AO1"
+
+
+# ---- lightning (FMH-1 12.7.1 j) ------------------------------------------------------------------------------
+
+DSNT_N = Place("DSNT", (("N",),))
+
+
+@pytest.mark.parametrize(
+    "text, lightning",
+    [
+        ("LTG", Lightning()),  # nothing else: at the station
+        ("OCNL LTGICCG E AND SW", Lightning("OCNL", ("IC", "CG"), (Place(None, (("E",), ("SW",))),))),
+        ("LTG DSNT N", Lightning(places=(DSNT_N,))),
+        ("FRQ LTGCG OHD", Lightning("FRQ", ("CG",), (Place("OHD"),))),
+        ("LTG DSNT ALQDS", Lightning(places=(Place("DSNT", all_quadrants=True),))),
+        ("FRQ LTG VC", Lightning("FRQ", places=(Place("VC"),))),
+        ("LTG VC E AND SW", Lightning(places=(Place("VC", (("E",), ("SW",))),))),
+        ("CONS LTGICCGCA OHD", Lightning("CONS", ("IC", "CG", "CA"), (Place("OHD"),))),
+        ("OCNL LTGICCCCG S", Lightning("OCNL", ("IC", "CC", "CG"), (Place(None, (("S",),)),))),
+        ("LTGICIC", Lightning(types=("IC",))),  # a type twice: once
+        ("OCNL LTG DSNT W", Lightning("OCNL", places=(Place("DSNT", (("W",),)),))),
+        # ranges, clockwise: with - or THRU, of two points or more
+        ("LTG DSNT NE-SE", Lightning(places=(Place("DSNT", (("NE", "SE"),)),))),
+        ("OCNL LTGICCG SE-S-SW", Lightning("OCNL", ("IC", "CG"), (Place(None, (("SE", "S", "SW"),)),))),
+        ("LTG DSNT NW THRU SE", Lightning(places=(Place("DSNT", (("NW", "SE"),)),))),
+        ("LTG DSNT N AND NE-E AND SW", Lightning(places=(Place("DSNT", (("N",), ("NE", "E"), ("SW",))),))),
+        # as manual stations write them: a list without AND, and more than one place
+        ("OCNL LTGCG DSNT S SW W", Lightning("OCNL", ("CG",), (Place("DSNT", (("S",), ("SW",), ("W",))),))),
+        (
+            "FRQ LTGICCG OHD-S-SW AND DSNT W",
+            Lightning("FRQ", ("IC", "CG"), (Place("OHD", (("S", "SW"),)), Place("DSNT", (("W",),)))),
+        ),
+        (
+            "OCNL LTGICCG S-SW DSNT W",
+            Lightning("OCNL", ("IC", "CG"), (Place(None, (("S", "SW"),)), Place("DSNT", (("W",),)))),
+        ),
+        ("OCNL LTGCG W AND DSNT SW", Lightning("OCNL", ("CG",), (Place(None, (("W",),)), Place("DSNT", (("SW",),))))),
+        (
+            "OCNL LTGICCG NE AND DSNT S SW",
+            Lightning("OCNL", ("IC", "CG"), (Place(None, (("NE",),)), Place("DSNT", (("S",), ("SW",))))),
+        ),
+        ("OCNL LTGICCG OHD-N-E", Lightning("OCNL", ("IC", "CG"), (Place("OHD", (("N", "E"),)),))),
+    ],
+)
+def test_lightning(text, lightning):
+    found = rmk(f"AO2 {text} SLP214")
+    assert found.lightning == (lightning,)
+    assert found.other == () and found.station_type == "AO2" and found.sea_level_pressure_hpa == 1021.4
+
+
+def test_lightning_alone_and_more_than_one_group():
+    assert rmk("LTG").lightning == (Lightning(),) and rmk("LTG").other == ()
+    found = rmk("AO2 LTG DSNT ALQDS PRESRR OCNL LTGICCCCG E-S-SW TS E-S-SW MOV NE")
+    assert found.lightning == (
+        Lightning(places=(Place("DSNT", all_quadrants=True),)),
+        Lightning("OCNL", ("IC", "CC", "CG"), (Place(None, (("E", "S", "SW"),)),)),
+    )
+    assert found.other == ("TS E-S-SW MOV NE",)
+
+
+@pytest.mark.parametrize(
+    "text, lightning, other",
+    [
+        ("LTGX", (), ("LTGX",)),  # not a type
+        ("LTGI DSNT N", (), ("LTGI DSNT N",)),
+        ("XLTG DSNT N", (), ("XLTG DSNT N",)),
+        ("OCNL", (), ("OCNL",)),  # a frequency alone
+        ("OCNL LTGX", (), ("OCNL LTGX",)),
+        ("LTG/DSNT", (), ("LTG/DSNT",)),
+        ("LTG VCTS", (), ("LTG VCTS",)),  # VC only as a word of its own: a place that can't be read
+        ("LTG DSNT N AND", (Lightning(places=(DSNT_N,)),), ("AND",)),  # AND with nothing after it
+        ("LTG DSNT NE-", (Lightning(places=(Place("DSNT"),)),), ("NE-",)),  # a range with no end
+        ("LTG DSNT NNE", (Lightning(places=(Place("DSNT"),)),), ("NNE",)),  # 8 points only
+        ("LTG DSNT THRU", (Lightning(places=(Place("DSNT"),)),), ("THRU",)),
+        ("LTG FAR N", (Lightning(),), ("FAR N",)),
+        ("LTG ALQDS AND N", (Lightning(places=(Place(all_quadrants=True),)),), ("AND N",)),
+        ("LTG DSNT ALQDS N", (Lightning(places=(Place("DSNT", all_quadrants=True),)),), ("N",)),
+    ],
+)
+def test_what_isnt_a_lightning_group_is_kept(text, lightning, other):
+    found = rmk(text)
+    assert (found.lightning, found.other) == (lightning, other)
+
+
+@pytest.mark.parametrize(
+    "raw, at_station",
+    [
+        ("KTST 110353Z RMK LTG DSNT W", False),  # distant only
+        ("KTST 110353Z RMK OCNL LTG DSNT W AND DSNT N", False),
+        ("KTST 110353Z RMK LTG", True),  # no distance: at the station
+        ("KTST 110353Z RMK OCNL LTGICCG E AND SW", True),
+        ("KTST 110353Z RMK FRQ LTGCG OHD", True),
+        ("KTST 110353Z RMK LTG VC", True),
+        ("KTST 110353Z RMK OCNL LTGCG W AND DSNT SW", True),  # one place near is enough
+        ("KTST 110353Z RMK LTG DSNT ALQDS OCNL LTGIC E", True),  # and one group
+        ("KTST 110353Z RMK LTG DSNT5 W", False),  # a distance that can't be read isn't lightning at the station
+        ("KTST 110353Z RMK LTG VCY", False),
+        ("KTST 110353Z LTG DSNT5 W", False),  # without RMK
+        ("KTST 110353Z RMK AO2 SLP214", False),
+        ("", False),
+        (None, False),
+    ],
+)
+def test_lightning_at_station(raw, at_station):
+    assert remarks.lightning_at_station(remarks.lightning_groups(raw)) is at_station
+
+
+def test_lightning_outside_the_remarks_is_read():
+    """A mock typed without RMK, or remarks that couldn't be read: the groups are found anywhere in the report."""
+    assert remarks.lightning_groups("KTST 110353Z 10SM TS LTG DSNT N") == (Lightning(places=(DSNT_N,)),)
+    assert remarks.lightning_groups("KTST 110353Z 10SM RMK AO2 LTGX") == ()
+    # a station's code, or a word that starts with LTG, isn't lightning
+    assert remarks.lightning_groups("LTGP 110350Z 9999 FEW030 20/10 Q1015") == ()
+    found = parse(KHOU)
+    assert remarks.lightning_groups(KHOU, found) is found.lightning  # what's read already isn't read again
+
+
+def test_lightning_in_remarks_that_cant_be_read(monkeypatch, caplog):
+    monkeypatch.setattr(remarks, "_parse", lambda body, text: 1 / 0)
+    raw = "METAR KTST 110353Z 00000KT 10SM CLR 16/15 A3015 RMK AO2 FRQ LTGCG OHD"
+    with caplog.at_level(logging.WARNING, logger="metarmap.remarks"):
+        assert parse(raw).lightning == ()
+        assert remarks.lightning_groups(raw) == (Lightning("FRQ", ("CG",), (Place("OHD"),)),)
+    assert metar.parse_raw(raw, datetime(2026, 11, 11, 4, 0, tzinfo=timezone.utc)).lightning is True
+
+
+def test_lightning_outside_the_remarks_that_cant_be_read(monkeypatch, caplog):
+    """A bug reading a lightning group found outside the remarks: none, logged once, and nothing raises."""
+    monkeypatch.setattr(remarks, "_lightning", lambda g: 1 / 0)
+    raw = "KTST 110353Z 10SM TS LTG OHD"
+    with caplog.at_level(logging.WARNING, logger="metarmap.remarks"):
+        assert remarks.lightning_groups(raw) == ()
+        assert remarks.lightning_groups(raw) == ()
+    assert len(caplog.records) == 1 and "ZeroDivisionError" in caplog.text
+    assert metar.parse_raw(raw, datetime(2026, 11, 11, 4, 0, tzinfo=timezone.utc)).lightning is False
+
+
+# real reports (metars_lightning.json and metars_remarks.json): the flag, and the Decoded tab's Lightning lines
+REAL = {
+    "METAR KCRP 081551Z": (
+        True,
+        ["Frequent in-cloud and cloud-to-ground, overhead and south through southwest, distant west"],
+    ),
+    "SPECI KCRP 081521Z": (True, ["Occasional in-cloud and cloud-to-ground, south through southwest, distant west"]),
+    "METAR KCRP 101551Z": (True, ["Occasional cloud-to-ground, west, distant southwest"]),
+    "METAR KCRP 101251Z": (False, ["Occasional in-cloud and cloud-to-ground, distant north, northeast and east"]),
+    "METAR KCRP 100851Z": (True, ["Continuous in-cloud and cloud-to-ground, south through southwest"]),
+    "METAR KCRP 100951Z": (True, ["Occasional in-cloud and cloud-to-ground, overhead and north through east"]),
+    "METAR KAUS 080253Z": (False, ["Occasional, distant west"]),
+    "METAR KHOU 110553Z": (
+        True,
+        ["Distant in all quadrants", "Occasional in-cloud, cloud-to-cloud and cloud-to-ground, east through southwest"],
+    ),
+    "SPECI KCRP 081600Z": (
+        True,
+        ["Occasional in-cloud and cloud-to-ground, overhead and northeast, distant southwest"],
+    ),
+    "METAR KHOU 102253Z": (True, ["Occasional in-cloud, southwest and west"]),
+    "SPECI KAUS 080626Z": (True, ["Occasional in-cloud, cloud-to-cloud and cloud-to-ground, south"]),
+    "SPECI KVCT 101413Z": (False, ["Distant in all quadrants"]),
+    "METAR KC75 111755Z": (False, ["Distant northwest through southeast"]),
+    "SPECI KCRP 081617Z": (True, ["Occasional in-cloud and cloud-to-ground, northeast, distant south and southwest"]),
+    "METAR KHOU 110653Z": (
+        True,
+        [
+            "Distant east and west",
+            "Occasional in-cloud, cloud-to-cloud and cloud-to-ground, southeast through southwest",
+        ],
+    ),
+    "METAR KCRP 081251Z": (False, ["Occasional cloud-to-ground, distant southwest and west"]),
+    "METAR KHOU 110353Z": (True, ["Occasional in-cloud and cloud-to-ground, east and southwest"]),
+    "METAR K11R 110355Z": (False, ["Distant southeast and south"]),
+    "SPECI KLBX 110402Z": (False, ["Distant northwest through east"]),
+    "SPECI KSGR 110359Z": (False, ["Distant in all quadrants"]),
+}
+
+
+def test_real_lightning_reports():
+    by_start = {" ".join(case["rawOb"].split()[:3]): case for case in LIGHTNING + CORPUS}
+    assert len(LIGHTNING) >= 15
+    for start, (flag, texts) in REAL.items():
+        report = metar.parse_report(by_start[start])
+        assert report.lightning is flag, start
+        lines = decode.lightning_lines(report)
+        assert [text for _, text in lines] == texts, start
+        assert [label for label, _ in lines] == ["Lightning"] + [""] * (len(texts) - 1)
+        mock = metar.parse_raw(report.raw, datetime(2026, 11, 11, 18, tzinfo=timezone.utc))
+        assert mock.lightning is report.lightning and mock.lightning_groups == report.lightning_groups
+    # every real report: no lightning group left unread, and the flag is what its groups say
+    for case in LIGHTNING + CORPUS:
+        report = metar.parse_report(case)
+        assert report.lightning is any(group.at_station for group in report.lightning_groups), case["rawOb"]
+
+
+# ---- fuzz: mutated lightning groups never raise ---------------------------------------------------------------
+
+POOL = "OCNL FRQ CONS LTG LTGIC LTGCG LTGICCG LTGICCCCG OHD VC DSNT ALQDS AND THRU N NE E SE S SW W NW - TS MOV".split()
+
+
+def test_fuzz():
+    """
+    20,000 remarks of lightning words and real groups, shuffled, with characters changed: none raises out of parse()
+    (the guard isn't needed), lightning_groups(), decode() or the spoken weather, and no LTG word is lost. Seeded.
+    """
+    from metarmap import spoken
+
+    pool = POOL + [t for case in LIGHTNING for t in parse(case["rawOb"]).text.split()]
+    rng = random.Random(11)
+    caught = []
+    log = logging.getLogger("metarmap.remarks")
+    handler = logging.Handler()
+    handler.emit = caught.append
+    log.addHandler(handler)
+    try:
+        for _ in range(20000):
+            text = " ".join(rng.choice(pool) for _ in range(rng.randint(0, 12)))
+            text = "".join(c if rng.random() > 0.04 else rng.choice("NESW- LTGICDHOVAQ") for c in text)
+            raw = "METAR KTST 110353Z 00000KT 10SM CLR 16/15 A3015 " + rng.choice(("RMK ", "")) + text
+            report = Report(raw=raw, wind_speed=5, visibility_sm=1.0)
+            found = report.remarks
+            assert all(run in found.text for run in found.other)
+            assert report.lightning_groups == remarks.lightning_groups(raw)
+            decode.decode(report)
+            decode.summary(report)
+            spoken.spoken(report, "Test", "KTST")
+    finally:
+        log.removeHandler(handler)
+    assert caught == []
 
 
 # ---- on the Report -------------------------------------------------------------------------------------------
@@ -343,7 +585,7 @@ def test_a_report_without_remarks():
 # ---- the corpus: real reports ---------------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("case", CORPUS, ids=lambda c: c["icaoId"])
+@pytest.mark.parametrize("case", CORPUS + LIGHTNING, ids=lambda c: c["icaoId"])
 def test_real_reports_agree_with_the_json(case):
     """
     Where aviationweather.gov's JSON has a remark field, it agrees. It says 0.005 for a trace. Its maxT/minT read
@@ -395,7 +637,9 @@ def test_most_of_the_remarks_are_read():
             unknown.update(run.split())
         # nothing is lost: what's read and what isn't add up to the whole remarks
         assert all(run in found.text for run in found.other)
-        assert "LTG" not in found.text or any("LTG" in run for run in found.other)
+        # every lightning group is read: none is left in what isn't
+        assert not any("LTG" in run for run in found.other), found.text
+        assert ("LTG" in found.text) == bool(found.lightning)
     share = (tokens - unread) / tokens
     print(f"\n{len(CORPUS)} reports, {tokens} remark groups, {share:.1%} read; not read: {unknown.most_common(12)}")
     assert len(CORPUS) >= 150 and share > 0.80

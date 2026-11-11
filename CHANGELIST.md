@@ -1,5 +1,19 @@
 ### Unreleased
 
+- **Lightning remarks explained, and distant lightning no longer flashes**: the Decoded tab on the Map page now reads a
+  METAR's lightning remark: how often (occasional, frequent, continuous), what kind (in-cloud, cloud-to-cloud,
+  cloud-to-ground, cloud-to-air), how far (overhead, in the vicinity, distant) and which way (`OCNL LTGICCG E AND SW`:
+  Lightning: Occasional in-cloud and cloud-to-ground, east and southwest; `LTG DSNT ALQDS`: Distant in all quadrants;
+  `FRQ LTGICCG OHD-S-SW AND DSNT W`: Frequent in-cloud and cloud-to-ground, overhead and south through southwest,
+  distant west). It used to say only "Lightning observed" and list the group again under Other remarks. The Summary
+  tab and the spoken weather say it too, without the kind ("Occasional lightning distant north.", "Frequent lightning
+  overhead.", "Lightning in the vicinity, east and southwest."). The pixel's lightning flicker now means lightning at,
+  over or near the airport: an airport whose only lightning is distant (`LTG DSNT`, more than 10 miles away, the most
+  common lightning remark from automated stations) no longer flashes, unless it also reports a thunderstorm (`TS`,
+  `VCTS`), which flashes as before. A mock METAR follows the same rule. API: `lightning` in `/api/status` and
+  `/api/live` is `true` only for lightning at, over or near the airport (it was `true` for any `LTG`, distant too), and
+  in `/api/metar/<code>` the `decoded` Lightning lines and the `summary` lightning sentences say more (API.md)
+
 - **The Decoded tab reads the whole METAR**: an airport's Decoded tab on the Map page now also explains the groups of
   the report itself that the weather feed leaves out. A special report (SPECI) or a corrected one (COR, or CCA, CCB...
   for the first, second... correction) gets a **Report type** line after Observed; any other report has none (AUTO
@@ -30,9 +44,9 @@
   wind shift (frontal passage), tower, surface and variable visibility, a variable ceiling, the 6 and 24 hour high and
   low temperatures, when rain, snow or a thunderstorm began or ended, ice, snow depth and snowfall, sensors out of
   service, and the station type and maintenance flag. Anything it doesn't read yet is listed as **Other remarks**, as
-  the raw text: lightning and thunderstorm locations (like `OCNL LTGICCG E AND SW TS E AND SW MOV NE`, read in a later
-  update), icing (`VRY LGT ICG`), local winds (`HARBOR WIND 11015KT`), visibility in one direction (`VIS N-E 1 1/4`),
-  showers around the station (`SHRA ALQDS`) and other plain-language remarks. A METAR with no remarks looks as before.
+  the raw text: thunderstorm locations (like `TS E AND SW MOV NE`; lightning is read since, see above), icing
+  (`VRY LGT ICG`), local winds (`HARBOR WIND 11015KT`), visibility in one direction (`VIS N-E 1 1/4`), showers around
+  the station (`SHRA ALQDS`) and other plain-language remarks. A METAR with no remarks looks as before.
   Nothing else changes: the lightning flag, the pixel looks, the Micro and the spoken weather work as they did. The
   Decoded tab scrolls inside the popup when the list is long, and its label column is narrower so the values keep room
 

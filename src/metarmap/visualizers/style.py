@@ -9,7 +9,7 @@ How the LEDs show things, shared by every visualizer so the same meaning always 
   in the vicinity (VC)                solid, dim
   lightning or a thunderstorm         two quick flashes every 2 s over the airport's look, in every weather
                                       visualizer (with lightning.animation on; with_lightning()), in
-                                      lightning.color
+                                      lightning.color; distant lightning alone (LTG DSNT) doesn't flash
 
 Ranges (wind, temperature, ...) are a few solid bands of clearly different colors, not blends: a Band table is the
 one place each visualizer's thresholds live, and its legend is built from the same table.
@@ -93,7 +93,10 @@ LIGHTNING_CYCLE = 4.0
 
 
 def has_lightning(metar: Optional[Report]) -> bool:
-    """LTG in the report (LTG DSNT W...), or a thunderstorm: TS, TSRA, VCTS..."""
+    """
+    Lightning at, over or near the station (Report.lightning: LTG, OCNL LTGICCG OHD, FRQ LTG VC...; not distant
+    lightning alone, LTG DSNT W), or a thunderstorm: TS, TSRA, VCTS...
+    """
     if not metar:
         return False
     return metar.lightning or any(g.descriptor == "TS" for g in parse_weather(metar.weather))

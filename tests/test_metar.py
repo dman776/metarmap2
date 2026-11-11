@@ -148,10 +148,23 @@ def test_sparse_report_uses_defaults(make_config):
     assert (d.temp_c, d.dewpoint_c, d.obs_time) == (None, None, None)
 
 
-def test_lightning_flag(make_config):
+@pytest.mark.parametrize(
+    "raw, lightning",
+    [
+        ("KTST 241453Z 14009KT 10SM TS RMK LTG DSNT W", False),  # distant only: the flag is off (TS still flickers)
+        ("KTST 241453Z 14009KT 10SM TS RMK OCNL LTGICCG OHD", True),
+        ("KTST 241453Z 14009KT 10SM RMK FRQ LTG VC", True),
+        ("KTST 241453Z 14009KT 10SM RMK LTG", True),  # no distance: at the station
+        ("KTST 241453Z 14009KT 10SM RMK LTG DSNT ALQDS OCNL LTGIC E", True),  # distant and at the station
+        ("KTST 241453Z 14009KT 10SM TS LTG", True),  # an LTG outside the remarks (no RMK) is still read
+        ("LTGP 241450Z 14009KT 9999 FEW030 20/10 Q1015", False),  # a station's code isn't lightning
+    ],
+)
+def test_lightning_flag(make_config, raw, lightning):
     m = metar.Reports(make_config("KTST"), clock=CLOCK)
-    m._process(response(report("KTST", **{**GOOD, "rawOb": "KTST 241453Z 14009KT 10SM TS LTG DSNT"})))
-    assert m.data["KTST"].lightning is True
+    m._process(response(report("KTST", **{**GOOD, "rawOb": raw})))
+    assert m.data["KTST"].lightning is lightning
+    assert metar.parse_raw(raw, NOW).lightning is lightning  # a mock: the same rule
 
 
 def test_data_is_replaced_not_mutated(make_config):
@@ -391,7 +404,8 @@ def test_parse_raw_a_storm():
     m = metar.parse_raw("KHOU 280053Z 18012G25KT 1 1/2SM +TSRA BR BKN008 OVC015CB 22/21 A2992 RMK LTG DSNT", NOW)
     assert m.flight_category == "IFR"  # ceiling 800 ft
     assert (m.wind_speed, m.wind_gust_speed, m.wind_gust) == (12, 25, True)
-    assert m.visibility_sm == 1.5 and m.weather == "+TSRA BR" and m.lightning is True
+    assert m.visibility_sm == 1.5 and m.weather == "+TSRA BR"
+    assert m.lightning is False  # LTG DSNT: distant only (the +TSRA still flickers the pixel)
     assert m.sky_conditions == (SkyLayer("BKN", 800), SkyLayer("OVC", 1500))
 
 

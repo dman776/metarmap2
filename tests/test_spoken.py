@@ -232,3 +232,50 @@ def test_numbers():
     assert spoken.altitude(12000) == "twelve thousand"
     assert spoken.altitude(4950) == "five thousand"  # to the nearest hundred (banker's rounding: 4950 -> 5000)
     assert spoken.altitude(0) == "zero"
+
+
+# ---- lightning: how often, how far and which way, not its kind ------------------------------------------------
+
+LTG_NOW = datetime(2026, 11, 11, 4, 0, tzinfo=timezone.utc)
+
+
+@pytest.mark.parametrize(
+    "remarks, said",
+    [
+        # real: KHOU 110353Z (tests/fixtures/metars_remarks.json)
+        (
+            "AO2 SLP214 OCNL LTGICCG E AND SW TS E AND SW MOV NE P0001 T01610150 $",
+            "Occasional lightning, east and southwest.",
+        ),
+        # the rest synthetic
+        ("AO2 OCNL LTGCGIC DSNT N", "Occasional lightning distant north."),
+        ("AO2 LTG DSNT N", "Lightning distant north."),  # said, though the pixel doesn't flicker
+        ("AO2 FRQ LTGCG OHD", "Frequent lightning overhead."),
+        ("AO2 LTG VC E AND SW", "Lightning in the vicinity, east and southwest."),
+        ("AO2 LTG DSNT ALQDS", "Lightning distant in all quadrants."),
+        ("AO2 LTG DSNT NW-E", "Lightning distant northwest through east."),
+        (
+            "AO2 FRQ LTGICCG OHD-S-SW AND DSNT W",
+            "Frequent lightning overhead and south through southwest, distant west.",
+        ),
+        ("AO2 LTGICCG", "Lightning observed."),  # nothing more than its kind
+        ("AO2 LTG", "Lightning observed."),
+        ("AO2 LTG DSNT ALQDS OCNL LTG OHD", "Lightning distant in all quadrants. Occasional lightning overhead."),
+        ("AO2 SLP214", None),
+    ],
+)
+def test_lightning(remarks, said):
+    from metarmap.metar import parse_raw
+
+    report = parse_raw(f"METAR KHOU 110353Z 00000KT 8SM -TSRA SCT022CB 16/15 A3015 RMK {remarks}", LTG_NOW)
+    assert spoken.lightning(report) == said
+    text = spoken.spoken(report, "Hobby", "KHOU")
+    if said:  # after the weather, before the sky
+        assert f"Weather thunderstorm with light rain. {said} Sky condition" in text
+    assert not any(code in text for code in ("LTG", "DSNT", "OHD", "ALQDS", "-"))  # words only
+
+
+def test_lightning_flag_alone():
+    """A Report made with the flag and no raw says what it used to."""
+    assert spoken.lightning(report(lightning=True)) == "Lightning observed."
+    assert spoken.lightning(report()) is None

@@ -1576,7 +1576,7 @@
     "tempC": 22,
     "dewpointC": 21,
     "altimHg": 29.92,
-    "lightning": true,
+    "lightning": false,
     "skyConditions": [
      {
       "cover": "BKN",

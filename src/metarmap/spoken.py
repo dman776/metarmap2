@@ -86,7 +86,7 @@ def _spoken(metar: Optional[Report], name: str, code: str) -> str:
         wind(metar),
         visibility(metar.visibility_sm, metar.visibility_more),
         weather(metar.weather),
-        "Lightning observed." if metar.lightning else None,
+        lightning(metar),
         sky(metar),
         temperature(metar),
         altimeter(metar.altimeter_inhg),
@@ -190,6 +190,18 @@ def weather(wx: str) -> Optional[str]:
         return None
     text = ", ".join(groups[:-1]) + (" and " if len(groups) > 1 else "") + groups[-1]
     return f"Weather {text}."
+
+
+def lightning(metar: Report) -> Optional[str]:
+    """
+    How often, how far and which way, a sentence per lightning group, without its kind: "Occasional lightning distant
+    north.", "Frequent lightning overhead.", "Lightning in the vicinity, east and southwest." "Lightning observed."
+    when the report says no more; None for none.
+    """
+    texts = [decode.lightning_sentence(group) for group in metar.lightning_groups]
+    if not texts and metar.lightning:
+        texts = ["Lightning observed"]
+    return " ".join(f"{text}." for text in dict.fromkeys(texts)) or None
 
 
 def sky(metar: Report) -> str:

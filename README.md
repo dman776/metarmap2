@@ -28,7 +28,7 @@ Written from the ground up with a web UI, an API and a Home Assistant integratio
   pixels, plus Flight Category Forecast and Precipitation Forecast (each airport steps through now and the TAF's
   3, 6 and 12 hours ahead) and the Rainbow and Chase patterns.
   Switch between them on the web UI, or let the Chart rotate through them.
-- **Lightning**: airports reporting lightning or a thunderstorm flicker yellow or white (a double flash every 2 s) in every weather visualizer, unless you turn the animation off in Config.
+- **Lightning**: airports reporting lightning or a thunderstorm flicker yellow or white (a double flash every 2 s) in every weather visualizer, unless you turn the animation off in Config. Lightning at, over or near the airport counts; distant lightning alone (more than 10 miles away, `LTG DSNT` in the METAR) doesn't flash, though the Decoded tab and the spoken weather still mention it.
 - **Estimated flight categories**: a station that doesn't report its flight category, but does report its visibility
   or clouds, gets an estimate from them. Its pixel breathes slowly so you can tell, and the Micro shows it with a `*`
   (`VFR*`).
@@ -62,7 +62,8 @@ The Wind Direction visualizer, with wind barbs, over the radar background:
 ![The Wind Direction visualizer over live radar: each airport in the color of the direction its wind blows from, with a barb](docs/images/map_wind_direction_with_barbs.jpg)
 
 Click an airport for its weather in plain English, the raw METAR, or the METAR decoded line by line, with its
-remarks explained (those it can't read yet, like lightning, icing and local winds, stay as raw text), and the groups of
+remarks explained (lightning too: how often, what kind, how far and which way; those it can't read yet, like
+thunderstorm locations, icing and local winds, stay as raw text), and the groups of
 the report itself that the weather feed leaves out: whether it's a special or corrected report, the wind's variable
 direction, runway visual range, the lowest visibility, cumulonimbus and towering cumulus (even when their height isn't
 known), CAVOK, NSC and NCD,
