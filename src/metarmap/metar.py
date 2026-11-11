@@ -13,6 +13,7 @@ from typing import Dict, Optional
 import requests
 
 from metarmap import USER_AGENT
+from metarmap.body import TREND_KINDS
 from metarmap.clock import Clock
 from metarmap.models import Report, SkyLayer
 
@@ -181,8 +182,9 @@ def parse_raw(raw, now) -> Report:
     """
     A METAR typed by hand ("METAR KDWH 272353Z AUTO 08003KT 9SM CLR 21/18 A3014 RMK ...") as parse_report() gives
     one from the JSON, for the mock METARs. The flight category comes from the visibility and ceiling (FAA limits).
-    Only the body is read here (Report.remarks reads the remarks from raw, as for a fetched report). Raises ValueError
-    if it doesn't start like a METAR.
+    Only the body is read here (Report.remarks reads the remarks from raw, as for a fetched report), up to its trend
+    (NOSIG, BECMG, TEMPO): like the JSON, the weather and clouds are what's observed, not what's forecast (Report.body
+    reads the trend). Raises ValueError if it doesn't start like a METAR, or for a visibility over zero (1/0SM).
     """
     from metarmap.decode import estimate_category, parse_weather_group
 
@@ -207,8 +209,10 @@ def parse_raw(raw, now) -> Report:
         t = tokens[i]
         wind = re.fullmatch(r"(\d{3}|VRB)(\d{2,3})(?:G(\d{2,3}))?(KT|MPS)", t)
         miles = re.fullmatch(r"([MP])?(\d+(?:/\d+)?)SM", t)
-        clouds = re.fullmatch(r"(FEW|SCT|BKN|OVC)(\d{3})(?:CB|TCU)?", t)
+        clouds = re.fullmatch(r"(FEW|SCT|BKN|OVC)(\d{3})(?:CB|TCU|///)?", t)  # ///: type not known (automated)
         temps = re.fullmatch(r"(M?\d{2})/(M?\d{2})?", t)
+        if t in TREND_KINDS:  # the rest is a forecast
+            break
         if wind:
             factor = MPS_TO_KT if wind.group(4) == "MPS" else 1
             wind_dir = wind.group(1) if wind.group(1) == "VRB" else str(int(wind.group(1)))  # as the JSON: "80"
@@ -216,22 +220,22 @@ def parse_raw(raw, now) -> Report:
             gust = int(round(int(wind.group(3)) * factor)) if wind.group(3) else 0
         elif re.fullmatch(r"\d{3}V\d{3}", t):  # varying wind direction
             pass
-        elif t.isdigit() and i + 1 < len(tokens) and re.fullmatch(r"\d/\dSM", tokens[i + 1]):  # 1 1/2SM
-            visibility = float(int(t) + Fraction(tokens[i + 1][:-2]))
+        elif re.fullmatch(r"[0-9]+", t) and i + 1 < len(tokens) and re.fullmatch(r"\d/\dSM", tokens[i + 1]):  # 1 1/2SM
+            visibility = float(int(t) + _miles(tokens[i + 1][:-2]))
             i += 1
         elif miles:
-            visibility = float(Fraction(miles.group(2)))
+            visibility = float(_miles(miles.group(2)))
             more = miles.group(1) == "P"
-        elif re.fullmatch(r"\d{4}", t) and visibility is None:  # meters, outside the US; 9999: 10 km or more
-            visibility = round(int(t) / METERS_PER_SM, 2)
-            more = t == "9999"
+        elif re.fullmatch(r"\d{4}(?:NDV)?", t) and visibility is None:  # meters, outside the US; 9999: 10 km or more
+            visibility = round(int(t[:4]) / METERS_PER_SM, 2)
+            more = t[:4] == "9999"
         elif t == "CAVOK":
             visibility, more = 10.0, True
             sky.append(SkyLayer("CAVOK"))
         elif clouds:
             sky.append(SkyLayer(clouds.group(1), int(clouds.group(2)) * 100))
         elif re.fullmatch(r"VV(\d{3}|///)", t):  # sky obscured
-            vert_vis = int(t[2:]) * 100 if t[2:].isdigit() else 0
+            vert_vis = int(t[2:]) * 100 if re.fullmatch(r"[0-9]+", t[2:]) else 0
             sky.append(SkyLayer("OVX"))
         elif t in ("CLR", "SKC", "NSC", "NCD"):
             sky.append(SkyLayer(t))
@@ -243,7 +247,7 @@ def parse_raw(raw, now) -> Report:
             altim = round(int(t[1:]) / HPA_PER_INHG, 2)
         elif parse_weather_group(t):
             wx.append(t)
-        i += 1  # anything else (AUTO, COR, RVR, NOSIG...) is skipped
+        i += 1  # anything else (AUTO, COR, RVR...) is skipped here: Report.body reads it
 
     report = Report(
         raw=raw,
@@ -262,6 +266,14 @@ def parse_raw(raw, now) -> Report:
         obs_time=obs_time,
     )
     return replace(report, flight_category=estimate_category(report))
+
+
+def _miles(text) -> Fraction:
+    """A visibility in miles, "3" or "1/2", as a Fraction. Raises ValueError for one over zero (1/0SM)."""
+    try:
+        return Fraction(text)
+    except ZeroDivisionError:
+        raise ValueError(f"{text}SM is not a visibility") from None
 
 
 def with_mocks(real, airports, positions, now):

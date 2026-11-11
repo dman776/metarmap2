@@ -2,17 +2,23 @@
 A METAR in plain English, for the Map page's Decoded tab: one {"label", "text"} line per item the report has.
 
 Works on the Report (models.Report) metar.Reports keeps for each airport. Weather codes follow the FAA's METAR key
-(FMH-1, chapter 12: intensity, descriptor, then precipitation, obscuration or other phenomena).
+(FMH-1, chapter 12: intensity, descriptor, then precipitation, obscuration or other phenomena). What the JSON doesn't
+have (runway visual range, the trend, runway state...) is read from the raw text: Report.body (metarmap.body) and
+Report.remarks (metarmap.remarks).
 """
 
+import re
+from collections import Counter
 from dataclasses import dataclass
 from fractions import Fraction
 from typing import TYPE_CHECKING, Optional, Sequence, Tuple
 
+from metarmap.body import BRAKING, COMPASS_POINTS, DEPOSITS, DEPTHS, EXTENTS, SIDES
 from metarmap.lib.units import celsius_to_fahrenheit
 from metarmap.remarks import SENSORS, TENDENCIES
 
 if TYPE_CHECKING:  # models imports nothing from here, but metar imports both
+    from metarmap.body import Body, Cloud, RunwayRange, RunwayState, Trend
     from metarmap.models import Report, SkyLayer
     from metarmap.remarks import Remarks
 
@@ -69,16 +75,23 @@ def decode(metar: Optional["Report"]):
             lines.append({"label": label, "text": text})
 
     obs = metar.obs_time
+    body = metar.body
     add("Observed", obs.strftime("%d %b %H:%MZ") if obs else None)
+    add("Report type", report_type(body))
     add("Wind", wind(metar))
+    add("Wind variability", wind_varies(body.wind_varies))
     add("Visibility", visibility(metar.visibility_sm, metar.visibility_more))
+    for label, text in body_visibility(body, shown=metar.visibility_sm is not None):
+        add(label, text)
     add("Weather", weather(metar.weather))
-    for n, text in enumerate(clouds(metar.sky_conditions, metar.vert_vis_ft)):
-        add("Clouds" if n == 0 else "", text)
+    for label, text in sky(metar, body):
+        add(label, text)
     add("Temperature", temperature(metar.temp_c))
     add("Dewpoint", dewpoint(metar.dewpoint_c, metar.temp_c))
     altim = metar.altimeter_inhg
     add("Altimeter", f"{altim:.2f} inHg" if altim else None)
+    for label, text in body_after_altimeter(body):
+        add(label, text)
     add("Lightning", "Lightning observed" if metar.lightning else None)
     for label, text in remarks(metar.remarks):
         add(label, text)
@@ -130,7 +143,7 @@ def wind_sentence(metar: "Report"):
         return "Calm wind"
     direction = str(metar.wind_dir or "").upper()
     gust = f", gusting to {metar.wind_gust_speed}" if metar.wind_gust else ""
-    if not direction.isdigit():  # VRB
+    if not _digits(direction):  # VRB
         return f"Variable wind at {speed} knots{gust}"
     degrees = int(direction)
     return f"Wind from the {COMPASS[round(degrees / 45) % 8]} ({degrees:03d}°) at {speed} knots{gust}"
@@ -294,10 +307,13 @@ def weather_group(group):
     return text
 
 
-def clouds(layers: Sequence["SkyLayer"], vert_vis_ft=None):
-    """One line per cloud layer, lowest first, with the ceiling (the lowest broken or overcast layer) marked."""
+def clouds(layers: Sequence["SkyLayer"], vert_vis_ft=None, kinds: Sequence[Optional[str]] = ()):
+    """
+    One line per cloud layer, lowest first, with the ceiling (the lowest broken or overcast layer) marked. kinds:
+    each layer's cloud type, CB or TCU (or None), when known (cloud_kinds).
+    """
     lines, ceiling_found = [], False
-    for layer in layers or ():
+    for n, layer in enumerate(layers or ()):
         cover, base = layer.cover, layer.base_ft
         if cover in ("CLR", "SKC", "CAVOK", "NSC"):
             lines.append("Clear")
@@ -308,6 +324,9 @@ def clouds(layers: Sequence["SkyLayer"], vert_vis_ft=None):
             text = f"{COVER[cover]} {base:,} ft" if base else COVER[cover]
         else:
             text = cover
+        kind = kinds[n] if n < len(kinds) else None
+        if kind in CLOUD_KINDS:
+            text += f", {CLOUD_KINDS[kind]}"
         if cover in CEILING and not ceiling_found:
             text += " (ceiling)"
             ceiling_found = True
@@ -326,6 +345,268 @@ def dewpoint(celsius, temperature_c=None):
     if text and temperature_c is not None:
         text += f" (spread {temperature_c - celsius}°C)"
     return text
+
+
+# ---- the body, for what the JSON doesn't have (metarmap.body) -------------------------------------------------
+
+REPORT_TYPES = {"METAR": "Routine report", "SPECI": "Special report (unscheduled)"}
+# AUTO has no text: most US reports are automated, and the remarks' Station type says so (AO1, AO2)
+MODIFIERS = {"COR": "corrected", "RTD": "delayed"}
+ORDINALS = ("first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth")
+CLOUD_KINDS = {"CB": "cumulonimbus", "TCU": "towering cumulus"}
+# ICAO Annex 3, appendix 3, 4.5: the 5,000 ft is the highest minimum sector altitude where that's higher
+CAVOK = (
+    "Ceiling and visibility OK: visibility 10 km or more, no cloud below 5,000 ft, no cumulonimbus or towering "
+    "cumulus, no significant weather"
+)
+NO_CLOUD = {
+    "NSC": "No significant cloud: none below 5,000 ft, no cumulonimbus or towering cumulus",
+    "NCD": "No clouds detected (automated)",
+}
+CLEAR = ("CLR", "SKC", "CAVOK", "NSC", "NCD")
+RVR_BOUNDS = {"M": "less than ", "P": "more than "}
+RVR_TRENDS = {"U": "improving", "D": "worsening", "N": "no change"}
+TREND_KINDS = {"BECMG": "Becoming", "TEMPO": "Temporarily"}
+TREND_TIMES = {"FM": "from", "TL": "until", "AT": "at"}
+WIND_UNITS = {"KT": "kt", "MPS": "m/s", "KMH": "km/h"}
+
+
+def report_type(body: "Body"):
+    """
+    "Special report (unscheduled)", "Routine report, corrected (first correction)": only for a special report (SPECI)
+    or a corrected one (COR, CCA...), None for any other. AUTO isn't shown (most US reports are automated, and the
+    Station type line says so); RTD (delayed) is, after the rest, on a report that has the line.
+    """
+    corrected = any(code == "COR" or code.startswith("CC") for code in body.modifiers)
+    if body.report_type != "SPECI" and not corrected:
+        return None
+    parts = [REPORT_TYPES.get(body.report_type)] + [modifier(code) for code in body.modifiers]
+    text = ", ".join(part for part in parts if part)
+    return text[:1].upper() + text[1:]
+
+
+def modifier(code):
+    """ "COR" -> "corrected"; "CCA" -> "corrected (first correction)"; None for AUTO (not shown)."""
+    if code.startswith("CC") and len(code) == 3:
+        n = ord(code[2]) - ord("A")
+        return f"corrected ({ORDINALS[n]} correction)" if 0 <= n < len(ORDINALS) else "corrected"
+    return MODIFIERS.get(code)
+
+
+def wind_varies(directions):
+    """(350, 50) -> "Varying between 350° and 050°"."""
+    if not directions:
+        return None
+    return "Varying between {:03d}° and {:03d}°".format(*directions)
+
+
+def body_visibility(body: "Body", shown=True):
+    """
+    (label, text) for what the body adds to the visibility: NDV, the lowest visibility and the runway visual range.
+    shown: whether the Visibility line is there, which NDV continues.
+    """
+    found = []
+    if body.no_directional_variation:
+        found.append(("" if shown else "Visibility", "Directional variation not available"))
+    if body.lowest_visibility_m is not None:
+        toward = COMPASS_POINTS.get(body.lowest_visibility_toward)
+        found.append(("Lowest visibility", f"{body.lowest_visibility_m:,} m" + (f" to the {toward}" if toward else "")))
+    ranges = [r for r in body.runway_ranges if r.low is not None]  # R24/////: not reported, not shown
+    found.extend(("Runway visual range" if n == 0 else "", runway_range(r)) for n, r in enumerate(ranges))
+    return found
+
+
+def runway_name(code):
+    """ "24L" -> "24 left"."""
+    return code[:2] + (f" {SIDES[code[2:]]}" if code[2:] in SIDES else "")
+
+
+def runway_range(found: "RunwayRange"):
+    """ "Runway 28: 2,400 ft", "Runway 24 left: varying 550 to 800 m, improving", "Runway 06: more than 6,000 ft"."""
+    where = f"Runway {runway_name(found.runway)}"
+    if found.low is None:  # R24///// (body_visibility leaves it out)
+        return f"{where}: not reported"
+    unit = "ft" if found.feet else "m"
+    low = f"{RVR_BOUNDS.get(found.low_bound, '')}{found.low:,}"
+    if found.high is not None:
+        text = f"varying {low} to {RVR_BOUNDS.get(found.high_bound, '')}{found.high:,} {unit}"
+    else:
+        text = f"{low} {unit}"
+    trend = RVR_TRENDS.get(found.trend)
+    return f"{where}: {text}" + (f", {trend}" if trend else "")
+
+
+def sky(metar: "Report", body: "Body"):
+    """
+    (label, text) for the sky: the Clouds lines (with each layer's CB or TCU), or one CAVOK line, or what NSC or NCD
+    means (the JSON gives those as a clear sky, CLR). A CB or TCU whose height isn't known (FEW///CB), which the JSON
+    leaves out, goes on after them (unknown_height_clouds).
+    """
+    layers = metar.sky_conditions or ()
+    covers = [layer.cover for layer in layers]
+    if "CAVOK" in covers or (body.sky == "CAVOK" and set(covers) <= set(CLEAR)):
+        return [("CAVOK", CAVOK)]
+    found = None
+    if set(covers) <= set(CLEAR):
+        code = body.sky if body.sky in NO_CLOUD else next((c for c in covers if c in NO_CLOUD), None)
+        if code:
+            found = [NO_CLOUD[code]]
+    if found is None:
+        found = clouds(layers, metar.vert_vis_ft, cloud_kinds(layers, body.clouds))
+    found += unknown_height_clouds(layers, body.clouds)
+    return [("Clouds" if n == 0 else "", text) for n, text in enumerate(found)]
+
+
+def unknown_height_clouds(layers: Sequence["SkyLayer"], groups: Sequence["Cloud"]):
+    """
+    A line for each CB or TCU group of the body whose height isn't known (FEW///CB, //////TCU): "Few cumulonimbus,
+    height not known", "Towering cumulus, cover and height not known". The JSON leaves these out; one it does have
+    (a layer of the same cover with no height) is shown already, so it isn't again.
+    """
+    shown = Counter(layer.cover for layer in layers or () if layer.cover in COVER and not layer.base_ft)
+    found = []
+    for group in groups:
+        if group.base_ft is not None or group.kind not in CLOUD_KINDS:
+            continue
+        if shown[group.cover]:
+            shown[group.cover] -= 1
+            continue
+        kind = CLOUD_KINDS[group.kind]
+        if group.cover in COVER:
+            found.append(f"{COVER[group.cover]} {kind}, height not known")
+        else:
+            found.append(f"{kind[:1].upper()}{kind[1:]}, cover and height not known")
+    return found
+
+
+def cloud_kinds(layers: Sequence["SkyLayer"], groups: Sequence["Cloud"]):
+    """
+    Each layer's CB or TCU (or None) from the body's cloud groups, which the JSON leaves out; () unless the groups are
+    the same layers (cover and height) as the report's, so a type is never put on the wrong one.
+    """
+    at = [n for n, layer in enumerate(layers or ()) if layer.cover in COVER]
+    if len(at) < len(groups):  # the JSON leaves out a layer whose height isn't known (FEW///TCU)
+        groups = [group for group in groups if group.base_ft is not None]
+    if len(at) != len(groups):
+        return ()
+    for n, group in zip(at, groups):
+        if group.cover != layers[n].cover or (group.base_ft is not None and group.base_ft != layers[n].base_ft):
+            return ()
+    kinds = [None] * len(layers)
+    for n, group in zip(at, groups):
+        kinds[n] = group.kind
+    return kinds
+
+
+def body_after_altimeter(body: "Body"):
+    """(label, text) for the groups after the altimeter, in the report's order: RE, WS, runway state and trend."""
+    found = []
+
+    def add(label, texts):
+        found.extend((label if n == 0 else "", text) for n, text in enumerate(texts))
+
+    if body.recent_weather:
+        add("Recent weather", [weather(" ".join(body.recent_weather)) + " (since the last routine report, not now)"])
+    add("Wind shear", ["All runways" if r == "ALL" else f"Runway {runway_name(r)}" for r in body.wind_shear])
+    add("Runway state", [runway_state(state) for state in body.runway_states])
+    add("Trend", [trend(group) for group in body.trends])
+    return found
+
+
+def runway_state(found: "RunwayState"):
+    """
+    "Runway 24 left: wet or water patches, covering 51-100%, 1 mm deep, friction coefficient 0.45" (WMO code
+    tables, in metarmap.body). A group with a code that isn't in the tables (or a runway 99, which repeats the last
+    report's state) is shown as reported.
+    """
+    if found.runway is None:
+        return "Airport closed by snow"
+    runway = found.runway
+    if runway == "88":
+        where = "All runways"
+    elif runway != "99" and 1 <= int(runway[:2]) <= 36:
+        where = f"Runway {runway_name(runway)}"
+    else:
+        return found.code
+    if found.cleared:
+        braking = _braking(found.braking)
+        return found.code if braking is False else f"{where}: cleared" + (f", {braking}" if braking else "")
+    parts = [
+        DEPOSITS.get(found.deposit, False),
+        EXTENTS.get(found.extent, False),
+        _depth(found.depth),
+        _braking(found.braking),
+    ]
+    if any(part is False for part in parts):
+        return found.code
+    return f"{where}: " + ", ".join(part for part in parts if part)
+
+
+def _digits(text) -> bool:
+    """Whether text is ASCII digits: str.isdigit() is also true for ², which int() rejects."""
+    return re.fullmatch(r"[0-9]+", text) is not None
+
+
+def _depth(code):
+    """A depth of deposit (code table 1079): its text, None for // (none to show), False for a code that isn't one."""
+    if _digits(code) and 1 <= int(code) <= 90:
+        return f"{int(code)} mm deep"
+    return DEPTHS.get(code, False)
+
+
+def _braking(code):
+    """Friction or braking action (code table 0366), as _depth."""
+    if _digits(code) and 1 <= int(code) <= 90:
+        return f"friction coefficient 0.{code}"
+    return BRAKING.get(code, False)
+
+
+def trend(found: "Trend"):
+    """
+    "No significant change expected in the next 2 hours" (NOSIG); "Temporarily from 04:30Z until 05:00Z: visibility
+    4,000 m, thunderstorm with rain". Items it can't read (Trend.other) are shown as reported, after the rest; military
+    color states aren't among them (metarmap.body leaves them out).
+    """
+    if found.kind == "NOSIG":
+        head = "No significant change expected in the next 2 hours"
+    else:
+        head = TREND_KINDS[found.kind]
+    for kind, hhmm in found.times:
+        head += f" {TREND_TIMES[kind]} {hhmm[:2]}:{hhmm[2:]}Z"
+    parts = [trend_wind(found.wind)]
+    shown = found.visibility
+    if found.cavok:
+        parts.append("ceiling and visibility OK")
+    elif shown and shown.metres is not None:
+        parts.append("visibility 10 km or more" if shown.metres == 9999 else f"visibility {shown.metres:,} m")
+    elif shown:
+        parts.append(f"visibility {visibility(shown.miles, shown.more)}")
+    parts.extend(weather_group(code) for code in found.weather)
+    parts.append("no significant weather" if found.no_significant_weather else None)
+    parts.extend(trend_cloud(cloud) for cloud in found.clouds)
+    parts.append("no significant cloud" if found.no_significant_cloud else None)
+    parts.extend(found.other)
+    parts = [part for part in parts if part]
+    return head + (": " + ", ".join(parts) if parts else "")
+
+
+def trend_wind(found):
+    """ "wind 290° at 12 kt", "wind variable at 3 kt", "wind 140° at 18 kt gusting 30 kt", "wind calm"."""
+    if found is None:
+        return None
+    if found.speed == 0 and not found.gust:
+        return "wind calm"
+    unit = WIND_UNITS[found.unit]
+    where = "variable" if found.direction is None else f"{found.direction:03d}°"
+    return f"wind {where} at {found.speed} {unit}" + (f" gusting {found.gust} {unit}" if found.gust else "")
+
+
+def trend_cloud(found: "Cloud"):
+    """ "broken 1,400 ft", "few 1,500 ft cumulonimbus", "sky obscured (vertical visibility 100 ft)"."""
+    if found.cover == "VV":
+        return "sky obscured" + (f" (vertical visibility {found.base_ft:,} ft)" if found.base_ft else "")
+    kind = f" {CLOUD_KINDS[found.kind]}" if found.kind in CLOUD_KINDS else ""
+    return f"{COVER[found.cover].lower()} {found.base_ft:,} ft{kind}"
 
 
 # ---- the remarks (metarmap.remarks) ------------------------------------------------------------------------------

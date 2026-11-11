@@ -1,5 +1,29 @@
 ### Unreleased
 
+- **The Decoded tab reads the whole METAR**: an airport's Decoded tab on the Map page now also explains the groups of
+  the report itself that the weather feed leaves out. A special report (SPECI) or a corrected one (COR, or CCA, CCB...
+  for the first, second... correction) gets a **Report type** line after Observed; any other report has none (AUTO
+  isn't shown: most US reports are automated, and Station type already says so), so most reports look as before.
+  After Wind, **Wind variability** (`350V050`: varying between 350° and 050°). After Visibility, the **Lowest
+  visibility** (`0500NE`: 500 m to the northeast) and the **Runway visual range**, one line per runway
+  (`R13R/1200VP6000FT`: Runway 13 right: varying 1,200 to more than 6,000 ft; `R24/0600N`: Runway 24: 600 m, no
+  change); a runway reported as `R24/////` (no value) has no line. A cloud layer reported with CB or TCU says
+  cumulonimbus or towering cumulus, and one whose height isn't known (`FEW///CB`), which the feed leaves out, gets its
+  own line after the others (Few cumulonimbus, height not known). Where the Clouds line said Clear, CAVOK now has a
+  line saying what it means (ceiling and visibility OK: visibility 10 km or more, no cloud below 5,000 ft, no
+  cumulonimbus or towering cumulus, no significant weather), and NSC and NCD say no significant cloud and no clouds
+  detected. After Altimeter, for reports outside the US: **Recent weather** (`RERA`: rain since the last routine
+  report, not now), **Wind shear** (`WS R20`), **Runway state** (`R24L/290145`: wet or water patches, covering
+  51-100%, 1 mm deep, friction coefficient 0.45; a code that isn't in the WMO tables is shown as reported) and the
+  **Trend** for the next two hours (NOSIG: no significant change; `TEMPO 4000 RA BKN014`: temporarily visibility
+  4,000 m, rain, broken 1,400 ft). Groups it doesn't know, like military color states (BLU, YLO1), are left out as
+  before, in the trend too; another code in a trend that it can't read is shown as reported. A METAR typed as a mock
+  now reads its weather and clouds as the fetched one does, without the trend's (a mock with `TEMPO ... RA` used to
+  show rain on its pixel), and reads `9999NDV` and clouds like `BKN020///`; a mock with a visibility like `1/0SM` is
+  refused as not a METAR (it used to fail with an error). Nothing else changes: the lightning flag, the pixel looks,
+  the Micro and the spoken weather work as they did. API: in `/api/metar/<code>`, `decoded` has the new labels
+  (API.md)
+
 - **The Decoded tab explains a METAR's remarks**: an airport's Decoded tab on the Map page now reads what follows RMK
   in the METAR, in plain English after Altimeter and Lightning: the sea-level pressure, the exact temperature and
   dewpoint, precipitation since the last hourly report (or in 3, 6 and 24 hours), the pressure trend, the peak wind, a

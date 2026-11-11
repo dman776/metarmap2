@@ -39,7 +39,8 @@ Written from the ground up with a web UI, an API and a Home Assistant integratio
 - **MetarMap2 Web**, the web UI: current conditions, a METAR list, a live map that mirrors the Chart and the Micro, and
   settings.
   Click an airport on the map for its weather in plain English, its raw METAR, or the METAR decoded line by line,
-  remarks included (exact temperature, hourly precipitation, peak wind, wind shifts...).
+  remarks included (exact temperature, hourly precipitation, peak wind, wind shifts...), and what the JSON feed leaves
+  out (runway visual range, CAVOK, the trend, runway state, a special or corrected report...).
   The map can go fullscreen, and follows the visualizer as it changes. Tick **Live traffic** to see the aircraft
   around your airports; click one for its details and the map follows it. Update and restart the Chart from the Home
   page. **MetarMap2 Cockpit**, at `/remote`, is a remote control for a tablet in kiosk mode.
@@ -61,7 +62,12 @@ The Wind Direction visualizer, with wind barbs, over the radar background:
 ![The Wind Direction visualizer over live radar: each airport in the color of the direction its wind blows from, with a barb](docs/images/map_wind_direction_with_barbs.jpg)
 
 Click an airport for its weather in plain English, the raw METAR, or the METAR decoded line by line, with its
-remarks explained (those it can't read yet, like lightning, icing and local winds, stay as raw text). With
+remarks explained (those it can't read yet, like lightning, icing and local winds, stay as raw text), and the groups of
+the report itself that the weather feed leaves out: whether it's a special or corrected report, the wind's variable
+direction, runway visual range, the lowest visibility, cumulonimbus and towering cumulus (even when their height isn't
+known), CAVOK, NSC and NCD,
+recent weather, wind shear, runway state (snow, ice, braking) and the trend for the next two hours (NOSIG, BECMG,
+TEMPO). With
 [spoken weather](#spoken-weather) on, its **Listen** tab plays the airport's AWOS, and its ATIS where it publishes one
 (with [Spoken ATIS](#spoken-atis) on). While it plays, the popup shows the raw METAR (AWOS), or the ATIS as the FAA
 wrote it, the line being read lit:
