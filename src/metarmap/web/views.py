@@ -115,8 +115,16 @@ def visualizer(renderer):
 
 def visualizer_choices(renderer):
     """Every visualizer, in order, with what the Remote page shows when it's picked, before its legend loads."""
+    skip = renderer.config.data.visualizer.auto_rotate.skip
     return [
-        {"id": v.id, "name": v.name, "icon": v.icon, "description": v.description, "exclusive": v.exclusive}
+        {
+            "id": v.id,
+            "name": v.name,
+            "icon": v.icon,
+            "description": v.description,
+            "exclusive": v.exclusive,
+            "skipped": v.id in skip,
+        }
         for v in renderer.visualizers
     ]
 

@@ -201,7 +201,13 @@ def next_rotation(app: App) -> Optional[float]:
 # ---- following config changes ----------------------------------------------------------------------------------
 
 # changes that don't change what the LEDs show
-NOT_ON_LEDS = ("airports.name", "web_server.*", "led.init_*", "display_screen.shows")
+NOT_ON_LEDS = (
+    "airports.name",
+    "web_server.*",
+    "led.init_*",
+    "display_screen.shows",
+    "visualizer.auto_rotate.skip",  # only who auto-rotate picks next
+)
 # changes to what the OLED loop shows, or in which order; it starts over with the new list (names aren't on it)
 OLED_AIRPORTS = (
     "airports.code",
@@ -227,7 +233,11 @@ def wire_config(app: App):
     # reprocessed: the TFRs near each airport, measured with the new distance; a mock METAR in place of the real one
     on(("tfr.nearby_nm", "airports.mock", "visualizer.forecast_include_tempo"), lambda keys: show_areas(app))
     on("*", lambda keys: renderer.refresh() if any(not _matches(k, NOT_ON_LEDS) for k in keys) else None)
-    on("visualizer.auto_rotate.*", lambda keys: schedule_rotation(app))
+    # (the skip list is read at each rotation: changing it neither restarts the countdown nor refreshes the LEDs)
+    on(
+        "visualizer.auto_rotate.*",
+        lambda keys: schedule_rotation(app) if any(k != "visualizer.auto_rotate.skip" for k in keys) else None,
+    )
     on(
         "led.quiet_hours.*",
         # the OLED loop starts over: blank now, or showing again now

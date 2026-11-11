@@ -1,5 +1,14 @@
 ### Unreleased
 
+- **Press and hold a visualizer to skip it**: on the Cockpit, hold a visualizer's icon for about half a second to
+  leave it out of auto-rotate, and hold it again to put it back. A skipped visualizer shows a dimmed icon and a small
+  "skip" badge, and a message confirms ("skipped", "back in rotation"); a tap still picks it. It is the same list as
+  Config > Visualizers > *Visualizers in auto-rotate*, kept on the Chart, so every Cockpit sees the same marks.
+  Rainbow and Chase can't be skipped (auto-rotate always leaves them out), nor can the last visualizer auto-rotate
+  still shows. New for clients: `GET /visualizer/<id>/skip` and `/unskip` (saved, no login, answer
+  JSON), `skipped` on each entry of `/api/status`'s `visualizers`, and `skip` in `/api/live`'s
+  `visualizer.autoRotate`. Skipping or unskipping doesn't restart the auto-rotate countdown or refresh the LEDs
+  (also when the list is edited in Config), and a refusal (400) answers JSON with a `reason`
 - **The spoken weather says more, as a pilot would**: an airport's AWOS (the METARs page, the Map page's Listen tab,
   the Cockpit) now reads four more things when the METAR has them, each as its own sentence. After the visibility,
   the runway visual range, a sentence per runway ("Runway two eight R V R two thousand four hundred feet.",

@@ -93,6 +93,7 @@ def status(services: "App", ip):
                 "shortName": v.short_name,
                 "icon": v.icon,
                 "exclusive": v.exclusive,
+                "skipped": v.id in cfg.visualizer.auto_rotate.skip,  # left out of auto-rotate
             }
             for i, v in enumerate(services.renderer.visualizers)
         ],
@@ -166,7 +167,12 @@ def auto_rotate(services: "App"):
     from metarmap.app import next_rotation  # here: app.py imports the web
 
     rotate = services.config.data.visualizer.auto_rotate
-    return {"enabled": rotate.enabled, "seconds": rotate.delay_seconds, "next": next_rotation(services)}
+    return {
+        "enabled": rotate.enabled,
+        "seconds": rotate.delay_seconds,
+        "next": next_rotation(services),
+        "skip": list(rotate.skip),  # the ids it leaves out (visualizer.auto_rotate.skip)
+    }
 
 
 def fetch_schedule(services: "App"):

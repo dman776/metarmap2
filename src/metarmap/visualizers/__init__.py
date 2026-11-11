@@ -61,7 +61,7 @@ def index_of(key, among=ALL) -> int:
     A visualizer's number in `among` from its id ("wind") or its number ("3", 3), as the API accepts them.
     Raises LookupError if there's no such visualizer.
     """
-    if isinstance(key, int) or (isinstance(key, str) and key.isdigit()):
+    if isinstance(key, int) or (isinstance(key, str) and key.isascii() and key.isdigit()):
         number = int(key)
         if 0 <= number < len(among):
             return number
