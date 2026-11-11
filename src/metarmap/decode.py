@@ -412,9 +412,14 @@ def body_visibility(body: "Body", shown=True):
     if body.lowest_visibility_m is not None:
         toward = COMPASS_POINTS.get(body.lowest_visibility_toward)
         found.append(("Lowest visibility", f"{body.lowest_visibility_m:,} m" + (f" to the {toward}" if toward else "")))
-    ranges = [r for r in body.runway_ranges if r.low is not None]  # R24/////: not reported, not shown
+    ranges = reported_ranges(body)
     found.extend(("Runway visual range" if n == 0 else "", runway_range(r)) for n, r in enumerate(ranges))
     return found
+
+
+def reported_ranges(body: "Body"):
+    """The runway visual ranges with a value, in the order reported: R24///// (not reported) isn't shown or said."""
+    return [r for r in body.runway_ranges if r.low is not None]
 
 
 def runway_name(code):
@@ -722,11 +727,15 @@ def clock(hour, minute):
     return f"{hour:02d}:{minute:02d}Z" if hour is not None else f":{minute:02d} past the hour"
 
 
-def began_ended(events):
-    """One line per weather, in the order reported: "Rain began 03:09Z, ended 03:27Z"."""
+def began_ended(events, said=None):
+    """
+    One line per weather, in the order reported: "Rain began 03:09Z, ended 03:27Z". said: how a time is written,
+    clock() by default (the spoken weather passes its own, so it groups the events as this does).
+    """
+    said = said or clock
     by_weather = {}
     for event in events:
-        when = f"{'began' if event.began else 'ended'} {clock(event.hour, event.minute)}"
+        when = f"{'began' if event.began else 'ended'} {said(event.hour, event.minute)}"
         by_weather.setdefault(event.weather, []).append(when)
     return [f"{weather_group(code).capitalize()} {', '.join(times)}" for code, times in by_weather.items()]
 

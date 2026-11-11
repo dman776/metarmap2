@@ -10,14 +10,26 @@ times, temperatures and the altimeter, in English for cloud heights; a digit is 
 "niner"). What the report leaves out is said to be not
 reported (as the LEDs blink red for it), so a listener can tell a missing value from a calm one. Each item is its own
 sentence, which a speech model gives a pause.
+
+A few more items are said when the report has them, as a pilot would read them out, and nothing when it doesn't: the
+runway visual range from the body, after the visibility ("Runway two eight R V R two thousand four hundred feet."),
+and from the remarks, after the altimeter, the peak wind ("Peak wind two niner zero at tree five, at one four five
+zero Zulu."), a wind shift ("Wind shift at zero five two zero Zulu, frontal passage.") and when precipitation began
+and ended ("Rain began zero tree zero niner Zulu, ended zero tree two seven Zulu."). A time given only as minutes,
+in a report whose own time isn't known, is said as minutes past the hour ("at five zero past the hour"). They're
+worded as the Decoded tab words them (metarmap.decode), and one that can't be said (a bug) is left out, not the rest.
 """
 
+import logging
 import re
 from fractions import Fraction
-from typing import Optional, Sequence
+from typing import Callable, Optional, Sequence
 
 from metarmap import decode
+from metarmap.body import SIDES
 from metarmap.models import Report
+
+log = logging.getLogger(__name__)
 
 # the digits as pilots and controllers say them: "tree" and "niner" can't be heard as "free" or "nein"
 DIGITS = ("zero", "one", "two", "tree", "four", "five", "six", "seven", "eight", "niner")
@@ -85,14 +97,37 @@ def _spoken(metar: Optional[Report], name: str, code: str) -> str:
     sentences += [
         wind(metar),
         visibility(metar.visibility_sm, metar.visibility_more),
+        guarded(runway_visual_range, metar),
         weather(metar.weather),
         lightning(metar),
         sky(metar),
         temperature(metar),
         altimeter(metar.altimeter_inhg),
+        guarded(peak_wind, metar),
+        guarded(wind_shift, metar),
+        guarded(began_ended, metar),
         f"{CATEGORY[metar.flight_category]}." if metar.flight_category in CATEGORY else None,
     ]
     return " ".join(s for s in sentences if s)
+
+
+_LOGGED = set()  # the raw reports a sentence's failure was logged for: once each
+
+
+def guarded(sentence: Callable[[Report], Optional[str]], metar: Report) -> Optional[str]:
+    """
+    sentence(metar), or None if it raises (a bug), logged once per report and sentence: the rest is still said, as
+    the body and remarks parsers keep what they can. (Once 1000 have been logged, later ones aren't.)
+    """
+    try:
+        return sentence(metar)
+    except Exception as e:
+        name = getattr(sentence, "__name__", None) or repr(sentence)  # a partial has none
+        key = (name, metar.raw)
+        if key not in _LOGGED and len(_LOGGED) < 1000:
+            _LOGGED.add(key)
+            log.warning(f"Could not say the {name}: {e!r} raw: {metar.raw}")
+        return None
 
 
 def airport_name(name: str, code: str = "") -> str:
@@ -143,6 +178,28 @@ def altitude(feet: int) -> str:
     if hundreds >= 100:
         parts.append(f"{DIGITS[hundreds // 100]} hundred")
     return " ".join(parts) or "zero"
+
+
+def count(n: int) -> str:
+    """
+    A whole number exactly, as English: 2400 -> "two thousand four hundred", 550 -> "five hundred fifty", 35000 ->
+    "thirty five thousand" (altitude() rounds to the hundred, which a range in metres can't be).
+    """
+    thousands, rest = divmod(abs(int(n)), 1000)
+    hundreds, ones = divmod(rest, 100)
+    parts = [f"{number(thousands)} thousand" if thousands else "", f"{DIGITS[hundreds]} hundred" if hundreds else ""]
+    parts.append(number(ones) if ones else "")
+    return " ".join(p for p in parts if p) or "zero"
+
+
+def clock(hour: Optional[int], minute: int) -> str:
+    """
+    A time as decode.clock() writes it, said: "one four five zero Zulu"; with only the minute (the report's time not
+    known), "five zero past the hour".
+    """
+    if hour is None:
+        return f"{digits(f'{minute:02d}')} past the hour"
+    return f"{digits(f'{hour:02d}{minute:02d}')} Zulu"
 
 
 def fraction(part: Fraction) -> str:
@@ -241,3 +298,58 @@ def altimeter(inhg: Optional[float]) -> str:
     if not inhg:
         return "Altimeter not reported."
     return f"Altimeter {digits(round(inhg * 100))}."
+
+
+# ---- what the body and the remarks add, when the report has it --------------------------------------------------
+
+
+def runway_visual_range(metar: Report) -> Optional[str]:
+    """
+    A sentence per runway with a range, in the order reported: "Runway two eight R V R two thousand four hundred
+    feet.", "Runway one tree R V R variable from two thousand six hundred to more than six thousand feet.". A runway
+    with no value (R24/////) isn't said, as the Decoded tab doesn't show it; None for none.
+    """
+    return " ".join(runway_range(found) for found in decode.reported_ranges(metar.body)) or None
+
+
+def runway_range(found) -> str:
+    """One runway visual range (body.RunwayRange with a value) as a sentence, with its trend as decode words it."""
+    side = SIDES.get(found.runway[2:])
+    where = f"Runway {digits(int(found.runway[:2]))}" + (f" {side}" if side else "")
+    unit = "feet" if found.feet else "meters"
+    low = f"{decode.RVR_BOUNDS.get(found.low_bound, '')}{count(found.low)}"
+    if found.high is not None:
+        text = f"variable from {low} to {decode.RVR_BOUNDS.get(found.high_bound, '')}{count(found.high)} {unit}"
+    else:
+        text = f"{low} {unit}"
+    trend = decode.RVR_TRENDS.get(found.trend)
+    return f"{where} R V R {text}" + (f", {trend}" if trend else "") + "."
+
+
+def peak_wind(metar: Report) -> Optional[str]:
+    """PK WND 29035/1450: "Peak wind two niner zero at tree five, at one four five zero Zulu."; None for none."""
+    wind = metar.remarks.peak_wind
+    if wind is None:
+        return None
+    return (
+        f"Peak wind {digits(f'{wind.direction:03d}')} at {digits(wind.speed_kt)}, at {clock(wind.hour, wind.minute)}."
+    )
+
+
+def wind_shift(metar: Report) -> Optional[str]:
+    """WSHFT 0520 FROPA: "Wind shift at zero five two zero Zulu, frontal passage."; None for none."""
+    shift = metar.remarks.wind_shift
+    if shift is None:
+        return None
+    fropa = ", frontal passage" if shift.frontal_passage else ""
+    return f"Wind shift at {clock(shift.hour, shift.minute)}{fropa}."
+
+
+def began_ended(metar: Report) -> Optional[str]:
+    """
+    When precipitation began and ended, a sentence per weather as the Decoded tab groups them: RAB09E27 in a 0353Z
+    report is "Rain began zero tree zero niner Zulu, ended zero tree two seven Zulu."; None for none. A thunderstorm
+    alone (TSB07) isn't said: its own line on the Decoded tab, not precipitation.
+    """
+    events = [event for event in metar.remarks.events if event.weather != "TS"]
+    return " ".join(f"{line}." for line in decode.began_ended(events, clock)) or None

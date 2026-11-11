@@ -1,5 +1,17 @@
 ### Unreleased
 
+- **The spoken weather says more, as a pilot would**: an airport's AWOS (the METARs page, the Map page's Listen tab,
+  the Cockpit) now reads four more things when the METAR has them, each as its own sentence. After the visibility,
+  the runway visual range, a sentence per runway ("Runway two eight R V R two thousand four hundred feet.",
+  "Runway one tree R V R variable from two thousand six hundred to more than six thousand feet, improving."; a runway
+  reported without a value isn't read, as the Decoded tab leaves it out). After the altimeter, from the remarks: the
+  peak wind ("Peak wind two niner zero at tree five, at one four five zero Zulu."), a wind shift ("Wind shift at zero
+  five two zero Zulu, frontal passage.") and when rain, snow or other precipitation began and ended ("Rain began zero
+  tree zero niner Zulu, ended zero tree two seven Zulu."). The flight category is still last. A METAR without them
+  reads as before, and nothing else from the remarks is read. The spoken ATIS now reads the runway visual range in
+  its weather line too (the ATIS remarks are still left out). API: `/api/speak/<code>` and `/api/speak` have the new
+  sentences, and `/api/atis/<code>` (and its `lines`) the runway visual range (API.md)
+
 - **Lightning remarks explained, and distant lightning no longer flashes**: the Decoded tab on the Map page now reads a
   METAR's lightning remark: how often (occasional, frequent, continuous), what kind (in-cloud, cloud-to-cloud,
   cloud-to-ground, cloud-to-air), how far (overhead, in the vicinity, distant) and which way (`OCNL LTGICCG E AND SW`:

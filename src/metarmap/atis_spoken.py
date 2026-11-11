@@ -10,8 +10,9 @@ ONE THREE)". A speech voice would read those as letters or nonsense, so they're 
 
 - the header ("IAH ATIS INFO S 1653Z") as the airport's name, the information letter in the phonetic alphabet and the
   time; an arrival or departure ATIS says so
-- the weather groups through metarmap.spoken, so they sound like the AWOS: wind, visibility, weather, sky, temperature,
-  altimeter. The altimeter's own words in parentheses and the remarks (RMK ...) are left out
+- the weather groups through metarmap.spoken, so they sound like the AWOS: wind, visibility, runway visual range,
+  weather, sky, temperature, altimeter. The altimeter's own words in parentheses and the remarks (RMK ...) are left
+  out, so the AWOS's sentences from the remarks (peak wind, wind shift, precipitation began and ended) aren't said
 - the rest word by word: contractions (CONTRACTIONS), runways ("runway two six left"), taxiways in the phonetic
   alphabet ("taxiway echo alpha"), frequencies ("one two six point two two five"), times, heights and distances.
   Letters said as letters (ILS, VOR) stay capitals, so the voice spells them; ordinary words become lower case, as
@@ -481,6 +482,7 @@ def weather_sentences(words: List[str]) -> List[str]:
             spoken.visibility(report.visibility_sm, report.visibility_more)
             if report.visibility_sm is not None
             else None,
+            spoken.guarded(spoken.runway_visual_range, report),
             spoken.weather(report.weather),
             spoken.sky(report) if report.sky_conditions else None,
             spoken.temperature(report) if report.temp_c is not None else None,
