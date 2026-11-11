@@ -391,8 +391,9 @@ body.map-full-open { overflow: hidden; }
 .pop-summary { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 3px; }
 .pop-summary li.age { color: var(--muted); list-style: none; margin-left: -16px; }
 .pop-decoded { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 12px; margin: 0; font: 12px/1.45 var(--sans); }
-.pop-decoded dt { color: var(--muted); }
-.pop-decoded dd { margin: 0; color: var(--text); }
+.pop-decoded { overflow-y: auto; -webkit-overflow-scrolling: touch; padding-right: 2px; }  /* map.js caps its height to the map */
+.pop-decoded dt { color: var(--muted); max-width: 96px; overflow-wrap: break-word; word-wrap: break-word; }  /* a long label wraps; the values keep the room */
+.pop-decoded dd { margin: 0; color: var(--text); overflow-wrap: break-word; word-wrap: break-word; word-break: break-word; overflow-wrap: anywhere; }
 .area-text { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); font-size: 11px; white-space: pre-wrap; max-height: 160px; overflow-y: auto; }
 /* live traffic: a plane pointing along its track; the dark halo keeps it visible on light charts */
 /* its size (--s) and color (--ac) by its kind: a C172 is small, an A380 large. Different hues from the LEDs (pure

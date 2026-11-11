@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 import pytest
 
 from metarmap import decode
-from metarmap.metar import parse_report, parse_visibility
+from metarmap.metar import parse_raw, parse_report, parse_visibility
 from metarmap.models import Report, SkyLayer
 
 OBS = datetime(2026, 10, 24, 17, 53, tzinfo=timezone.utc)
@@ -295,3 +295,138 @@ def test_parsed_reports_have_what_the_summary_needs():
 )
 def test_ceiling_ft(layers, vv, feet):
     assert decode.ceiling_ft(layers, vv) == feet
+
+
+# ---- the remarks (metarmap.remarks) ------------------------------------------------------------------------------
+
+KHOU = (
+    "METAR KHOU 110353Z 00000KT 8SM -TSRA SCT022CB BKN070 OVC090 16/15 A3015 RMK AO2 SLP214 OCNL LTGICCG E AND SW "
+    "TS E AND SW MOV NE P0001 T01610150 $"
+)
+KIAH = "METAR KIAH 110353Z 09004KT 10SM SCT043 BKN120 BKN220 16/14 A3011 RMK AO2 RAB09E27 PRESFR SLP197 P0000 T01560144"
+NOV_11 = datetime(2026, 11, 11, 4, 0, tzinfo=timezone.utc)
+
+
+def remark_lines(text, time="110353Z"):
+    return decode.remarks(Report(raw=f"METAR KTST {time} 00000KT 10SM CLR 16/15 A3015 RMK {text}").remarks)
+
+
+def test_khou_with_its_remarks():
+    assert lines(parse_raw(KHOU, NOV_11))[10:] == [
+        ("Lightning", "Lightning observed"),  # the body's lines come first, as before
+        ("Station type", "Automated, with a precipitation discriminator"),
+        ("Sea-level pressure", "1021.4 hPa"),
+        ("Precise temperature", "16.1°C / 61.0°F"),
+        ("Precise dewpoint", "15.0°C / 59.0°F"),
+        ("Precipitation (since the last hourly report)", "0.01 in"),
+        ("Maintenance", "The station needs maintenance"),
+        ("Other remarks", "OCNL LTGICCG E AND SW TS E AND SW MOV NE"),
+    ]
+
+
+def test_kiah_with_its_remarks():
+    assert lines(parse_raw(KIAH, NOV_11))[9:] == [
+        ("Station type", "Automated, with a precipitation discriminator"),
+        ("Sea-level pressure", "1019.7 hPa"),
+        ("Precise temperature", "15.6°C / 60.1°F"),
+        ("Precise dewpoint", "14.4°C / 57.9°F"),
+        ("Pressure tendency", "Falling rapidly"),
+        ("Precipitation (since the last hourly report)", "Trace"),
+        ("Precipitation began/ended", "Rain began 03:09Z, ended 03:27Z"),
+    ]
+
+
+def test_a_fetched_report_decodes_its_remarks_as_a_mock_does():
+    fetched = parse_report({"rawOb": KIAH, "obsTime": 1792900380, "wdir": 90, "wspd": 4})
+    assert lines(fetched)[-7:] == lines(parse_raw(KIAH, NOV_11))[-7:]
+
+
+def test_a_report_without_remarks_decodes_as_before():
+    raw = "METAR KTST 110353Z 09004KT 10SM CLR 16/14 A3011"
+    assert lines(parse_raw(raw, NOV_11)) == [
+        ("Observed", "11 Nov 03:53Z"),
+        ("Wind", "090° at 4 kt"),
+        ("Visibility", "10 miles"),
+        ("Clouds", "Clear"),
+        ("Temperature", "16°C / 61°F"),
+        ("Dewpoint", "14°C / 57°F (spread 2°C)"),
+        ("Altimeter", "30.11 inHg"),
+    ]
+
+
+def test_every_remark_line():
+    text = (
+        "AO1A SLPNO T11001122 10117 21043 400281039 53016 PRESRR PK WND 05038/21 WSHFT 2138 FROPA TWR VIS 1 1/2 "
+        "SFC VIS 1/4 VIS 1/4V2 CIG 003V008 P0048 60036 70000 I1000 4/001 931005 933012 UPB27E41SNE19 TSE05B24E39 "
+        "PWINO VISNO RWY06 TSNO NOSPECI ROOF WIND 12028G40KT $"
+    )
+    assert remark_lines(text, "102253Z") == [
+        ("Station type", "Automated, without a precipitation discriminator, augmented by an observer"),
+        ("Sea-level pressure", "Not available"),
+        ("Precise temperature", "-10.0°C / 14.0°F"),
+        ("Precise dewpoint", "-12.2°C / 10.0°F"),
+        ("Temperature (last 6 hours)", "High 11.7°C / 53.1°F, low -4.3°C / 24.3°F"),
+        ("Temperature (last 24 hours)", "High 2.8°C / 37.0°F, low -3.9°C / 25.0°F"),
+        ("Pressure tendency", "Up 1.6 hPa in 3 hours (falling or steady, then rising)"),
+        ("", "Rising rapidly"),
+        ("Peak wind", "050° at 38 kt (22:21Z)"),
+        ("Wind shift", "At 21:38Z, frontal passage"),
+        ("Tower visibility", "1 1/2 miles"),
+        ("Surface visibility", "1/4 mile"),
+        ("Variable visibility", "1/4 to 2 miles"),
+        ("Variable ceiling", "300 to 800 ft"),
+        ("Precipitation (since the last hourly report)", "0.48 in"),
+        ("Precipitation (last 3 or 6 hours)", "0.36 in"),  # a 2253Z report is neither the 3- nor the 6-hourly one
+        ("Precipitation (last 24 hours)", "Trace"),
+        ("Ice accretion (since the last hourly report)", "Trace"),
+        ("Snow depth", "1 in"),
+        ("Snowfall (last 6 hours)", "0.5 in"),
+        ("Snow water equivalent", "1.2 in"),
+        ("Precipitation began/ended", "Unknown precipitation began 22:27Z, ended 22:41Z"),
+        ("", "Snow ended 22:19Z"),
+        ("Thunderstorm began/ended", "Thunderstorm ended 22:05Z, began 22:24Z, ended 22:39Z"),
+        ("Sensors out of service", "Precipitation identifier, visibility sensor at RWY06, lightning detector"),
+        ("Special reports", "Not sent by this station"),
+        ("Maintenance", "The station needs maintenance"),
+        ("Other remarks", "ROOF WIND 12028G40KT"),
+    ]
+
+
+@pytest.mark.parametrize(
+    "text, time, line",
+    [
+        ("AO2", "110353Z", ("Station type", "Automated, with a precipitation discriminator")),
+        ("54000", "110353Z", ("Pressure tendency", "Unchanged in 3 hours (steady)")),
+        ("58069", "110353Z", ("Pressure tendency", "Down 6.9 hPa in 3 hours (steady or rising, then falling)")),
+        ("P////", "110353Z", ("Precipitation (since the last hourly report)", "Couldn't be measured")),
+        ("60010", "111153Z", ("Precipitation (last 6 hours)", "0.10 in")),
+        ("20094", "110353Z", ("Temperature (last 6 hours)", "Low 9.4°C / 48.9°F")),
+        ("FZRAB07", "110353Z", ("Precipitation began/ended", "Freezing rain began 03:07Z")),
+        ("SHSNE10", "110353Z", ("Precipitation began/ended", "Snow showers ended 03:10Z")),
+        # a zero is a trace in every amount group (decode.inches() has the sources)
+        ("4/000", "111153Z", ("Snow depth", "Trace")),
+        ("931000", "111153Z", ("Snowfall (last 6 hours)", "Trace")),
+        ("933000", "111153Z", ("Snow water equivalent", "Trace")),
+        ("I1000", "110353Z", ("Ice accretion (since the last hourly report)", "Trace")),
+        ("I3001", "110353Z", ("Ice accretion (last 3 hours)", "0.01 in")),
+        ("70000", "111153Z", ("Precipitation (last 24 hours)", "Trace")),
+    ],
+)
+def test_remark_line(text, time, line):
+    assert remark_lines(text, time) == [line]
+
+
+@pytest.mark.parametrize("text", ["VIS 1/0V2", "TWR VIS 1/0", "SFC VIS 0/0"])
+def test_a_zero_denominator_is_other_remarks(text):
+    report = Report(raw=f"METAR KTST 110353Z 00000KT 10SM CLR 16/15 A3015 RMK {text}")
+    assert decode.remarks(report.remarks) == [("Other remarks", text)]
+    assert decode.decode(report)[-1] == {"label": "Other remarks", "text": text}
+
+
+def test_remark_times_without_the_hour():
+    # no report time to place a minute in its hour
+    found = decode.remarks(Report(raw="KTST RMK PK WND 33041/45 RAB09").remarks)
+    assert found == [
+        ("Peak wind", "330° at 41 kt (:45 past the hour)"),
+        ("Precipitation began/ended", "Rain began :09 past the hour"),
+    ]

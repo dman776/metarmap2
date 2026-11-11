@@ -465,6 +465,23 @@
         return minutes < 60 ? minutes + ' min ago' : Math.floor(minutes / 60) + ' h ' + (minutes % 60) + ' min ago';
     }
 
+    // room kept clear along the bottom: on a narrow map the Micro (a corner control over it) would cover the popup's
+    // lower part, so the popup stays above it; on a wide map the popup sits beside the Micro
+    function oledReserve() {
+        return oled && oled.offsetParent && map.getSize().x < 600 ? oled.offsetHeight + 12 : 5;
+    }
+
+    // the Decoded list is as tall as the popup can be inside the map (below the controls along the top, above
+    // the tip) and scrolls inside that; the popup's other parts (name, tabs, margins) are measured, not guessed
+    function fitDecoded(dl) {
+        const content = dl.closest('.leaflet-popup-content');
+        const wrapper = content && content.parentNode;
+        if (!wrapper || !dl.offsetHeight) return;
+        const chrome = wrapper.offsetHeight - dl.offsetHeight;
+        const room = map.getSize().y - 64 - oledReserve() - 24 - chrome;  // autoPan's top and bottom padding, the popup's tip
+        dl.style.maxHeight = Math.max(96, room) + 'px';
+    }
+
     // fills the Summary and Decoded tabs from /api/metar/<code>; resized() lets the popup grow to fit
     async function loadMetar(panels, code, resized) {
         panels.summary.textContent = panels.decoded.textContent = 'Loading…';
@@ -499,6 +516,7 @@
                     dl.appendChild(dd);
                 });
                 panels.decoded.appendChild(dl);
+                fitDecoded(dl);
             }
         } catch (err) {
             panels.summary.textContent = panels.decoded.textContent = 'Could not load the METAR (' + err.message + ')';
@@ -553,6 +571,8 @@
                 loadMetar(panels, led.code, resized);
             }
             if (tab === 'listen' && !listening) listening = listenPanel(panels.listen, led, resized);
+            const list = panels.decoded.querySelector('.pop-decoded');
+            if (tab === 'decoded' && list) fitDecoded(list);
             resized();
         };
         tabsHere.forEach(function (t) {
@@ -778,6 +798,7 @@
                 marker.bindPopup('', {className: 'led-popup', autoPanPaddingTopLeft: [10, 64]});
                 marker.on('popupopen', function (e) {
                     const popup = e.popup;
+                    popup.options.autoPanPaddingBottomRight = [5, oledReserve()];
                     popup.setContent(popupFor(entry.data, function () { if (popup.isOpen()) popup.update(); }));
                 });
                 marker.on('popupclose', function () { stopListening(); });  // also when another airport opens

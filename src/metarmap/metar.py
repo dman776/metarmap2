@@ -181,7 +181,8 @@ def parse_raw(raw, now) -> Report:
     """
     A METAR typed by hand ("METAR KDWH 272353Z AUTO 08003KT 9SM CLR 21/18 A3014 RMK ...") as parse_report() gives
     one from the JSON, for the mock METARs. The flight category comes from the visibility and ceiling (FAA limits).
-    Only the body is read, not the remarks. Raises ValueError if it doesn't start like a METAR.
+    Only the body is read here (Report.remarks reads the remarks from raw, as for a fetched report). Raises ValueError
+    if it doesn't start like a METAR.
     """
     from metarmap.decode import estimate_category, parse_weather_group
 

@@ -1,5 +1,17 @@
 ### Unreleased
 
+- **The Decoded tab explains a METAR's remarks**: an airport's Decoded tab on the Map page now reads what follows RMK
+  in the METAR, in plain English after Altimeter and Lightning: the sea-level pressure, the exact temperature and
+  dewpoint, precipitation since the last hourly report (or in 3, 6 and 24 hours), the pressure trend, the peak wind, a
+  wind shift (frontal passage), tower, surface and variable visibility, a variable ceiling, the 6 and 24 hour high and
+  low temperatures, when rain, snow or a thunderstorm began or ended, ice, snow depth and snowfall, sensors out of
+  service, and the station type and maintenance flag. Anything it doesn't read yet is listed as **Other remarks**, as
+  the raw text: lightning and thunderstorm locations (like `OCNL LTGICCG E AND SW TS E AND SW MOV NE`, read in a later
+  update), icing (`VRY LGT ICG`), local winds (`HARBOR WIND 11015KT`), visibility in one direction (`VIS N-E 1 1/4`),
+  showers around the station (`SHRA ALQDS`) and other plain-language remarks. A METAR with no remarks looks as before.
+  Nothing else changes: the lightning flag, the pixel looks, the Micro and the spoken weather work as they did. The
+  Decoded tab scrolls inside the popup when the list is long, and its label column is narrower so the values keep room
+
 - **The Web map polls less data**: a pixel that steps through colors, like the Flight Category Forecast, used to send
   every frame of its loop to the browser, about 79 KB per poll for 50 pixels. It now sends each color once and how
   many frames it holds, 12 to 26 KB, and looks the same. API: in `/api/live` a `cycle` look (`leds[].look`) keeps
