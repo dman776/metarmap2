@@ -316,15 +316,62 @@ def remark_lines(text, time="110353Z"):
 
 def test_khou_with_its_remarks():
     assert lines(parse_raw(KHOU, NOV_11))[10:] == [
-        ("Lightning", "Lightning observed"),  # the body's lines come first, as before
+        # the body's lines come first, as before; the lightning group is read, so it isn't in Other remarks
+        ("Lightning", "Occasional in-cloud and cloud-to-ground, east and southwest"),
         ("Station type", "Automated, with a precipitation discriminator"),
         ("Sea-level pressure", "1021.4 hPa"),
         ("Precise temperature", "16.1°C / 61.0°F"),
         ("Precise dewpoint", "15.0°C / 59.0°F"),
         ("Precipitation (since the last hourly report)", "0.01 in"),
         ("Maintenance", "The station needs maintenance"),
-        ("Other remarks", "OCNL LTGICCG E AND SW TS E AND SW MOV NE"),
+        ("Other remarks", "TS E AND SW MOV NE"),
     ]
+
+
+# synthetic remarks (not real reports; real ones are in test_remarks.py's test_real_lightning_reports)
+@pytest.mark.parametrize(
+    "text, decoded, summary",
+    [
+        ("LTG DSNT N", ["Distant north"], ["Lightning distant north"]),  # shown, though the pixel doesn't flicker
+        ("OCNL LTGCGIC DSNT N", ["Occasional cloud-to-ground and in-cloud, distant north"], None),
+        ("FRQ LTGCG OHD", ["Frequent cloud-to-ground, overhead"], ["Frequent lightning overhead"]),
+        ("LTG VC E AND SW", ["In the vicinity, east and southwest"], ["Lightning in the vicinity, east and southwest"]),
+        ("CONS LTG", ["Continuous"], ["Continuous lightning"]),
+        ("LTGCC", ["Cloud-to-cloud"], ["Lightning reported"]),  # the popup leaves out the kind
+        ("LTG", ["Lightning observed"], ["Lightning reported"]),
+        ("LTG DSNT ALQDS", ["Distant in all quadrants"], ["Lightning distant in all quadrants"]),
+        ("LTG VC ALQDS", ["In the vicinity in all quadrants"], None),
+        ("LTG DSNT NW THRU SE", ["Distant northwest through southeast"], None),
+        ("OCNL LTGIC OHD-NE AND DSNT SW", ["Occasional in-cloud, overhead and northeast, distant southwest"], None),
+        (
+            "LTG DSNT E AND W OCNL LTGICCCCG SE-SW",
+            [
+                "Distant east and west",
+                "Occasional in-cloud, cloud-to-cloud and cloud-to-ground, southeast through southwest",
+            ],
+            ["Lightning distant east and west", "Occasional lightning, southeast through southwest"],
+        ),
+    ],
+)
+def test_lightning_lines(text, decoded, summary):
+    report = parse_raw(f"METAR KTST 110353Z 00000KT 10SM CLR 16/15 A3015 RMK AO2 {text}", NOV_11)
+    found = [(label, t) for label, t in lines(report) if label == "Lightning" or t in decoded]
+    assert found == [("Lightning" if n == 0 else "", t) for n, t in enumerate(decoded)]
+    assert all(label != "Other remarks" for label, _ in lines(report))  # read, so not shown again
+    if summary is not None:
+        assert [t for t in decode.summary(report) if "ightning" in t or t in summary] == summary
+
+
+def test_one_lightning_line():
+    """The Lightning line is the only one about lightning: the group isn't in Other remarks too."""
+    found = lines(parse_raw(KHOU, NOV_11))
+    assert [label for label, _ in found].count("Lightning") == 1
+    assert not any("LTG" in text for _, text in found)
+
+
+def test_no_lightning_no_line():
+    assert not any(label == "Lightning" for label, _ in lines(parse_raw(KIAH, NOV_11)))
+    assert not any("ightning" in t for t in decode.summary(parse_raw(KIAH, NOV_11)))
 
 
 def test_kiah_with_its_remarks():

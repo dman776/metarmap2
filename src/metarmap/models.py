@@ -58,7 +58,9 @@ class Report:
     temp_c: Optional[int] = None
     dewpoint_c: Optional[int] = None
     altimeter_inhg: Optional[float] = None
-    lightning: bool = False  # LTG in the report
+    # lightning at, over or near the station (remarks.lightning_at_station): an LTG with no distance, OHD or VC; not
+    # distant lightning alone (LTG DSNT), which lightning_groups still has
+    lightning: bool = False
     sky_conditions: Tuple[SkyLayer, ...] = ()
     obs_time: Optional[datetime] = None  # UTC
     latitude: Optional[float] = None
@@ -87,6 +89,15 @@ class Report:
         replace() makes a new Report, which reads its own raw again). Remarks() for a report with none.
         """
         return remarks_lib.parse(self.raw)
+
+    @cached_property
+    def lightning_groups(self) -> Tuple[remarks_lib.Lightning, ...]:
+        """
+        The report's lightning, what it is, how far and which way (OCNL LTGICCG E AND SW, LTG DSNT N): the remarks'
+        (remarks.lightning_groups), distant ones too. () for none; lightning above can still be True without any (a
+        Report made with it).
+        """
+        return remarks_lib.lightning_groups(self.raw, self.remarks)
 
     @cached_property
     def body(self) -> body_lib.Body:

@@ -9,7 +9,9 @@ import pytest
 from metarmap import metar
 from metarmap.models import Report, SkyLayer
 
-# what parse_report() and parse_raw() gave as dicts, before they returned a Report: to_api() must give the same
+# what parse_report() and parse_raw() gave as dicts, before they returned a Report: to_api() must give the same. One
+# value was changed on purpose since: the mock KHOU's lightning, false since distant lightning alone (RMK LTG DSNT)
+# no longer sets the flag (B9.1)
 GOLDEN = json.loads((Path(__file__).parent / "fixtures" / "reports_golden.json").read_text())
 NOW = datetime.fromisoformat(GOLDEN["now"])
 

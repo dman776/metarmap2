@@ -4,6 +4,7 @@ Colors are in the strip's GRB order (see lib/colors.py).
 """
 
 import importlib
+from datetime import datetime, timezone
 
 import pytest
 
@@ -486,6 +487,34 @@ def test_lightning_animation_off_is_honored_everywhere(v, settings):
 def test_what_counts_as_lightning(fields, has):
     assert style.has_lightning(metar(**fields)) is has
     assert style.has_lightning({}) is False  # no report
+
+
+# synthetic reports (not real ones): the remarks decide; distant lightning alone doesn't flicker the pixel
+@pytest.mark.parametrize(
+    "remarks, has",
+    [
+        ("RMK AO2 LTG DSNT W", False),
+        ("RMK AO2 OCNL LTGICCG DSNT N NE E", False),
+        ("RMK AO2 LTG DSNT ALQDS", False),
+        ("RMK AO2 LTG", True),  # no distance: at the station
+        ("RMK AO2 OCNL LTGICCG E AND SW", True),
+        ("RMK AO2 FRQ LTGCG OHD", True),
+        ("RMK AO2 LTG VC E", True),
+        ("RMK AO2 LTG DSNT W OCNL LTGIC OHD", True),  # distant and overhead
+        ("RMK AO2 OCNL LTGCG W AND DSNT SW", True),
+    ],
+)
+def test_distant_lightning_does_not_flicker(remarks, has, settings):
+    from metarmap.metar import parse_raw
+
+    now = datetime(2026, 11, 11, 4, 0, tzinfo=timezone.utc)
+    report = parse_raw(f"METAR KTST 110353Z 00000KT 10SM CLR 16/15 A3015 {remarks}", now)
+    assert report.lightning is has and style.has_lightning(report) is has
+    frames = visualizer.look(flightcategory.VISUALIZER, report, settings).colors
+    assert (style.LIGHTNING in frames) is has
+    # a thunderstorm in the body still flickers, whatever the remarks say
+    storm = parse_raw(f"METAR KTST 110353Z 00000KT 10SM VCTS CLR 16/15 A3015 {remarks}", now)
+    assert style.has_lightning(storm) is True
 
 
 def test_lightning_keeps_the_look_moving_between_flashes(settings):

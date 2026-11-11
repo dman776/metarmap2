@@ -15,12 +15,12 @@ from typing import TYPE_CHECKING, Optional, Sequence, Tuple
 
 from metarmap.body import BRAKING, COMPASS_POINTS, DEPOSITS, DEPTHS, EXTENTS, SIDES
 from metarmap.lib.units import celsius_to_fahrenheit
-from metarmap.remarks import SENSORS, TENDENCIES
+from metarmap.remarks import DISTANCES, FREQUENCIES, LIGHTNING_TYPES, SENSORS, TENDENCIES
 
 if TYPE_CHECKING:  # models imports nothing from here, but metar imports both
     from metarmap.body import Body, Cloud, RunwayRange, RunwayState, Trend
     from metarmap.models import Report, SkyLayer
-    from metarmap.remarks import Remarks
+    from metarmap.remarks import Lightning, Place, Remarks
 
 INTENSITY = {"-": "light", "+": "heavy"}
 DESCRIPTORS = {
@@ -92,7 +92,8 @@ def decode(metar: Optional["Report"]):
     add("Altimeter", f"{altim:.2f} inHg" if altim else None)
     for label, text in body_after_altimeter(body):
         add(label, text)
-    add("Lightning", "Lightning observed" if metar.lightning else None)
+    for label, text in lightning_lines(metar):
+        add(label, text)
     for label, text in remarks(metar.remarks):
         add(label, text)
     return lines
@@ -111,8 +112,8 @@ ICING_C = (-20, 2)  # temperatures at which visible moisture can ice an airplane
 
 def summary(metar: Optional["Report"]):
     """
-    A few sentences about the airport's weather for the Map page's popup, e.g. "Light rain" or "Density altitude
-    1,200 ft". Only what the report has; none when it isn't reporting.
+    A few sentences about the airport's weather for the Map page's popup, e.g. "Light rain", "Lightning distant
+    north" or "Density altitude 1,200 ft". Only what the report has; none when it isn't reporting.
     """
     if not metar:
         return []
@@ -120,7 +121,7 @@ def summary(metar: Optional["Report"]):
     lines = [
         CATEGORY_TEXT.get(metar.flight_category),
         weather(metar.weather),
-        "Lightning reported" if metar.lightning else None,
+        *lightning_summary(metar),
         wind_sentence(metar),
         sky_sentence(metar.sky_conditions, metar.vert_vis_ft),
         density_altitude_sentence(metar),
@@ -728,6 +729,88 @@ def began_ended(events):
         when = f"{'began' if event.began else 'ended'} {clock(event.hour, event.minute)}"
         by_weather.setdefault(event.weather, []).append(when)
     return [f"{weather_group(code).capitalize()} {', '.join(times)}" for code, times in by_weather.items()]
+
+
+def lightning_lines(metar: "Report"):
+    """
+    (label, text) for the report's lightning, one line per group (later ones unlabeled): "Occasional in-cloud and
+    cloud-to-ground, east and southwest", "Distant north" (shown, though it doesn't flicker the pixel). A report
+    with the lightning flag and no group (one made with it) has "Lightning observed".
+    """
+    texts = [lightning(group) for group in metar.lightning_groups]
+    if not texts and metar.lightning:
+        texts = ["Lightning observed"]
+    return [("Lightning" if n == 0 else "", text) for n, text in enumerate(texts)]
+
+
+def lightning(group: "Lightning"):
+    """
+    One lightning group as the Decoded tab says it: how often and what kind (FMH-1 table 12-5), then where:
+    "Frequent in-cloud and cloud-to-ground, overhead and south through southwest, distant west", "Distant north".
+    "Lightning observed" for an LTG alone.
+    """
+    kinds = _listed([LIGHTNING_TYPES[kind] for kind in group.types])
+    what = " ".join(t for t in (FREQUENCIES.get(group.frequency, ""), kinds) if t)
+    text = ", ".join(t for t in (what, lightning_where(group)) if t)
+    return text[:1].upper() + text[1:] if text else "Lightning observed"
+
+
+def lightning_where(group: "Lightning"):
+    """Where a lightning group is, its places in order: "distant north", "in the vicinity, east and southwest"."""
+    return ", ".join(t for t in (place_text(place) for place in group.places) if t)
+
+
+def place_text(place: "Place"):
+    """
+    How far and which way: "distant north", "distant in all quadrants", "in the vicinity, east and southwest",
+    "overhead", "overhead and northeast" (OHD-NE), "east and southwest" (at the station: no distance).
+    """
+    if place.all_quadrants:
+        toward = "in all quadrants"
+    else:
+        toward = _listed([_points(item) for item in place.directions])
+    distance = DISTANCES.get(place.distance, "")
+    if not distance or not toward:
+        return distance or toward
+    if place.distance == "DSNT" or place.all_quadrants:
+        return f"{distance} {toward}"
+    return f"{distance} and {toward}" if place.distance == "OHD" else f"{distance}, {toward}"
+
+
+def _listed(words):
+    """ "a", "a and b", "a, b and c"; "" for none."""
+    return ", ".join(words[:-1]) + (" and " if len(words) > 1 else "") + (words[-1] if words else "")
+
+
+def _points(points):
+    """("E",) -> "east"; a range, clockwise, ("SE", "S", "SW") -> "southeast through southwest"."""
+    if len(points) == 1:
+        return COMPASS_POINTS[points[0]]
+    return f"{COMPASS_POINTS[points[0]]} through {COMPASS_POINTS[points[-1]]}"
+
+
+def lightning_sentence(group: "Lightning", plain="Lightning observed"):
+    """
+    One lightning group as a sentence, without its kind: "Occasional lightning distant north", "Frequent lightning
+    overhead", "Lightning in the vicinity, east and southwest", "Occasional lightning, east and southwest" (at the
+    station); `plain` for an LTG alone. For the Map popup (summary) and the spoken weather (spoken.py).
+    """
+    where = lightning_where(group)
+    frequency = FREQUENCIES.get(group.frequency)
+    if not where and not frequency:
+        return plain
+    text = f"{frequency} lightning" if frequency else "lightning"
+    if where:
+        text += f" {where}" if group.places[0].distance else f", {where}"
+    return text[:1].upper() + text[1:]
+
+
+def lightning_summary(metar: "Report"):
+    """The popup's lightning sentences, one per group (distant ones too); "Lightning reported" when it says no more."""
+    texts = [lightning_sentence(group, "Lightning reported") for group in metar.lightning_groups]
+    if not texts and metar.lightning:
+        texts = ["Lightning reported"]
+    return list(dict.fromkeys(texts))
 
 
 def sensor_name(code):

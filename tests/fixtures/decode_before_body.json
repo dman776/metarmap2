@@ -1,5 +1,5 @@
 {
- "about": "The Decoded tab lines master gave (decode.py before B9 phase 2) for the fixture reports with none of the body groups phase 2 reads: mock from metars_remarks.json (metar.parse_raw at 2026-11-11 04:00Z), fetched from the US reports of metars_body.json (metar.parse_report). Generated once from git show master:src/metarmap; do not regenerate from the current code.",
+ "about": "The Decoded tab lines master gave (decode.py before B9 phase 2) for the fixture reports with none of the body groups phase 2 reads: mock from metars_remarks.json (metar.parse_raw at 2026-11-11 04:00Z), fetched from the US reports of metars_body.json (metar.parse_report). Generated once from git show master:src/metarmap; do not regenerate from the current code. B9.1 (lightning remarks) changed only the lightning lines, on purpose: the Lightning line now says what the lightning group says (Distant southeast and south, where it said Lightning observed), and the group is no longer in Other remarks; every other line is still master's.",
  "mock": {
   "METAR K11R 110355Z AUTO 00000KT 10SM VCTS SCT060 BKN070 OVC090 16/15 A3013 RMK AO2 LTG DSNT SE AND S T01600153": [
    ["Observed", "11 Nov 03:55Z"],
@@ -12,11 +12,10 @@
    ["Temperature", "16°C / 61°F"],
    ["Dewpoint", "15°C / 59°F (spread 1°C)"],
    ["Altimeter", "30.13 inHg"],
-   ["Lightning", "Lightning observed"],
+   ["Lightning", "Distant southeast and south"],
    ["Station type", "Automated, with a precipitation discriminator"],
    ["Precise temperature", "16.0°C / 60.8°F"],
-   ["Precise dewpoint", "15.3°C / 59.5°F"],
-   ["Other remarks", "LTG DSNT SE AND S"]
+   ["Precise dewpoint", "15.3°C / 59.5°F"]
   ],
   "METAR K3T5 110355Z AUTO 00000KT 10SM BKN032 OVC060 16/16 A3013 RMK AO2 RAB0311E0339 P0003 T01610157 $": [
    ["Observed", "11 Nov 03:55Z"],
@@ -124,15 +123,14 @@
    ["Temperature", "16°C / 61°F"],
    ["Dewpoint", "15°C / 59°F (spread 1°C)"],
    ["Altimeter", "30.12 inHg"],
-   ["Lightning", "Lightning observed"],
+   ["Lightning", "Distant south"],
    ["Station type", "Automated, with a precipitation discriminator"],
    ["Sea-level pressure", "1019.8 hPa"],
    ["Precise temperature", "16.1°C / 61.0°F"],
    ["Precise dewpoint", "15.0°C / 59.0°F"],
    ["Precipitation (since the last hourly report)", "Trace"],
    ["Precipitation began/ended", "Rain ended 03:12Z, began 03:34Z"],
-   ["Maintenance", "The station needs maintenance"],
-   ["Other remarks", "LTG DSNT S"]
+   ["Maintenance", "The station needs maintenance"]
   ],
   "METAR KDRT 110353Z AUTO 00000KT 10SM OVC019 18/16 A3016 RMK AO1 SLP209 T01780156 TSNO": [
    ["Observed", "11 Nov 03:53Z"],
@@ -158,8 +156,7 @@
    ["Temperature", "16°C / 61°F"],
    ["Dewpoint", "16°C / 61°F (spread 0°C)"],
    ["Altimeter", "30.12 inHg"],
-   ["Lightning", "Lightning observed"],
-   ["Other remarks", "LTG DSNT S AND W"]
+   ["Lightning", "Distant south and west"]
   ],
   "METAR KERV 110355Z AUTO 00000KT 10SM OVC044 16/15 A3016 RMK AO2 LTG DSNT SE T01630151": [
    ["Observed", "11 Nov 03:55Z"],
@@ -169,11 +166,10 @@
    ["Temperature", "16°C / 61°F"],
    ["Dewpoint", "15°C / 59°F (spread 1°C)"],
    ["Altimeter", "30.16 inHg"],
-   ["Lightning", "Lightning observed"],
+   ["Lightning", "Distant southeast"],
    ["Station type", "Automated, with a precipitation discriminator"],
    ["Precise temperature", "16.3°C / 61.3°F"],
-   ["Precise dewpoint", "15.1°C / 59.2°F"],
-   ["Other remarks", "LTG DSNT SE"]
+   ["Precise dewpoint", "15.1°C / 59.2°F"]
   ],
   "METAR KGEG 110353Z 17006KT 6SM -RA BR OVC006 10/09 A3021 RMK AO2 RAE29B47 SLP235 P0000 T01000094": [
    ["Observed", "11 Nov 03:53Z"],
@@ -202,13 +198,12 @@
    ["Temperature", "18°C / 64°F"],
    ["Dewpoint", "17°C / 63°F (spread 1°C)"],
    ["Altimeter", "30.14 inHg"],
-   ["Lightning", "Lightning observed"],
+   ["Lightning", "Distant east and southwest"],
    ["Station type", "Automated, with a precipitation discriminator"],
    ["Sea-level pressure", "1020.4 hPa"],
    ["Precise temperature", "17.8°C / 64.0°F"],
    ["Precise dewpoint", "16.7°C / 62.1°F"],
-   ["Precipitation (since the last hourly report)", "0.10 in"],
-   ["Other remarks", "LTG DSNT E AND SW"]
+   ["Precipitation (since the last hourly report)", "0.10 in"]
   ],
   "METAR KHYS 110356Z AUTO 26005KT 10SM CLR 09/06 A3005 RMK AO2 SLP177 T00890061 PNO $": [
    ["Observed", "11 Nov 03:56Z"],
@@ -299,10 +294,9 @@
    ["Temperature", "18°C / 64°F"],
    ["Dewpoint", "17°C / 63°F (spread 1°C)"],
    ["Altimeter", "30.14 inHg"],
-   ["Lightning", "Lightning observed"],
+   ["Lightning", "Distant southeast and south"],
    ["Station type", "Automated, with a precipitation discriminator"],
-   ["Sensors out of service", "Precipitation identifier"],
-   ["Other remarks", "LTG DSNT SE AND S"]
+   ["Sensors out of service", "Precipitation identifier"]
   ],
   "METAR KSAT 110351Z 00000KT 10SM -RA OVC005 17/16 A3014 RMK AO2 SLP192 P0000 T01670156 $": [
    ["Observed", "11 Nov 03:51Z"],
@@ -366,9 +360,8 @@
    ["Temperature", "15°C / 59°F"],
    ["Dewpoint", "15°C / 59°F (spread 0°C)"],
    ["Altimeter", "30.16 inHg"],
-   ["Lightning", "Lightning observed"],
-   ["Station type", "Automated, with a precipitation discriminator"],
-   ["Other remarks", "LTG DSNT E"]
+   ["Lightning", "Distant east"],
+   ["Station type", "Automated, with a precipitation discriminator"]
   ],
   "METAR KVCT 110351Z AUTO 36007KT 3SM RA BR BKN005 OVC024 16/16 A3012 RMK AO2 LTG DSNT NE TSE05B24E39 CIG 003V008 SLP197 P0048 T01610156 $": [
    ["Observed", "11 Nov 03:51Z"],
@@ -380,7 +373,7 @@
    ["Temperature", "16°C / 61°F"],
    ["Dewpoint", "16°C / 61°F (spread 0°C)"],
    ["Altimeter", "30.12 inHg"],
-   ["Lightning", "Lightning observed"],
+   ["Lightning", "Distant northeast"],
    ["Station type", "Automated, with a precipitation discriminator"],
    ["Sea-level pressure", "1019.7 hPa"],
    ["Precise temperature", "16.1°C / 61.0°F"],
@@ -388,8 +381,7 @@
    ["Variable ceiling", "300 to 800 ft"],
    ["Precipitation (since the last hourly report)", "0.48 in"],
    ["Thunderstorm began/ended", "Thunderstorm ended 03:05Z, began 03:24Z, ended 03:39Z"],
-   ["Maintenance", "The station needs maintenance"],
-   ["Other remarks", "LTG DSNT NE"]
+   ["Maintenance", "The station needs maintenance"]
   ],
   "METAR PABR 110353Z AUTO 06025G35KT 4SM -SN BR OVC014 M10/M12 A2971 RMK AO2 PK WND 05038/0321 SLP061 P0000 T11001122 TSNO $": [
    ["Observed", "11 Nov 03:53Z"],
@@ -674,7 +666,7 @@
    ["Temperature", "14°C / 57°F"],
    ["Dewpoint", "14°C / 57°F (spread 0°C)"],
    ["Altimeter", "30.13 inHg"],
-   ["Lightning", "Lightning observed"],
+   ["Lightning", "Distant south"],
    ["Station type", "Automated, with a precipitation discriminator"],
    ["Sea-level pressure", "1020.1 hPa"],
    ["Precise temperature", "14.4°C / 57.9°F"],
@@ -682,8 +674,7 @@
    ["Pressure tendency", "Down 0.1 hPa in 3 hours (falling steadily)"],
    ["Precipitation (since the last hourly report)", "Trace"],
    ["Precipitation (last 3 hours)", "0.05 in"],
-   ["Precipitation began/ended", "Rain ended 02:05Z"],
-   ["Other remarks", "LTG DSNT S"]
+   ["Precipitation began/ended", "Rain ended 02:05Z"]
   ],
   "METAR PAKT 110253Z 11019G32KT 10SM -RA SCT034 BKN055 OVC080 12/04 A2919 RMK AO2 PK WND 09032/0244 RAE0154B34 SLP885 ROOF WIND 12028G40KT P0000 60002 T01170044 58069 $": [
    ["Observed", "11 Nov 02:53Z"],
@@ -856,7 +847,7 @@
    ["Temperature", "16°C / 61°F"],
    ["Dewpoint", "16°C / 61°F (spread 0°C)"],
    ["Altimeter", "30.11 inHg"],
-   ["Lightning", "Lightning observed"],
+   ["Lightning", "Distant north"],
    ["Station type", "Automated, with a precipitation discriminator"],
    ["Sea-level pressure", "1019.5 hPa"],
    ["Precise temperature", "16.1°C / 61.0°F"],
@@ -866,8 +857,7 @@
    ["Precipitation (last 3 hours)", "0.34 in"],
    ["Precipitation began/ended", "Rain began 02:04Z"],
    ["Thunderstorm began/ended", "Thunderstorm began 02:32Z, ended 02:41Z"],
-   ["Maintenance", "The station needs maintenance"],
-   ["Other remarks", "LTG DSNT N"]
+   ["Maintenance", "The station needs maintenance"]
   ],
   "METAR KSAW 110246Z 26002KT 1/4SM FG VV002 01/01 A2997 RMK VIS 1/4V2": [
    ["Observed", "11 Nov 02:46Z"],
@@ -1137,7 +1127,7 @@
    ["Temperature", "17°C / 63°F"],
    ["Dewpoint", "16°C / 61°F (spread 1°C)"],
    ["Altimeter", "30.13 inHg"],
-   ["Lightning", "Lightning observed"],
+   ["Lightning", "Distant southwest"],
    ["Station type", "Automated, with a precipitation discriminator"],
    ["Sea-level pressure", "1020.6 hPa"],
    ["Precise temperature", "17.2°C / 63.0°F"],
@@ -1148,7 +1138,7 @@
    ["Precipitation (last 6 hours)", "0.05 in"],
    ["Thunderstorm began/ended", "Thunderstorm ended 23:40Z"],
    ["Maintenance", "The station needs maintenance"],
-   ["Other remarks", "LTG DSNT SW TS DSIPT NE"]
+   ["Other remarks", "TS DSIPT NE"]
   ],
   "METAR PAKT 102353Z 14017G27KT 10SM -RA FEW017 SCT025 OVC034 10/08 A2939 RMK AO2 PK WND 13031/2326 SLP954 HARBOR WIND 11025KT ROOF WIND 12025KT P0000 60000 T01000078 10117 20094 50002 $": [
    ["Observed", "10 Nov 23:53Z"],
@@ -1358,7 +1348,7 @@
    ["Temperature", "16°C / 61°F"],
    ["Dewpoint", "15°C / 59°F (spread 1°C)"],
    ["Altimeter", "30.10 inHg"],
-   ["Lightning", "Lightning observed"],
+   ["Lightning", "Distant west"],
    ["Station type", "Automated, with a precipitation discriminator"],
    ["Sea-level pressure", "1019.3 hPa"],
    ["Precise temperature", "15.6°C / 60.1°F"],
@@ -1369,8 +1359,7 @@
    ["Precipitation (since the last hourly report)", "Trace"],
    ["Precipitation (last 6 hours)", "0.49 in"],
    ["Precipitation began/ended", "Rain ended 22:53Z"],
-   ["Maintenance", "The station needs maintenance"],
-   ["Other remarks", "LTG DSNT W"]
+   ["Maintenance", "The station needs maintenance"]
   ],
   "METAR PABR 102253Z AUTO 06029G39KT 1SM UP OVC019 M08/M11 A2972 RMK AO2 PK WND 06039/2244 UPB49 SLP067 P0002 T10831111 TSNO RVRNO $": [
    ["Observed", "10 Nov 22:53Z"],
@@ -1434,7 +1423,7 @@
    ["Temperature", "15°C / 59°F"],
    ["Dewpoint", "15°C / 59°F (spread 0°C)"],
    ["Altimeter", "30.09 inHg"],
-   ["Lightning", "Lightning observed"],
+   ["Lightning", "Distant northwest through east"],
    ["Station type", "Automated, with a precipitation discriminator"],
    ["Sea-level pressure", "1018.8 hPa"],
    ["Precise temperature", "15.0°C / 59.0°F"],
@@ -1442,8 +1431,7 @@
    ["Wind shift", "At 21:38Z"],
    ["Variable ceiling", "300 to 700 ft"],
    ["Precipitation (since the last hourly report)", "0.29 in"],
-   ["Thunderstorm began/ended", "Thunderstorm ended 22:00Z, began 22:13Z, ended 22:41Z"],
-   ["Other remarks", "LTG DSNT NW-E"]
+   ["Thunderstorm began/ended", "Thunderstorm ended 22:00Z, began 22:13Z, ended 22:41Z"]
   ],
   "METAR KPQI 102156Z AUTO 21004KT 10SM SCT008 BKN028 OVC050 02/01 A2968 RMK AO2 RAE48UPB48E50 CIG 024V037 SLP081 P0001 T00170011": [
    ["Observed", "10 Nov 21:56Z"],

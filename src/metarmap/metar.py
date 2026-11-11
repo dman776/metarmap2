@@ -12,7 +12,7 @@ from typing import Dict, Optional
 
 import requests
 
-from metarmap import USER_AGENT
+from metarmap import USER_AGENT, remarks
 from metarmap.body import TREND_KINDS
 from metarmap.clock import Clock
 from metarmap.models import Report, SkyLayer
@@ -133,7 +133,7 @@ def parse_report(metar) -> Report:
         temp_c=int(round(temp_c)) if temp_c is not None else None,
         dewpoint_c=int(round(dewpoint_c)) if dewpoint_c is not None else None,
         altimeter_inhg=altimeter_inhg(raw_metar, num("altim")),
-        lightning="LTG" in raw_metar,
+        lightning=remarks.lightning_at_station(remarks.lightning_groups(raw_metar)),
         sky_conditions=sky_conditions,
         obs_time=datetime.fromtimestamp(obs_time, timezone.utc) if obs_time else None,
         latitude=num("lat"),
@@ -261,7 +261,7 @@ def parse_raw(raw, now) -> Report:
         temp_c=temp_c,
         dewpoint_c=dewpoint_c,
         altimeter_inhg=altim,
-        lightning="LTG" in raw,
+        lightning=remarks.lightning_at_station(remarks.lightning_groups(raw)),
         sky_conditions=tuple(sky),
         obs_time=obs_time,
     )
