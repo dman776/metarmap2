@@ -1941,6 +1941,7 @@ def test_a_mock_metar_replaces_the_real_one_at_once(dev_map):
 def test_bad_mock_metars(dev_map):
     c = dev_map
     assert mock(c, 0, "not a metar")[0] == 400
+    assert mock(c, 0, "METAR KHOU 272353Z 08003KT 1/0SM FG OVC002 21/21 A3014")[0] == 400  # not a 500
     assert mock(c, 999, MOCK)[0] == 404
     assert c("/config/airports/mock", method="POST", body={"metar": MOCK})[0] == 400  # no pixel
     assert c("/config/airports/mock", method="POST", body={"pixel": 0, "metar": MOCK}, auth=False)[0] == 401

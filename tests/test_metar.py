@@ -412,7 +412,17 @@ def test_a_day_still_ahead_is_last_month():
     )
 
 
-@pytest.mark.parametrize("text", ["", "hello world", "METAR"])
+@pytest.mark.parametrize(
+    "text",
+    [
+        "",
+        "hello world",
+        "METAR",
+        "KDWH 272353Z 00000KT 1/0SM CLR 20/10 A3000",  # a visibility over zero: ValueError, not ZeroDivisionError
+        "KDWH 272353Z 00000KT 1 0/0SM CLR 20/10 A3000",
+        "KDWH 272353Z 00000KT P1/0SM CLR 20/10 A3000",
+    ],
+)
 def test_parse_raw_rejects_what_isnt_a_metar(text):
     with pytest.raises(ValueError):
         metar.parse_raw(text, NOW)
@@ -454,5 +464,7 @@ def test_mocks_need_dev_mode(make_config):
     assert "KDWH" not in mocked(make_config, dev_mode=False).data
 
 
-def test_a_bad_mock_leaves_the_real_report(make_config):
-    assert "KDWH" not in mocked(make_config, mock="not a metar").data
+@pytest.mark.parametrize("mock", ["not a metar", "KDWH 272353Z 00000KT 1/0SM CLR 20/10 A3000"])
+def test_a_bad_mock_leaves_the_real_report(make_config, mock, caplog):
+    assert "KDWH" not in mocked(make_config, mock=mock).data
+    assert "mock METAR ignored" in caplog.text

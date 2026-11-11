@@ -9,6 +9,7 @@ from functools import cached_property
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 import metarmap.lib.colors as colors_lib
+from metarmap import body as body_lib
 from metarmap import remarks as remarks_lib
 
 # A color as the LEDs take it, from lib/colors.py's color(): (green, red, blue), each 0-255
@@ -86,6 +87,14 @@ class Report:
         replace() makes a new Report, which reads its own raw again). Remarks() for a report with none.
         """
         return remarks_lib.parse(self.raw)
+
+    @cached_property
+    def body(self) -> body_lib.Body:
+        """
+        What the report's body (before RMK in raw) says that the fields above don't: its type and modifiers, runway
+        visual range, the trend... (metarmap.body), read once per Report, as remarks is. Body() for an empty raw.
+        """
+        return body_lib.parse(self.raw)
 
     @property
     def vis(self) -> int:
