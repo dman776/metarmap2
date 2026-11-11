@@ -801,6 +801,21 @@
         viewSet = true;
     }
 
+    // a cycle look's runs ([[colorIndex, frames], ...]) expanded once into one color index per frame;
+    // each /api/live poll yields new look objects, so the cache lives and dies with the look
+    const cycleFrames = new WeakMap();
+    function expandRuns(look) {
+        let out = cycleFrames.get(look);
+        if (!out) {
+            out = [];
+            look.runs.forEach(function (r) {
+                for (let i = 0; i < r[1]; i++) out.push(r[0]);
+            });
+            cycleFrames.set(look, out);
+        }
+        return out;
+    }
+
     // what one LED looks like at time t (seconds); mirrors the adafruit_led_animation effects
     function frame(look, pixel, t) {
         const c = look.colors || [];
@@ -813,8 +828,11 @@
                 const low = look.low || 0;
                 return {c: c[0], a: low + (1 - low) * (0.5 - 0.5 * Math.cos(2 * Math.PI * t / look.period))};
             }
-            case 'cycle':
+            case 'cycle': {
+                const seq = look.runs ? expandRuns(look) : null;
+                if (seq && seq.length) return {c: c[seq[Math.floor(t / look.step) % seq.length]], a: 1};
                 return {c: c[Math.floor(t / look.step) % c.length], a: 1};
+            }
             case 'rainbow':
                 return {c: 'hsl(' + Math.round(((t / look.period) + pixel / totalPixels) % 1 * 360) + ' 100% 50%)', a: 1};
             case 'chase': {
