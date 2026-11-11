@@ -1,4 +1,4 @@
-### Unreleased
+### dman776 26.11.10 (2026-11-10)
 
 - **Changing Update to or Branch checks GitHub right away**: in Config > System > Software, picking a new channel or
   branch saves it and then runs Check now for you, the button glowing while it checks, so the status line is current
