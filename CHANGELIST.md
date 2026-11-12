@@ -1,5 +1,8 @@
 ### Unreleased
 
+- **Breathing is smooth**: a light-weather pixel (Precipitation) and the other breathing looks now change brightness 10
+  times a second in 40 small steps, where before they changed 5 times a second in 20 bigger ones, which looked more like
+  a blink than a slow fade
 - **The Chart uses less of the Pi's processor**: while every pixel shows a steady color (Flight Category on a quiet
   day, for example), the Chart now checks its pixels 20 times a second instead of 100, and it sends the colors to the
   pixel strip only when something changes (a new color goes out at every check for its first tenth of a second, and

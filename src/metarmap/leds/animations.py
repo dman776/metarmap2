@@ -16,7 +16,7 @@ from metarmap.models import Look
 
 OFF = colors_lib.color(colors_lib.OFF)
 PULSE_SPEED = 0.1  # seconds between pulse/rainbow frames
-PULSE_STEPS = 20  # brightness steps in a pulse that never goes dark
+PULSE_STEPS = 40  # brightness steps in a pulse that never goes dark
 
 
 def pulse_colors(color, low):
