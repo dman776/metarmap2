@@ -224,6 +224,8 @@ def test_every_numbered_visualizer_still_exists():
         ("update.channel", "nightly", "update.channel: 'nightly' is not one of releases, latest, branch"),
         ("update.channel", "branch", "update.channel: branch needs dev_mode in config.json"),
         ("display_screen.shows", "both", "display_screen.shows: 'both' is not one of airports, visualizer"),
+        ("speech.timeout", "4", "speech.timeout: '4' is not between 5 and 300 s"),
+        ("speech.timeout", "301", "speech.timeout: '301' is not between 5 and 300 s"),
     ],
 )
 def test_set_checks_the_rule(key, value, error):
@@ -245,6 +247,8 @@ def test_set_checks_the_rule(key, value, error):
         ("led.quiet_hours.end", "06:30", "06:30"),
         ("update.branch", "feature/x", "feature/x"),
         ("display_screen.shows", "visualizer", "visualizer"),
+        ("speech.timeout", "5", 5),
+        ("speech.timeout", "300", 300),
     ],
 )
 def test_set_accepts_what_the_rule_allows(key, value, stored):
@@ -282,6 +286,7 @@ def test_rule_of_a_setting_without_one():
         ("tfr", "nearby_nm", "far", 10),
         ("geo", "city", "Houstn", "Houston"),  # a city the sun times don't know would stop the map at startup
         ("geo", "city", "Europe", "Houston"),  # nor would one of astral's group names, which is no city
+        ("speech", "timeout", 600, 120),
     ],
 )
 def test_a_value_its_rule_rejects_is_reset_on_load(section, key, value, default, caplog):

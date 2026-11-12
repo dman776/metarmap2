@@ -552,9 +552,9 @@
         // why it didn't play: the map says it in words (no server, the server or atis.info couldn't be reached)
         async function failed(btn, err) {
             let why = 'Could not play it';
-            try {
-                const res = await fetch(base + encodeURIComponent(btn.dataset.speak) + '.audio', {cache: 'no-store'});
-                if (!res.ok) why = (await res.text()).trim() || why;
+            try {  // asking for the .audio again would have the speech server read it all again
+                const said = await window.metarmapWhyNoAudio(base + encodeURIComponent(btn.dataset.speak));
+                if (said) why = said;
                 else if (err && err.name === 'NotAllowedError') why = 'The browser blocked sound: press again';
             } catch (e) {
                 why = "Can't reach the Chart";

@@ -951,6 +951,9 @@ def test_speak_audio(services):
             def __exit__(self, *exc):
                 return False
 
+            def settimeout(self, seconds):
+                pass
+
             def sendall(self, data):
                 texts.append(speech_module.read_wyoming_event(io.BytesIO(data))[1]["text"])
 
@@ -980,6 +983,70 @@ def test_speak_audio(services):
     assert status == 206 and "RI" + rest == body and len(texts) == 1
     assert c("/api/speak/khou.audio", auth=False, headers={"Range": f"bytes={len(body)}-"})[0] == 416
     assert c("/api/speak/KXXX.audio", auth=False)[0] == 404
+
+
+def test_a_speech_server_not_answering(services):
+    """504 when it doesn't answer in speech.timeout, then 503 at once while it's left alone; /api/live says why."""
+    import requests
+
+    from metarmap.speech import Speech
+
+    c = speaking_map(services)  # atis.info faked, for /api/atis/<code>.audio
+    speech = services.config.data.speech
+    speech.engine, speech.kokoro_url = "kokoro", "http://192.168.0.164:8880"
+    clock = SimpleNamespace(now=1000.0)
+    posts = []
+
+    def post(url, **kwargs):
+        posts.append(url)
+        raise requests.ReadTimeout("read timed out")
+
+    services.speech = Speech(lambda: speech, post=post, clock=lambda: clock.now)
+    live = api.live(services)
+    assert (live["speech"], live["speechOk"], live["speechError"]) == (True, None, "")  # nothing asked yet
+    status, body = c("/api/speak/khou.audio", auth=False)
+    assert (status, body) == (504, "Kokoro didn't answer in 120 s")
+    assert c.headers["Content-Type"] == "text/plain; charset=utf-8"
+    live = api.live(services)
+    assert (live["speechOk"], live["speechError"]) == (False, "The speech server isn't answering; trying again in 30 s")
+    clock.now += 5
+    waiting = "The speech server isn't answering; trying again in 25 s"
+    assert c("/api/speak/kiah.audio", auth=False) == (503, waiting)
+    assert c("/api/atis/khou.audio", auth=False) == (503, waiting)
+    assert len(posts) == 1  # none of them asked it
+    live = api.live(services)
+    assert (live["speechOk"], live["speechError"]) == (False, waiting)  # what the buttons say meanwhile
+    # Config's Test and the Pronunciation speaker ask anyway (behind the login): a server just restarted
+    assert c("/config/speak/khou.audio", auth=False)[0] == 401
+    assert c("/config/speak/khou.audio") == (504, "Kokoro didn't answer in 120 s")
+    assert c("/config/say.audio?text=hi") == (504, "Kokoro didn't answer in 120 s")
+    assert len(posts) == 3
+    speech.timeout = 180  # another time limit: asked again at once
+    assert c("/api/speak/khou.audio", auth=False) == (504, "Kokoro didn't answer in 180 s")
+    assert len(posts) == 4
+    speech.enabled = False
+    live = api.live(services)
+    assert (live["speech"], live["speechOk"], live["speechError"]) == (False, None, "")
+
+
+def test_live_says_the_speech_server_works(services):
+    from metarmap.speech import Speech
+
+    speech = services.config.data.speech
+    speech.enabled, speech.engine, speech.kokoro_url = True, "kokoro", "http://192.168.0.164:8880"
+    answer = SimpleNamespace(status_code=200, iter_content=lambda size: iter([b"\x01\x02" * 10]), close=lambda: None)
+    services.speech = Speech(lambda: speech, post=lambda url, **kwargs: answer)
+    c = Client(create_app(services, ip=""))
+    assert c("/api/speak/khou.audio", auth=False)[0] == 200
+    live = c.json("/api/live", auth=False)
+    assert (live["speechOk"], live["speechError"]) == (True, "")
+
+
+def test_the_web_server_queues_waiting_connections():
+    """socketserver's 5 drops connections while a Pi Zero W is busy; they wait their turn instead."""
+    from metarmap.web import ThreadingServer
+
+    assert ThreadingServer.request_queue_size >= 64
 
 
 def info_modes(page):
@@ -1015,6 +1082,7 @@ def test_the_info_tab_offers_atis_with_speech_atis(client):
 def test_config_has_a_spoken_weather_section(client):
     page = client("/config")[1]
     assert 'id="speech"' in page and 'data-key="speech.wyoming_host"' in page and 'data-empty="-"' in page
+    assert 'id="speech-timeout" type="range" min="5" max="300" step="5" value="120" data-key="speech.timeout"' in page
     assert '<option value="en_US-lessac-medium">' in page
     first = next(a.code for a in client.services.config.airports if a.code)
     assert f'id="speech-test" data-code="{first}"' in page
@@ -1043,6 +1111,9 @@ def test_kokoro_settings(client):
     assert client("/config/edit/speech.kokoro_voice/George!")[0] == 400
     assert client("/config/edit/speech.kokoro_speed/1.25")[0] == 200
     assert client("/config/edit/speech.kokoro_speed/5")[0] == 400
+    for sent, status in (("4", 400), ("301", 400), ("5", 200), ("300", 200)):
+        assert client(f"/config/edit/speech.timeout/{sent}")[0] == status, sent
+    assert client.services.config.data.speech.timeout == 300
     assert client("/config/edit/speech.engine/espeak")[0] == 400
 
 
@@ -2067,7 +2138,9 @@ def speaking_map(services, atis_on=True):
 
     speech = services.config.data.speech
     speech.enabled, speech.wyoming_host, speech.atis = True, "192.168.0.14", atis_on
-    services.speech = SimpleNamespace(audio=lambda text: b"RIFF" + text.encode())
+    services.speech = SimpleNamespace(
+        audio=lambda text, force=False: b"RIFF" + text.encode(), health=lambda: (None, "")
+    )
     answer = SimpleNamespace(status_code=200, json=lambda: [HOBBY_ATIS], raise_for_status=lambda: None)
     services.atis = Atis(lambda: speech.enabled and speech.atis, get=lambda *a, **k: answer, background=False)
     return Client(create_app(services, ip=""))
@@ -2177,7 +2250,8 @@ def test_awos_follows_the_tunings(services):
 def test_hearing_a_tuning_before_saving_it(client):
     texts = []
 
-    def audio(text):
+    def audio(text, force=False):
+        assert force  # it asks even while the server is left alone
         texts.append(text)
         return b"RIFF" + b"\0" * 40
 

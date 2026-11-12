@@ -317,9 +317,26 @@ Settings (`speech` in `config.json`):
   it's asked for)
 - `kokoro_url`, `kokoro_voice`, `kokoro_speed`: the Kokoro server, a voice such as `af_heart` or `bm_george`, and how
   fast it reads (0.5 to 2)
+- `timeout` (**Time limit**): the most seconds the Chart waits for the server to read one report, either kind (5 to
+  300; 120 by default). A Kokoro without a fast graphics card can be slower than real time, taking about twice as
+  long as the report it reads (30 seconds or more for an AWOS, 2 to 3 minutes for a long ATIS): raise the limit if a
+  long ATIS stops with "didn't answer". The Copilot waits 120 seconds for the sound to start, so a report that takes
+  longer won't play on it, even when the Web and the Cockpit play it
 
 If `/api/speak/<code>.audio` answers with an error, it says why: speech is off, no server is set, the server can't be
-reached (for Home Assistant, check the add-on's port), or the server's own reason, such as a voice it doesn't have.
+reached (for Home Assistant, check the add-on's port), the server didn't answer within the time limit ("Kokoro didn't
+answer in 120 s"), or the server's own reason, such as a voice it doesn't have.
+
+A slow or stuck server doesn't hold everything up. After it doesn't answer in time, or can't be reached, the Chart
+stops asking it for 30 seconds and says so at once ("The speech server isn't answering; trying again in 25 s"); if it
+still doesn't answer, it waits longer each time (1, 2, 4, then 5 minutes), and the first report it reads ends the
+wait. Reports the Chart already has still play meanwhile, and changing any speech setting (the server, voice, speed or
+time limit) tries again right away. So does **Test** in Config (and the Pronunciation page's speaker): after
+restarting a stuck server (a Kokoro that stopped answering), press Test to try it at once. Pressing the same airport
+twice while it's being read makes one request, not two. Different reports asked for at once (several airports, or
+several devices) are separate requests, and Kokoro reads one at a time: the third in line can run out of time while
+it waits for the other two, and start the wait. Each report's time is in the Chart's log, with a warning for one that
+takes over 10 seconds.
 
 ### Spoken ATIS
 

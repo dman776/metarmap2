@@ -647,13 +647,14 @@
         }
     }
 
-    // why it didn't play, in words: the map's own reason (spoken ATIS off, no speech server, atis.info down...)
+    // why it didn't play, in words: the map's own reason (spoken ATIS off, no speech server, atis.info down, the
+    // speech server not answering...), from the text and /api/live: asking for the .audio again would read it again
     async function listenFailed(btn, err) {
         const kind = KINDS[btn.dataset.kind];
         let why = 'It could not be played.';
         try {
-            const res = await fetch(kind.base + encodeURIComponent(btn.dataset.code) + '.audio', {cache: 'no-store'});
-            if (!res.ok) why = (await res.text()).trim() || why;
+            const said = await window.metarmapWhyNoAudio(kind.base + encodeURIComponent(btn.dataset.code));
+            if (said) why = said;
             else if (err && err.name === 'NotAllowedError') why = 'The browser blocked sound: press ' + kind.label + ' again.';
         } catch (e) {
             why = "Can't reach the Chart.";

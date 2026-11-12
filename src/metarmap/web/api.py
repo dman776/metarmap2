@@ -195,6 +195,8 @@ def live(services: "App", now=None):
 
     renderer = services.renderer
     led_looks, strip = renderer.led_states()
+    speaks = services.speech is not None and configured(services.config.data.speech)
+    speech_ok, speech_error = services.speech.health() if speaks else (None, "")
     active_num, active_vis = renderer.visualizer
     display = services.display if services.config.data.display_screen.enabled else None
     barbs = active_vis.barbs
@@ -254,7 +256,11 @@ def live(services: "App", now=None):
         },
         # spoken weather can be asked for (/api/speak/<code>.audio): on, with a server set. The AWOS buttons and the
         # touchscreen remote's hold-to-hear follow it
-        "speech": services.speech is not None and configured(services.config.data.speech),
+        "speech": speaks,
+        # how the last clip went (no I/O: what the map remembers): speechOk null before any (or speech off), true once
+        # one was made, false after one failed (and while the server is left alone); speechError its line, else ""
+        "speechOk": speech_ok,
+        "speechError": speech_error,
     }
 
 
@@ -383,9 +389,11 @@ def as_text(text, code):
     return text
 
 
-def as_audio(services: "App", code):
+def as_audio(services: "App", code, force=False):
     """An airport's METAR read aloud (WAV), by the speech server (speech.engine: Piper over Wyoming, or Kokoro). 404:
-    not on the map; 503: no server is set; 502: the server failed or couldn't be reached. Errors are plain text."""
+    not on the map; 503: no server is set, or the server is left alone a while after it didn't answer; 504: it didn't
+    answer in speech.timeout; 502: the server failed or couldn't be reached. Errors are plain text. force: ask the
+    server even while it's left alone (Config's Test, /config/speak/<code>.audio: after restarting it)."""
     text = spoken_report(services, code)
     if text is None:
         bottle.abort(404, f"{code} isn't on the map")
@@ -393,7 +401,7 @@ def as_audio(services: "App", code):
     if speech is None:
         bottle.abort(503, "This map has no speech")
     try:
-        clip = speech.audio(text)
+        clip = speech.audio(text, force=force)
     except SpeechError as e:
         return as_error(e)
     bottle.response.content_type = "audio/wav"
@@ -408,7 +416,8 @@ SAY_MAX = 200
 def as_said_audio(services: "App", text: str):
     """
     Some words read aloud (WAV), as the speech server says them: the Pronunciation page's Play beside a tuning, to
-    hear a "say it as" before saving it. 400: no words, or too many; 503 and 502 as for as_audio().
+    hear a "say it as" before saving it. 400: no words, or too many; 502, 503 and 504 as for as_audio(). It asks the
+    server even while it's left alone (as_audio's force), so it's a way to try a server just restarted.
     """
     text = " ".join((text or "").split())
     if not text:
@@ -419,7 +428,7 @@ def as_said_audio(services: "App", text: str):
     if speech is None:
         bottle.abort(503, "This map has no speech")
     try:
-        clip = speech.audio(text)
+        clip = speech.audio(text, force=True)
     except SpeechError as e:
         return as_error(e)
     bottle.response.content_type = "audio/wav"
@@ -444,7 +453,8 @@ def as_atis_text(services: "App", code):
 
 def as_atis_audio(services: "App", code):
     """An airport's ATIS read aloud (WAV), by the speech server. 404: not on the map, or no ATIS; 503: speech or
-    spoken ATIS is off; 502: atis.info or the speech server failed. Errors are plain text."""
+    spoken ATIS is off, or the speech server is left alone a while; 504: it didn't answer in speech.timeout; 502:
+    atis.info or the speech server failed. Errors are plain text."""
     speech = services.speech
     if speech is None:
         bottle.abort(503, "This map has no speech")

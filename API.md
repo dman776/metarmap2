@@ -179,7 +179,9 @@ What the physical map is doing right now. The Map page polls it every second. No
                 "lines": [ { "icon": "wind", "text": "150@08" }, { "icon": "visibility", "text": "1SM" },
                            { "icon": "pressure", "text": "29.98" } ] }
   },
-  "speech": true
+  "speech": true,
+  "speechOk": true,
+  "speechError": ""
 }
 ```
 
@@ -199,6 +201,7 @@ What the physical map is doing right now. The Map page polls it every second. No
 | `visualizer.legendInUseOnly` | The `visualizer.legend_in_use_only` setting: whether the web pages list only those entries |
 | `strip` | Set when one effect drives the whole strip instead: `rainbow` (`period`) or `chase` (`step`, `size`, `spacing`); it is never a `cycle`, so it has no `runs`. The virtual airports keep their own `look` meanwhile: the same rainbow, or `off` for a chase (a wiring check). |
 | `speech` | Whether spoken weather can be asked for (`/api/speak/<code>.audio`): `speech.enabled` on, with a server set for `speech.engine`. The METARs page's AWOS buttons, the Cockpit's AWOS mode (Info tab), the Map page popup's Listen tab and the touchscreen remote's hold-to-hear show only then |
+| `speechOk`, `speechError` | How the last spoken clip went, for the speech server set now (the Chart remembers it; asking `/api/live` never asks the server): `speechOk` is `null` before any clip has been made (and while `speech` is `false`), `true` once one was made, `false` after one failed, and while the Chart leaves the server alone after it didn't answer (see `/api/speak/<code>.audio`). `speechError` is that failure's line, e.g. `Kokoro didn't answer in 120 s`, or while the server is left alone the line its 503 says, `The speech server isn't answering; trying again in 25 s`; `""` otherwise. Another server, voice, speed or time limit set starts afresh (`null`). The Listen, AWOS and ATIS buttons show it when a clip can't play |
 | `leds[].atis` | The airport's real ATIS can be read aloud (`/api/atis/<code>.audio`): `speech.atis` and spoken weather are on, and it publishes a digital ATIS. The list of airports with one is refreshed every half hour. The ATIS buttons (METARs page, the Cockpit, the Map page popup's Listen tab) show only for these |
 | `locate` | The last white locate pulse: the pixel number `pixel` and Unix time `at`. `null` until the first one. A virtual airport's pulse is only shown on the Map page. |
 | `display.on` | Whether the screen is showing; `false` after `/display/off` (then `screen` is `null`) |
@@ -283,12 +286,21 @@ from Kokoro). No authentication. With `speech.enabled` on, a speech server on an
 Kokoro-FastAPI (`speech.kokoro_url`); README, *Spoken weather*. Each clip is kept until the airport's text changes,
 so asking again is instant.
 
+A clip has `speech.timeout` seconds (120 by default) in all, connecting and reading included; asked for twice at once,
+it's made once, the second ask waiting for the first's clip or error. After the server didn't answer in time or
+couldn't be reached, the Chart leaves it alone for 30 s, then 1, 2, 4 and at most 5 minutes while it still doesn't,
+and answers 503 at once meanwhile; a clip already made still plays, and the first clip made, or another engine,
+server, voice, speed or time limit set, ends the wait. `GET /config/speak/<code>.audio` (login needed; Config's
+Test) and `/config/say.audio` ask the server even during the wait, to try one just restarted; they answer as this
+route does. `/api/live`'s `speechOk` and `speechError` say how the last clip went.
+
 Errors are plain text saying why:
 
 | Status | Why |
 |---|---|
 | 404 | The airport isn't on the Chart |
-| 503 | Speech is off (`speech.enabled`), or no server is set for the engine |
+| 503 | Speech is off (`speech.enabled`), or no server is set for the engine; or the server is being left alone after it didn't answer: `The speech server isn't answering; trying again in 25 s` |
+| 504 | The server didn't answer in `speech.timeout`: `Kokoro didn't answer in 120 s` (or `Piper ...`) |
 | 502 | The server couldn't be reached, or failed (its reason, e.g. a voice it doesn't have) |
 
 ### `GET /api/atis/<code>`, `GET /api/atis/<code>.audio`, `GET /api/atis`
@@ -337,7 +349,8 @@ longer after a failure. Errors are plain text saying why:
 | Status | Why |
 |---|---|
 | 404 | The airport isn't on the Chart, or has no digital ATIS |
-| 503 | Spoken ATIS is off (`speech.atis`), or speech is off or has no server (the audio) |
+| 503 | Spoken ATIS is off (`speech.atis`), or speech is off or has no server (the audio); or the speech server is being left alone after it didn't answer, as for `/api/speak/<code>.audio` |
+| 504 | The speech server didn't answer in `speech.timeout` (the audio), as for `/api/speak/<code>.audio` |
 | 502 | atis.info, or the speech server, couldn't be reached or failed |
 
 ### `GET /api/advisories`
@@ -548,8 +561,9 @@ Settings that apply right away:
 - `speech.engine`: the speech server: `wyoming` (Piper, e.g. Home Assistant's add-on) or `kokoro` (Kokoro-FastAPI)
 - `speech.wyoming_host`, `speech.wyoming_port`, `speech.wyoming_voice`: the Piper server (Home Assistant's address; port 10200) and the voice to ask it for (e.g. `en_US-lessac-medium`; empty: its own). An empty host or voice is sent as `-`
 - `speech.atis`: the spoken ATIS on or off (`/api/atis`, from atis.info; off by default)
-- `speech.tunings`: the Pronunciation page's list, `[{"text": "MNSTR", "say": "monster", "airport": ""}]` (`airport` empty for every airport). Saved as a whole with `POST /config/tunings` and `{"tunings": [...]}` (login needed), not with `/config/edit`. `GET /config/say.audio?text=...` (login needed) reads any words aloud as WAV, at most 200 characters, for the page's speaker beside each tuning: 400 for no words or too many, 503 and 502 as for `/api/speak/<code>.audio`
+- `speech.tunings`: the Pronunciation page's list, `[{"text": "MNSTR", "say": "monster", "airport": ""}]` (`airport` empty for every airport). Saved as a whole with `POST /config/tunings` and `{"tunings": [...]}` (login needed), not with `/config/edit`. `GET /config/say.audio?text=...` (login needed) reads any words aloud as WAV, at most 200 characters, for the page's speaker beside each tuning: 400 for no words or too many, 502, 503 and 504 as for `/api/speak/<code>.audio` (it asks the server even while the Chart leaves it alone, so no 503 for that)
 - `speech.kokoro_url`, `speech.kokoro_voice`, `speech.kokoro_speed`: the Kokoro server (e.g. `/config/edit/speech.kokoro_url/192.168.0.164:8880`; `http://` is added), its voice (e.g. `af_heart`) and speed (0.5 to 2). An empty address is sent as `-`
+- `speech.timeout`: the most seconds a spoken clip may take, either engine (5 to 300; 120 by default). Past it the audio routes answer 504, and the Chart leaves the server alone a while (503); see `/api/speak/<code>.audio`
 - `visualizer.active`, the default visualizer used at startup, by id (`/config/edit/visualizer.active/wind`); a number is taken too and saved as the id. An unknown one is a 400. Saving it doesn't change the visualizer that's running now; use `/visualizer/<id>` for that.
 - `visualizer.auto_rotate.enabled`
 - `visualizer.auto_rotate.delay_seconds` (the new delay starts counting when it's saved)
@@ -643,4 +657,5 @@ curl -u metar:map -H 'Content-Type: application/json' -d '{"user": "pilot", "pas
 | `GET /debug` | | Debug information |
 | `GET /config` | yes | Configuration page |
 | `GET /config/airports` | yes | Airport configuration page |
+| `GET /config/speak/<code>.audio` | yes | Config's Test: an airport's AWOS as `/api/speak/<code>.audio`, but asking the speech server even while the Chart leaves it alone after it didn't answer |
 | `GET /static/<file>` | | Stylesheet and script for the web UI |

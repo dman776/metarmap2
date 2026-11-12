@@ -50,6 +50,7 @@ class ThreadingServer(socketserver.ThreadingMixIn, WSGIServer):
     """
 
     daemon_threads = True  # don't wait for open requests when the map stops
+    request_queue_size = 64  # connections wait instead of being dropped while a Pi Zero W is busy (socketserver: 5)
 
 
 class RequestHandler(WSGIRequestHandler):

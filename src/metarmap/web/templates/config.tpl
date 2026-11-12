@@ -445,6 +445,8 @@
         % slider('speech.kokoro_speed', s.kokoro_speed, 'Speed', 'How fast it reads: 1 is normal.', lo=0.5, hi=2, step=0.05, fmt='x')
         </div>
 
+        % slider('speech.timeout', s.timeout, 'Time limit', 'The longest the Chart waits for the server to read one report (2 minutes by default). A Kokoro slower than real time needs about twice the report\'s length: raise it if a long ATIS stops with "didn\'t answer". If it doesn\'t answer in time, the Chart stops asking it for 30 seconds (longer if it still doesn\'t answer); reports already read still play.', lo=5, hi=300, step=5, fmt='sec')
+
         <div class="set">
             <div><div class="t">Pronunciation</div><div class="d">Airport names, local names, fixes and the FAA's odd spellings said your way, in the AWOS and the ATIS{{!' (%d set)' % len(s.tunings) if s.tunings else ''}}.</div></div>
             <a class="btn" href="/config/pronunciation">Pronunciation</a>
