@@ -155,12 +155,13 @@ class FakePip:
         self.killed = True
 
 
-def finished(job):
+def finished(install):
+    """The install's job once it is done."""
     for _ in range(300):
-        if job["done"]:
-            return job
+        if install.job["done"]:
+            break
         threading.Event().wait(0.01)
-    return job
+    return install.progress()
 
 
 def test_install_runs_pip_logs_what_it_says_and_then_announces(caplog):
@@ -174,8 +175,11 @@ def test_install_runs_pip_logs_what_it_says_and_then_announces(caplog):
             "Successfully installed ifaddr-0.2.0 zeroconf-0.154.0",
         ]
     )
-    job = discovery.PackageInstall(popen=pip, on_done=done.set).start()
-    assert done.wait(5) and finished(job)["ok"]
+    install = discovery.PackageInstall(popen=pip, on_done=done.set)
+    install.start()
+    assert done.wait(5)
+    job = finished(install)
+    assert job["ok"] and isinstance(job["elapsed"], int)
     assert pip.command[1:4] == ["-m", "pip", "install"] and pip.command[-1] == "zeroconf"
     assert "--only-binary" in pip.command  # never compiled: that takes ten minutes on a Pi Zero, and fails
     assert job["changed"] and job["message"] == "Installed zeroconf" and job["fraction"] == 1.0
@@ -204,15 +208,17 @@ def test_install_label_follows_pips_stages():
         ["Collecting zeroconf", "Installing collected packages: ifaddr, zeroconf", "Successfully installed zeroconf-1"]
     )
     install._popen = pip
-    job = install.start()
-    assert finished(job)["ok"]
+    install.start()
+    assert finished(install)["ok"]
     assert seen[0] == "Looking up zeroconf" and seen[1] == "Installing zeroconf"
 
 
 def test_install_failure_shows_pips_last_lines_and_logs_it(caplog):
     pip = FakePip([f"line {n}" for n in range(10)], code=1)
-    job = discovery.PackageInstall(popen=pip, on_done=lambda: pytest.fail("announced after a failure")).start()
-    assert finished(job)["ok"] is False and job["errors"][-1] == "line 9" and len(job["errors"]) == 6
+    install = discovery.PackageInstall(popen=pip, on_done=lambda: pytest.fail("announced after a failure"))
+    install.start()
+    job = finished(install)
+    assert job["ok"] is False and job["errors"][-1] == "line 9" and len(job["errors"]) == 6
     assert "pip exited with 1" in caplog.text
 
 
@@ -220,8 +226,10 @@ def test_install_that_cannot_run_is_reported():
     def popen(command, **kwargs):
         raise FileNotFoundError("no python")
 
-    job = discovery.PackageInstall(popen=popen).start()
-    assert finished(job)["ok"] is False and "no python" in job["errors"][0]
+    install = discovery.PackageInstall(popen=popen)
+    install.start()
+    job = finished(install)
+    assert job["ok"] is False and "no python" in job["errors"][0]
 
 
 def test_a_quiet_pip_gets_a_heartbeat_and_a_stop_after_the_time_limit(monkeypatch, caplog):
@@ -245,8 +253,10 @@ def test_a_quiet_pip_gets_a_heartbeat_and_a_stop_after_the_time_limit(monkeypatc
             release.set()
 
     pip = Quiet([])
-    job = discovery.PackageInstall(popen=pip).start()
-    assert finished(job)["ok"] is False and pip.killed
+    install = discovery.PackageInstall(popen=pip)
+    install.start()
+    job = finished(install)
+    assert job["ok"] is False and pip.killed
     assert "pip is still running" in caplog.text and "took longer than" in job["errors"][0]
 
 
@@ -297,3 +307,30 @@ def test_refresh_waits_for_the_network(config):
 def test_names_that_would_not_announce_are_refused(name):
     with pytest.raises(ValueError):
         Settings().set("web_server.name", name)
+
+
+def test_the_job_says_how_long_it_has_run(monkeypatch):
+    now = [100.0]
+    monkeypatch.setattr(discovery.time, "monotonic", lambda: now[0])
+    release = threading.Event()
+
+    class Waiting(FakePip):
+        def __call__(self, command, **kwargs):
+            super().__call__(command, **kwargs)
+            self.stdout = iter(())
+            return self
+
+        def wait(self):
+            release.wait(5)
+            return 0
+
+    install = discovery.PackageInstall(popen=Waiting([]))
+    assert install.progress() is None
+    started = install.start()
+    now[0] += 75
+    assert started["elapsed"] == 0 and install.progress()["elapsed"] == 75
+    release.set()
+    assert finished(install)["done"]
+    ended = install.progress()["elapsed"]
+    now[0] += 500
+    assert install.progress()["elapsed"] == ended  # stopped counting when it ended

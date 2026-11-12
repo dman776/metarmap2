@@ -35,7 +35,7 @@
         % if discovery and discovery['missing']:
         <button class="btn primary" id="install-discovery" type="button" data-install-package title="Install the zeroconf package, so the Copilot and other pages can find this map on the network">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18"/></svg>
-            Install network discovery
+            <span class="btn-text">Install network discovery</span>
         </button>
         % end
         <button class="btn danger" type="button" data-call="/restart" data-then="restart" data-confirm="Restart the Chart now?">

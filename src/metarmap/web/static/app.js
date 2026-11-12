@@ -111,22 +111,19 @@
     // version: a release picked on Config (older ones too); none: what the update channel says.
     // New code that installed restarts the map at once, so it's running.
     const UPDATE_RESTART_MS = 1500;  // long enough to read what was installed
-    async function runUpdate(btn, version, urls) {
-        urls = urls || {start: '/update/start', progress: '/update/progress'};
+    async function runUpdate(btn, version) {
         const dlg = document.getElementById('update-dialog');
         if (!dlg) return;
         const label = dlg.querySelector('.update-label');
         const bar = dlg.querySelector('.update-bar');
         const errors = dlg.querySelector('.update-errors');
-        const title = document.getElementById('update-title');
-        if (title) title.textContent = urls.title || 'Update';
         label.textContent = 'Starting';
         bar.value = 0;
         errors.hidden = true;
         dlg.showModal();
         busy(btn, true);
         try {
-            let res = await fetch(urls.start, version ? {
+            let res = await fetch('/update/start', version ? {
                 method: 'POST', credentials: 'same-origin',
                 headers: {'Content-Type': 'application/json'}, body: JSON.stringify({version: version})
             } : {method: 'POST', credentials: 'same-origin'});
@@ -136,27 +133,25 @@
                 bar.value = job.fraction;
                 label.textContent = job.label + '…';
                 await new Promise(function (resolve) { setTimeout(resolve, 500); });
-                res = await fetch(urls.progress, {cache: 'no-store', credentials: 'same-origin'});
+                res = await fetch('/update/progress', {cache: 'no-store', credentials: 'same-origin'});
                 if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
                 job = await res.json();
             }
             bar.value = 1;
             if (job.ok) {
                 label.textContent = job.changed
-                    ? (job.message || 'Update installed') + (urls.reload ? '.' : '. Restarting the Chart…')
+                    ? (job.message || 'Update installed') + '. Restarting the Chart…'
                     : (job.message || 'Already up to date') + '.';
                 if (job.changed) {
-                    // a package needs no restart: the Chart uses it at once, and the page drops its button
-                    setTimeout(function () { urls.reload ? window.location.reload() : restartMap('/restart'); },
-                               UPDATE_RESTART_MS);
+                    setTimeout(function () { restartMap('/restart'); }, UPDATE_RESTART_MS);
                 }
             } else {
-                label.textContent = (urls.title ? 'Install' : 'Update') + ' failed.';
+                label.textContent = 'Update failed.';
                 errors.textContent = (job.errors || []).join('\n');
                 errors.hidden = !errors.textContent;
             }
         } catch (err) {
-            label.textContent = (urls.title ? 'Install' : 'Update') + ' failed.';
+            label.textContent = 'Update failed.';
             errors.textContent = String(err);
             errors.hidden = false;
         } finally {
@@ -171,14 +166,105 @@
         runUpdate(btn);
     });
 
-    // Home: install the zeroconf package (pip), so the Chart can announce itself on the network
-    document.addEventListener('click', function (e) {
+    // ---- Home: install the zeroconf package (pip). On a Pi Zero it takes minutes: the dialog says so and can be
+    // closed, and the install goes on. The button then glows and counts the time; a page loaded while one runs
+    // picks it up (the server keeps the job and how long it has run).
+    const INSTALL_POLL_MS = 1000;
+    const INSTALL_RELOAD_MS = 1200;  // long enough to read "Installed"
+
+    function clock(seconds) {
+        return Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0');
+    }
+
+    async function followInstall(btn) {
+        const dlg = document.getElementById('install-dialog');
+        const label = dlg && dlg.querySelector('.update-label');
+        const bar = dlg && dlg.querySelector('.update-bar');
+        const errors = dlg && dlg.querySelector('.update-errors');
+        const text = btn.querySelector('.btn-text');
+        const idle = text.textContent;
+        btn.disabled = true;
+        btn.classList.add('loading');
+        btn.setAttribute('aria-busy', 'true');
+        try {
+            for (;;) {
+                const res = await fetch('/update/packages/progress', {cache: 'no-store', credentials: 'same-origin'});
+                if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+                const job = await res.json();
+                if (dlg) {
+                    bar.value = job.fraction || 0;
+                    label.textContent = (job.label || 'Installing') + ' · ' + clock(job.elapsed || 0);
+                }
+                text.textContent = job.done ? idle : 'Installing… ' + clock(job.elapsed || 0);
+                if (job.done) {
+                    if (job.ok) {
+                        text.textContent = 'Installed';
+                        if (dlg && dlg.open) label.textContent = (job.message || 'Installed') + '.';
+                        setTimeout(function () { window.location.reload(); }, INSTALL_RELOAD_MS);
+                        return;
+                    }
+                    if (dlg) {
+                        label.textContent = 'The install failed.';
+                        errors.textContent = (job.errors || []).join('\n');
+                        errors.hidden = !errors.textContent;
+                        if (!dlg.open) dlg.showModal();
+                    }
+                    break;
+                }
+                await new Promise(function (resolve) { setTimeout(resolve, INSTALL_POLL_MS); });
+            }
+        } catch (err) {
+            if (dlg) {
+                label.textContent = 'The install failed.';
+                errors.textContent = String(err);
+                errors.hidden = false;
+                if (!dlg.open) dlg.showModal();
+            }
+        }
+        text.textContent = idle;
+        btn.classList.remove('loading');
+        btn.removeAttribute('aria-busy');
+        btn.disabled = false;
+    }
+
+    document.addEventListener('click', async function (e) {
         const btn = e.target.closest('[data-install-package]');
-        if (!btn) return;
+        if (!btn || btn.disabled) return;
         e.preventDefault();
-        runUpdate(btn, undefined, {start: '/update/packages', progress: '/update/packages/progress', reload: true,
-                           title: 'Network discovery'});
+        const dlg = document.getElementById('install-dialog');
+        if (dlg) {
+            dlg.querySelector('.update-label').textContent = 'Starting';
+            dlg.querySelector('.update-bar').value = 0;
+            dlg.querySelector('.update-errors').hidden = true;
+            dlg.showModal();
+        }
+        try {
+            const res = await fetch('/update/packages', {method: 'POST', credentials: 'same-origin'});
+            if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+        } catch (err) {
+            if (dlg) {
+                dlg.querySelector('.update-label').textContent = 'The install did not start.';
+                const errors = dlg.querySelector('.update-errors');
+                errors.textContent = String(err);
+                errors.hidden = false;
+            }
+            return;
+        }
+        followInstall(btn);
     });
+
+    // a page opened while an install runs (the dialog was closed, or the page reloaded): carry on showing it
+    (async function resumeInstall() {
+        const btn = document.querySelector('[data-install-package]');
+        if (!btn) return;
+        try {
+            const res = await fetch('/update/packages/progress', {cache: 'no-store', credentials: 'same-origin'});
+            const job = res.ok ? await res.json() : null;
+            if (job && job.done === false) followInstall(btn);
+        } catch (err) {
+            // the button stays as it was
+        }
+    })();
 
     // Config > Software: install the release picked in the list, older ones too
     document.addEventListener('click', function (e) {

@@ -202,11 +202,13 @@ class PackageInstall:
         self._lock = threading.Lock()
         self.job = None
         self._stage = ""  # the label for the stage pip is at, without the elapsed time
+        self._started = self._ended = 0.0  # monotonic times of the job now, for "elapsed"
 
     def start(self):
         with self._lock:
             if self.job is None or self.job["done"]:
                 self._stage = f"Starting pip for {PACKAGE}"
+                self._started, self._ended = time.monotonic(), None
                 job = self.job = {
                     "fraction": 0.0,
                     "label": f"Starting pip for {PACKAGE}",
@@ -218,10 +220,13 @@ class PackageInstall:
                     "errors": [],
                 }
                 threading.Thread(target=self._install, args=(job,), name="install-package", daemon=True).start()
-            return self.job
+            return self.progress()
 
     def progress(self):
-        return self.job
+        """The job now with the seconds it has run (to its end, once done); None before the first."""
+        if self.job is None:
+            return None
+        return {**self.job, "elapsed": int((self._ended or time.monotonic()) - self._started)}
 
     def _install(self, job):
         started = time.monotonic()
@@ -276,6 +281,7 @@ class PackageInstall:
             job.update(ok=False, changed=False, errors=[f"{type(e).__name__}: {e}"])
         finally:
             finished.set()
+            self._ended = time.monotonic()
             job["done"] = True
 
     def _watch(self, job, process, started, finished):
