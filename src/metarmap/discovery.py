@@ -183,7 +183,6 @@ PIP_STAGES = (
     ("Downloading", 0.3, f"Downloading {PACKAGE}"),
     ("Using cached", 0.3, f"Using a cached {PACKAGE}"),
     ("Preparing metadata", 0.4, f"Preparing {PACKAGE}"),
-    ("Building wheel", 0.5, f"Building {PACKAGE}, which can take minutes on a Pi Zero"),
     ("Installing collected packages", 0.8, f"Installing {PACKAGE}"),
     ("Successfully installed", 1.0, f"Installed {PACKAGE}"),
 )
@@ -228,7 +227,20 @@ class PackageInstall:
         started = time.monotonic()
         finished = threading.Event()
         try:
-            command = [sys.executable, "-m", "pip", "install", "--no-input", "--progress-bar", "off", PACKAGE]
+            # --only-binary: a ready-made package only. The newest zeroconf has none for a Pi Zero (Python 3.9,
+            # armv6l), and building it there takes over ten minutes and fails; pip takes the newest that has one
+            command = [
+                sys.executable,
+                "-m",
+                "pip",
+                "install",
+                "--no-input",
+                "--progress-bar",
+                "off",
+                "--only-binary",
+                ":all:",
+                PACKAGE,
+            ]
             log.info(f"installing {PACKAGE}: {' '.join(command)}")
             process = self._popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
             threading.Thread(

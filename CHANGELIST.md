@@ -4,8 +4,10 @@
   tells the network it is there (zeroconf, as a `_metarmap2._tcp` service named for the map), so a Copilot can find it
   without an address. **Config > System > Access** has a new **Map name** (blank uses the computer's name) and an
   **Announce on the network** switch, and `/api/status` has `name` and `announcing`. It needs the `zeroconf` Python
-  package: a new install gets it, but an update doesn't install packages, so on an existing Chart Home shows an
-  **Install network discovery** button that runs `pip install zeroconf` and starts announcing at once, with no restart.
+  package: `install.sh` installs it, but an update doesn't install packages, so on an existing Chart Home shows an
+  **Install network discovery** button that runs `pip install --only-binary :all: zeroconf` and starts announcing at once,
+  with no restart. Only a ready-made package is used: a Pi Zero (Python 3.9) gets zeroconf 0.39.4, which installs in
+  seconds, where the newest release would be compiled for over ten minutes and fail.
   The install shows pip's stage and the time it has taken in the dialog, and writes every line pip prints to
   `metarmap.log` (`pip: ...`, with a note every 15 seconds while it is quiet). Without the package the Chart runs as
   before. The Copilot's map picker is still to come

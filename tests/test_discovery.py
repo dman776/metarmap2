@@ -177,6 +177,7 @@ def test_install_runs_pip_logs_what_it_says_and_then_announces(caplog):
     job = discovery.PackageInstall(popen=pip, on_done=done.set).start()
     assert done.wait(5) and finished(job)["ok"]
     assert pip.command[1:4] == ["-m", "pip", "install"] and pip.command[-1] == "zeroconf"
+    assert "--only-binary" in pip.command  # never compiled: that takes ten minutes on a Pi Zero, and fails
     assert job["changed"] and job["message"] == "Installed zeroconf" and job["fraction"] == 1.0
     assert "pip: Collecting zeroconf" in caplog.text and "pip: Successfully installed" in caplog.text
     assert "installed zeroconf in" in caplog.text
@@ -200,12 +201,12 @@ def test_install_label_follows_pips_stages():
             return self
 
     pip = Slow(
-        ["Collecting zeroconf", "Building wheel for zeroconf (pyproject.toml)", "Successfully installed zeroconf-1"]
+        ["Collecting zeroconf", "Installing collected packages: ifaddr, zeroconf", "Successfully installed zeroconf-1"]
     )
     install._popen = pip
     job = install.start()
     assert finished(job)["ok"]
-    assert seen[0] == "Looking up zeroconf" and seen[1].startswith("Building zeroconf, which can take minutes")
+    assert seen[0] == "Looking up zeroconf" and seen[1] == "Installing zeroconf"
 
 
 def test_install_failure_shows_pips_last_lines_and_logs_it(caplog):
