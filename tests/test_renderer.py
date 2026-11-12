@@ -149,76 +149,6 @@ def test_resize_a_strip_that_cant(config, clock):
     assert r.resize(5) is False
 
 
-def test_render_rests_between_frames(config, clock, monkeypatch):
-    """Without a rest the loop asks the animations "is it time yet?" non-stop, using a whole CPU core."""
-    from metarmap import renderer
-
-    class Frames:
-        """An animation loop that has three frames to draw."""
-
-        def __init__(self, *args, **kwargs):
-            self.left = 3
-
-        def animate(self, show=True):
-            self.left -= 1
-            return self.left > 0
-
-        def freeze(self):
-            pass
-
-        def resume(self):
-            pass
-
-    rests = []
-    monkeypatch.setattr(renderer, "AnimateOnce", Frames)
-    monkeypatch.setattr(renderer.time, "sleep", rests.append)
-    r, _ = make(config, clock)
-    r.render()
-    # after each frame that kept going, not after the last; a still map (solid and off looks) at the slowest tick
-    assert rests == [renderer.MAX_FRAME_SECONDS] * 2
-    rests.clear()
-    r.animate_once(object())
-    assert rests == [renderer.FRAME_SECONDS] * 2
-
-
-def test_render_sends_the_strip_once_per_frame(config, clock, monkeypatch):
-    """Every LED has its own animation, and each one's show() would send the whole strip: 252 sends a frame."""
-    from metarmap import renderer
-
-    drawn = []
-
-    class Frames:
-        def __init__(self, *args, **kwargs):
-            self.left = 3
-
-        def animate(self, show=True):
-            drawn.append(show)
-            self.left -= 1
-            return self.left > 0
-
-    monkeypatch.setattr(renderer, "AnimateOnce", Frames)
-    monkeypatch.setattr(renderer.time, "sleep", lambda seconds: None)
-    r, strip = make(config, clock)
-    shows = strip.shows
-    r.render()
-    assert drawn == [False] * 3  # the animations only draw into the strip's buffer
-    assert strip.shows - shows == 3  # and the renderer sends it, once a frame
-
-
-def test_render_rests_after_an_error(config, clock, monkeypatch):
-    from metarmap import renderer
-
-    def broken(*args, **kwargs):
-        raise RuntimeError("no such animation")
-
-    rests = []
-    monkeypatch.setattr(renderer, "AnimationGroup", broken)
-    monkeypatch.setattr(renderer.time, "sleep", rests.append)
-    r, _ = make(config, clock)
-    r.render()  # the main loop calls it again at once; it mustn't spin
-    assert rests == [renderer.FRAME_SECONDS]
-
-
 def test_render_stops_when_the_animations_are_rebuilt(config, clock):
     """New data, a new visualizer or a new strip length shows at once, not after the old animations' cycle."""
     r, _ = make(config, clock, data={"KHOU": metar("VFR", weather="-RA")}, leds=1, visualizers=[PRECIP])
@@ -341,14 +271,6 @@ def test_clear(config, clock):
     draw_frame(r)
     r.clear()
     assert all(c == (0, 0, 0) for c in strip)
-
-
-def test_render_runs_one_cycle(config, clock):
-    r, strip = make(config, clock, data={"KHOU": metar("VFR")}, leds=1)
-    shows = strip.shows
-    r.render()
-    assert strip[0] == flightcategory.COLORS["VFR"]
-    assert strip.shows > shows
 
 
 # ---- switching visualizers ------------------------------------------------------------------------------------
@@ -649,54 +571,6 @@ def test_moving_looks_tick_as_fast_as_they_need(config, clock):
     assert r.frame_seconds() == renderer.FRAME_SECONDS
 
 
-def test_render_does_not_pile_up_callbacks(config, clock, monkeypatch):
-    """
-    Each render() groups the LEDs' animations afresh, and a group hooks a callback onto the last one: they must not
-    pile up between rebuilds (one a second, until the rebuild every 10 minutes).
-    """
-    from metarmap import renderer
-
-    monkeypatch.setattr(renderer.time, "sleep", lambda seconds: None)
-    r, _ = make(config, clock)
-    last = r.animations[-1]
-    hooked = len(last._also_notify)
-
-    class Once:
-        """One frame per render(), like the real loop when the last animation completes a cycle."""
-
-        def __init__(self, group, **kwargs):
-            self.group = group
-
-        def animate(self, show=True):
-            self.group.animate(show)
-            return False
-
-    monkeypatch.setattr(renderer, "AnimateOnce", Once)
-    for _ in range(200):
-        r.render()
-    assert len(last._also_notify) == hooked
-    assert r.animations[-1] is last  # the same animations all along: nothing was rebuilt
-
-
-def test_render_still_ends_each_cycle_without_piling_up(config, clock, monkeypatch):
-    """With the real AnimateOnce: render() returns when the last LED's animation completes a cycle (so the main loop
-    runs its jobs), every time, and the callbacks stay as they were."""
-    import adafruit_led_animation.animation as animation_module
-    from metarmap import renderer
-
-    now = [0.0]  # the animations' clock, in ms: each rest moves it on
-    monkeypatch.setattr(animation_module, "monotonic_ms", lambda: now[0])
-    monkeypatch.setattr(renderer.time, "sleep", lambda seconds: now.__setitem__(0, now[0] + seconds * 1000))
-    r, _ = make(config, clock, data={"KHOU": metar("VFR")}, leds=1, visualizers=[FLIGHT])  # one solid LED
-    last = r.animations[-1]
-    hooked = len(last._also_notify)
-    for _ in range(5):
-        r.render()  # returns: it would loop for ever if the cycle's end didn't reach it
-        assert len(last._also_notify) == hooked
-    assert now[0] > 0  # it rested between frames, and each cycle ended render()
-    assert r.animations[-1] is last
-
-
 def test_step_counts_from_when_the_leds_were_built(config, clock):
     """A stepping visualizer's step now, for the pages and the Micro; none for the others."""
     fcf = visualizer_module.BY_ID["flight_category_forecast"]
@@ -735,3 +609,360 @@ def test_led_states_are_converted_once_per_rebuild(config, clock, monkeypatch):
     r.refresh()  # rebuilt: converted again
     r.led_states()
     assert len(calls) > count
+
+
+# ---- the render loop ------------------------------------------------------------------------------------------
+
+
+LONGEST_SLEEP = 0.1  # the longest single sleep Darryl allows render() (it uses SLICE_SECONDS, shorter)
+
+
+class AnimationTime:
+    """
+    The render loop's and the animations' clock (the LED library's monotonic_ms), moved on only by the loop's sleeps.
+    after() runs something once the clock gets there, as another thread would (a fetch, the web UI, the OLED loop).
+    """
+
+    def __init__(self):
+        self.ms = 1_000_000.0
+        self.sleeps = []
+        self._then = []
+
+    def monotonic_ms(self):
+        return int(self.ms)
+
+    def sleep(self, seconds):
+        self.sleeps.append(seconds)
+        self.ms += seconds * 1000
+        for when, callback in [t for t in self._then if t[0] <= self.ms]:
+            self._then.remove((when, callback))
+            callback()
+
+    def after(self, seconds, callback):
+        self._then.append((self.ms + seconds * 1000, callback))
+
+
+@pytest.fixture
+def ticks(monkeypatch):
+    """Fake time for render(): ask for it before make(), so the animations are built on it."""
+    import adafruit_led_animation.animation as animation_module
+    import adafruit_led_animation.animation.rainbow as rainbow_module
+    import adafruit_led_animation.pulse_generator as pulse_module
+    from metarmap import renderer
+
+    t = AnimationTime()
+    for module in (animation_module, rainbow_module, pulse_module, renderer):
+        monkeypatch.setattr(module, "monotonic_ms", t.monotonic_ms)
+    monkeypatch.setattr(renderer.time, "sleep", t.sleep)
+    return t
+
+
+def show_times(strip, ticks):
+    """Records when (ms) the strip is sent."""
+    times = []
+    show = strip.show
+
+    def recording_show():
+        times.append(ticks.ms)
+        show()
+
+    strip.show = recording_show
+    return times
+
+
+def test_frame_due():
+    from metarmap.renderer import frame_due
+
+    def animation(at, paused=False):
+        return SimpleNamespace(_next_update=at, _paused=paused)
+
+    assert frame_due([animation(500), animation(200), animation(300)]) == 200  # no window: the first
+    assert frame_due([animation(500), animation(200), animation(208)], window=10) == 208  # the last close to it
+    assert frame_due([animation(500), animation(200), animation(211)], window=10) == 200  # too far: its own frame
+    assert frame_due([animation(500), animation(100, paused=True)]) == 500  # frozen: not due
+    assert frame_due([animation(100, paused=True)]) is None
+    assert frame_due([]) is None
+    for odd in (SimpleNamespace(), animation(None), animation(True), animation("soon")):
+        with pytest.raises(LookupError):
+            frame_due([animation(100), odd])
+
+
+def test_a_still_map_sleeps_between_its_few_frames(config, clock, ticks):
+    """Flight Category on a quiet day: every look solid or off. It used to draw 20 frames a second."""
+    from metarmap import renderer
+
+    r, strip = make(config, clock)
+    shows = show_times(strip, ticks)
+    start = ticks.ms
+    r.render()
+    assert ticks.ms - start == pytest.approx(renderer.RENDER_SECONDS * 1000, abs=1)  # then the main loop's jobs
+    assert ticks.sleeps and max(ticks.sleeps) <= LONGEST_SLEEP
+    # the first frame, and one IDLE_SECONDS later (the strip's resend needs a show() now and then); a solid look's
+    # next redraw (each second) is the next render()'s
+    assert [t - start for t in shows] == [0, renderer.IDLE_SECONDS * 1000]
+    assert strip[0] == flightcategory.COLORS["VFR"]
+
+
+def test_render_draws_into_the_buffer_and_sends_once_per_frame(config, clock, ticks):
+    """Every LED has its own animation, and each one's show() would send the whole strip: 252 sends a frame."""
+    r, strip = make(config, clock)
+    shows = show_times(strip, ticks)
+    drawn = []
+    for animation in r.animations:
+        animate = animation.animate
+        animation.animate = lambda show=True, animate=animate: drawn.append(show) or animate(show=show)
+    r.render()
+    assert drawn and not any(drawn)  # the animations only draw into the strip's buffer
+    assert len(drawn) == len(shows) * len(r.animations)  # and the renderer sends it, once a frame
+
+
+def test_a_whole_strip_look_keeps_its_cadence(config, clock, ticks):
+    """Rainbow steps every 0.1 s: one frame per step, none in between, none skipped."""
+
+    r, strip = make(config, clock)
+    r.visualizer = 3  # rainbow
+    (animation,) = r.animations
+    shows = show_times(strip, ticks)
+    for _ in range(3):
+        r.render()
+    assert animation.draw_count == 30
+    assert len(shows) == 30 and {round(b - a) for a, b in zip(shows, shows[1:])} == {100}
+    assert max(ticks.sleeps) <= LONGEST_SLEEP
+
+
+def test_leds_due_at_nearly_the_same_time_share_a_frame(config, clock, ticks):
+    """Two LEDs due 5 ms apart are drawn in the same frame, every time, not in two frames 5 ms apart."""
+    from metarmap.leds.animations import animation_for
+
+    r, strip = make(config, clock, leds=2)
+    blinks = [animation_for(Look.blink((255, 0, 0), period=1.0), pixel) for pixel in r._pix[:2]]
+    blinks[1]._next_update += 5  # due 5 ms after the first
+    r._animations = blinks
+    drawn = {0: [], 1: []}
+    for i, blink in enumerate(blinks):
+        animate = blink.animate
+        blink.animate = lambda show=True, i=i, animate=animate: animate(show=show) and drawn[i].append(ticks.ms)
+    shows = show_times(strip, ticks)
+    for _ in range(3):
+        r.render()
+    # the first frame comes at once, before the second LED is due; from then on both are drawn at the same frames
+    assert len(drawn[0]) >= 6 and drawn[0][1:] == drawn[1][1:]
+    assert set(drawn[0] + drawn[1]) <= set(shows)
+    assert min(b - a for a, b in zip(shows, shows[1:])) >= r.frame_seconds() * 1000
+
+
+def test_fifty_leds_stay_in_one_frame_when_frames_take_time(config, clock, ticks):
+    """
+    Each animation's draw takes a little time, so LEDs drawn later in a frame come due a little later: without
+    sharing frames they drift apart into several frames per step (a Flight Category Forecast at 50 LEDs).
+    """
+    import random
+
+    from metarmap.leds.animations import animation_for
+
+    rand = random.Random(1)
+    config.data.airports = airports(*[f"K{i:03d}" for i in range(50)])
+    config.data.led.count = 50
+    r, strip = make(config, clock, data={}, leds=50)
+    colors = [(i, 0, 0) for i in range(1, 141)]
+    animations = [animation_for(Look.cycle(colors, step=0.2), pixel) for pixel in r._pix]
+    for animation in animations:
+        animate = animation.animate
+
+        def slow(show=True, animate=animate):
+            ticks.ms += rand.uniform(0, 0.5)  # 0 to 0.5 ms to draw each one
+            return animate(show=show)
+
+        animation.animate = slow
+    r._looks = [Look.cycle(colors, step=0.2)] * 50
+    r._animations = animations
+    shows = show_times(strip, ticks)
+    for _ in range(10):
+        r.render()
+    steps = min(a.draw_count for a in animations)
+    assert steps >= 40 and max(a.draw_count for a in animations) == steps  # all LEDs on the same step
+    assert len(shows) <= steps + 12  # one frame per step (and a few idle ones), not one per LED or per group
+    assert len({a._next_update for a in animations}) > 1  # the jitter is there; the frames gather it up
+
+
+def test_the_main_loop_gets_back_each_second_during_a_long_cycle(config, clock, ticks):
+    """
+    A forecast cycle lasts 20-28 s. render() used to return only at its end, so a fetch, auto-rotate or the sunrise
+    brightness could be that late. Now it returns about once a second, and the cycle goes on from where it was.
+    """
+    from metarmap import renderer
+    from metarmap.leds.animations import animation_for
+
+    colors = [(i, 0, 0) for i in range(1, 29)]  # 28 steps, one a second
+    r, strip = make(config, clock, data={"KHOU": metar("VFR")}, leds=1)
+    r._animations = [animation_for(Look.cycle(colors, step=1.0), r._pix[0])]
+    start = ticks.ms
+    returns = []
+    for _ in range(12):
+        r.render()  # the main loop: render(), then scheduler.run_pending()
+        returns.append(ticks.ms)
+    gaps = [b - a for a, b in zip([start] + returns, returns)]
+    assert max(gaps) <= renderer.RENDER_SECONDS * 1000 + 1
+    assert strip[0] == colors[11]  # 12 steps in 12 s: not back to the first color at each return
+    assert max(ticks.sleeps) <= LONGEST_SLEEP
+
+
+def test_new_animations_start_within_a_slice(config, clock, ticks):
+    """New data, a new visualizer or a new strip length shows at once, not at the old animations' next step."""
+    from metarmap import renderer
+
+    r, strip = make(config, clock)
+    rebuilt = []
+    ticks.after(0.3, lambda: rebuilt.append(ticks.ms) or r.refresh())  # e.g. a fetch on the scheduler's thread
+    r.render()
+    assert rebuilt and ticks.ms - rebuilt[0] <= renderer.SLICE_SECONDS * 1000
+    shows = show_times(strip, ticks)
+    returned = ticks.ms
+    r.render()  # the main loop's next call draws the new animations straight away
+    assert shows[0] == returned
+
+
+def test_a_brightness_change_is_sent_within_a_slice(config, clock, ticks):
+    """The web UI's slider, the brightness schedule and quiet hours don't wait for an animation's next step."""
+    from metarmap import renderer
+
+    r, strip = make(config, clock)
+    sent = []
+    show = strip.show
+    strip.show = lambda: sent.append((ticks.ms, strip.brightness)) or show()
+    changed = []
+    ticks.after(0.2, lambda: changed.append(ticks.ms) or r.brightness(0.3))
+    r.render()
+    first = next(t for t, level in sent if level == 0.3)
+    assert first - changed[0] <= renderer.SLICE_SECONDS * 1000
+
+
+def test_each_fade_step_wakes_the_loop(config, clock, ticks):
+    """The fetch dim sends each step itself; the loop draws frames after it, for the strip's settling resends."""
+    from metarmap import renderer
+
+    r, _ = make(config, clock)
+    woken = []
+    wake = r._wake.set
+    r._wake.set = lambda: woken.append(r.pixels().brightness) or wake()
+    start = r.pixels().brightness
+    r._fade(start, start / 2)
+    assert len(woken) == renderer.FADE_STEPS and woken[-1] == start / 2
+
+
+def test_the_end_of_a_locate_pulse_redraws_at_once(config, clock, ticks):
+    """The pulsed LED goes back to its own look right away, not at its solid look's next redraw (a second)."""
+    from metarmap import renderer
+
+    r, strip = make(config, clock)
+    ended = []
+
+    def locate():
+        r.locate(0)  # the OLED loop's thread: the pulse takes the strip for a second
+        ended.append(ticks.ms)
+
+    ticks.after(0.2, locate)
+    shows = show_times(strip, ticks)
+    r.render()
+    r.render()
+    assert strip[0] == flightcategory.COLORS["VFR"]
+    after = [t for t in shows if t >= ended[0]]
+    assert after and after[0] - ended[0] <= renderer.SLICE_SECONDS * 1000
+
+
+def test_resume_draws_at_once(config, clock, ticks):
+    """After a freeze (locate(), a startup sequence) the LEDs are drawn again at once, not at the next due frame."""
+    from metarmap import renderer
+
+    r, strip = make(config, clock)
+    resumed = []
+    ticks.after(0.2, lambda: (r.stop(), r.resume(), resumed.append(ticks.ms)))
+    shows = show_times(strip, ticks)
+    r.render()
+    after = [t for t in shows if t >= resumed[0]]
+    assert after and after[0] - resumed[0] <= renderer.SLICE_SECONDS * 1000 < renderer.IDLE_SECONDS * 1000 - 200
+
+
+def test_frozen_animations_wait_for_resume(config, clock, ticks):
+    r, _ = make(config, clock)
+    r.render()
+    counts = [a.draw_count for a in r.animations]
+    r.stop()
+    r.render()
+    r.render()
+    assert [a.draw_count for a in r.animations] == counts
+    assert max(ticks.sleeps) <= LONGEST_SLEEP
+    r.resume()
+    resumed = ticks.ms
+    shows = show_times(r.pixels(), ticks)
+    r.render()
+    assert shows[0] == resumed  # drawn at once
+    assert all(a.draw_count > c for a, c in zip(r.animations, counts))
+
+
+def test_a_settling_strip_is_sent_every_tick(config, clock, ticks):
+    """Just after a change the strip resends at every frame (SkipUnchangedShow.settling()): those frames still come."""
+    r, strip = make(config, clock)
+    start = ticks.ms
+    strip.settling = lambda: ticks.ms - start < 100
+    shows = show_times(strip, ticks)
+    r.render()
+    tick = r.frame_seconds() * 1000
+    assert [t - start for t in shows[:3]] == [0, tick, 2 * tick]
+
+
+def test_animations_that_dont_say_when_theyre_due_get_a_steady_tick(config, clock, ticks, caplog):
+    """Another version of the LED library, without Animation._next_update: frames every frame_seconds(), as before."""
+    from metarmap import renderer
+
+    class Old:
+        def __init__(self):
+            self.calls = 0
+
+        def animate(self, show=True):
+            self.calls += 1
+
+    r, _ = make(config, clock)
+    old = Old()
+    r._animations = [old]
+    r.render()
+    r.render()
+    tick = r.frame_seconds()
+    assert old.calls == pytest.approx(2 * renderer.RENDER_SECONDS / tick, abs=2)
+    assert max(ticks.sleeps) <= LONGEST_SLEEP
+    assert sum("next due" in record.getMessage() for record in caplog.records) == 1  # logged once
+
+
+def test_render_does_not_pile_up_callbacks(config, clock, ticks):
+    """
+    render() used to group the LEDs' animations afresh at each call, and each group hooked a callback onto the last
+    one (one a second, until the next rebuild). It hooks nothing now.
+    """
+    r, _ = make(config, clock)
+    hooked = [len(a._also_notify) for a in r.animations]
+    for _ in range(50):
+        r.render()
+    assert [len(a._also_notify) for a in r.animations] == hooked
+    assert max(a.draw_count for a in r.animations) > 1  # it did run them
+
+
+def test_render_rests_after_an_error(config, clock, ticks):
+    from metarmap import renderer
+
+    class Broken:
+        def animate(self, show=True):
+            raise RuntimeError("no such animation")
+
+    r, _ = make(config, clock)
+    r._animations = [Broken()]
+    r.render()  # the main loop calls it again at once; it mustn't spin
+    assert ticks.sleeps == [renderer.FRAME_SECONDS]
+
+
+def test_no_leds_is_no_error(config, clock, ticks):
+    """An empty airport list: nothing to animate, but render() still rests and returns."""
+
+    config.data.airports = []
+    r, _ = make(config, clock, leds=0)
+    r.render()
+    assert ticks.sleeps and max(ticks.sleeps) <= LONGEST_SLEEP

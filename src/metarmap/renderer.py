@@ -16,18 +16,28 @@ from metarmap.sun import SunTimes, brightness_for, level_at, quiet_hours_active
 from metarmap.visualizers import index_of, visualizer
 
 from adafruit_led_animation.sequence import AnimateOnce
-from adafruit_led_animation.group import AnimationGroup
 from adafruit_led_animation.helper import PixelSubset
 from adafruit_led_animation.animation.pulse import Pulse
 from adafruit_led_animation.animation.rainbowcomet import RainbowComet
 from adafruit_led_animation.color import WHITE
 
+try:  # the animations' own clock, so "when it's next due" and "now" agree
+    from adafruit_led_animation import monotonic_ms
+except ImportError:  # an older library
+
+    def monotonic_ms():
+        return time.monotonic_ns() // 1_000_000
+
+
 log = logging.getLogger(__name__)
 
-# The animations decide when each effect moves on (the fastest changes every 0.1 s); between frames the loop rests,
-# instead of asking them "is it time yet?" thousands of times a second, which used a whole CPU core.
+# The animations decide when each effect moves on (the fastest changes every 0.1 s). Between frames the loop sleeps
+# until the first of them is next due, instead of asking them "is it time yet?" many times a second.
 FRAME_SECONDS = 0.01
-MAX_FRAME_SECONDS = 0.05  # the slowest tick the render loop settles to, whatever the looks need
+MAX_FRAME_SECONDS = 0.05  # frame_seconds() at most
+SLICE_SECONDS = 0.05  # the longest single sleep, so a change (brightness, locate, new data) still shows at once
+IDLE_SECONDS = 0.5  # a frame at least this often, so the strip's resend (leds/strip.py) still runs on a still map
+RENDER_SECONDS = 1.0  # render() returns after about this long, so the main loop's scheduled jobs run on time
 
 INTRO_FRAME_SECONDS = 0.02  # a startup sequence's frames: 50 a second is smooth, and leaves the Pi time to spare
 DIM_FACTOR = 0.5  # how bright the LEDs are while METARs are fetched, as a part of their brightness
@@ -39,16 +49,26 @@ FADE_STEPS = 12  # at most; about 20 a second
 FADE_MIN_STEP = 0.0011
 
 
-def _unhook(group: AnimationGroup):
+def frame_due(animations, window=0):
     """
-    Takes the group's cycle-complete callback off its last animation again. render() groups the same animations
-    afresh each time it's called (about once a second), and each AnimationGroup adds a callback to the last one that
-    the library never removes: without this they pile up until the next rebuild (every 10 minutes).
+    When to draw the next frame of `animations`, in the LED library's monotonic_ms: the last time any of them that
+    isn't frozen is next due within `window` ms of the first one, so LEDs due at nearly the same time (a few ms
+    apart, from how long each frame took) share a frame and stay together. With no window, when the first is due.
+    None if none is running. Raises LookupError if one doesn't say (Animation._next_update: another version of the
+    library).
     """
-    try:
-        group._members[-1]._also_notify.remove(group._group_done)
-    except (AttributeError, IndexError, ValueError):
-        pass  # another version of the library: nothing to take off, or kept some other way
+    dues = []
+    for animation in animations:
+        if getattr(animation, "_paused", False):
+            continue
+        at = getattr(animation, "_next_update", None)
+        if isinstance(at, bool) or not isinstance(at, (int, float)):
+            raise LookupError(f"{type(animation).__name__} has no _next_update")
+        dues.append(at)
+    if not dues:
+        return None
+    first = min(dues)
+    return max(at for at in dues if at <= first + window)
 
 
 class Renderer:
@@ -75,7 +95,12 @@ class Renderer:
         self._looks = []  # one Look per airport, in LED order
         self._strip_look = None  # set instead when one look drives the whole strip
         self._animations = []
-        self._animationloop: AnimateOnce = None
+        self._frozen = None  # the animations stop() froze, until resume()
+        # (animations, monotonic_ms) when render() draws the next frame of those animations; other ones draw at once
+        self._next_frame = (None, 0)
+        # set (never waited on) when the strip must be drawn at once: a brightness change, resume() after locate()
+        self._wake = threading.Event()
+        self._warned = False  # logged that the animations don't say when they're next due
         self.last_locate = None  # {"pixel": n, "at": epoch seconds} of the last locate() pulse
         self._subscribers = []  # called when the visualizer changes: see subscribe()
         # the main loop and other threads (OLED locate, web) both drive the LEDs; only one at a time
@@ -176,12 +201,12 @@ class Renderer:
 
     def frame_seconds(self):
         """
-        How long the render loop waits between frames. A whole-strip look (Rainbow, Chase) is one animation, cheap to
-        run, so it gets FRAME_SECONDS: slower ticks make its steps uneven (stutter). Looks per LED are one animation
-        each, 50 of them: an eighth of the shortest step of those, within FRAME_SECONDS and MAX_FRAME_SECONDS (ticking
-        at 100 Hz for a look that changes every 0.2 s kept a Pi's CPU at 100% with Flight Category Forecast). When
-        nothing moves (every look solid or off) MAX_FRAME_SECONDS: a brightness change still shows within 50 ms, and
-        ticking at 100 Hz for a still map used a fifth of a Pi Zero's CPU.
+        The shortest gap between two frames. A whole-strip look (Rainbow, Chase) is one animation, cheap to run, so it
+        gets FRAME_SECONDS: a later frame makes its steps uneven (stutter). Looks per LED are one animation each, 50
+        of them: an eighth of the shortest step of those, within FRAME_SECONDS and MAX_FRAME_SECONDS, so LEDs due at
+        nearly the same time are drawn in one frame (100 frames a second for a look that changes every 0.2 s kept a
+        Pi's CPU at 100% with Flight Category Forecast). MAX_FRAME_SECONDS when nothing moves (every look solid or off).
+        It's also the steady tick if the animations can't say when they're next due (another library version).
         """
         if self._strip_look is not None:
             return FRAME_SECONDS
@@ -190,31 +215,69 @@ class Renderer:
         return min(MAX_FRAME_SECONDS, max(FRAME_SECONDS, min(steps) / 8)) if steps else MAX_FRAME_SECONDS
 
     def render(self):
-        group = None
+        """
+        Runs the active visualizer's animations for about RENDER_SECONDS, then returns, so the main loop runs its
+        scheduled jobs on time (and calls render() again). The animations keep their place in between: a fade or a
+        forecast goes on where it was. Between frames it sleeps until the first animation is next due, in slices of
+        at most SLICE_SECONDS, so new animations (new data, visualizer or strip length), a brightness change or the
+        end of a locate() pulse reach the LEDs at once.
+        """
         try:
             built = self._animations
-            wait = self.frame_seconds()
-            group = AnimationGroup(*built)
-            animations = AnimateOnce(group, auto_clear=False)
-            self._animationloop = animations
-            while True:
-                # one frame at a time, so locate() can get in between frames
-                with self._lock:
-                    # rebuilt (new data, visualizer or strip length): the main loop starts the new animations
+            tick = self.frame_seconds()
+            until = monotonic_ms() + RENDER_SECONDS * 1000
+            while self._rest(built, until):
+                with self._lock:  # one frame at a time, so locate() and the web UI can get in between frames
                     if self._animations is not built:
-                        break
-                    # Render all pixel-subset animations into the shared buffer first.
-                    running = animations.animate(show=False)
-                    self._pixels.show()  # one physical transfer per frame
-                    if not running:
-                        break
-                time.sleep(wait)  # outside the lock, so locate() and the web UI can get in
+                        break  # rebuilt: the main loop starts the new animations
+                    self._wake.clear()
+                    for animation in built:  # each draws into the strip's buffer if it's due...
+                        animation.animate(show=False)
+                    self._pixels.show()  # ...and the strip is sent once per frame
+                    self._next_frame = (built, self._next_frame_at(built, tick))
         except Exception as e:
             log.warning("render error: " + str(e))
             time.sleep(FRAME_SECONDS)  # the main loop calls render() again at once: no hot loop of errors
-        finally:
-            if group is not None:
-                _unhook(group)
+
+    def _rest(self, built, until):
+        """
+        Sleeps (outside the lock) until the next frame of `built` is due: True. False, at once, when the animations
+        were rebuilt or it's `until` (monotonic_ms), for render() to return. Never sleeps more than SLICE_SECONDS at a
+        time: no Event.wait(timeout), which on the Pi's Python 3.9 follows the wall clock, and that can jump (NTP).
+        """
+        while True:
+            if self._animations is not built:
+                return False
+            now = monotonic_ms()
+            if now >= until:
+                return False
+            frame_of, at = self._next_frame
+            if frame_of is not built or self._wake.is_set() or now >= at:
+                return True
+            time.sleep(min(SLICE_SECONDS, (min(at, until) - now) / 1000))
+
+    def _next_frame_at(self, built, tick):
+        """
+        When (monotonic_ms) to draw the next frame: when the first animation is next due, or the last of those due
+        within `tick` (frame_seconds()) of it, so LEDs due at nearly the same time share one frame (frame_due()); at
+        least `tick` after this frame and at most IDLE_SECONDS after it. While the strip settles after a change
+        (SkipUnchangedShow.settling(): it's sent at every frame for a moment, e.g. each step of a forecast fade) every
+        `tick`, as before.
+        """
+        now = monotonic_ms()
+        soonest, latest = now + tick * 1000, now + IDLE_SECONDS * 1000
+        try:
+            due = frame_due(built, window=tick * 1000)
+        except LookupError as e:
+            if not self._warned:
+                self._warned = True
+                log.warning(f"the LED animations don't say when they're next due ({e}): rendering at a steady tick")
+            due = soonest
+        at = latest if due is None else max(soonest, due)
+        settling = getattr(self._pixels, "settling", None)
+        if callable(settling) and settling():
+            at = min(at, soonest)
+        return min(at, latest)
 
     def update_data(self, metars):
         log.info("updating data in the renderer")
@@ -222,12 +285,21 @@ class Renderer:
         self._rebuild()
 
     def stop(self):
-        if self._animationloop is not None:
-            self._animationloop.freeze()
+        """Freezes the animations, e.g. while a locate() pulse or a startup sequence has the strip."""
+        with self._lock:
+            if self._frozen is None:
+                self._frozen = self._animations
+                for animation in self._frozen:
+                    animation.freeze()
 
     def resume(self):
-        if self._animationloop is not None:
-            self._animationloop.resume()
+        """Lets the animations stop() froze go on, and draws them at once."""
+        with self._lock:
+            if self._frozen is not None:
+                for animation in self._frozen:
+                    animation.resume()
+                self._frozen = None
+            self._wake.set()
 
     def resize(self, count):
         """
@@ -341,6 +413,7 @@ class Renderer:
         if 0 <= level <= 1:
             with self._lock:  # not in the middle of a frame's send
                 self._pixels.brightness = level
+                self._wake.set()  # render() sends it at once, not at the next animation's step
 
     @contextmanager
     def dimmed(self):
@@ -375,6 +448,7 @@ class Renderer:
                     return None  # changed by someone else: theirs wins
                 self._pixels.brightness = start + (end - start) * n / steps if n < steps else end
                 self._pixels.show()
+                self._wake.set()  # and render() draws frames again, for the strip's settling resends of the change
                 level = self._pixels.brightness
             if n < steps:
                 self._clock.wait(threading.Event(), FADE_SECONDS / steps)
