@@ -352,6 +352,10 @@ class SpeechSettings(_Section):
     )
     kokoro_voice: str = setting("af_heart", pattern=KOKORO_VOICE, message="{key}: {value!r} isn't a Kokoro voice")
     kokoro_speed: float = setting(1.0, between=(0.5, 2.0))
+    # the most seconds a clip may take, either engine: past it the map answers 504 and leaves the server alone a while
+    # (metarmap.speech's backoff), so a hung server costs one wait, not one per press. A Kokoro without a GPU can be
+    # slower than real time: twice the clip's length (an AWOS 30 s or more, a long ATIS 2 to 3 minutes)
+    timeout: int = setting(120, between=(5, 300), unit=" s")
     # the real ATIS (metarmap.atis), for airports that publish a digital one (about 75 large US airports), from
     # atis.info, an unofficial service: /api/atis/<code>.audio and the ATIS buttons. Off: the map never asks it
     atis: bool = False

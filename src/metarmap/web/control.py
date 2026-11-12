@@ -369,6 +369,14 @@ def add_routes(app, services: "App", site, auth, updates=None):
         lambda: api.as_said_audio(services, bottle.request.query.getunicode("text")),
         apply=auth,
     )
+    # Config's Test: an airport's AWOS, asked of the server even while it's left alone after not answering (behind the
+    # login, so only someone setting it up can make it ask a server that may be stuck)
+    app.route(
+        "/config/speak/<code>.audio",
+        "GET",
+        lambda code: api.as_audio(services, code.upper(), force=True),
+        apply=auth,
+    )
     # the older by-code edits, still used by anything written for airports.json
     app.route("/config/airports/edit/<oldkey>/<newkey>", "GET", edit_airport, apply=auth)
     app.route("/config/airports/edit/prop/<airport>/<key>/<value>", "GET", edit_airport_property, apply=auth)

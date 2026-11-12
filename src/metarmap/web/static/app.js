@@ -318,6 +318,20 @@
     };
     window.metarmapTranscript = transcript;
 
+    // Why an audio URL (/api/speak/<code>.audio, /api/atis/<code>.audio, /config/say.audio) didn't play, in the map's
+    // words, without asking for it again (that would have the speech server read it all again): textUrl's own reason
+    // (not on the map, no ATIS, atis.info down), else /api/live's speechError (the server didn't answer, or failed).
+    // Resolves to null when neither says; rejects when the Chart can't be reached.
+    window.metarmapWhyNoAudio = async function (textUrl) {
+        if (textUrl) {
+            const res = await fetch(textUrl, {cache: 'no-store'});
+            if (!res.ok) return (await res.text()).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() || null;
+        }
+        const live = await (await fetch('/api/live', {cache: 'no-store'})).json();
+        if (!live.speech) return 'Spoken weather is off, or has no server set (Config > System > Spoken weather).';
+        return live.speechOk === false && live.speechError ? live.speechError : null;
+    };
+
     // range inputs with a live label: <input type=range data-label="id" data-format="pct|sec|x">
     document.querySelectorAll('input[type=range][data-label]').forEach(function (r) {
         const out = document.getElementById(r.dataset.label);
@@ -463,7 +477,8 @@
         });
     });
 
-    // Config > System > Spoken weather: Test plays an airport's report here, or says why it can't
+    // Config > System > Spoken weather: Test plays an airport's report here, or says why it can't. It asks the
+    // server even while the Chart leaves it alone after it didn't answer (/config/speak): to try it after a restart
     const speechTest = document.getElementById('speech-test');
     if (speechTest) {
         const result = document.getElementById('speech-test-result');
@@ -471,14 +486,14 @@
         let player = null;
         speechTest.addEventListener('click', async function () {
             if (player) player.pause();
-            const url = '/api/speak/' + encodeURIComponent(speechTest.dataset.code) + '.audio';
+            const url = '/config/speak/' + encodeURIComponent(speechTest.dataset.code) + '.audio';
             busy(speechTest, true);
             const engine = document.getElementById('speech-engine');
             result.textContent = engine && engine.value === 'kokoro' ? 'Asking Kokoro...' : 'Asking Home Assistant...';
             result.classList.remove('bad');
             try {
-                const res = await fetch(url, {cache: 'no-store'});
-                if (!res.ok) throw new Error((await res.text()).trim() || res.status + ' ' + res.statusText);
+                const res = await fetch(url, {cache: 'no-store', credentials: 'same-origin'});
+                if (!res.ok) throw new Error((await res.text()).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() || res.status + ' ' + res.statusText);
                 player = new Audio(URL.createObjectURL(await res.blob()));
                 player.addEventListener('ended', function () { result.textContent = idle; });
                 await player.play();
@@ -722,8 +737,8 @@
             const what = isAtis(btn) ? 'ATIS' : 'AWOS';
             let why = 'It could not be played.';
             try {
-                const res = await fetch(urlOf(btn), {cache: 'no-store'});
-                if (!res.ok) why = (await res.text()).trim() || why;
+                const said = await window.metarmapWhyNoAudio(urlOf(btn).replace(/\.audio$/, ''));
+                if (said) why = said;
                 else if (err && err.name === 'NotAllowedError') why = 'The browser blocked sound: press ' + what + ' again.';
             } catch (e) {
                 why = "Can't reach the Chart.";
@@ -825,8 +840,7 @@
                 if (err.name === 'AbortError') return;
                 let why = String(err.message || err);
                 try {
-                    const res = await fetch(hearAudio.src, {cache: 'no-store', credentials: 'same-origin'});
-                    if (!res.ok) why = (await res.text()).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() || why;
+                    why = (await window.metarmapWhyNoAudio(null)) || why;
                 } catch (e) { /* as it is */ }
                 stopHearing();
                 showOutput("Couldn't say it", why);
@@ -955,8 +969,7 @@
                     if (err.name === 'AbortError') return;
                     let why = String(err.message || err);
                     try {
-                        const res = await fetch(audio.src, {cache: 'no-store'});
-                        if (!res.ok) why = (await res.text()).trim() || why;
+                        why = (await window.metarmapWhyNoAudio('/api/atis/' + encodeURIComponent(pick.value))) || why;
                     } catch (e) { /* as it is */ }
                     stopPlaying();
                     showOutput(pick.value + ': no ATIS', why);

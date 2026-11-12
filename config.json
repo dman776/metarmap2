@@ -81,6 +81,7 @@
         "kokoro_url": "",
         "kokoro_voice": "af_heart",
         "kokoro_speed": 1.0,
+        "timeout": 120,
         "atis": false,
         "tunings": []
     },

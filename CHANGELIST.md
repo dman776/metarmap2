@@ -1,5 +1,24 @@
 ### Unreleased
 
+- **A stuck speech server no longer leaves the Listen, AWOS and ATIS buttons hanging**: the Chart now gives the
+  speech server (Kokoro or Piper) at most 2 minutes in all to read a report, the new **Time limit** in
+  Config > System > Spoken weather (5 to 300 seconds, `speech.timeout`), where before a server that sent its answer
+  slowly could keep it waiting without end. A Kokoro slower than real time needs about twice the report's length,
+  so raise it if a long ATIS stops early. If the server doesn't answer in time, the button says "Kokoro didn't answer
+  in 120 s". After that, or if the server can't be reached, the Chart stops asking it for 30 seconds and answers at
+  once, "The speech server isn't answering; trying again in 25 s", waiting longer each time it still doesn't answer
+  (up to 5 minutes); the first report it reads, or a change to any speech setting, ends the wait, and reports the
+  Chart already has still play. **Test** in Config and the Pronunciation page's speaker still ask the server during
+  the wait, so you can try it again right after restarting it. The Web, the Cockpit and the Copilot show that line
+  where they show an error today. Pressing the same airport again (or on two
+  devices) while its report is being made no longer asks the server twice, and when a report can't play, the Web and
+  the Cockpit no longer ask for it a second time just to learn why. Each report's time is in the log, with a warning
+  over 10 seconds and an error when it didn't answer. New for clients: 504 for a server that didn't answer in time (on
+  `/api/speak/<code>.audio`, `/api/atis/<code>.audio` and `/config/say.audio`) and 503 while it's left alone (the
+  first two), `speechOk` and `speechError` in `/api/live`, and `/config/speak/<code>.audio` (login needed) for
+  Config's Test (API.md)
+- **The Chart's web server queues more waiting connections**: when the Pi is busy, up to 64 connections wait their
+  turn instead of being turned away (it was 5)
 - **Press and hold a visualizer to skip it**: on the Cockpit and on the Copilot, hold a visualizer's icon for about
   half a second to leave it out of auto-rotate, and hold it again to put it back. A skipped visualizer shows a dimmed
   icon and a small "skip" badge (the Cockpit also confirms with a message; the Copilot says something only when it
