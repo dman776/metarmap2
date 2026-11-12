@@ -6,9 +6,10 @@
 #     cd metarmap2
 #     ./install.sh
 #
-# It installs the system packages, turns on I2C for the OLED screen, puts the folder on the newest release, creates a
-# Python environment (.venv) with the map's packages, asks for the web UI login and your city, and installs and starts
-# the metarmap service. Running it again is safe: it updates what's there and keeps your settings.
+# It installs the system packages, turns Wi-Fi power saving off (on, it can slow downloads to a crawl on a Pi), turns
+# on I2C for the OLED screen, puts the folder on the newest release, creates a Python environment (.venv) with the
+# map's packages, asks for the web UI login and your city, and installs and starts the metarmap service.
+# Running it again is safe: it updates what's there and keeps your settings.
 #
 # The map installed is the newest release (a tag such as v2.9.2), not the newest commit, which may be unfinished. A
 # folder that's already on a release, has changes to the code, or has update.channel set to "latest" is left as it is.
@@ -25,6 +26,9 @@ SERVICE_DIR="${METARMAP_SERVICE_DIR:-/etc/systemd/system}"
 OLD_SERVICE="${METARMAP_OLD_SERVICE:-/lib/systemd/system/metarmap.service}"  # where the README used to install it
 MODEL_FILE="${METARMAP_MODEL_FILE:-/proc/device-tree/model}"
 SERVICE="$SERVICE_DIR/metarmap.service"
+NET_DIR="${METARMAP_NET_DIR:-/sys/class/net}"  # where wireless interfaces show up
+NM_CONF_DIR="${METARMAP_NM_CONF_DIR:-/etc/NetworkManager/conf.d}"
+IW="${METARMAP_IW:-/sbin/iw}"
 
 say() { printf '\n\033[1m==> %s\033[0m\n' "$*"; }
 note() { printf '    %s\n' "$*"; }
@@ -36,7 +40,7 @@ LATEST=false
 for arg in "$@"; do
     case "$arg" in
         --latest) LATEST=true ;;
-        -h|--help) sed -n '3,16p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -h|--help) sed -n '3,17p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) fail "unknown option: $arg (see ./install.sh --help)" ;;
     esac
 done
@@ -88,6 +92,74 @@ known_city() {
     "$PYTHON" -c 'import sys, astral.geocoder as g; from astral import LocationInfo; sys.exit(not isinstance(g.lookup(sys.argv[1], g.database()), LocationInfo))' "$1" 2>/dev/null
 }
 
+# write_if_changed FILE CONTENT -> writes it and returns 0; returns 1 when the file already holds exactly that (or
+# can't be written), saying which
+write_if_changed() {
+    local file="$1" content="$2"
+    if [ -f "$file" ]; then
+        if [ "$(cat "$file" 2>/dev/null)" = "${content%$'\n'}" ]; then
+            note "$file is already in place, unchanged."
+            return 1
+        fi
+        note "Replacing the different $file with this installer's version."
+    fi
+    "${SUDO[@]}" mkdir -p "$(dirname "$file")" \
+        && printf '%s' "$content" | "${SUDO[@]}" tee "$file" >/dev/null \
+        || { note "Couldn't write $file."; return 1; }
+    note "Wrote $file"
+}
+
+# Turns Wi-Fi power saving off for good. With it on, a Pi Zero W can take minutes over what takes seconds (downloads
+# from other hosts ran at ~19 KB/s, ~690 KB/s with it off). Nothing here may stop the install: a missing iw or a driver
+# without power_save only gets a note.
+powersave_off() {
+    local dir iface ifaces=() wanted devices="" execs="" current
+    for dir in "$NET_DIR"/*/wireless; do
+        [ -d "$dir" ] && ifaces+=("$(basename "$(dirname "$dir")")")
+    done
+    if [ "${#ifaces[@]}" -eq 0 ]; then
+        note "No Wi-Fi interface found (Ethernet only?), so nothing to do."
+        return 0
+    fi
+
+    if "${SUDO[@]}" systemctl is-active --quiet NetworkManager 2>/dev/null; then
+        # NetworkManager sets power saving itself when it connects, so it is told there (2 = off)
+        wanted=$'[connection]\nwifi.powersave = 2\n'
+        if write_if_changed "$NM_CONF_DIR/wifi-powersave-off.conf" "$wanted"; then
+            "${SUDO[@]}" systemctl reload NetworkManager || note "Couldn't reload NetworkManager; it applies after a reboot."
+        fi
+    else
+        for iface in "${ifaces[@]}"; do
+            devices="$devices sys-subsystem-net-devices-$iface.device"
+            execs="${execs}ExecStart=$IW dev $iface set power_save off"$'\n'
+        done
+        wanted="[Unit]
+Description=Turn Wi-Fi power saving off
+After=network.target${devices}
+Wants=${devices# }
+[Service]
+Type=oneshot
+${execs}RemainAfterExit=yes
+[Install]
+WantedBy=multi-user.target
+"
+        if write_if_changed "$SERVICE_DIR/wifi-powersave-off.service" "$wanted"; then
+            "${SUDO[@]}" systemctl daemon-reload || note "systemctl daemon-reload failed."
+        fi
+        "${SUDO[@]}" systemctl enable --now wifi-powersave-off.service \
+            || note "Couldn't enable wifi-powersave-off.service; Wi-Fi power saving may come back after a reboot."
+    fi
+
+    # and now, without waiting for a reboot
+    for iface in "${ifaces[@]}"; do
+        "${SUDO[@]}" "$IW" dev "$iface" set power_save off \
+            || note "Couldn't turn power saving off on $iface (no iw, or the driver can't)."
+        current="$("${SUDO[@]}" "$IW" dev "$iface" get power_save 2>&1)" || true
+        note "$iface: ${current:-power save state unknown}"
+    done
+    return 0
+}
+
 # ---- checks ---------------------------------------------------------------------------------------------------
 
 SUDO=()
@@ -107,18 +179,29 @@ else
 fi
 note "Folder: $REPO"
 
+# test hook: run only the Wi-Fi power saving step
+if [ "${METARMAP_ONLY:-}" = powersave ]; then
+    powersave_off
+    exit 0
+fi
+
 # ---- system packages ------------------------------------------------------------------------------------------
 
 say "Installing system packages"
 # python3-pil: Pillow for the OLED screen, ready-built for the Pi; build-essential: for LED drivers that have no
 # ready-built package on some Pi OS versions
 "${SUDO[@]}" apt-get update
-"${SUDO[@]}" apt-get install -y git python3-venv python3-dev python3-pil build-essential i2c-tools
+"${SUDO[@]}" apt-get install -y git python3-venv python3-dev python3-pil build-essential i2c-tools iw
 
 if $on_pi && command -v raspi-config >/dev/null; then
     say "Turning on I2C (for the OLED screen)"
     "${SUDO[@]}" raspi-config nonint do_i2c 0
 fi
+
+# ---- Wi-Fi power saving ---------------------------------------------------------------------------------------
+
+say "Turning Wi-Fi power saving off"
+powersave_off || note "Couldn't finish turning Wi-Fi power saving off; the install goes on."
 
 # ---- release --------------------------------------------------------------------------------------------------
 
