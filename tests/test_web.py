@@ -2470,11 +2470,17 @@ def test_map_name_limits(client):
 def test_installing_the_package_from_home(services):
     ran = threading.Event()
 
-    def run(cmd, **kwargs):
-        ran.set()
-        return SimpleNamespace(returncode=0, stdout="", stderr="")
+    class Pip:
+        stdout = iter(["Successfully installed zeroconf-1\n"])
 
-    c = Client(create_app(services, ip="", installs=discovery.PackageInstall(run=run)))
+        def __call__(self, command, **kwargs):
+            ran.set()
+            return self
+
+        def wait(self):
+            return 0
+
+    c = Client(create_app(services, ip="", installs=discovery.PackageInstall(popen=Pip())))
     assert c.json("/update/packages/progress") == control.NO_UPDATE
     assert c.json("/update/packages", method="POST")["target"] == "zeroconf"
     assert ran.wait(5)

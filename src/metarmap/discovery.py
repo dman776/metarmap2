@@ -177,24 +177,40 @@ class Discovery:
             log.warning(f"stopping the announcement: {type(e).__name__}: {e}")
 
 
+# pip's lines that say where it is -> (how far along, what the dialog says); the first match in a line wins
+PIP_STAGES = (
+    ("Collecting", 0.1, f"Looking up {PACKAGE}"),
+    ("Downloading", 0.3, f"Downloading {PACKAGE}"),
+    ("Using cached", 0.3, f"Using a cached {PACKAGE}"),
+    ("Preparing metadata", 0.4, f"Preparing {PACKAGE}"),
+    ("Building wheel", 0.5, f"Building {PACKAGE}, which can take minutes on a Pi Zero"),
+    ("Installing collected packages", 0.8, f"Installing {PACKAGE}"),
+    ("Successfully installed", 1.0, f"Installed {PACKAGE}"),
+)
+HEARTBEAT_SECONDS = 15  # while pip is quiet: a log line and the elapsed time in the dialog
+
+
 class PackageInstall:
     """
     `pip install zeroconf` started from Home, in the background; the page polls progress() like an update's.
-    run: subprocess.run (tests pass a fake). on_done: called when it worked, to start announcing.
+    Every line pip prints goes to the log ("pip: ..."), and the stage it reached and the time it has taken are in the
+    job's label. popen: subprocess.Popen (tests pass a fake). on_done: called when it worked, to start announcing.
     """
 
-    def __init__(self, run=subprocess.run, on_done=None):
-        self._run = run
+    def __init__(self, popen=subprocess.Popen, on_done=None):
+        self._popen = popen
         self.on_done = on_done
         self._lock = threading.Lock()
         self.job = None
+        self._stage = ""  # the label for the stage pip is at, without the elapsed time
 
     def start(self):
         with self._lock:
             if self.job is None or self.job["done"]:
+                self._stage = f"Starting pip for {PACKAGE}"
                 job = self.job = {
                     "fraction": 0.0,
-                    "label": f"Installing {PACKAGE}",
+                    "label": f"Starting pip for {PACKAGE}",
                     "done": False,
                     "ok": None,
                     "changed": None,
@@ -209,23 +225,55 @@ class PackageInstall:
         return self.job
 
     def _install(self, job):
+        started = time.monotonic()
+        finished = threading.Event()
         try:
-            result = self._run(
-                [sys.executable, "-m", "pip", "install", PACKAGE],
-                capture_output=True,
-                text=True,
-                timeout=INSTALL_TIMEOUT,
-            )
-            job["ok"] = result.returncode == 0
+            command = [sys.executable, "-m", "pip", "install", "--no-input", "--progress-bar", "off", PACKAGE]
+            log.info(f"installing {PACKAGE}: {' '.join(command)}")
+            process = self._popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+            threading.Thread(
+                target=self._watch, args=(job, process, started, finished), name="install-watch", daemon=True
+            ).start()
+            tail = []
+            for line in process.stdout:
+                line = line.rstrip()
+                if not line:
+                    continue
+                log.info(f"pip: {line}")
+                tail = (tail + [line])[-6:]
+                for key, fraction, label in PIP_STAGES:
+                    if line.startswith(key):
+                        job.update(fraction=fraction, label=label)
+                        self._stage = label
+                        break
+            code = process.wait()
+            took = time.monotonic() - started
+            job["ok"] = code == 0
             if job["ok"]:
-                job.update(changed=True, message=f"Installed {PACKAGE}", fraction=1.0)
+                log.info(f"installed {PACKAGE} in {took:.0f} s")
+                job.update(changed=True, message=f"Installed {PACKAGE}", fraction=1.0, label=f"Installed {PACKAGE}")
                 if self.on_done:
                     self.on_done()
             else:
-                lines = (result.stderr or result.stdout or "").strip().splitlines()
-                job.update(changed=False, errors=lines[-6:] or [f"pip exited with {result.returncode}"])
+                log.warning(f"installing {PACKAGE} failed (pip exited with {code}) after {took:.0f} s")
+                job.update(
+                    changed=False, errors=job["errors"] or tail or [f"pip exited with {code}"]
+                )  # or why it was stopped
         except Exception as e:
             log.exception(f"installing {PACKAGE} failed: {e}")
             job.update(ok=False, changed=False, errors=[f"{type(e).__name__}: {e}"])
         finally:
+            finished.set()
             job["done"] = True
+
+    def _watch(self, job, process, started, finished):
+        """While pip runs: says it is still going every HEARTBEAT_SECONDS, and stops it after INSTALL_TIMEOUT."""
+        while not finished.wait(HEARTBEAT_SECONDS):
+            elapsed = time.monotonic() - started
+            log.info(f"pip is still running ({elapsed:.0f} s): {job['label']}")
+            job["label"] = f"{self._stage} ({elapsed:.0f} s)"
+            if elapsed > INSTALL_TIMEOUT:
+                log.warning(f"pip ran longer than {INSTALL_TIMEOUT} s: stopping it")
+                job["errors"] = [f"pip took longer than {INSTALL_TIMEOUT // 60} minutes and was stopped"]
+                process.kill()
+                return

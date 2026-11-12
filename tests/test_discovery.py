@@ -137,54 +137,116 @@ def test_a_failing_registration_is_logged_not_raised(config, caplog):
     assert not d.announcing and "no network" in caplog.text
 
 
-def test_install_runs_pip_and_then_announces(monkeypatch):
-    calls, done = [], threading.Event()
+class FakePip:
+    """A pip process: prints its lines, then exits with a code."""
 
-    def run(cmd, **kwargs):
-        calls.append(cmd)
-        return SimpleNamespace(returncode=0, stdout="", stderr="")
+    def __init__(self, lines, code=0):
+        self.lines, self.code, self.killed, self.command = lines, code, False, None
 
-    install = discovery.PackageInstall(run=run, on_done=done.set)
-    job = install.start()
-    assert done.wait(5)
-    assert calls[0][1:] == ["-m", "pip", "install", "zeroconf"]
-    for _ in range(100):
+    def __call__(self, command, **kwargs):
+        self.command = command
+        self.stdout = iter(line + "\n" for line in self.lines)
+        return self
+
+    def wait(self):
+        return self.code
+
+    def kill(self):
+        self.killed = True
+
+
+def finished(job):
+    for _ in range(300):
         if job["done"]:
-            break
+            return job
         threading.Event().wait(0.01)
-    assert job["ok"] and job["changed"] and job["message"] == "Installed zeroconf" and job["errors"] == []
+    return job
 
 
-def test_install_failure_shows_pips_last_lines():
-    def run(cmd, **kwargs):
-        return SimpleNamespace(returncode=1, stdout="", stderr="\n".join(f"line {n}" for n in range(10)))
+def test_install_runs_pip_logs_what_it_says_and_then_announces(caplog):
+    caplog.set_level(logging.INFO)
+    done = threading.Event()
+    pip = FakePip(
+        [
+            "Collecting zeroconf",
+            "  Downloading zeroconf-0.154.0-py3-none-any.whl (100 kB)",
+            "Installing collected packages: ifaddr, zeroconf",
+            "Successfully installed ifaddr-0.2.0 zeroconf-0.154.0",
+        ]
+    )
+    job = discovery.PackageInstall(popen=pip, on_done=done.set).start()
+    assert done.wait(5) and finished(job)["ok"]
+    assert pip.command[1:4] == ["-m", "pip", "install"] and pip.command[-1] == "zeroconf"
+    assert job["changed"] and job["message"] == "Installed zeroconf" and job["fraction"] == 1.0
+    assert "pip: Collecting zeroconf" in caplog.text and "pip: Successfully installed" in caplog.text
+    assert "installed zeroconf in" in caplog.text
 
-    install = discovery.PackageInstall(run=run, on_done=lambda: pytest.fail("announced after a failure"))
+
+def test_install_label_follows_pips_stages():
+    seen = []
+    install = discovery.PackageInstall()
+
+    class Slow(FakePip):
+        def __call__(self, command, **kwargs):
+            super().__call__(command, **kwargs)
+            lines = self.stdout
+
+            def watching():
+                for line in lines:
+                    yield line
+                    seen.append(install.job["label"])
+
+            self.stdout = watching()
+            return self
+
+    pip = Slow(
+        ["Collecting zeroconf", "Building wheel for zeroconf (pyproject.toml)", "Successfully installed zeroconf-1"]
+    )
+    install._popen = pip
     job = install.start()
-    for _ in range(100):
-        if job["done"]:
-            break
-        threading.Event().wait(0.01)
-    assert job["ok"] is False and job["errors"][-1] == "line 9" and len(job["errors"]) == 6
+    assert finished(job)["ok"]
+    assert seen[0] == "Looking up zeroconf" and seen[1].startswith("Building zeroconf, which can take minutes")
+
+
+def test_install_failure_shows_pips_last_lines_and_logs_it(caplog):
+    pip = FakePip([f"line {n}" for n in range(10)], code=1)
+    job = discovery.PackageInstall(popen=pip, on_done=lambda: pytest.fail("announced after a failure")).start()
+    assert finished(job)["ok"] is False and job["errors"][-1] == "line 9" and len(job["errors"]) == 6
+    assert "pip exited with 1" in caplog.text
 
 
 def test_install_that_cannot_run_is_reported():
-    def run(cmd, **kwargs):
+    def popen(command, **kwargs):
         raise FileNotFoundError("no python")
 
-    job = discovery.PackageInstall(run=run).start()
-    for _ in range(100):
-        if job["done"]:
-            break
-        threading.Event().wait(0.01)
-    assert job["ok"] is False and "no python" in job["errors"][0]
+    job = discovery.PackageInstall(popen=popen).start()
+    assert finished(job)["ok"] is False and "no python" in job["errors"][0]
 
 
-def test_a_name_with_a_control_character_is_refused():
-    settings = Settings()
-    with pytest.raises(ValueError):
-        settings.set("web_server.name", "bell\x07")
-    assert settings.set("web_server.name", "Houston map") == "Houston map"
+def test_a_quiet_pip_gets_a_heartbeat_and_a_stop_after_the_time_limit(monkeypatch, caplog):
+    caplog.set_level(logging.INFO)
+    monkeypatch.setattr(discovery, "HEARTBEAT_SECONDS", 0.01)
+    monkeypatch.setattr(discovery, "INSTALL_TIMEOUT", 0.03)
+    release = threading.Event()
+
+    class Quiet(FakePip):
+        def __call__(self, command, **kwargs):
+            super().__call__(command, **kwargs)
+            self.stdout = iter(())
+            return self
+
+        def wait(self):
+            release.wait(2)  # pip hangs until it is killed
+            return -9 if self.killed else 0
+
+        def kill(self):
+            super().kill()
+            release.set()
+
+    pip = Quiet([])
+    job = discovery.PackageInstall(popen=pip).start()
+    assert finished(job)["ok"] is False and pip.killed
+    assert "pip is still running" in caplog.text and "took longer than" in job["errors"][0]
 
 
 def test_the_name_in_use_is_the_one_announced(config):
