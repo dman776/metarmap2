@@ -61,6 +61,10 @@ class SkipUnchangedShow:
         self._sent, self._sent_at = sent, now
         return result
 
+    def settling(self):
+        """Whether the last change was sent less than SETTLE_SECONDS ago: the render loop keeps sending until then."""
+        return self._monotonic() - self._changed_at < SETTLE_SECONDS
+
 
 def skipping_unchanged(base):
     """`base` (neopixel.NeoPixel) with SkipUnchangedShow's show()."""

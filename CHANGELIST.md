@@ -1,5 +1,15 @@
 ### Unreleased
 
+- **Scheduled jobs are on time during forecast looks, and the Chart uses less of the Pi's processor again**: between
+  frames the Chart now rests until the next pixel is due to change, where before it checked every pixel 20 to 100
+  times a second, and it stops each second to run its scheduled jobs. Before, while a forecast visualizer played its
+  sequence (20 to 28 seconds), the METAR fetch, auto-rotate, the sunrise and sunset brightness and quiet hours waited
+  for the sequence to end, so they could be up to half a minute late. Now the METAR fetch every 10 minutes can come
+  part way through a forecast sequence: the lights hold for a few seconds while it runs, and the sequence starts again
+  from Now. A step no longer waits for the Chart's next check before it changes, which takes away a small part of
+  the delay that let a forecast sequence run a little long; the pixels keep in step with each other as before. A
+  brightness or visualizer change, new METARs, the end of a locate pulse and the fetch dim still show within about a
+  twentieth of a second
 - **The Chart uses less of the Pi's processor**: while every pixel shows a steady color (Flight Category on a quiet
   day, for example), the Chart now checks its pixels 20 times a second instead of 100, and it sends the colors to the
   pixel strip only when something changes (a new color goes out at every check for its first tenth of a second, and

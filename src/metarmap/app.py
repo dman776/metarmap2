@@ -520,7 +520,7 @@ def run(app: App, port=None):
         app.display.start(locate_delay=STARTUP_LOCATE_DELAY)
     try:
         while True:
-            app.renderer.render()
+            app.renderer.render()  # returns about once a second (RENDER_SECONDS), so the jobs below run on time
             app.scheduler.run_pending()
     except KeyboardInterrupt:
         pass

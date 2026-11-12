@@ -211,3 +211,18 @@ def test_open_strip_on_the_pi_skips_unchanged_sends(monkeypatch):
     strip._monotonic = lambda: 100.5  # after SETTLE_SECONDS, before RESEND_SECONDS
     strip.show()
     assert len(strip.sent) == 1
+
+
+def test_skipping_strip_says_while_it_settles():
+    """The render loop asks, so it keeps drawing frames for the settling sends even when no animation is due."""
+    from metarmap.leds.strip import SETTLE_SECONDS
+
+    strip = skipping_strip()
+    assert not strip.settling()  # nothing sent yet
+    strip[0] = (200, 100, 50)
+    strip.show()
+    assert strip.settling()
+    strip.now += SETTLE_SECONDS + 0.01
+    assert not strip.settling()
+    strip.show()  # unchanged: still settled
+    assert not strip.settling()
