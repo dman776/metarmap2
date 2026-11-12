@@ -24,7 +24,7 @@
             <label class="t" for="led-count">Number of pixels</label>
             <div class="d">New pixels are added at the end with no airport. Lowering it removes the airports on the last pixels.</div>
         </div>
-        <input id="led-count" class="led-count" type="number" inputmode="numeric" min="1" max="{{max_leds - virtual}}" value="{{count}}" data-led-count="{{count}}" data-first="0" data-count-key="led.count">
+        <input id="led-count" class="led-count" type="number" inputmode="numeric" min="0" max="{{max_leds - virtual}}" value="{{count}}" data-led-count="{{count}}" data-first="0" data-count-key="led.count">
     </div>
     <div class="set">
         <div>

@@ -149,6 +149,32 @@ def test_resize_a_strip_that_cant(config, clock):
     assert r.resize(5) is False
 
 
+def test_every_visualizer_runs_with_no_leds(config, clock):
+    """A map of virtual airports only (led.count 0): no visualizer, Chase included, breaks on the empty strip."""
+    config.data.led.count = 0
+    r, strip = make(config, clock, leds=0, visualizers=list(visualizer_module.ALL))
+    for number in range(len(visualizer_module.ALL)):
+        r.visualizer = number
+        draw_frame(r)
+        r.render()
+    assert len(strip) == 0 and r.animations == []
+
+
+def test_lowering_to_no_leds_darkens_a_strip_that_cant_resize(config, clock):
+    """A NeoPixel strip keeps its length until a restart: LEDs no longer drawn go dark, they don't freeze lit."""
+    config.data.led.count = 5
+    for vis in (FLIGHT, RAINBOW):
+        r, strip = make(config, clock, leds=5, visualizers=[vis])
+        draw_frame(r)
+        assert any(color != (0, 0, 0) for color in strip)
+        strip.resize = None  # like a NeoPixel strip
+        config.data.led.count = 0
+        r.resize(0)
+        r.refresh()
+        assert all(color == (0, 0, 0) for color in strip) and r.animations == []
+        config.data.led.count = 5
+
+
 def test_render_stops_when_the_animations_are_rebuilt(config, clock):
     """New data, a new visualizer or a new strip length shows at once, not after the old animations' cycle."""
     r, _ = make(config, clock, data={"KHOU": metar("VFR", weather="-RA")}, leds=1, visualizers=[PRECIP])

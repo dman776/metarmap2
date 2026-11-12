@@ -35,6 +35,33 @@ def test_open_strip_without_hardware():
     assert strip.brightness == led.brightness.normal
 
 
+def test_open_strip_with_no_pixels_leaves_the_hardware_alone(monkeypatch):
+    """A map of virtual airports only never imports the NeoPixel library, even on a Pi."""
+    import sys
+
+    monkeypatch.setitem(sys.modules, "board", None)  # an import of either would fail
+    monkeypatch.setitem(sys.modules, "neopixel", None)
+    led = Settings().led
+    led.count = 0
+    strip = open_strip(led)
+    assert isinstance(strip, FakeStrip) and len(strip) == 0
+    strip.fill([1, 2, 3])
+    strip.show()
+
+
+def test_open_strip_with_no_pixels_on_a_pi_cannot_grow(monkeypatch):
+    """On a Pi (the NeoPixel library is there) no strip is made, and it can't resize: more pixels wait for a restart."""
+    import sys
+    from types import ModuleType
+
+    monkeypatch.setitem(sys.modules, "board", ModuleType("board"))
+    monkeypatch.setitem(sys.modules, "neopixel", ModuleType("neopixel"))
+    led = Settings().led
+    led.count = 0
+    strip = open_strip(led)
+    assert len(strip) == 0 and getattr(strip, "resize", None) is None
+
+
 class PixelBufLike:
     """What neopixel.NeoPixel is to SkipUnchangedShow: adafruit_pixelbuf.PixelBuf's buffers, show() and _transmit."""
 

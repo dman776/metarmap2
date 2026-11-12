@@ -97,10 +97,24 @@ class FakeStrip(list):
         return list(self)
 
 
+class UnopenedStrip(FakeStrip):
+    """The strip of a Pi with led.count 0: no NeoPixel is made, and it can't change length (a restart is needed)."""
+
+    resize = None
+
+
 def open_strip(led):
     """
     Opens the NeoPixel strip described by the `led` settings, or a FakeStrip when there's no LED hardware.
     """
+    if led.count == 0:  # a map of virtual airports only: the pin is left alone, no NeoPixel is made
+        try:
+            import board  # noqa: F401
+            import neopixel  # noqa: F401
+        except (ImportError, NotImplementedError):
+            return FakeStrip(0, brightness=led.brightness.normal)
+        # on a Pi the strip can't grow: more pixels take effect after a restart, as with a NeoPixel strip
+        return UnopenedStrip(0, brightness=led.brightness.normal)
     try:
         import board
         import neopixel

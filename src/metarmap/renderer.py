@@ -115,13 +115,18 @@ class Renderer:
         data = self._metars.data
         settings = self._config.data
         strip_look = visualizer.strip_look(self._vis, settings)
+        lit = settings.led.count
         if strip_look is not None:
-            looks, animations = [], [animation_for(strip_look, self._pixels)]
+            # with no LEDs (virtual airports only) a strip left open on a Pi has nothing to animate
+            looks, animations = [], [animation_for(strip_look, self._pixels)] if lit else []
         else:
             looks = visualizer.looks(self._vis, [a.code for a in settings.airports], data, settings)
             # the virtual airports (after led.count) have no LED; their looks are for the web map. A strip still
             # longer than led.count (a NeoPixel strip until the restart) keeps its extra LEDs dark
             animations = [animation_for(look, pixel) for look, pixel in zip(looks[: settings.led.count], self._pix)]
+        if strip_look is None or not lit:
+            for i in range(lit, len(self._pixels)):  # nothing draws them now: dark, not stuck on their last color
+                self._pixels[i] = colors_lib.color(colors_lib.OFF)
         self._looks, self._strip_look, self._animations = looks, strip_look, animations
         self._started = self._clock.time()  # the steps of a stepping visualizer count from here (step())
         self._look_dicts = None  # led_states()'s cache
