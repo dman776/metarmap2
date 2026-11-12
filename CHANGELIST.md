@@ -19,6 +19,13 @@
   Config's Test (API.md)
 - **The Chart's web server queues more waiting connections**: when the Pi is busy, up to 64 connections wait their
   turn instead of being turned away (it was 5)
+- **Installing the Chart turns Wi-Fi power saving off**: with it on, a Pi Zero W could take minutes to fetch what takes
+  seconds (the AWOS and ATIS audio from a speech server ran at ~19 KB/s, against ~690 KB/s with it off).
+  `./install.sh`, for a first install or a re-run, now installs the `iw` package, adds a small
+  `wifi-powersave-off.service` that switches it off at every boot (or, where NetworkManager runs the Wi-Fi, a
+  NetworkManager setting that does the same), applies it right away and prints the result. It does nothing on a Chart
+  with no Wi-Fi, and a Wi-Fi chip that can't do it only gets a warning; the install carries on. A hand-made service of
+  the same name is replaced. Check with `iw dev wlan0 get power_save`
 - **Press and hold a visualizer to skip it**: on the Cockpit and on the Copilot, hold a visualizer's icon for about
   half a second to leave it out of auto-rotate, and hold it again to put it back. A skipped visualizer shows a dimmed
   icon and a small "skip" badge (the Cockpit also confirms with a message; the Copilot says something only when it

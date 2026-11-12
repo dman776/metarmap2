@@ -204,6 +204,7 @@ errors also show in the terminal). Settings for the hardware, such as the pixels
    starts the Chart and prints its web address. Installing takes a few minutes, longer on a Pi Zero. Running
    `./install.sh` again is safe; it keeps your settings, and leaves a folder that's already on a release (one you
    picked yourself) where it is. To install the newest commit instead, for testing, use `./install.sh --latest`.
+   It also turns the Pi's Wi-Fi power saving off, for good (see Troubleshooting), which keeps downloads from crawling.
 5. Open the web address, go to **Config > Airports**, and set up your airports (next section).
 
 ## Setting up your airports
@@ -409,6 +410,14 @@ small touchscreen on your network: it reads `/api/live` and `/api/status`, and s
   3. If red and green are swapped, change **Color order** in Config > Physical display > Chart pixels (GRB or RGB) and restart.
 - **The Micro (OLED screen) stays blank**: `sudo i2cdetect -y 1` should show the screen at address `3c`. If it shows nothing,
   check the wiring, and that I2C is on (`sudo raspi-config`, Interface Options).
+- **Downloads are very slow, or spoken weather takes minutes to load**: Wi-Fi power saving is on, and on a Pi Zero W
+  it can hold downloads from other hosts to ~19 KB/s (about 690 KB/s with it off). `./install.sh` turns it off for
+  good: it writes `wifi-powersave-off.service` (or, where NetworkManager runs the Wi-Fi,
+  `/etc/NetworkManager/conf.d/wifi-powersave-off.conf`), starts it and applies it right away; running it again
+  rewrites the same file, replacing a hand-made one of that name. Check with `iw dev wlan0 get power_save` (it should
+  say `Power save: off`). It does nothing on a Pi with no Wi-Fi interface, and a driver that can't switch power
+  saving only gets a warning. To undo it: `sudo systemctl disable --now wifi-powersave-off.service`, delete
+  `/etc/systemd/system/wifi-powersave-off.service` (or the NetworkManager `.conf`), and reboot.
 - **An airport's pixel is off**: it hasn't reported in the last 5 hours, or its code is wrong. The METARs page shows
   which airports have no data.
 

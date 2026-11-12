@@ -438,6 +438,157 @@ def test_install_sh_is_valid_bash():
     assert bad.returncode == 1 and "unknown option" in bad.stderr
 
 
+# ---- install.sh: turning Wi-Fi power saving off -----------------------------------------------------------------
+
+POWERSAVE_UNIT = """[Unit]
+Description=Turn Wi-Fi power saving off
+After=network.target sys-subsystem-net-devices-wlan0.device
+Wants=sys-subsystem-net-devices-wlan0.device
+[Service]
+Type=oneshot
+ExecStart=/sbin/iw dev wlan0 set power_save off
+RemainAfterExit=yes
+[Install]
+WantedBy=multi-user.target
+"""
+
+
+class PowersaveEnv:
+    """install.sh's Wi-Fi step run against a fake /sys/class/net, unit folder and stub sudo/systemctl/iw/apt-get."""
+
+    def __init__(self, tmp_path):
+        from pathlib import Path
+
+        self.script = Path(__file__).parent.parent / "install.sh"
+        self.net = tmp_path / "net"
+        self.units = tmp_path / "units"
+        self.nm = tmp_path / "nm"
+        self.log = tmp_path / "calls.log"
+        self.net.mkdir()
+        self.units.mkdir()
+        bin_dir = tmp_path / "bin"
+        bin_dir.mkdir()
+        self.iw = bin_dir / "iw"
+        stubs = {
+            "sudo": 'exec "$@"',
+            "apt-get": "exit 0",
+            "systemctl": 'echo "systemctl $*" >> "$CALLS"\n'
+            'if [ "$1" = is-active ]; then [ -n "${NM_ACTIVE:-}" ]; exit $?; fi\nexit 0',
+            "iw": 'echo "iw $*" >> "$CALLS"\n[ -n "${IW_FAIL:-}" ] && exit 1\n'
+            '[ "$3" = get ] && echo "Power save: off"; exit 0',
+        }
+        for name, body in stubs.items():
+            stub = bin_dir / name
+            stub.write_text("#!/bin/sh\n" + body + "\n")
+            stub.chmod(0o755)
+        self.bin = bin_dir
+
+    def add_wifi(self, name="wlan0"):
+        (self.net / name / "wireless").mkdir(parents=True)
+
+    def run(self, **extra):
+        import os
+
+        env = dict(
+            os.environ,
+            PATH="%s:%s" % (self.bin, os.environ["PATH"]),
+            CALLS=str(self.log),
+            METARMAP_ONLY="powersave",
+            METARMAP_NET_DIR=str(self.net),
+            METARMAP_SERVICE_DIR=str(self.units),
+            METARMAP_NM_CONF_DIR=str(self.nm),
+            METARMAP_IW=str(self.iw),  # never the real /sbin/iw
+            METARMAP_MODEL_FILE="/nonexistent",
+        )
+        env.update(extra)
+        return subprocess.run(["bash", str(self.script)], capture_output=True, text=True, env=env)
+
+    def calls(self):
+        return self.log.read_text().splitlines() if self.log.exists() else []
+
+
+def hand_made(env):
+    return POWERSAVE_UNIT.replace("/sbin/iw", str(env.iw))
+
+
+@pytest.fixture
+def powersave(tmp_path):
+    return PowersaveEnv(tmp_path)
+
+
+def test_powersave_writes_unit_enables_it_and_applies_now(powersave):
+    powersave.add_wifi()
+    result = powersave.run()
+    assert result.returncode == 0, result.stderr
+    unit = (powersave.units / "wifi-powersave-off.service").read_text()
+    # the hand-made unit, with the stub iw in place of /sbin/iw
+    assert unit == POWERSAVE_UNIT.replace("/sbin/iw", str(powersave.iw))
+    assert "systemctl daemon-reload" in powersave.calls()
+    assert "systemctl enable --now wifi-powersave-off.service" in powersave.calls()
+    assert "iw dev wlan0 set power_save off" in powersave.calls()
+    assert "wlan0: Power save: off" in result.stdout
+    assert not powersave.nm.exists()
+
+
+def test_powersave_is_idempotent_and_replaces_a_different_unit(powersave):
+    powersave.add_wifi()
+    unit = powersave.units / "wifi-powersave-off.service"
+    unit.write_text("[Unit]\nDescription=old, hand made\n")
+    first = powersave.run()
+    assert "Replacing the different" in first.stdout and unit.read_text() == hand_made(powersave)
+    powersave.log.write_text("")
+    second = powersave.run()
+    assert second.returncode == 0 and "unchanged" in second.stdout
+    assert unit.read_text() == hand_made(powersave)
+    assert "systemctl daemon-reload" not in powersave.calls()
+
+
+def test_powersave_one_exec_per_wifi_interface(powersave):
+    powersave.add_wifi("wlan0")
+    powersave.add_wifi("wlan1")
+    (powersave.net / "eth0").mkdir()
+    assert powersave.run().returncode == 0
+    unit = (powersave.units / "wifi-powersave-off.service").read_text()
+    assert "ExecStart=%s dev wlan0 set power_save off\n" % powersave.iw in unit
+    assert "ExecStart=%s dev wlan1 set power_save off\n" % powersave.iw in unit
+    assert "eth0" not in unit
+    assert "Wants=sys-subsystem-net-devices-wlan0.device sys-subsystem-net-devices-wlan1.device\n" in unit
+
+
+def test_powersave_skipped_without_wifi(powersave):
+    (powersave.net / "eth0").mkdir()
+    result = powersave.run()
+    assert result.returncode == 0 and "No Wi-Fi interface" in result.stdout
+    assert not list(powersave.units.iterdir()) and powersave.calls() == []
+
+
+def test_powersave_failing_iw_only_warns(powersave):
+    powersave.add_wifi()
+    result = powersave.run(IW_FAIL="1")
+    assert result.returncode == 0
+    assert "Couldn't turn power saving off on wlan0" in result.stdout
+    assert (powersave.units / "wifi-powersave-off.service").exists()
+
+
+def test_powersave_with_networkmanager_writes_its_config(powersave):
+    powersave.add_wifi()
+    result = powersave.run(NM_ACTIVE="1")
+    assert result.returncode == 0, result.stderr
+    assert (powersave.nm / "wifi-powersave-off.conf").read_text() == "[connection]\nwifi.powersave = 2\n"
+    assert "systemctl reload NetworkManager" in powersave.calls()
+    assert not (powersave.units / "wifi-powersave-off.service").exists()
+    assert "iw dev wlan0 set power_save off" in powersave.calls()
+    again = powersave.run(NM_ACTIVE="1")
+    assert "unchanged" in again.stdout
+
+
+def test_install_sh_installs_iw():
+    from pathlib import Path
+
+    text = (Path(__file__).parent.parent / "install.sh").read_text()
+    assert "apt-get install -y" in text and " iw" in text.split("apt-get install -y", 1)[1].splitlines()[0]
+
+
 # ---- versions ---------------------------------------------------------------------------------------------------
 
 
