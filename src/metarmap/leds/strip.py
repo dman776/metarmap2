@@ -17,6 +17,9 @@ OFF = colors_lib.color(colors_lib.OFF)
 # a strip whose colors haven't changed is still sent this often, so an LED that picked up a wrong color (a glitch on
 # the data line) is put right
 RESEND_SECONDS = 1.0
+# and right after a change it's sent at every frame for this long: a glitch that garbles a pixel in the send of a new
+# color (a slow fade, a blink) is put right at once, not a second later
+SETTLE_SECONDS = 0.1
 
 log = logging.getLogger(__name__)
 
@@ -24,8 +27,9 @@ log = logging.getLogger(__name__)
 class SkipUnchangedShow:
     """
     Mixed in before neopixel.NeoPixel: show() sends the strip only when the bytes it would send differ from what it
-    last sent, or RESEND_SECONDS have passed since. The render loop calls show() every frame (up to 100 a second), but
-    most frames change nothing, and on the Pi each send is a per-pixel Python loop plus a sleep inside the library.
+    last sent, or RESEND_SECONDS have passed since, and it keeps sending for SETTLE_SECONDS after a change. The render
+    loop calls show() every frame (up to 100 a second), but most frames change nothing, and on the Pi each send is a
+    per-pixel Python loop plus a sleep inside the library.
 
     It compares the library's post-brightness buffer (adafruit_pixelbuf.PixelBuf._post_brightness_buffer: exactly
     what show() hands to the strip), so a new color, fill(), clear() or brightness change is always sent. A library
@@ -34,6 +38,7 @@ class SkipUnchangedShow:
 
     _sent = None  # a copy of the bytes last sent
     _sent_at = 0.0  # when, by _monotonic()
+    _changed_at = float("-inf")  # when the bytes sent last differed from the ones before
     _monotonic = staticmethod(time.monotonic)
     _warned = False
 
@@ -45,11 +50,14 @@ class SkipUnchangedShow:
                 log.warning("the LED library has no _post_brightness_buffer: sending the strip at every frame")
             return super().show()
         now = self._monotonic()
-        if self._sent is not None and buffer == self._sent and now - self._sent_at < RESEND_SECONDS:
+        same = self._sent is not None and buffer == self._sent
+        if same and now - self._sent_at < RESEND_SECONDS and now - self._changed_at >= SETTLE_SECONDS:
             return None
         # copied before it's sent: if another thread changes the buffer meanwhile, the next show() sees a difference
         sent = bytes(buffer)
         result = super().show()
+        if not same:
+            self._changed_at = now
         self._sent, self._sent_at = sent, now
         return result
 

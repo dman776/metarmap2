@@ -85,18 +85,37 @@ def skipping_strip(n=3, base=PixelBufLike):
 
 
 def test_skipping_strip_sends_once_until_something_changes():
+    from metarmap.leds.strip import SETTLE_SECONDS
+
     strip = skipping_strip()
     strip[0] = (200, 100, 50)
     strip.show()
+    strip.now += SETTLE_SECONDS + 0.01
     strip.show()
     strip.show()
     assert strip.sent == [bytes([100, 50, 25, 0, 0, 0, 0, 0, 0])]
     strip[1] = (2, 4, 6)
     strip.show()
     assert len(strip.sent) == 2 and strip.sent[-1][3:6] == bytes([1, 2, 3])
+    strip.now += SETTLE_SECONDS + 0.01
     strip[1] = (2, 4, 6)  # the same color again: nothing to send
     strip.show()
     assert len(strip.sent) == 2
+
+
+def test_skipping_strip_sends_every_frame_just_after_a_change():
+    """A new color is sent again at the next frames for SETTLE_SECONDS, so a garbled send is put right at once."""
+    from metarmap.leds.strip import SETTLE_SECONDS
+
+    strip = skipping_strip()
+    strip[0] = (200, 100, 50)
+    strip.show()
+    strip.now += SETTLE_SECONDS / 2
+    strip.show()
+    assert len(strip.sent) == 2
+    strip.now += SETTLE_SECONDS / 2 + 0.01
+    strip.show()
+    assert len(strip.sent) == 2  # settled
 
 
 def test_skipping_strip_sends_a_brightness_change_and_a_clear():
@@ -113,11 +132,14 @@ def test_skipping_strip_sends_a_brightness_change_and_a_clear():
 
 def test_skipping_strip_resends_now_and_then():
     """An LED that picked up a wrong color (a glitch on the data line) is put right within RESEND_SECONDS."""
-    from metarmap.leds.strip import RESEND_SECONDS
+    from metarmap.leds.strip import RESEND_SECONDS, SETTLE_SECONDS
 
     strip = skipping_strip()
     strip.show()
-    strip.now += RESEND_SECONDS - 0.1
+    strip.now += SETTLE_SECONDS + 0.01
+    strip.show()
+    assert len(strip.sent) == 1
+    strip.now += RESEND_SECONDS - SETTLE_SECONDS - 0.11
     strip.show()
     assert len(strip.sent) == 1
     strip.now += 0.1
@@ -184,6 +206,8 @@ def test_open_strip_on_the_pi_skips_unchanged_sends(monkeypatch):
     strip = open_strip(led)
     assert isinstance(strip, NeoPixel) and isinstance(strip, SkipUnchangedShow)
     assert (len(strip), strip.pin, strip.pixel_order, strip.auto_write) == (4, "pin 18", "GRB", False)
+    strip._monotonic = lambda: 100.0
     strip.show()
+    strip._monotonic = lambda: 100.5  # after SETTLE_SECONDS, before RESEND_SECONDS
     strip.show()
     assert len(strip.sent) == 1
