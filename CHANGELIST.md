@@ -1,5 +1,12 @@
 ### Unreleased
 
+- **The Chart uses less of the Pi's processor**: while every pixel shows a steady color (Flight Category on a quiet
+  day, for example), the Chart now checks its pixels 20 times a second instead of 100, and it sends the colors to the
+  pixel strip only when something changes (a new color goes out at every check for its first tenth of a second, and
+  the strip every second anyway, so a pixel that picked up a wrong color is put right), where before it sent the
+  whole strip at every check, whatever the visualizer. Blinking, breathing, lightning, Rainbow, Chase, the fetch dim, locate pulses and the startup sequences look the same, and a brightness or visualizer change still
+  shows within about a twentieth of a second. It also fixes a slow build-up of bookkeeping between METAR fetches
+  (a few hundred small leftovers by the time the Chart rebuilt its animations)
 - **A stuck speech server no longer leaves the Listen, AWOS and ATIS buttons hanging**: the Chart now gives the
   speech server (Kokoro or Piper) at most 2 minutes in all to read a report, the new **Time limit** in
   Config > System > Spoken weather (5 to 300 seconds, `speech.timeout`), where before a server that sent its answer

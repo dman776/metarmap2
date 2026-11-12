@@ -39,6 +39,18 @@ FADE_STEPS = 12  # at most; about 20 a second
 FADE_MIN_STEP = 0.0011
 
 
+def _unhook(group: AnimationGroup):
+    """
+    Takes the group's cycle-complete callback off its last animation again. render() groups the same animations
+    afresh each time it's called (about once a second), and each AnimationGroup adds a callback to the last one that
+    the library never removes: without this they pile up until the next rebuild (every 10 minutes).
+    """
+    try:
+        group._members[-1]._also_notify.remove(group._group_done)
+    except (AttributeError, IndexError, ValueError):
+        pass  # another version of the library: nothing to take off, or kept some other way
+
+
 class Renderer:
     """
     Runs the LED animations for the active visualizer.
@@ -167,19 +179,23 @@ class Renderer:
         How long the render loop waits between frames. A whole-strip look (Rainbow, Chase) is one animation, cheap to
         run, so it gets FRAME_SECONDS: slower ticks make its steps uneven (stutter). Looks per LED are one animation
         each, 50 of them: an eighth of the shortest step of those, within FRAME_SECONDS and MAX_FRAME_SECONDS (ticking
-        at 100 Hz for a look that changes every 0.2 s kept a Pi's CPU at 100% with Flight Category Forecast).
+        at 100 Hz for a look that changes every 0.2 s kept a Pi's CPU at 100% with Flight Category Forecast). When
+        nothing moves (every look solid or off) MAX_FRAME_SECONDS: a brightness change still shows within 50 ms, and
+        ticking at 100 Hz for a still map used a fifth of a Pi Zero's CPU.
         """
         if self._strip_look is not None:
             return FRAME_SECONDS
         steps = [look_interval(look) for look in self._looks]
         steps = [step for step in steps if step]
-        return min(MAX_FRAME_SECONDS, max(FRAME_SECONDS, min(steps) / 8)) if steps else FRAME_SECONDS
+        return min(MAX_FRAME_SECONDS, max(FRAME_SECONDS, min(steps) / 8)) if steps else MAX_FRAME_SECONDS
 
     def render(self):
+        group = None
         try:
             built = self._animations
             wait = self.frame_seconds()
-            animations = AnimateOnce(AnimationGroup(*built), auto_clear=False)
+            group = AnimationGroup(*built)
+            animations = AnimateOnce(group, auto_clear=False)
             self._animationloop = animations
             while True:
                 # one frame at a time, so locate() can get in between frames
@@ -196,6 +212,9 @@ class Renderer:
         except Exception as e:
             log.warning("render error: " + str(e))
             time.sleep(FRAME_SECONDS)  # the main loop calls render() again at once: no hot loop of errors
+        finally:
+            if group is not None:
+                _unhook(group)
 
     def update_data(self, metars):
         log.info("updating data in the renderer")
@@ -320,7 +339,8 @@ class Renderer:
 
     def brightness(self, level: float):
         if 0 <= level <= 1:
-            self._pixels.brightness = level
+            with self._lock:  # not in the middle of a frame's send
+                self._pixels.brightness = level
 
     @contextmanager
     def dimmed(self):

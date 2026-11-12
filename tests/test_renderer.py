@@ -174,7 +174,8 @@ def test_render_rests_between_frames(config, clock, monkeypatch):
     monkeypatch.setattr(renderer.time, "sleep", rests.append)
     r, _ = make(config, clock)
     r.render()
-    assert rests == [renderer.FRAME_SECONDS] * 2  # after each frame that kept going, not after the last
+    # after each frame that kept going, not after the last; a still map (solid and off looks) at the slowest tick
+    assert rests == [renderer.MAX_FRAME_SECONDS] * 2
     rests.clear()
     r.animate_once(object())
     assert rests == [renderer.FRAME_SECONDS] * 2
@@ -609,11 +610,91 @@ def test_render_ticks_no_faster_than_the_looks_change(config, clock):
     from metarmap import renderer
 
     r, _ = make(config, clock)
-    assert r.frame_seconds() == renderer.FRAME_SECONDS  # solid looks
     r._looks = [Look.cycle([(0, 0, 0), (1, 1, 1)], step=0.2)] * 3
     assert r.frame_seconds() == 0.025
     r._looks = [Look.cycle([(0, 0, 0), (1, 1, 1)], step=0.2), Look.cycle([(0, 0, 0), (1, 1, 1)], step=0.02)]
     assert r.frame_seconds() == renderer.FRAME_SECONDS  # the fastest look sets the pace, not below FRAME_SECONDS
+
+
+def test_a_still_map_ticks_at_the_slowest_rate(config, clock):
+    """Every look solid or off: nothing moves, so 20 frames a second (a brightness change shows within 50 ms)."""
+    from metarmap import renderer
+
+    r, _ = make(config, clock, data={"KHOU": metar("VFR"), "KIAH": metar("IFR"), "KDKR": metar("MVFR")})
+    assert {look.effect for look in r.looks} <= {"solid", "off"}
+    assert r.frame_seconds() == renderer.MAX_FRAME_SECONDS
+    r._looks = [Look.solid((1, 2, 3)), Look.off()]
+    assert r.frame_seconds() == renderer.MAX_FRAME_SECONDS
+    r._looks = []  # no airports
+    assert r.frame_seconds() == renderer.MAX_FRAME_SECONDS
+
+
+def test_moving_looks_tick_as_fast_as_they_need(config, clock):
+    """One moving look among still ones sets the pace: blink, breathing, lightning."""
+    from metarmap import renderer
+    from metarmap.leds.animations import PULSE_SPEED, PULSE_STEPS
+    from metarmap.visualizers import style
+
+    r, _ = make(config, clock)
+    solid = Look.solid((1, 2, 3))
+    r._looks = [solid, Look.blink((9, 9, 9), period=1.0), Look.off()]  # 0.5 s on, 0.5 s off
+    assert r.frame_seconds() == renderer.MAX_FRAME_SECONDS  # an eighth of 0.5 s, capped
+    r._looks = [solid, Look.blink((9, 9, 9), period=0.2)]
+    assert r.frame_seconds() == pytest.approx(0.1 / 8)
+    r._looks = [solid, Look.pulse((9, 9, 9), period=4.0)]  # breathing to dark: PULSE_SPEED frames
+    assert r.frame_seconds() == pytest.approx(max(renderer.FRAME_SECONDS, PULSE_SPEED / 8))
+    r._looks = [solid, Look.pulse((9, 9, 9), period=4.0, low=0.3)]  # never dark: 20 steps a breath
+    assert r.frame_seconds() == pytest.approx(min(renderer.MAX_FRAME_SECONDS, 4.0 / PULSE_STEPS / 8))
+    r._looks = [solid, style.with_lightning(solid, config.data)]  # 0.05 s frames
+    assert r.frame_seconds() == renderer.FRAME_SECONDS
+
+
+def test_render_does_not_pile_up_callbacks(config, clock, monkeypatch):
+    """
+    Each render() groups the LEDs' animations afresh, and a group hooks a callback onto the last one: they must not
+    pile up between rebuilds (one a second, until the rebuild every 10 minutes).
+    """
+    from metarmap import renderer
+
+    monkeypatch.setattr(renderer.time, "sleep", lambda seconds: None)
+    r, _ = make(config, clock)
+    last = r.animations[-1]
+    hooked = len(last._also_notify)
+
+    class Once:
+        """One frame per render(), like the real loop when the last animation completes a cycle."""
+
+        def __init__(self, group, **kwargs):
+            self.group = group
+
+        def animate(self, show=True):
+            self.group.animate(show)
+            return False
+
+    monkeypatch.setattr(renderer, "AnimateOnce", Once)
+    for _ in range(200):
+        r.render()
+    assert len(last._also_notify) == hooked
+    assert r.animations[-1] is last  # the same animations all along: nothing was rebuilt
+
+
+def test_render_still_ends_each_cycle_without_piling_up(config, clock, monkeypatch):
+    """With the real AnimateOnce: render() returns when the last LED's animation completes a cycle (so the main loop
+    runs its jobs), every time, and the callbacks stay as they were."""
+    import adafruit_led_animation.animation as animation_module
+    from metarmap import renderer
+
+    now = [0.0]  # the animations' clock, in ms: each rest moves it on
+    monkeypatch.setattr(animation_module, "monotonic_ms", lambda: now[0])
+    monkeypatch.setattr(renderer.time, "sleep", lambda seconds: now.__setitem__(0, now[0] + seconds * 1000))
+    r, _ = make(config, clock, data={"KHOU": metar("VFR")}, leds=1, visualizers=[FLIGHT])  # one solid LED
+    last = r.animations[-1]
+    hooked = len(last._also_notify)
+    for _ in range(5):
+        r.render()  # returns: it would loop for ever if the cycle's end didn't reach it
+        assert len(last._also_notify) == hooked
+    assert now[0] > 0  # it rested between frames, and each cycle ended render()
+    assert r.animations[-1] is last
 
 
 def test_step_counts_from_when_the_leds_were_built(config, clock):
