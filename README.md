@@ -249,6 +249,11 @@ Every setting takes effect right away; none needs a restart.
 **Config > System > Access** changes:
 - the web UI login. On a Raspberry Pi, the new password also becomes the password of the Pi's login user
   (e.g. `pi`), so you don't have two to remember. On any other machine only the web UI login changes.
+- **Map name** and **Announce on the network**: what this Chart is called when it tells the network it is there (zeroconf),
+  so a Copilot can list it. The name has no dots and is at most 40 characters; blank uses the computer's name. This
+  needs the `zeroconf` Python package. A new install has it; an updated Chart doesn't, and Home shows an **Install
+  network discovery** button (it runs `pip install --only-binary :all: zeroconf`, which takes a ready-made package so a Pi Zero doesn't compile
+  one, and starts announcing, with no restart).
 - the Wi-Fi network. The Pi switches a few seconds after you save, and keeps the old network: if it can't join
   the new one, it goes back. To reach the Chart afterwards, put your phone or computer on the new network too.
 

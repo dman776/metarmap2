@@ -166,6 +166,106 @@
         runUpdate(btn);
     });
 
+    // ---- Home: install the zeroconf package (pip). On a Pi Zero it takes minutes: the dialog says so and can be
+    // closed, and the install goes on. The button then glows and counts the time; a page loaded while one runs
+    // picks it up (the server keeps the job and how long it has run).
+    const INSTALL_POLL_MS = 1000;
+    const INSTALL_RELOAD_MS = 1200;  // long enough to read "Installed"
+
+    function clock(seconds) {
+        return Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0');
+    }
+
+    async function followInstall(btn) {
+        const dlg = document.getElementById('install-dialog');
+        const label = dlg && dlg.querySelector('.update-label');
+        const bar = dlg && dlg.querySelector('.update-bar');
+        const errors = dlg && dlg.querySelector('.update-errors');
+        const text = btn.querySelector('.btn-text');
+        const idle = text.textContent;
+        btn.disabled = true;
+        btn.classList.add('loading');
+        btn.setAttribute('aria-busy', 'true');
+        try {
+            for (;;) {
+                const res = await fetch('/update/packages/progress', {cache: 'no-store', credentials: 'same-origin'});
+                if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+                const job = await res.json();
+                if (dlg) {
+                    bar.value = job.fraction || 0;
+                    label.textContent = (job.label || 'Installing') + ' · ' + clock(job.elapsed || 0);
+                }
+                text.textContent = job.done ? idle : 'Installing… ' + clock(job.elapsed || 0);
+                if (job.done) {
+                    if (job.ok) {
+                        text.textContent = 'Installed';
+                        if (dlg && dlg.open) label.textContent = (job.message || 'Installed') + '.';
+                        setTimeout(function () { window.location.reload(); }, INSTALL_RELOAD_MS);
+                        return;
+                    }
+                    if (dlg) {
+                        label.textContent = 'The install failed.';
+                        errors.textContent = (job.errors || []).join('\n');
+                        errors.hidden = !errors.textContent;
+                        if (!dlg.open) dlg.showModal();
+                    }
+                    break;
+                }
+                await new Promise(function (resolve) { setTimeout(resolve, INSTALL_POLL_MS); });
+            }
+        } catch (err) {
+            if (dlg) {
+                label.textContent = 'The install failed.';
+                errors.textContent = String(err);
+                errors.hidden = false;
+                if (!dlg.open) dlg.showModal();
+            }
+        }
+        text.textContent = idle;
+        btn.classList.remove('loading');
+        btn.removeAttribute('aria-busy');
+        btn.disabled = false;
+    }
+
+    document.addEventListener('click', async function (e) {
+        const btn = e.target.closest('[data-install-package]');
+        if (!btn || btn.disabled) return;
+        e.preventDefault();
+        const dlg = document.getElementById('install-dialog');
+        if (dlg) {
+            dlg.querySelector('.update-label').textContent = 'Starting';
+            dlg.querySelector('.update-bar').value = 0;
+            dlg.querySelector('.update-errors').hidden = true;
+            dlg.showModal();
+        }
+        try {
+            const res = await fetch('/update/packages', {method: 'POST', credentials: 'same-origin'});
+            if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+        } catch (err) {
+            if (dlg) {
+                dlg.querySelector('.update-label').textContent = 'The install did not start.';
+                const errors = dlg.querySelector('.update-errors');
+                errors.textContent = String(err);
+                errors.hidden = false;
+            }
+            return;
+        }
+        followInstall(btn);
+    });
+
+    // a page opened while an install runs (the dialog was closed, or the page reloaded): carry on showing it
+    (async function resumeInstall() {
+        const btn = document.querySelector('[data-install-package]');
+        if (!btn) return;
+        try {
+            const res = await fetch('/update/packages/progress', {cache: 'no-store', credentials: 'same-origin'});
+            const job = res.ok ? await res.json() : null;
+            if (job && job.done === false) followInstall(btn);
+        } catch (err) {
+            // the button stays as it was
+        }
+    })();
+
     // Config > Software: install the release picked in the list, older ones too
     document.addEventListener('click', function (e) {
         const btn = e.target.closest('[data-install-release]');

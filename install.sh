@@ -234,6 +234,9 @@ if $on_pi; then
 else
     "$PYTHON" -m pip install -e "$REPO"
 fi
+# announces the map on the network (zeroconf). Ready-made packages only: on a Pi Zero a newer one would be compiled
+# for ten minutes and fail. The map runs without it, and Home can install it later.
+"$PYTHON" -m pip install --only-binary :all: zeroconf || say "zeroconf wasn't installed; the map won't announce itself on the network (Home can install it later)"
 
 # ---- settings -------------------------------------------------------------------------------------------------
 

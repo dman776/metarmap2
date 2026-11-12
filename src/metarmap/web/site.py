@@ -20,6 +20,7 @@ class Site:
     ip: str  # shown in the header and /api/status
     sectionals: List[dict]  # static/sectionals.json
     releases: Optional[object] = None  # metarmap.releases.ReleaseCheck: the header's "Update available"
+    discovery: Optional[object] = None  # metarmap.discovery.Discovery: Home's button to install zeroconf
 
 
 def my_ip():
@@ -50,6 +51,7 @@ def render(site, name, **data):
         version=__version__,
         myIP=site.ip,
         release=release,
+        discovery=site.discovery.state() if site.discovery is not None else None,
         assets=assets_version(),
         **data,
     )

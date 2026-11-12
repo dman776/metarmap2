@@ -446,7 +446,10 @@ dialog .body { padding: 16px 20px; max-height: 60vh; overflow: auto; font: 13px/
 dialog .foot-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--line); }
 
 .update-body { padding: 18px 20px 6px; display: flex; flex-direction: column; gap: 12px; }
-.update-label { margin: 0; font-size: 15px; color: var(--text); }
+.update-label { margin: 0; font-size: 15px; color: var(--text); font-variant-numeric: tabular-nums; }
+.update-note { margin: 0; font-size: 13px; line-height: 1.5; color: var(--muted); }
+#install-discovery { font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) { .btn.loading { animation: none; } }
 .update-errors { margin: 0; padding: 10px 12px; max-height: 30vh; overflow: auto; border-radius: 8px; background: var(--sunken); font: 12px/1.5 var(--mono); color: #ffb4b4; white-space: pre-wrap; }
 progress.update-bar { -webkit-appearance: none; appearance: none; width: 100%; height: 10px; border: 0; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
 progress.update-bar::-webkit-progress-bar { background: var(--surface-2); border-radius: 999px; }

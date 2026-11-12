@@ -37,6 +37,7 @@ from metarmap.visualizers import flightcategory, rainbow, style, wind, wind_dire
 from metarmap.visualizers import tfr as tfr_vis
 from metarmap.web import site
 from metarmap.visualizers.visualizer import ICONS
+from metarmap import discovery
 from metarmap.web import api, control, create_app, icons, views
 
 AUTH = "Basic " + base64.b64encode(b"metar:map").decode()
@@ -2435,3 +2436,77 @@ def test_skipping_neither_restarts_the_countdown_nor_refreshes_the_leds(client, 
     assert refreshed == []
     app.config.edit("visualizer.auto_rotate.delay_seconds", "45")  # the others still reschedule
     assert app_module.next_rotation(app) != before
+
+
+# ---- the map on the network ---------------------------------------------------------------------------------
+
+
+def test_home_offers_to_install_network_discovery_only_when_it_is_missing(client):
+    discovery = client.services.discovery
+    discovery._load = lambda: None
+    assert "Install network discovery" in client("/")[1]
+    discovery._load = lambda: object()
+    discovery._missing_at = float("-inf")
+    discovery._module = None
+    assert "Install network discovery" not in client("/")[1]
+    discovery._module = None
+    discovery._load = lambda: None
+    discovery._missing_at = float("-inf")
+    client("/config/edit/web_server.announce/false")
+    assert "Install network discovery" not in client("/")[1]  # switched off: nothing to offer
+
+
+def test_status_says_the_maps_name(client):
+    assert client("/config/edit/web_server.name/Houston")[0] == 200
+    status = client.json("/api/status", auth=False)
+    assert status["name"] == "Houston" and status["announcing"] is False
+
+
+def test_map_name_limits(client):
+    assert client("/config/edit/web_server.name/" + "x" * 41)[0] == 400
+    assert client("/config/edit/web_server.name/Dallas")[0] == 200
+
+
+def test_installing_the_package_from_home(services):
+    ran = threading.Event()
+
+    class Pip:
+        stdout = iter(["Successfully installed zeroconf-1\n"])
+
+        def __call__(self, command, **kwargs):
+            ran.set()
+            return self
+
+        def wait(self):
+            return 0
+
+    c = Client(create_app(services, ip="", installs=discovery.PackageInstall(popen=Pip())))
+    assert c.json("/update/packages/progress") == control.NO_UPDATE
+    assert c.json("/update/packages", method="POST")["target"] == "zeroconf"
+    assert ran.wait(5)
+    for _ in range(100):
+        if c.json("/update/packages/progress")["done"]:
+            break
+        threading.Event().wait(0.01)
+    assert c.json("/update/packages/progress")["ok"] is True
+    assert c("/update/packages", method="POST", auth=False)[0] == 401
+
+
+def test_status_says_the_name_announced_and_restart_withdraws_it(client, monkeypatch):
+    discovery = client.services.discovery
+    stopped = []
+    monkeypatch.setattr(discovery, "stop", lambda: stopped.append(1))
+    monkeypatch.setattr("metarmap.update.restart", lambda: None)  # never replace the test process
+    discovery.announcing, discovery.registered_name = True, "Houston-2"
+    status = client.json("/api/status", auth=False)
+    assert status["name"] == "Houston-2" and status["announcing"] is True
+    client("/restart")
+    assert stopped == [1]
+
+
+def test_a_name_change_announces_again(client):
+    started = []
+    client.services.discovery.start = lambda port=None: started.append(1)
+    client("/config/edit/web_server.name/Dallas")
+    client("/config/edit/web_server.announce/false")
+    assert len(started) == 2

@@ -25,6 +25,8 @@ Returns a read-only snapshot of the Chart's state as `application/json`. No auth
 {
   "version": "1.16.2",
   "ip": "192.168.1.50",
+  "name": "Houston map",
+  "announcing": true,
   "brightness": 0.5,
   "visualizer": {
     "active": 0,
@@ -139,6 +141,8 @@ Returns a read-only snapshot of the Chart's state as `application/json`. No auth
 |---|---|
 | `version` | metarmap2 software version |
 | `ip` | IP address of the Chart |
+| `name` | What the Chart is called on the network: `web_server.name`, else the computer's name. The Copilot's list of maps shows it |
+| `announcing` | Whether the Chart is telling the network it is here (see "Finding Charts on the network"): `web_server.announce` is on and the zeroconf package is installed |
 | `brightness` | Current pixel brightness, `0.0`–`1.0` |
 | `build` | What's running, read when the Chart started: `tag` is the release it's at or after (`null` if none), `ahead` how many commits after it, `commit` and `sha` the commit, `modified` whether the code was changed on the Chart itself (`config.json` and `airports.json` don't count). `release` is true on a release exactly; otherwise `pill` says why not ("Unreleased: 3 commits after v2.9.2", "Not tagged: v2.9.3" when `untagged`, "Pre-release: v2.9.0-rc1", "Modified: local changes to v2.9.2", "Unreleased: no release tag"). `chip` is the header's version text and `url` the commit on GitHub (`null` if the Chart isn't from GitHub). `null` outside a git checkout. |
 | `update` | What's newest on GitHub: `current` is the running version, `commit` the running commit, `channel` is the channel in use (`branch` counts as `releases` without `dev_mode`), `available` the release (or, on the `latest` and `branch` channels, the commit) an update would install, or `null` when up to date; `installed` is what an update installed that needs a restart; `releases` lists the releases that can be installed, newest first; with `dev_mode`, `branches` lists GitHub's branches and `branch` is the one the `branch` channel follows; `checked` is when GitHub was last asked, and `error` why that failed. `null` if the Chart doesn't check. |
@@ -640,6 +644,8 @@ curl -u metar:map -H 'Content-Type: application/json' -d '{"user": "pilot", "pas
 |---|---|
 | `GET /update` | Updates the Chart from GitHub as `update.channel` says, keeping `config.json` (and an older `airports.json`): on `releases`, the newest release tag (`v2.9.0`), only if it's newer than the running version; on `latest`, the newest commit; on `branch` (`dev_mode`), the newest commit of `update.branch`. Waits until it's done and returns the output as HTML. Restart afterwards to use the new code (the web UI's Update and Install buttons restart the Chart for you when new code was installed). |
 | `POST /update/start` | Starts the same update in the background (or reports the one already running) and returns its progress, as below. Used by the web UI's progress bar. With a JSON body `{"version": "v2.7.0"}` it installs that release instead, older or newer, whatever the channel. A `version` that isn't a release version is a 400. |
+| `POST /update/packages` | Installs the zeroconf package with `pip` in the background (Home's "Install network discovery" button, which shows while `web_server.announce` is on and the package is missing) and returns its progress. The Chart starts announcing itself when it is installed, with no restart. |
+| `GET /update/packages/progress` | Progress of that install, in the same shape as `/update/progress`; `changed` is true once zeroconf is installed, and `errors` holds the last lines of pip's output if it failed. `label` is the stage pip is at, and `elapsed` the whole seconds it has run (to its end once `done`; Home counts them on its button); every line pip prints is also in `metarmap.log` as `pip: ...`. pip is stopped after 15 minutes. |
 | `GET /update/progress` | Progress of the update started with `/update/start`: `{"fraction": 0.4, "label": "Downloading the update", "done": false, "ok": null, "changed": null, "target": "v2.9.0", "message": "", "errors": []}`. When `done`, `ok` says whether it worked, `changed` whether new code was installed, `target` what was installed (a release tag, or a commit on the `latest` channel), `message` a one-line summary such as `Installed v2.9.0` or `Already on the newest release (v2.8.4)`, and `errors` holds git's error messages. |
 | `GET /update/check` | Asks GitHub now what's newest (the Chart also does this when it starts and every 6 hours) and returns the same object as `update` in `/api/status`. |
 | `GET /restart` | Clears the pixels and restarts the Chart's process. The connection usually drops before a response is sent. |
@@ -660,3 +666,19 @@ curl -u metar:map -H 'Content-Type: application/json' -d '{"user": "pilot", "pas
 | `GET /config/airports` | yes | Airport configuration page |
 | `GET /config/speak/<code>.audio` | yes | Config's Test: an airport's AWOS as `/api/speak/<code>.audio`, but asking the speech server even while the Chart leaves it alone after it didn't answer |
 | `GET /static/<file>` | | Stylesheet and script for the web UI |
+
+
+## Finding Charts on the network
+
+A Chart announces itself with zeroconf (mDNS and DNS-SD) when `web_server.announce` is on (the default) and the
+`zeroconf` Python package is installed. Without the package the Chart runs as before; Home shows an
+**Install network discovery** button that installs it. A client (the Copilot's map list) browses for the service type
+`_metarmap2._tcp` and reads each one:
+
+| Part | Value |
+| --- | --- |
+| Instance name | The map's name (`web_server.name`, else the computer's name). Two Charts with the same name become `name-2` (the first to announce keeps it; `/api/status`'s `name` is the one announced). |
+| Host | `metarmap2-<six hex digits of the MAC>.local.`, and the Chart's IPv4 address (announced again within 5 minutes of a change) |
+| Port | The Chart's web UI port |
+| TXT `version` | The Chart's version, such as `26.11.10` |
+| TXT `path` | `/api/status`: where to read the Chart's state (no login) |

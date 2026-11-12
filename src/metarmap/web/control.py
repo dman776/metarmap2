@@ -15,6 +15,7 @@ import bottle
 from metarmap import system
 from metarmap.config import parse_user
 from metarmap import update
+from metarmap.discovery import PackageInstall
 from metarmap.visualizers import index_of
 from metarmap.lib import versions
 from metarmap.web import api, pages
@@ -104,10 +105,11 @@ def as_json(data, status=200):
     return json.dumps(data)
 
 
-def add_routes(app, services: "App", site, auth, updates=None):
+def add_routes(app, services: "App", site, auth, updates=None, installs=None):
     renderer, config = services.renderer, services.config
     releases = services.releases
     updates = updates or Updates()
+    installs = installs or PackageInstall(on_done=lambda: services.discovery.restart() if services.discovery else None)
     updates.channel = lambda: config.data.update_channel()
     updates.branch = lambda: config.data.update.branch
 
@@ -341,6 +343,8 @@ def add_routes(app, services: "App", site, auth, updates=None):
         return as_json(releases.check())
 
     def restart():
+        if services.discovery:
+            services.discovery.stop()  # says goodbye on the network, so the Copilot's list drops this map at once
         if services.display:
             services.display.stop()
         renderer.clear()
@@ -384,6 +388,9 @@ def add_routes(app, services: "App", site, auth, updates=None):
     # 202: started; the web UI polls /update/progress for its progress bar
     app.route("/update/start", "POST", update_start, apply=auth)
     app.route("/update/check", "GET", update_check, apply=auth)
+    # the zeroconf package, installed by pip from Home's button; same job shape as an update's
+    app.route("/update/packages", "POST", lambda: as_json(installs.start(), status=202), apply=auth)
+    app.route("/update/packages/progress", "GET", lambda: as_json(installs.progress() or NO_UPDATE), apply=auth)
     app.route("/update/progress", "GET", lambda: as_json(updates.progress()), apply=auth)
     app.route("/restart", "GET", restart, apply=auth)
     app.route("/config/login", "POST", set_login, apply=auth)

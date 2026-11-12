@@ -24,7 +24,7 @@ if TYPE_CHECKING:  # app.py imports the web, so only for the type checker
 log = logging.getLogger(__name__)
 
 
-def create_app(services: "App", ip=None, updates=None) -> bottle.Bottle:
+def create_app(services: "App", ip=None, updates=None, installs=None) -> bottle.Bottle:
     """
     The web app for a map. ip: shown in the header and /api/status (default: this machine's address);
     updates: a control.Updates (tests pass one with a fake update).
@@ -33,12 +33,13 @@ def create_app(services: "App", ip=None, updates=None) -> bottle.Bottle:
         ip=ip if ip is not None else my_ip(),
         sectionals=views.load_sectionals(),
         releases=services.releases,
+        discovery=services.discovery,
     )
     auth = auth_basic(lambda user, password: views.is_login(services.config.data.web_server, user, password))
     app = bottle.Bottle()
     pages.add_routes(app, services, site, auth)
     api.add_routes(app, services, site)
-    control.add_routes(app, services, site, auth, updates)
+    control.add_routes(app, services, site, auth, updates, installs)
     app.route("/static/<filename:path>", "GET", lambda filename: bottle.static_file(filename, root=views.STATIC_DIR))
     return app
 

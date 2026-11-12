@@ -28,6 +28,11 @@ pi = [
     "oled-text",
     "rpi_ws281x",
 ]
+# announces the map on the network. Not a required dependency: newer releases have no ready-made package for a Pi
+# Zero (Python 3.9 on armv6l) and would be compiled there, which takes over ten minutes and fails. install.sh and Home's
+# "Install network discovery" install it with --only-binary, which takes the newest release that has a ready-made
+# package (0.39.4, pure Python, on a Pi Zero)
+network = ["zeroconf"]
 dev = [
     "pytest>=7",
     "ruff==0.17.2",  # the same version as .pre-commit-config.yaml: the formatter's output can change between versions
