@@ -194,9 +194,9 @@ class Config:
         the airports on the last LEDs. The virtual airports after them are kept.
         """
         count = parse_value(count, int, "led.count")
-        if not 1 <= count <= MAX_LEDS - self._data.led.virtual_count:
+        if not 0 <= count <= MAX_LEDS - self._data.led.virtual_count:
             raise ValueError(
-                f"led.count: {count} is not between 1 and {MAX_LEDS - self._data.led.virtual_count} "
+                f"led.count: {count} is not between 0 and {MAX_LEDS - self._data.led.virtual_count} "
                 f"({MAX_LEDS} airports in all, with the virtual ones)"
             )
         old, airports = self._data.led.count, self._data.airports

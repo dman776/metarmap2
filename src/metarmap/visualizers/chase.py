@@ -16,8 +16,9 @@ def legend(settings):
 
 
 def strip_look(settings) -> Look:
-    # one lit LED, then the rest of the strip dark, so it walks every LED in turn
-    return Look.chase(BLUE, step=0.1, size=1, spacing=settings.led.count - 1)
+    # one lit LED, then the rest of the strip dark, so it walks every LED in turn (with no LEDs, spacing 0 is only
+    # there to keep the animation's size + spacing from being 0; the renderer builds none then)
+    return Look.chase(BLUE, step=0.1, size=1, spacing=max(settings.led.count - 1, 0))
 
 
 VISUALIZER = Visualizer(

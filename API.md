@@ -592,8 +592,9 @@ The airports are the `airports` list in `config.json`, one entry per pixel in th
 `/api/status` (for Home Assistant), and on the Micro if their `display` is on, with the code in a dashed box. `/config/edit/led.count/<n>`
 also adds pixels with no airport at the end of the strip, or removes the airports on the last pixels; the virtual
 airports after them are kept. `/config/edit/led.virtual_count/<n>` adds or removes virtual airports at the end. The
-two together are at most 1000 airports (each is part of every METAR fetch). A new pixel count takes effect after a
-restart, except without an LED strip (the in-memory one), where it takes effect right away.
+two together are at most 1000 airports (each is part of every METAR fetch). `led.count` can be 0: the Chart then
+opens no LED strip and every airport is virtual. A new pixel count takes effect after a restart, except without an
+LED strip (the in-memory one), where it takes effect right away.
 
 `<led>` counts from 0. In a URL, `-` stands for an empty code or name.
 

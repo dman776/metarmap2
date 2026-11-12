@@ -1,5 +1,8 @@
 ### Unreleased
 
+- **A map can have no pixels, only virtual airports**: **Number of pixels** on the Airports page now accepts 0. With 0
+  the Chart does not open the LED strip at all (the pin and the NeoPixel library are left alone), and the airports
+  are all virtual: the Map page, the API and Home Assistant work as before. It used to refuse anything under 1
 - **Scheduled jobs are on time during forecast looks, and the Chart uses less of the Pi's processor again**: between
   frames the Chart now rests until the next pixel is due to change, where before it checked every pixel 20 to 100
   times a second, and it stops each second to run its scheduled jobs. Before, while a forecast visualizer played its

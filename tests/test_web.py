@@ -616,7 +616,7 @@ def test_virtual_airports_page(client):
     assert body.count('class="ap-divider"') == 1 and body.count('<span class="tag">virtual</span>') == 2
     assert 'data-led="50" data-field="display" checked>' in body
     assert 'data-led="51" data-field="display" disabled>' in body  # no airport yet
-    assert 'id="led-count" class="led-count" type="number" inputmode="numeric" min="1" max="998"' in body
+    assert 'id="led-count" class="led-count" type="number" inputmode="numeric" min="0" max="998"' in body
     assert len(app.renderer.looks) == 52 and len(app.renderer.animations) == 50
 
     assert client("/config/edit/led.count/3")[0] == 200  # the virtual airports stay, after the strip
@@ -645,7 +645,7 @@ def test_led_count_on_a_strip_that_cant_resize(client):
         ("/config/airports/999/code/KDWH", 404),
         ("/config/airports/move/0/999", 404),
         ("/config/airports/edit/KXXX/KDWH", 404),
-        ("/config/edit/led.count/0", 400),
+        ("/config/edit/led.count/-1", 400),
     ],
 )
 def test_bad_airport_edits(client, path, status):

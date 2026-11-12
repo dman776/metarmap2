@@ -117,7 +117,17 @@ def test_fewer_leds_drop_the_last_airports(config):
     assert codes(config) == ["KHOU", "KIAH"]
 
 
-@pytest.mark.parametrize("count", ["0", "-3", "1001", "many", "2.5"])
+def test_no_leds_leaves_only_virtual_airports(tmp_path):
+    settings = Settings()
+    settings.led.count = 2
+    settings.airports = airports_from_json({"KHOU": {}, "KIAH": {}, "KGLS": {}})
+    settings.save(tmp_path / "config.json")
+    config = Config(str(tmp_path / "config.json"))
+    config.set_led_count("0")
+    assert config.data.led.count == 0 and codes(config) == ["KGLS"] and config.is_virtual(0)
+
+
+@pytest.mark.parametrize("count", ["-3", "1001", "many", "2.5"])
 def test_led_count_limits(config, count):
     with pytest.raises(ValueError):
         config.set_led_count(count)
