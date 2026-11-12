@@ -112,6 +112,18 @@ class WebServer(_Section):
     user: str = "metar"
     password: str = "map"
     port: int = 80
+    # what the map is called on the network (zeroconf, the Copilot's map list); blank: the computer's name
+    name: str = setting(
+        "",
+        pattern=re.compile(r"[^\x00-\x1f\x7f.]{0,40}"),
+        message="{key}: at most 40 characters, with no dots or control characters",
+        check=lambda value, settings: (
+            "web_server.name: too long (at most 56 bytes, accented letters count for 2 or more)"
+            if len(value.encode()) > 56
+            else None
+        ),
+    )
+    announce: bool = True  # tell the network this map is here (needs the zeroconf package: Home installs it)
 
 
 @dataclass

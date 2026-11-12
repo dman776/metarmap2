@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Optional
 
 import bottle
 
+from metarmap.discovery import map_name
 from metarmap import __version__
 from metarmap.decode import decode, summary
 from metarmap.models import Report
@@ -74,6 +75,8 @@ def status(services: "App", ip):
     return {
         "version": __version__,
         "ip": ip,
+        "name": services.discovery.name() if services.discovery else map_name(cfg),
+        "announcing": bool(services.discovery and services.discovery.announcing),
         "brightness": services.renderer.pixels().brightness,
         "visualizer": {
             "active": active_num,

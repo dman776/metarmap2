@@ -22,6 +22,7 @@ import schedule
 
 from metarmap import __version__, logs, service, visualizers
 from metarmap.atis import Atis
+from metarmap.discovery import Discovery
 from metarmap.speech import Speech
 from metarmap.advisories import Advisories
 from metarmap.forecast import Forecasts
@@ -37,6 +38,7 @@ from metarmap.renderer import Renderer
 from metarmap.sun import LEVEL_AT, SunTimes
 from metarmap.traffic import Traffic
 from metarmap.web import create_app, serve
+from metarmap.web.site import my_ip
 
 log = logging.getLogger(__name__)
 
@@ -64,6 +66,7 @@ class App:
     speech: Optional[Speech] = None  # the METARs read aloud by a speech server (Piper or Kokoro), when one is set
     atis: Optional[Atis] = None  # the digital ATIS from atis.info, for the spoken ATIS (speech.atis)
     forecasts: Optional[Forecasts] = None  # TAFs, for the forecast visualizers (fetched in the background)
+    discovery: Optional[Discovery] = None  # announces the map on the network (zeroconf), for the Copilot's map list
 
 
 # ---- building ------------------------------------------------------------------------------------------------
@@ -122,6 +125,7 @@ def build(config_file=CONFIG_FILE, strip=None, screen=None, clock: Clock = None,
         speech,
         atis,
         forecasts,
+        Discovery(config, address=my_ip),
     )
     fill_names(app)
     schedule_jobs(app)
@@ -137,6 +141,9 @@ def build(config_file=CONFIG_FILE, strip=None, screen=None, clock: Clock = None,
     return app
 
 
+DISCOVERY_MINUTES = 5  # how often the announcement is checked against the address
+
+
 def schedule_jobs(app: App):
     s = app.scheduler
     schedule_fetch(app)
@@ -147,6 +154,8 @@ def schedule_jobs(app: App):
     schedule_quiet_hours(app)
     s.every(WATCHDOG_SECONDS).seconds.do(watch_display, app)
     s.every(CHECK_HOURS).hours.do(check_releases, app)
+    if app.discovery is not None:
+        s.every(DISCOVERY_MINUTES).minutes.do(app.discovery.refresh)  # a new address, or no network at first
     schedule_rotation(app)
     # a visualizer picked by hand (or the previous/next buttons) gets the full auto-rotate delay before the next change
     app.renderer.subscribe(lambda: schedule_rotation(app))
@@ -254,6 +263,8 @@ def wire_config(app: App):
     on(("led.init_sequence", "led.init_sweep_from"), lambda keys: show_test_pattern(app))  # try one: it plays now
     on(("update.channel", "update.branch"), lambda keys: check_releases(app))  # "Update available" follows it
     on("display_screen.enabled", lambda keys: display_enabled(app))
+    # announced again with the new name, in the background
+    on(("web_server.name", "web_server.announce"), lambda keys: app.discovery.start() if app.discovery else None)
     on(OLED_AIRPORTS, lambda keys: app.display.restart(timeout=15))
     on("display_screen.shows", lambda keys: app.display.restart(timeout=15))  # airports or the visualizer, now
     on("airports.code", lambda keys: airport_codes_changed(app))
@@ -513,6 +524,8 @@ def run(app: App, port=None):
         # e.g. the port is in use; the LEDs and OLED still run
         log.error(f"web server can't start on port {port}: {e}")
         web_server = None
+    if web_server is not None and app.discovery is not None:
+        app.discovery.start(port)  # in the background; nothing happens without the zeroconf package
 
     log.info("Main loop...")
     app.renderer.draw_frame()  # the visualizer first, then the OLED loop's first "Highlight active airport" pulse
@@ -533,6 +546,8 @@ def run(app: App, port=None):
 def shutdown(app: App, web_app, web_server):
     log.info("Cleaning up...")
     app.scheduler.clear()
+    if app.discovery is not None:
+        app.discovery.stop()
     app.display.stop()
     app.renderer.stop()
     app.renderer.clear()

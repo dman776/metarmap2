@@ -111,19 +111,22 @@
     // version: a release picked on Config (older ones too); none: what the update channel says.
     // New code that installed restarts the map at once, so it's running.
     const UPDATE_RESTART_MS = 1500;  // long enough to read what was installed
-    async function runUpdate(btn, version) {
+    async function runUpdate(btn, version, urls) {
+        urls = urls || {start: '/update/start', progress: '/update/progress'};
         const dlg = document.getElementById('update-dialog');
         if (!dlg) return;
         const label = dlg.querySelector('.update-label');
         const bar = dlg.querySelector('.update-bar');
         const errors = dlg.querySelector('.update-errors');
+        const title = document.getElementById('update-title');
+        if (title) title.textContent = urls.title || 'Update';
         label.textContent = 'Starting';
         bar.value = 0;
         errors.hidden = true;
         dlg.showModal();
         busy(btn, true);
         try {
-            let res = await fetch('/update/start', version ? {
+            let res = await fetch(urls.start, version ? {
                 method: 'POST', credentials: 'same-origin',
                 headers: {'Content-Type': 'application/json'}, body: JSON.stringify({version: version})
             } : {method: 'POST', credentials: 'same-origin'});
@@ -133,25 +136,27 @@
                 bar.value = job.fraction;
                 label.textContent = job.label + '…';
                 await new Promise(function (resolve) { setTimeout(resolve, 500); });
-                res = await fetch('/update/progress', {cache: 'no-store', credentials: 'same-origin'});
+                res = await fetch(urls.progress, {cache: 'no-store', credentials: 'same-origin'});
                 if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
                 job = await res.json();
             }
             bar.value = 1;
             if (job.ok) {
                 label.textContent = job.changed
-                    ? (job.message || 'Update installed') + '. Restarting the Chart…'
+                    ? (job.message || 'Update installed') + (urls.reload ? '.' : '. Restarting the Chart…')
                     : (job.message || 'Already up to date') + '.';
                 if (job.changed) {
-                    setTimeout(function () { restartMap('/restart'); }, UPDATE_RESTART_MS);
+                    // a package needs no restart: the Chart uses it at once, and the page drops its button
+                    setTimeout(function () { urls.reload ? window.location.reload() : restartMap('/restart'); },
+                               UPDATE_RESTART_MS);
                 }
             } else {
-                label.textContent = 'Update failed.';
+                label.textContent = (urls.title ? 'Install' : 'Update') + ' failed.';
                 errors.textContent = (job.errors || []).join('\n');
                 errors.hidden = !errors.textContent;
             }
         } catch (err) {
-            label.textContent = 'Update failed.';
+            label.textContent = (urls.title ? 'Install' : 'Update') + ' failed.';
             errors.textContent = String(err);
             errors.hidden = false;
         } finally {
@@ -164,6 +169,15 @@
         if (!btn) return;
         e.preventDefault();
         runUpdate(btn);
+    });
+
+    // Home: install the zeroconf package (pip), so the Chart can announce itself on the network
+    document.addEventListener('click', function (e) {
+        const btn = e.target.closest('[data-install-package]');
+        if (!btn) return;
+        e.preventDefault();
+        runUpdate(btn, undefined, {start: '/update/packages', progress: '/update/packages/progress', reload: true,
+                           title: 'Network discovery'});
     });
 
     // Config > Software: install the release picked in the list, older ones too

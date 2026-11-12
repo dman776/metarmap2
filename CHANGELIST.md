@@ -1,5 +1,12 @@
 ### Unreleased
 
+- **The Chart announces itself on the network**: the first part of running several maps on one network. Each Chart now
+  tells the network it is there (zeroconf, as a `_metarmap2._tcp` service named for the map), so a Copilot can find it
+  without an address. **Config > System > Access** has a new **Map name** (blank uses the computer's name) and an
+  **Announce on the network** switch, and `/api/status` has `name` and `announcing`. It needs the `zeroconf` Python
+  package: a new install gets it, but an update doesn't install packages, so on an existing Chart Home shows an
+  **Install network discovery** button that runs `pip install zeroconf` and starts announcing at once, with no restart.
+  Without the package the Chart runs as before. The Copilot's map picker is still to come
 - **A map can have no pixels, only virtual airports**: **Number of pixels** on the Airports page now accepts 0. With 0
   the Chart does not open the LED strip at all (the pin and the NeoPixel library are left alone), and the airports
   are all virtual: the Map page, the API and Home Assistant work as before. It used to refuse anything under 1

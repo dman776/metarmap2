@@ -468,6 +468,11 @@
 
     <section class="card settings" id="access">
         <h2>Access</h2>
+        <div class="set">
+            <div><label class="t" for="map-name">Map name</label><div class="d">What this map is called on the network, in the Copilot's list of maps. Blank uses the computer's name.</div></div>
+            <input id="map-name" type="text" value="{{d.web_server.name}}" data-key="web_server.name" data-empty="" maxlength="40" placeholder="The computer's name" autocomplete="off">
+        </div>
+        % switch('web_server.announce', d.web_server.announce, 'Announce on the network', 'Tell the Copilot and other pages this map is here (zeroconf). Needs the zeroconf package: Home offers to install it.')
         <form class="set access" data-form="/config/login" data-then="login" autocomplete="off">
             <div>
                 <div class="t">Web UI login</div>

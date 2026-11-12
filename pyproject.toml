@@ -17,6 +17,7 @@ dependencies = [
     "requests>=2.25",
     "schedule>=1.1",
     "tzdata",
+    "zeroconf>=0.100",  # announces the map on the network; optional at run time (Home installs it)
 ]
 
 [project.optional-dependencies]
