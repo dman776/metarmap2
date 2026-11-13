@@ -386,5 +386,24 @@
    "south": 35.5076,
    "north": 40.3007
   }
- ]
+ ],
+ "wall_chart": {
+  "name": "US Wall Planning",
+  "note": "U.S. VFR Wall Planning Chart, 59 x 36 in at 100%. Not a sectional: the web map's chart list ignores it. The bounds are the continental US extremes (about 124.7 W, 66.9 W, 24.5 N, 49.4 N) rounded out by half a degree, not the GeoTIFF's own metadata; fit_points are the points the printed rectangle is fitted around (lat, lon): Cape Alava, Blaine, the Northwest Angle, northern Maine, West Quoddy Head, Key West, Brownsville, San Ysidro and Cape Mendocino",
+  "west": -125.0,
+  "east": -66.5,
+  "south": 24.0,
+  "north": 50.0,
+  "fit_points": [
+   [48.17, -124.73],
+   [49.0, -123.0],
+   [49.38, -95.15],
+   [47.46, -69.22],
+   [44.81, -66.95],
+   [24.52, -81.8],
+   [25.84, -97.15],
+   [32.53, -117.12],
+   [40.44, -124.4]
+  ]
+ }
 }
