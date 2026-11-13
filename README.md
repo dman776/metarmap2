@@ -113,7 +113,7 @@ Building a new Chart? **Config > Airports > Plan a new chart** (`/config/planner
 you. Choose the chart printed on the board, the airports (your current ones, a list you paste, or recommended ones from
 the METAR stations on the chart: you choose a number of strings to fill, which starts at what your kept airports already
 fill, a number of airports, or as many as fit; your own airports start ticked as "must keep", untick any you do not want), the board's
-width and height in inches (only Houston's and the wall chart's heights are measured: check the height of any other sectional), and the pixel pitch (20 mm or more), spacing and move (up to 25 mm) and string length (10 or more). It draws a build map and lists the wire to
+width and height in inches (only Houston's and the wall chart's heights are measured: check the height of any other sectional), and the pixel pitch (20 mm or more), spacing and move (up to 25 mm) and string length (10 or more). It draws a build map across the full width of the page (on a wide screen the cards under it sit in two columns) and lists the wire to
 cut, the join cables, what to buy and the power you need, and gives the airports in the new pixel order as a
 `config.json` snippet to copy. Planning runs in the background and can be cancelled; the **Print** button prints the map
 and, after it, the cut list, joins, shopping list and power advice. It only plans: it never changes the Chart.
