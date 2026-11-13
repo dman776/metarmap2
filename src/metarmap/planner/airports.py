@@ -83,7 +83,7 @@ def candidates(west, south, east, north, timeout=30, clock=None, budget=None):
     ]
     while pending:
         s, w, n, e = pending.pop()
-        reports = _get(METAR_URL, {"format": "json", "bbox": f"{s},{w},{n},{e}"}, timeout, clock, budget)
+        reports = _get(METAR_URL, {"format": "json", "bbox": _bbox_text(s, w, n, e)}, timeout, clock, budget)
         if reports is None:
             failed += 1
             continue
@@ -253,6 +253,20 @@ def _longitudes(west, east):
     if east > 180:
         return [(west, 180.0), (-180.0, east - 360)] if west < 180 else [(west - 360, east - 360)]
     return [(west, east)]
+
+
+def _coordinate(value):
+    """
+    A latitude or longitude as the API takes it: four decimals, no trailing zeros. Stepping a tile edge in floats
+    leaves noise (31.52 + 2.5 is 34.019999999999996) and the API answers a 400 to that.
+    """
+    text = f"{value:.4f}".rstrip("0").rstrip(".")
+    return "0" if text in ("", "-0") else text
+
+
+def _bbox_text(south, west, north, east):
+    """The bbox parameter, south,west,north,east."""
+    return ",".join(_coordinate(value) for value in (south, west, north, east))
 
 
 def _grid(south, west, north, east):
