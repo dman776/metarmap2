@@ -1,5 +1,15 @@
 ### Unreleased
 
+- **Plan a new chart: the airport download sends several requests at a time and shows its progress.** It now sends 3
+  requests at a time instead of one (still within aviationweather.gov's limit of 100 a minute), so one slow answer no
+  longer holds up the rest. How much faster that is depends on how often the weather service times out: one test of a
+  16-tile box took 15.7 s instead of 40.1 s, another 28.2 s instead of 11.9 s because a timeout held one request for
+  20 s. A whole national chart has not been timed yet; it takes minutes the first time, and the airports are saved for
+  a day. The bar now fills during the download (stations 0 to 60%, airport details to 70%, then the plan) with labels
+  such as "Downloading stations: tile 87 of 270", and never goes back when the tile estimate grows. `fraction` in
+  `/config/planner/progress` is no longer null during the fetch (once the fetch reports). When saved airports answer
+  instead of a download, the result's notes say how old they are. A busy weather service that answers 429 slows the
+  requests once per burst, not once per request, and the requests already queued wait out the pause too.
 - **Plan a new chart** (the Chart Planner page, B90 part 3): a new page at `/config/planner`, reached from the
   **Plan a new chart** button on **Config > Airports**. Pick a chart (a sectional, starting with the Web map's, or the
   US Wall Planning chart), the airports (your current ones, a pasted list of codes, or a recommended set picked from the
@@ -12,7 +22,7 @@
   map and then the lists), a cut list, joins, a shopping list, power advice, the crowded airports and why, the three nearest board
   sizes, and the airports in the new order as a `config.json` snippet to copy. Lengths show in mm and inches. It only
   plans: nothing changes on the Chart (Apply comes later), and **Allow skipped pixels** is shown off until the Chart
-  supports it. The planning runs in the background (the airport fetch of a national chart takes about ten minutes on
+  supports it. The planning runs in the background (the airport fetch of a national chart takes a few minutes on
   a Pi), with progress and a Cancel button that also stops a plan in the middle; a reloaded page picks the running plan
   up. A plan never goes over the Chart's 1000 pixels, the pitch (20 mm or more), string length (10 or more), spacing and
   moves (up to 25 mm) have limits that keep it from running for hours, a plan still running after 15 minutes is

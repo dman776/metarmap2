@@ -7,7 +7,9 @@ import io
 import json
 import math
 import re
+import sys
 import threading
+from datetime import datetime, timedelta, timezone
 import time
 
 import pytest
@@ -54,8 +56,11 @@ class FakeLoad:
         self.stale, self.error = stale, error
         self.boxes = []
 
-    def __call__(self, box, clock=None, **kwargs):
+    def __call__(self, box, clock=None, progress=None, **kwargs):
         self.boxes.append(box)
+        if progress:  # a real download reports its tiles and batches; only a cache that answers as it is does not
+            progress("stations", 1, 1)
+            progress("details", 1, 1)
         return live_airports.Result(self.airports, self.stale, "2026-11-12T10:00:00+00:00", self.error)
 
 
@@ -852,3 +857,165 @@ def test_form_values_may_be_strings(make):
     client = make()
     job = run(client, width_in="30", pitch="75", string_len=50, tolerance="4")
     assert job["ok"] is True and job["result"]["sheet"]["board"]["width_in"] == 30
+
+
+# ---- the airport download's progress -----------------------------------------------------------------------
+
+
+class ReportingLoad(FakeLoad):
+    """A load that reports through progress= and records what the job showed after each report."""
+
+    def __init__(self, client_of, reports, **kwargs):
+        super().__init__(**kwargs)
+        self.client_of, self.reports, self.seen = client_of, reports, []
+
+    def __call__(self, box, clock=None, progress=None, **kwargs):
+        for report in self.reports:
+            progress(*report)
+            job = self.client_of().json("/config/planner/progress")
+            self.seen.append((job["label"], job["fraction"]))
+        return super().__call__(box, clock=clock)
+
+
+def reporting(make, reports, **kwargs):
+    holder = []
+    load = ReportingLoad(lambda: holder[0], reports, **kwargs)
+    client = make(load)
+    holder.append(client)
+    return client, load
+
+
+def test_the_progress_callback_sets_the_label_and_the_fraction(make):
+    client, load = reporting(make, [("stations", 87, 270), ("stations", 270, 270), ("details", 5, 25)])
+    job = run(client, source="recommended", target=30, start_fresh=True)
+    assert job["ok"], job
+    (l1, f1), (l2, f2), (l3, f3) = load.seen
+    assert l1 == "Downloading stations: tile 87 of 270" and f1 == pytest.approx(0.6 * 87 / 270)
+    assert f2 == pytest.approx(0.6)
+    assert l3 == "Downloading airport details: batch 5 of 25" and f3 == pytest.approx(0.62)
+    assert job["fraction"] == 1.0 and "_downloaded" not in job
+
+
+def test_the_bar_never_goes_backwards_when_the_total_grows(make):
+    client, load = reporting(make, [("stations", 50, 100), ("stations", 55, 200), ("stations", 60, 200)])
+    run(client, source="recommended", target=30, start_fresh=True)
+    fractions = [f for _l, f in load.seen]
+    assert fractions[1] == fractions[0] == pytest.approx(0.3)  # 55/200 would be lower: held
+    assert fractions == sorted(fractions)
+    assert load.seen[1][0] == "Downloading stations: tile 55 of 200"
+
+
+def test_a_bad_progress_value_is_ignored_and_never_raises(make):
+    bad = [("stations", "x", 10), ("stations", 1, 0), ("stations", True, 3), ("nope", 1, 2), ("stations", None, None)]
+    client, load = reporting(make, bad + [("stations", 3, 10)])
+    job = run(client, source="recommended", target=30, start_fresh=True)
+    assert job["ok"], job
+    assert [label for label, _f in load.seen[:-1]] == ["Fetching airports from aviationweather.gov"] * len(bad)
+    assert load.seen[-1][0] == "Downloading stations: tile 3 of 10"
+
+
+class GrowingJob(dict):
+    """A job dict that gains a key in the middle of any loop over its items(), as the planner thread does."""
+
+    def items(self):
+        real = iter(super().items())
+
+        def walk():
+            grown = False
+            for pair in real:
+                yield pair
+                if not grown:
+                    grown = True
+                    self["_late"] = True  # the size changes while the loop is part way through
+
+        return walk()
+
+
+def test_progress_survives_a_key_added_while_it_is_copied(make):
+    # looping over job.items() in the HTTP thread raised "dictionary changed size during iteration": a 500, and the
+    # page stopped polling while the job went on
+    planner = make().planner
+    planner.job = GrowingJob(planner_web.NO_JOB, done=False, label="Downloading stations: tile 1 of 9", _x=1)
+    got = planner.progress()
+    assert got["label"] == "Downloading stations: tile 1 of 9" and "_x" not in got
+
+
+def test_progress_survives_another_thread_changing_the_job(make):
+    planner = make().planner
+    planner.job = dict(planner_web.NO_JOB, done=False, label="x")
+    stop = threading.Event()
+
+    def change():  # the keys that appear while a job runs (_downloaded, fetched_at, stale), and go
+        while not stop.is_set():
+            planner.job["_downloaded"] = True
+            planner.job["fetched_at"] = "now"
+            del planner.job["_downloaded"], planner.job["fetched_at"]
+
+    thread = threading.Thread(target=change, daemon=True)
+    switch = sys.getswitchinterval()
+    sys.setswitchinterval(1e-6)  # threads swap far more often, so the window the bug needs is hit
+    thread.start()
+    try:
+        for _ in range(3000):
+            assert planner.progress()["label"] == "x"
+    finally:
+        sys.setswitchinterval(switch)
+        stop.set()
+        thread.join(5)
+
+
+def test_a_cache_hit_is_a_note_in_the_result_not_a_label(make):
+    saved = (datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat()
+    shown = []
+
+    class Cached(FakeLoad):
+        def __call__(self, box, clock=None, **kwargs):
+            return super().__call__(box, clock=clock)._replace(fetched_at=saved)
+
+    client = make(Cached())
+    orig = client.planner._step
+
+    def spy(job, cancel, fraction, label):
+        shown.append(label)
+        orig(job, cancel, fraction, label)
+
+    client.planner._step = spy
+    job = run(client, source="recommended", target=30, start_fresh=True)
+    assert job["ok"], job
+    assert "The airports came from the copy saved 1 minute ago." in job["result"]["notes"]
+    assert not any(label.startswith("Using the airports") for label in shown)  # no status label for it any more
+
+
+def test_airports_just_downloaded_have_no_cache_note(make):
+    job = run(make(), source="recommended", target=30, start_fresh=True)
+    assert job["ok"] and not any("copy saved" in n for n in job["result"]["notes"])
+
+
+def test_a_cancelled_download_keeps_its_cancelling_label(make):
+    gate = threading.Event()
+    holder = []
+
+    class Slow(FakeLoad):
+        def __call__(self, box, clock=None, progress=None, **kwargs):
+            gate.wait(10)
+            progress("stations", 5, 10)  # after Cancel: ignored
+            holder.append(True)
+            return super().__call__(box, clock=clock)
+
+    client = make(Slow())
+    status, _body = post(client, source="recommended", target=30, start_fresh=True)
+    assert status == 202
+    client("/config/planner/cancel", method="POST", body={})
+    gate.set()
+    job = wait(client)
+    assert job["cancelled"] and holder
+    assert not job["label"].startswith("Downloading")
+
+
+def test_a_loader_without_progress_still_works(make):
+    class Old:
+        def __call__(self, box, clock=None):
+            return FakeLoad()(box)
+
+    client = make(Old())
+    assert run(client, source="recommended", target=30, start_fresh=True)["ok"]

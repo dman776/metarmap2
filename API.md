@@ -653,14 +653,19 @@ curl -u metar:map -H 'Content-Type: application/json' -d '{"user": "pilot", "pas
 ## Chart Planner (auth)
 
 The planner behind `/config/planner` lays airports out on a board and returns a build sheet. It only reads: it never
-changes the Chart's settings. It runs as one background job (the airport fetch of a national chart is about 280 requests,
-roughly ten minutes on a Pi); only one runs at a time.
+changes the Chart's settings. It runs as one background job; only one runs at a time. The airport fetch of a national
+chart is about 280 requests, sent 3 at a time but never faster than about 92 a minute in all (aviationweather.gov limits
+a client to 100 requests a minute), so it takes minutes (never under three, and longer when the API is slow; a whole national chart has not been timed yet); a fetch
+still running after 15 minutes gives up (the plan after it has its own 15 minute limit, below). If the weather service
+answers 429 (too many requests), all three workers pause for its `Retry-After` (at least 2 s, at most 30 s), the requests
+that were already queued wait out the pause too, and the gap between requests grows by half, once per burst of 429s and
+never past 5 s.
 
 | Endpoint | Description |
 |---|---|
 | `POST /config/planner/plan` | Starts a plan from a JSON body (below) and answers `202` with the job. A value that can't be used (or a body that is not JSON, `400`, or over 100 KB, `413`) is `{"error": "<sentence>", "reason": "invalid"}` and nothing starts (a code or value it echoes back is cut to 40 characters; a number too big to read, such as a 400-digit integer, is refused like any other bad number). While a plan runs the answer is `409` with the running job's fields plus `"reason": "running"` and `"error": "A plan is already running"`. |
-| `GET /config/planner/progress` | The job: `{"id", "idle", "fraction", "label", "done", "ok", "cancelled", "message", "error", "elapsed", "params", "result"}`, plus `"fetched_at"` and `"stale"` once an airport fetch has finished. `fraction` is 0 to 1, or `null` while the airport fetch runs (its length is unknown); `elapsed` is whole seconds; `params` is the body that was accepted (so a reloaded page can fill the form again); `result` is `null` until `done` and `ok`. Before any job `idle` is true and `done` is true. The last job stays until the next one starts. |
-| `POST /config/planner/cancel` | Asks the running job to stop and answers with the job; its `label` is `Cancelling` until it ends with `cancelled` true. The airport fetch stops at its next request, and choosing and planning stop between their sweeps and passes (they ask every few pins, and measured on a Mac with 1000 airports the longest time between two questions was 0.01 s with the defaults and 0.14 s for the worst input allowed; a Pi Zero is 20 to 40 times slower, so a few seconds there, and one position lookup request can take up to 8 s before a cancel is seen); a cancel that comes after the last step still ends the job as cancelled, never as a success. Nothing running: the job as it is. |
+| `GET /config/planner/progress` | The job: `{"id", "idle", "fraction", "label", "done", "ok", "cancelled", "message", "error", "elapsed", "params", "result"}`, plus `"fetched_at"` and `"stale"` once an airport fetch has finished. `fraction` is 0 to 1 and never goes down; it is `null` only at the start of an airport fetch (`label` `Fetching airports from aviationweather.gov`), until the fetch first reports. For a recommended plan the fetch fills 0 to 0.6 (`label` `Downloading stations: tile 87 of 270`; the total can grow when a dense tile splits), 0.6 to 0.7 (`Downloading airport details: batch 5 of 25`), and the rest of the plan (finding positions, choosing, planning, the board-size trials) 0.7 to 1.0; a pasted list or the current airports have no download and use 0 to 1. When airports saved in the last day answer, nothing is downloaded, there is no download label, and the result's `notes` says `The airports came from the copy saved 7 minutes ago.` Keys of the job that start with `_` are internal and are not in the JSON. `elapsed` is whole seconds; `params` is the body that was accepted (so a reloaded page can fill the form again); `result` is `null` until `done` and `ok`. Before any job `idle` is true and `done` is true. The last job stays until the next one starts. |
+| `POST /config/planner/cancel` | Asks the running job to stop and answers with the job; its `label` is `Cancelling` until it ends with `cancelled` true. The airport fetch sends no new request (a request already sent finishes, up to 30 s), and choosing and planning stop between their sweeps and passes (they ask every few pins, and measured on a Mac with 1000 airports the longest time between two questions was 0.01 s with the defaults and 0.14 s for the worst input allowed; a Pi Zero is 20 to 40 times slower, so a few seconds there, and one position lookup request can take up to 8 s before a cancel is seen); a cancel that comes after the last step still ends the job as cancelled, never as a success. Nothing running: the job as it is. |
 
 Request body of `POST /config/planner/plan` (all but `chart` optional; numbers may be strings):
 
@@ -689,7 +694,7 @@ Request body of `POST /config/planner/plan` (all but `chart` optional; numbers m
 `route`, `cuts`, `joins`, `strings`, `shopping`, `problems` with `skips_wanted` and `skips_note`, `power`), all
 lengths in mm; `airports` is the airports in the new pixel order in the shape of `config.json`'s `airports`
 (`{"code", "name", "display"}`; a hidden pixel would be `""`). `left_out` lists the codes that were not planned, each with a `reason`: `no known position`, `the position lookup failed (offline?)`,
-`outside the <chart> chart` or `not one of the airports being planned`. If the airport fetch failed and an older cache was used, `stale` is true and `notes` says so; a fetch that
+`outside the <chart> chart` or `not one of the airports being planned`. If the airports saved in the last day answered, `notes` says how old they are (`The airports came from the copy saved 7 minutes ago.`). If the airport fetch failed and an older cache was used, `stale` is true and `notes` says so; a fetch that
 failed with no cache ends the job with `ok` false and the reason in `error`.
 
 ## Web UI pages

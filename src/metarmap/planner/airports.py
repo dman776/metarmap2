@@ -2,12 +2,19 @@
 Live airport data for the Chart Planner (B90), from aviationweather.gov: the stations with a current METAR in a
 box (candidates), what each is (details: tower, passengers, runways) and how important it is (rank). load() does
 all three and keeps the answer in a cache file for a day, so a planner run offline can still use the last one.
+
+The requests of one fetch go out WORKERS at a time, through one gate that keeps their combined rate under the API's
+limit: a continental US fetch is about 280 requests of 1 to 3 seconds each (a 504 holds one for 20 to 30), so one at a
+time it took twelve minutes, and a few at a time it takes a few. Every fetch function takes an optional `progress`
+callable, called from the worker threads after each request finishes (so it must be thread safe and cheap: calls
+are serialized, but not on one thread); an exception in it is logged and the fetch goes on.
 """
 
 import json
 import logging
 import math
 import os
+import queue
 import re
 import tempfile
 import threading
@@ -39,10 +46,21 @@ CLOCK_SLACK = timedelta(minutes=5)  # a cache written this far ahead of the cloc
 CACHE_FILE = os.path.join("planner-cache", "airports.json")  # next to config.json and metarmap.log: the working folder
 
 # aviationweather.gov: "All requests are rate limited to 100 requests per minute" (https://aviationweather.gov/data/api/),
-# so a request goes out at least REQUEST_SPACING seconds after the one before it (100 a minute is every 0.6 s)
+# so a request goes out at least REQUEST_SPACING seconds after the one before it, whichever worker sends it (100 a
+# minute is every 0.6 s; this is 92). A 429 (rate limited) pushes the next request back by the API's Retry-After
+# (at least RETRY_SECONDS, at most MAX_RETRY_AFTER) and makes the gap 1.5 times longer for the rest of the fetch, up
+# to MAX_SPACING.
 REQUEST_SPACING = 0.65
-# What one load() may spend fetching: the continental US is about 280 requests, roughly ten minutes on a real
-# connection, a state or a sectional a few dozen. A request in flight when the time is up still finishes.
+MAX_SPACING = 5.0  # seconds
+MAX_RETRY_AFTER = 30  # seconds
+# Requests in flight at once. The gate above keeps the rate the same, so more workers only hide the wait for a slow
+# answer: with 1 a slow 504 stops the whole fetch, with 3 the other two go on. 1 sends them one after the other.
+WORKERS = 3
+MAX_WORKERS = 8
+JOIN_SECONDS = 10  # how long to wait for a worker thread to end after its work is done
+# What one load() may spend fetching: the continental US is about 280 requests, a few minutes with WORKERS at a
+# time on a real connection, a state or a sectional a few dozen. A request in flight when the time is up still
+# finishes.
 DEADLINE = 900  # seconds
 FAILURES_IN_A_ROW = 5  # failed requests (each already tried ATTEMPTS times) in a row after which a fetch gives up
 
@@ -64,62 +82,92 @@ Fetched = namedtuple("Fetched", "items failed")  # what a fetch got, and how man
 Result = namedtuple("Result", "airports stale fetched_at error")
 
 
-def candidates(west, south, east, north, timeout=30, clock=None, budget=None):
+def candidates(west, south, east, north, timeout=30, clock=None, budget=None, progress=None, workers=None):
     """
     The stations with a current METAR inside the box, as Fetched([Station, ...], failed requests): the airports
-    only (K, P and T ids), once each. A box bigger than TILE_DEGREES is fetched in tiles, paced under the API's rate
-    limit; a box across the antimeridian (east above 180, the Western Aleutians) is fetched as two, each with
-    longitudes the API takes (-180 to 180); once the budget (the time limit, the failures in a row) is spent the
-    tiles left count as failed. Never raises.
+    only (K, P and T ids), once each. A box bigger than TILE_DEGREES is fetched in tiles, `workers` (WORKERS) at a
+    time through the budget's gate, which keeps them under the API's rate limit; a box across the antimeridian
+    (east above 180, the Western Aleutians) is fetched as two, each with longitudes the API takes (-180 to 180);
+    once the budget (the time limit, the failures in a row) is spent the tiles left count as failed. The answer
+    does not depend on which tile finished first. progress(done, total) is called when the tiles are known and after
+    each one finishes: total is the tiles known so far, and grows by four when a dense tile is fetched again as
+    four. Never raises; when it returns its threads are over.
     """
     clock = clock or Clock()
     budget = budget or _Budget(clock)
-    found = {}
-    failed = 0
-    pending = [
+    tiles = [
         (s, w, min(s + TILE_DEGREES, north), min(w + TILE_DEGREES, e))
         for w0, e in _longitudes(west, east)
         for s, w in _grid(south, w0, north, e)
     ]
-    while pending:
-        s, w, n, e = pending.pop()
-        reports = _get(METAR_URL, {"format": "json", "bbox": _bbox_text(s, w, n, e)}, timeout, clock, budget)
-        if reports is None:
-            failed += 1
-            continue
-        if len(reports) >= SPLIT_AT and (n - s) / 2 >= MIN_TILE and (e - w) / 2 >= MIN_TILE:
-            ms, mw = (s + n) / 2, (w + e) / 2
-            pending += [(s, w, ms, mw), (s, mw, ms, e), (ms, w, n, mw), (ms, mw, n, e)]
-            continue
-        for report in reports:
-            station = _station(report)
-            if station:
-                found.setdefault(station.code, station)
-    return Fetched(sorted(found.values()), failed)
+    tally = _Tally(len(tiles), progress)
+    results = {}  # tile -> its stations, merged in tile order below
+
+    def fetch(tile, push):
+        s, w, n, e = tile
+        failed = False
+        try:
+            reports = _get(METAR_URL, {"format": "json", "bbox": _bbox_text(s, w, n, e)}, timeout, clock, budget)
+            if reports is None:
+                failed = True
+            elif len(reports) >= SPLIT_AT and (n - s) / 2 >= MIN_TILE and (e - w) / 2 >= MIN_TILE:
+                ms, mw = (s + n) / 2, (w + e) / 2
+                children = [(s, w, ms, mw), (s, mw, ms, e), (ms, w, n, mw), (ms, mw, n, e)]
+                tally.add(len(children))  # counted before they can finish
+                for child in children:
+                    push(child)
+            else:
+                results[tile] = [station for station in map(_station, reports) if station]
+        except Exception:
+            log.exception(f"Could not read the stations of tile {tile}")
+            failed = True
+        tally.finish(failed)
+
+    _run(tiles, fetch, _workers(workers))
+    found = {}
+    for tile in sorted(results):
+        for station in results[tile]:
+            found.setdefault(station.code, station)
+    return Fetched(sorted(found.values()), tally.failed)
 
 
-def details(codes, timeout=30, clock=None, budget=None):
+def details(codes, timeout=30, clock=None, budget=None, progress=None, workers=None):
     """
     What the FAA has on each airport, as Fetched({code: {"tower", "passengers", "rwyNum", "rwyLength"}}, failed
     requests): tower is True or False, passengers (thousands a year) and rwyNum are ints, rwyLength is the longest
-    runway in feet (0 if unknown). A code the API doesn't know isn't in the dict. Paced and limited like
-    candidates() (the same `budget` can be shared). Never raises.
+    runway in feet (0 if unknown). A code the API doesn't know isn't in the dict. Paced, limited and run like
+    candidates() (the same `budget` can be shared); progress(done, total) is called per batch of BATCH codes. Never
+    raises.
     """
     clock = clock or Clock()
     budget = budget or _Budget(clock)
     codes = list(dict.fromkeys(codes))
+    batches = [codes[i : i + BATCH] for i in range(0, len(codes), BATCH)]
+    tally = _Tally(len(batches), progress)
+    results = {}  # batch number -> its details, merged in order below
+
+    def fetch(index, push):
+        failed = False
+        try:
+            answer = _get(AIRPORT_URL, {"format": "json", "ids": ",".join(batches[index])}, timeout, clock, budget)
+            if answer is None:
+                failed = True
+            else:
+                results[index] = {
+                    airport["icaoId"]: _detail(airport)
+                    for airport in answer
+                    if isinstance(airport, dict) and airport.get("icaoId")
+                }
+        except Exception:
+            log.exception(f"Could not read the airport details of batch {index}")
+            failed = True
+        tally.finish(failed)
+
+    _run(list(reversed(range(len(batches)))), fetch, _workers(workers))  # the last item goes first: batch 0 first
     found = {}
-    failed = 0
-    for i in range(0, len(codes), BATCH):
-        answer = _get(AIRPORT_URL, {"format": "json", "ids": ",".join(codes[i : i + BATCH])}, timeout, clock, budget)
-        if answer is None:
-            failed += 1
-            continue
-        for airport in answer:
-            code = airport.get("icaoId") if isinstance(airport, dict) else None
-            if code:
-                found[code] = _detail(airport)
-    return Fetched(found, failed)
+    for index in sorted(results):
+        found.update(results[index])
+    return Fetched(found, tally.failed)
 
 
 def rank(detail):
@@ -154,15 +202,20 @@ def rank(detail):
     return tier * 100 + 10 * math.log10(1 + passengers) + longest / 1000 + runways / 10
 
 
-def load(box, cache_path=CACHE_FILE, max_age=MAX_AGE, clock=None, timeout=30, deadline=DEADLINE):
+def load(
+    box, cache_path=CACHE_FILE, max_age=MAX_AGE, clock=None, timeout=30, deadline=DEADLINE, progress=None, workers=None
+):
     """
     The airports with a current METAR in the box (west, south, east, north), best first, as Result(airports, stale,
     fetched_at, error). Each is {"code", "name", "lat", "lon", "tower", "passengers", "rwyNum", "rwyLength", "rank"}.
 
-    A cache newer than `max_age` is used as it is. Otherwise the box is fetched (for at most `deadline` seconds) and
-    cached. If that fails, or misses some requests, an older whole cache is used (stale is True, error says why):
-    a whole answer from before beats a short one from now. With no cache a short answer is returned with its error
-    and not cached; with nothing at all the airports are empty and error says why. Never raises.
+    A cache newer than `max_age` is used as it is. Otherwise the box is fetched (for at most `deadline` seconds,
+    `workers` requests at a time) and cached. If that fails, or misses some requests, an older whole cache is used
+    (stale is True, error says why): a whole answer from before beats a short one from now. With no cache a short
+    answer is returned with its error and not cached; with nothing at all the airports are empty and error says why.
+    progress(phase, done, total) is called while it fetches, phase "stations" (the METAR tiles) and then "details"
+    (the airport batches), with the counts of candidates()/details(); it is not called for a cache that is used as
+    it is. Never raises.
     """
     clock = clock or Clock()
     if not (
@@ -177,11 +230,23 @@ def load(box, cache_path=CACHE_FILE, max_age=MAX_AGE, clock=None, timeout=30, de
     if entry and _age(entry, clock) <= max_age:
         return Result(entry["airports"], False, entry["fetched_at"], None)
 
+    def phase(name):
+        return (lambda done, total: progress(name, done, total)) if progress else None
+
     budget = _Budget(clock, deadline)
-    stations, failed = candidates(*box, timeout=timeout, clock=clock, budget=budget)
+    stations, failed = candidates(
+        *box, timeout=timeout, clock=clock, budget=budget, progress=phase("stations"), workers=workers
+    )
     extra = {}
     if stations:
-        extra, failed_details = details([s.code for s in stations], timeout=timeout, clock=clock, budget=budget)
+        extra, failed_details = details(
+            [s.code for s in stations],
+            timeout=timeout,
+            clock=clock,
+            budget=budget,
+            progress=phase("details"),
+            workers=workers,
+        )
         failed += failed_details
     now = clock.now().isoformat()
     if stations and not failed:
@@ -203,36 +268,184 @@ def load(box, cache_path=CACHE_FILE, max_age=MAX_AGE, clock=None, timeout=30, de
 
 class _Budget:
     """
-    What one fetch may spend. It paces the requests under the API's rate limit and says when to give up: after
-    `deadline` seconds, or FAILURES_IN_A_ROW failed requests in a row (the reason is kept for the error message).
+    What one fetch may spend, shared by its worker threads. It is the gate the requests go out through, under the
+    API's rate limit, and it says when to give up: after `deadline` seconds, or FAILURES_IN_A_ROW failed requests in
+    a row (the reason is kept for the error message).
     """
 
     def __init__(self, clock, deadline=DEADLINE):
         self.clock = clock
         self.deadline = deadline
         self.until = clock.time() + deadline
-        self.last = None  # when the last request went out
+        self.spacing = REQUEST_SPACING  # seconds between two requests going out; longer after a 429
+        self.next = None  # the earliest time the next request may go out
+        self.hold_until = float("-inf")  # when the last 429's hold ends: no request goes out before it
         self.streak = 0  # failed requests in a row
         self.reason = ""  # why it gave up, once it has
+        self._lock = threading.Lock()  # streak and reason
+        self._gate = threading.Lock()  # next and spacing
+        self._never = threading.Event()  # the gate waits on it; nothing sets it (a clock may end a wait early itself)
 
     def over(self):
-        if not self.reason and self.clock.time() >= self.until:
-            self.reason = f"gave up after {self.deadline:g} seconds"
-        return bool(self.reason)
+        with self._lock:
+            if not self.reason and self.clock.time() >= self.until:
+                self.reason = f"gave up after {self.deadline:g} seconds"
+            return bool(self.reason)
+
+    def _reserve(self, not_before=None):
+        """Takes the next turn under the gate, `not_before` at the earliest, and returns when it is."""
+        with self._gate:
+            now = self.clock.time()
+            turn = now if self.next is None else max(now, self.next)
+            if not_before is not None:
+                turn = max(turn, not_before)
+            self.next = turn + self.spacing
+            return turn
 
     def start(self):
-        """Waits until the next request may go out."""
-        if self.last is not None:
-            wait = self.last + REQUEST_SPACING - self.clock.time()
+        """
+        Waits for this request's turn, then says whether it may go out (False: the budget is spent, by now or while
+        it waited). The turn is taken before the wait, under the lock, so workers queue up behind each other at
+        `spacing` apart and none waits while holding the lock. A 429 that comes in while a request waits holds it
+        back too: it takes a new turn after the hold, so the ones that were queued don't go out together.
+        """
+        if self.over():
+            return False
+        turn = self._reserve()
+        while True:
+            wait = turn - self.clock.time()
             if wait > 0:
-                self.clock.wait(threading.Event(), wait)
-        self.last = self.clock.time()
+                self.clock.wait(self._never, wait)
+            if self.over():
+                return False
+            with self._gate:
+                hold = self.hold_until
+                held = hold > self.clock.time()
+            if not held:
+                return True
+            turn = self._reserve(hold)
+
+    def rate_limited(self, seconds, sent=None):
+        """
+        The API answered 429 to a request that went out at `sent` (now, if not given): no request goes out for
+        `seconds`, and they go out further apart from now on. The gap grows once per hold: the answers to requests
+        that went out before the hold ended (the other workers' requests of the same burst) only extend it.
+        """
+        with self._gate:
+            now = self.clock.time()
+            if (now if sent is None else sent) >= self.hold_until:  # sent after the last hold: a new burst
+                self.spacing = min(self.spacing * 1.5, MAX_SPACING)
+            self.hold_until = max(self.hold_until, now + seconds)
+            self.next = max(self.next if self.next is not None else now, self.hold_until)
 
     def done(self, ok):
         """Notes that a request got its answer (or, with ok False, never did)."""
-        self.streak = 0 if ok else self.streak + 1
-        if self.streak >= FAILURES_IN_A_ROW and not self.reason:
-            self.reason = f"gave up after {FAILURES_IN_A_ROW} failed requests in a row"
+        with self._lock:
+            self.streak = 0 if ok else self.streak + 1
+            if self.streak >= FAILURES_IN_A_ROW and not self.reason:
+                self.reason = f"gave up after {FAILURES_IN_A_ROW} failed requests in a row"
+
+
+class _Tally:
+    """How far a fetch has got: requests finished and known, and failed. Shared by the worker threads."""
+
+    def __init__(self, total, progress):
+        self.total = total
+        self.done = 0
+        self.failed = 0
+        self.progress = progress
+        self._lock = threading.Lock()
+        self._report()
+
+    def add(self, count):
+        """`count` more requests are known."""
+        with self._lock:
+            self.total += count
+
+    def finish(self, failed=False):
+        """One request is over (failed: it never got an answer)."""
+        with self._lock:
+            self.done += 1
+            self.failed += bool(failed)
+            self._report()
+
+    def _report(self):
+        if self.progress:
+            try:
+                self.progress(self.done, self.total)
+            except Exception:
+                log.exception("The progress callback failed")
+
+
+_STOP = object()
+
+
+def _workers(workers):
+    """How many threads to use: `workers`, else WORKERS, from 1 to MAX_WORKERS."""
+    try:
+        count = int(WORKERS if workers is None else workers)
+    except (TypeError, ValueError):
+        count = WORKERS
+    return max(1, min(count, MAX_WORKERS))
+
+
+def _run(items, handler, workers):
+    """
+    Calls handler(item, push) for each item and each item a handler pushes, `workers` at a time, and returns when
+    all are done and the threads are over. The last item goes first, as when a loop pops a list, so with one worker
+    (which runs on the calling thread) the order is the plain one. A handler is meant to catch its own errors; one
+    that raises is logged and its item skipped.
+    """
+    if workers <= 1:
+        pending = list(items)
+        while pending:
+            try:
+                handler(pending.pop(), pending.append)
+            except Exception:
+                log.exception("An airport request failed")
+        return
+    work = queue.LifoQueue()
+    for item in items:
+        work.put(item)
+
+    def work_through():
+        while True:
+            item = work.get()
+            try:
+                if item is _STOP:
+                    return
+                handler(item, work.put)  # what it pushes is counted before this item is marked done
+            except Exception:
+                log.exception("An airport request failed")
+            finally:
+                work.task_done()
+
+    threads = []
+    for number in range(workers):
+        thread = threading.Thread(target=work_through, name=f"airports-fetch-{number + 1}", daemon=True)
+        try:
+            thread.start()
+        except RuntimeError as e:  # no more threads to be had: go on with the ones there are
+            log.warning(f"Could not start fetch thread {number + 1}: {e}")
+            break
+        threads.append(thread)
+    if not threads:
+        while True:
+            try:
+                item = work.get_nowait()
+            except queue.Empty:
+                return
+            try:
+                handler(item, work.put)
+            except Exception:
+                log.exception("An airport request failed")
+            finally:
+                work.task_done()
+    work.join()
+    for _ in threads:
+        work.put(_STOP)
+    for thread in threads:
+        thread.join(JOIN_SECONDS)
 
 
 def _why(stations, failed, budget):
@@ -283,14 +496,18 @@ def _grid(south, west, north, east):
 def _get(url, params, timeout, clock, budget):
     """
     The JSON list the API answers with ([] for its 204: a valid request with nothing to report), or None if it
-    could not be had: after ATTEMPTS tries, or because the budget is spent.
+    could not be had: after ATTEMPTS tries, or because the budget is spent. Every try goes out through the budget's
+    gate; a 429 holds the whole fetch back (see _Budget.rate_limited), not just this request.
     """
     for attempt in range(ATTEMPTS):
-        if budget.over():
+        if not budget.start():
             return None
-        budget.start()
+        sent = clock.time()
         try:
             response = requests.get(url, params=params, headers={"User-Agent": USER_AGENT}, timeout=timeout)
+            if response.status_code == 429:
+                budget.rate_limited(_retry_after(response), sent)
+                raise requests.exceptions.HTTPError("HTTP 429, rate limited")
             response.raise_for_status()
             answer = [] if response.status_code == 204 else response.json()
         except (requests.exceptions.RequestException, ValueError) as e:
@@ -302,6 +519,18 @@ def _get(url, params, timeout, clock, budget):
         return answer if isinstance(answer, list) else []
     budget.done(False)
     return None
+
+
+def _retry_after(response):
+    """Seconds to wait after a 429: its Retry-After (in seconds), at least RETRY_SECONDS, at most MAX_RETRY_AFTER."""
+    headers = getattr(response, "headers", None) or {}
+    try:
+        seconds = float(str(headers.get("Retry-After", "")).strip())
+    except ValueError:  # missing, or a date
+        seconds = 0.0
+    if not math.isfinite(seconds):
+        seconds = 0.0
+    return min(max(seconds, RETRY_SECONDS), MAX_RETRY_AFTER)
 
 
 def _station(report):

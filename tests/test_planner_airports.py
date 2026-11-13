@@ -1,7 +1,9 @@
 """Tests for the Chart Planner's live airport data (planner/airports.py): tiles, filtering, batches, rank and cache."""
 
 import json
+import random
 import threading
+import time
 from datetime import timedelta
 
 import pytest
@@ -12,9 +14,10 @@ from metarmap.planner import airports
 
 
 class FakeResponse:
-    def __init__(self, body, status=200):
+    def __init__(self, body, status=200, headers=None):
         self.body = body
         self.status = status
+        self.headers = headers or {}
 
     @property
     def status_code(self):
@@ -33,27 +36,47 @@ class FakeResponse:
 class FakeApi:
     """aviationweather.gov: `stations` is the METAR list for a bbox (a function), `known` the airport details."""
 
-    def __init__(self, stations=None, known=None, fail=()):
+    def __init__(
+        self, stations=None, known=None, fail=(), retry_after=None, clock=None, latency=0.0, seed=0, barrier=None
+    ):
         self.stations = stations or (lambda bbox: [])
         self.known = known or {}
         self.fail = list(fail)  # statuses to answer the next requests with, then everything works
+        self.retry_after = retry_after  # the Retry-After header of a 429
+        self.clock = clock  # when given, the clock time of each request is noted in `starts`
+        self.latency = latency  # up to this many real seconds before it answers, at random
+        self.barrier = barrier  # when given, a failing request waits on it before it is answered (all in flight)
+        self.random = random.Random(seed)
         self.metar_boxes = []
         self.bbox_texts = []  # the bbox parameter exactly as sent
         self.airport_ids = []
+        self.starts = []
+        self.lock = threading.Lock()  # the workers call get() from several threads
 
     def get(self, url, params=None, **kwargs):
-        if self.fail:
-            status = self.fail.pop(0)
-            if status == "network":
-                raise requests.exceptions.ConnectionError("no network")
-            return FakeResponse([], status)
+        with self.lock:
+            if self.clock:
+                self.starts.append(self.clock.time())
+            status = self.fail.pop(0) if self.fail else None
+            pause = self.random.random() * self.latency
+        if pause:
+            time.sleep(pause)
+        if status and self.barrier:
+            self.barrier.wait(10)
+        if status == "network":
+            raise requests.exceptions.ConnectionError("no network")
+        if status:
+            headers = {"Retry-After": self.retry_after} if status == 429 and self.retry_after else {}
+            return FakeResponse([], status, headers)
         if url == airports.METAR_URL:
             bbox = tuple(float(x) for x in params["bbox"].split(","))
-            self.metar_boxes.append(bbox)
-            self.bbox_texts.append(params["bbox"])
+            with self.lock:
+                self.metar_boxes.append(bbox)
+                self.bbox_texts.append(params["bbox"])
             return FakeResponse(self.stations(bbox))
         ids = params["ids"].split(",")
-        self.airport_ids.append(ids)
+        with self.lock:
+            self.airport_ids.append(ids)
         return FakeResponse([self.known[i] for i in ids if i in self.known])
 
 
@@ -69,6 +92,43 @@ def detail(code, tower="", passengers="0", rwyNum="1", runways=()):
         "rwyNum": rwyNum,
         "runways": [{"id": f"{i}", "dimension": d} for i, d in enumerate(runways)],
     }
+
+
+class SafeClock(FakeClock):
+    """A FakeClock the worker threads can share: advancing it is one step under a lock."""
+
+    def __init__(self):
+        super().__init__()
+        self.lock = threading.Lock()
+
+    def advance(self, seconds):
+        with self.lock:
+            super().advance(seconds)
+
+    def time(self):
+        with self.lock:
+            return super().time()
+
+
+class CancelClock(SafeClock):
+    """What the planner's JobClock does: once `cancel` is set, time is infinite and waits end at once."""
+
+    def __init__(self, cancel):
+        super().__init__()
+        self.cancel = cancel
+
+    def time(self):
+        return float("inf") if self.cancel.is_set() else super().time()
+
+    def wait(self, event, seconds):
+        return event.is_set() or self.cancel.is_set() or super().wait(event, seconds)
+
+
+@pytest.fixture(autouse=True)
+def one_worker(monkeypatch):
+    """The older tests count requests in the order they go out: one worker, like the first version. The tests of the
+    workers themselves pass workers=3."""
+    monkeypatch.setattr(airports, "WORKERS", 1)
 
 
 @pytest.fixture
@@ -640,3 +700,329 @@ def test_details_copes_with_odd_value_types(api, clock):
 def test_rank_copes_with_values_that_are_not_numbers():
     assert airports.rank({"tower": True, "passengers": "lots", "rwyNum": [], "rwyLength": float("nan")}) == 200
     assert airports.rank({"passengers": float("inf")}) == 0
+
+
+# ---- the workers: several requests at once, one gate, the same answer ------------------------------------------
+
+BIG_BOX = (-100.0, 30.0, -90.0, 40.0)  # 4 x 4 tiles of 2.5 degrees
+NATIONAL_BOX = (-125.0, 24.0, -66.5, 50.0)  # the US Wall Planning chart: 24 x 11 tiles
+US_BOX = (-125.0, 24.0, -66.5, 50.0)  # the wall chart: 24 x 11 tiles
+
+
+def fetch_threads():
+    return [t for t in threading.enumerate() if t.name.startswith("airports-fetch")]
+
+
+def tile_code(bbox):
+    """A station id of its own for each tile of BIG_BOX and its quarters: K, a row letter, a column letter, X."""
+    south, west = bbox[0], bbox[1]
+    return "K" + "ABCDEFGH"[int((south - 30) / 1.25)] + "ABCDEFGH"[int((west + 100) / 1.25)] + "X"
+
+
+def tile_stations(bbox):
+    """One station of its own for every tile, and KDUP in all of them with the tile's name, so which tile's answer
+    is kept would show if it depended on which finished first; the tile at 32.5 N, 97.5 W is dense (30 stations)."""
+    south, west, north, east = bbox
+    own = report(tile_code(bbox), lat=south, lon=west, name=f"own {south:g} {west:g}")
+    dup = report("KDUP", lat=south, lon=west, name=f"tile {south:g} {west:g}")
+    if (south, west, north - south) == (32.5, -97.5, 2.5):
+        return [report(f"KD{i:02d}", lat=south + 0.01 * i, lon=west) for i in range(airports.SPLIT_AT)]
+    return [own, dup]
+
+
+def test_workers_give_the_same_answer_as_one_worker_whatever_finishes_first(api, clock):
+    api(stations=tile_stations)
+    alone = airports.candidates(*BIG_BOX, clock=clock, workers=1)
+    assert alone.failed == 0 and len(alone.items) > 16
+    assert [s.name for s in alone.items if s.code == "KDUP"] == ["tile 30 -100"]  # the first tile in tile order
+    for seed in range(6):
+        api(stations=tile_stations, latency=0.003, seed=seed)  # a different order of answers each time
+        got = airports.candidates(*BIG_BOX, clock=SafeClock(), workers=3)
+        assert got == alone, seed
+    assert fetch_threads() == []
+
+
+class RecordingBudget(airports._Budget):
+    """A budget that notes every turn it hands out."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.turns = []
+
+    def _reserve(self, not_before=None):
+        turn = super()._reserve(not_before)
+        with self._lock:
+            self.turns.append(turn)
+        return turn
+
+
+def test_the_requests_go_out_a_gate_apart_however_many_workers(api, monkeypatch):
+    # asserted on the turns the gate hands out, not on when the threads happen to wake: under load a thread wakes
+    # late, and two late ones then go out close together
+    monkeypatch.setattr(airports, "REQUEST_SPACING", 0.03)  # a short gap, on the real clock
+    fake = api(clock=airports.Clock(), latency=0.002)
+    budget = RecordingBudget(fake.clock)
+    airports.candidates(*BIG_BOX, clock=fake.clock, budget=budget, workers=3)
+    turns = sorted(budget.turns)
+    assert len(turns) == 16 == len(fake.starts)
+    assert all(b - a >= 0.03 - 1e-6 for a, b in zip(turns, turns[1:]))  # epoch seconds are exact to about 2e-7
+    assert fetch_threads() == []
+
+
+def test_a_slow_request_does_not_stall_the_other_workers(api, clock):
+    first = tuple(float(x) for x in airports._bbox_text(*airports._grid(30, -100, 40, -90)[-1], 40, -90).split(","))
+    others = []  # the tiles answered while the first one is held
+    release = threading.Event()
+
+    def stations(bbox):
+        if bbox == first:
+            assert release.wait(10), "the other workers never got on"
+            return []
+        others.append(bbox)
+        if len(others) == 15:
+            release.set()
+        return []
+
+    api(stations=stations)
+    got = airports.candidates(*BIG_BOX, clock=SafeClock(), workers=3)
+    assert release.is_set() and len(others) == 15 and got.failed == 0
+    assert fetch_threads() == []
+
+
+def test_a_request_that_raises_counts_as_failed_and_the_rest_go_on(api, clock):
+    def stations(bbox):
+        if bbox[:2] == (32.5, -97.5):
+            raise RuntimeError("a bug in a handler")
+        return [report(tile_code(bbox))]
+
+    api(stations=stations)
+    got = airports.candidates(*BIG_BOX, clock=SafeClock(), workers=3)
+    assert got.failed == 1 and len(got.items) == 15
+
+
+def test_progress_counts_the_tiles_and_what_a_split_adds(api, clock):
+    for workers in (1, 3):
+        api(stations=tile_stations)
+        calls = []
+        got = airports.candidates(
+            *BIG_BOX, clock=SafeClock(), workers=workers, progress=lambda done, total: calls.append((done, total))
+        )
+        assert calls[0] == (0, 16)  # the tiles are known before the first one is fetched
+        assert [done for done, _ in calls] == list(range(len(calls)))  # one call per request, in order
+        totals = [total for _, total in calls]
+        assert totals == sorted(totals) and totals[-1] == 16 + 4  # the dense tile became four
+        assert calls[-1] == (20, 20) and got.failed == 0
+
+
+def test_a_progress_callback_that_raises_does_not_stop_the_fetch(api, clock):
+    api(stations=tile_stations)
+
+    def broken(done, total):
+        raise RuntimeError("the page broke")
+
+    got = airports.candidates(*BIG_BOX, clock=SafeClock(), workers=3, progress=broken)
+    assert got.failed == 0 and len(got.items) > 16
+
+
+def test_the_deadline_ends_every_worker_and_the_tiles_left_count_as_failed(api):
+    clock = SafeClock()
+    fake = api()
+    budget = airports._Budget(clock, deadline=5)
+    got = airports.candidates(*US_BOX, clock=clock, budget=budget, workers=3)
+    assert budget.reason == "gave up after 5 seconds"
+    assert 0 < len(fake.metar_boxes) < 264
+    assert len(fake.metar_boxes) + got.failed == 264  # every tile either went out or counts as failed
+    assert fetch_threads() == []
+
+
+def test_cancel_ends_every_worker_at_once(api):
+    cancel = threading.Event()
+    clock = CancelClock(cancel)
+    seen = []
+
+    def stations(bbox):
+        seen.append(bbox)
+        if len(seen) == 3:
+            cancel.set()  # the page's Cancel button
+        return []
+
+    api(stations=stations)
+    calls = []
+    got = airports.candidates(*US_BOX, clock=clock, workers=3, progress=lambda done, total: calls.append((done, total)))
+    assert len(seen) < 20 and got.failed >= 264 - 20
+    assert calls[-1] == (264, 264)  # nothing is left unaccounted for
+    assert fetch_threads() == []
+
+
+def test_one_worker_goes_through_the_tiles_in_the_first_versions_order(api, clock):
+    fake = api()
+    airports.candidates(*BIG_BOX, clock=clock, workers=1)
+    wanted = [(s, w, s + 2.5, w + 2.5) for s, w in reversed(airports._grid(30, -100, 40, -90))]
+    assert fake.metar_boxes == wanted  # the last tile of the grid first
+
+
+@pytest.mark.parametrize(
+    "asked, used", [(None, 3), (1, 1), (0, 1), (-4, 1), (3, 3), (50, airports.MAX_WORKERS), ("x", 3)]
+)
+def test_the_number_of_workers_is_kept_in_range(monkeypatch, asked, used):
+    monkeypatch.setattr(airports, "WORKERS", 3)
+    assert airports._workers(asked) == used
+
+
+# ---- 429: the API says slow down --------------------------------------------------------------------------
+
+
+def one_tile_after_a_429(api, retry_after):
+    clock = SafeClock()
+    fake = api(fail=[429], retry_after=retry_after, clock=clock, stations=lambda bbox: [report("KHOU")])
+    budget = airports._Budget(clock)
+    got = airports.candidates(-96, 29, -95, 30, clock=clock, budget=budget, workers=3)
+    return fake, budget, got
+
+
+def test_a_429_holds_the_next_request_back_for_the_retry_after_and_slows_the_gate(api):
+    fake, budget, got = one_tile_after_a_429(api, "7")
+    assert [s.code for s in got.items] == ["KHOU"] and got.failed == 0  # the second try got through
+    assert fake.starts[1] - fake.starts[0] == pytest.approx(7)
+    assert budget.spacing == pytest.approx(airports.REQUEST_SPACING * 1.5)
+
+
+def test_a_retry_after_is_capped(api):
+    fake, _, got = one_tile_after_a_429(api, "999")
+    assert fake.starts[1] - fake.starts[0] == pytest.approx(airports.MAX_RETRY_AFTER) and got.failed == 0
+
+
+def test_a_429_without_a_usable_retry_after_still_waits_a_little(api):
+    for header in (None, "Wed, 21 Oct 2026 07:28:00 GMT", "nan", "-5"):
+        fake, _, got = one_tile_after_a_429(api, header)
+        assert fake.starts[1] - fake.starts[0] >= airports.RETRY_SECONDS and got.failed == 0, header
+
+
+def test_the_gate_slows_down_with_each_burst_of_429s_but_not_past_its_limit(clock):
+    budget = airports._Budget(clock)
+    for _ in range(20):
+        budget.rate_limited(1)
+        clock.advance(2)  # past the hold: the next 429 is a new burst
+    assert budget.spacing == airports.MAX_SPACING
+
+
+def test_429s_of_the_same_burst_slow_the_gate_once(clock):
+    budget = airports._Budget(clock)
+    sent = clock.time()  # three requests that went out together
+    clock.advance(1)
+    for _ in range(3):
+        budget.rate_limited(7, sent)
+    assert budget.spacing == pytest.approx(airports.REQUEST_SPACING * 1.5)
+    clock.advance(10)  # the hold is over; a request sent after it that is answered 429 starts a new burst
+    budget.rate_limited(7, clock.time())
+    assert budget.spacing == pytest.approx(airports.REQUEST_SPACING * 1.5**2)
+    for _ in range(20):
+        clock.advance(10)
+        budget.rate_limited(7, clock.time())
+    assert budget.spacing == airports.MAX_SPACING
+
+
+def test_three_workers_answered_429_at_once_slow_the_gate_once(api):
+    clock = SafeClock()
+    fake = api(
+        fail=[429] * 3,
+        retry_after="7",
+        clock=clock,
+        barrier=threading.Barrier(3),  # all three requests are in flight before any is answered
+        stations=lambda bbox: [report("KHOU")],
+    )
+    budget = airports._Budget(clock)
+    got = airports.candidates(*BIG_BOX, clock=clock, budget=budget, workers=3)
+    assert got.failed == 0 and len(fake.starts) == 16 + 3
+    assert budget.spacing == pytest.approx(airports.REQUEST_SPACING * 1.5)
+
+
+def test_a_turn_reserved_before_a_429_waits_for_the_hold():
+    class Rate429DuringWait(FakeClock):
+        """Another worker's 429 arrives while the second request waits for its turn."""
+
+        def __init__(self):
+            super().__init__()
+            self.budget, self.fired = None, False
+
+        def wait(self, event, seconds):
+            if not self.fired:
+                self.fired = True
+                self.budget.rate_limited(7)
+            return super().wait(event, seconds)
+
+    clock = Rate429DuringWait()
+    budget = clock.budget = airports._Budget(clock)
+    first = clock.time()
+    assert budget.start()  # goes out at once; the next turn is REQUEST_SPACING later
+    assert budget.start()  # reserved that turn, then the 429 came in while it waited
+    assert clock.time() >= first + 7  # it did not go out inside the hold
+
+
+def test_a_national_fetch_at_the_capped_spacing_says_it_ran_out_of_time(api, monkeypatch, tmp_path):
+    # about 280 requests 5 s apart is 1400 s, past the 900 s limit: the answer is short, says why, and is not saved
+    monkeypatch.setattr(airports, "REQUEST_SPACING", airports.MAX_SPACING)
+    api(stations=lambda bbox: [report("KHOU")], known={"KHOU": detail("KHOU", tower="T", passengers="13110")})
+    cache = tmp_path / "airports.json"
+    result = airports.load(NATIONAL_BOX, clock=SafeClock(), cache_path=cache, workers=1)
+    assert result.error and f"gave up after {airports.DEADLINE:g} seconds" in result.error
+    assert "may be short" in result.error and [a["code"] for a in result.airports] == ["KHOU"]
+    assert not cache.exists()
+
+
+@pytest.mark.parametrize(
+    "headers, seconds",
+    [({"Retry-After": "7"}, 7), ({"Retry-After": " 12.5 "}, 12.5), ({"Retry-After": "0"}, airports.RETRY_SECONDS)]
+    + [
+        ({"Retry-After": "9999"}, airports.MAX_RETRY_AFTER),
+        ({}, airports.RETRY_SECONDS),
+        (None, airports.RETRY_SECONDS),
+    ],
+)
+def test_the_retry_after_is_read_from_the_header(headers, seconds):
+    assert airports._retry_after(FakeResponse([], 429, headers)) == seconds
+
+
+# ---- details and load with workers --------------------------------------------------------------------------
+
+
+def test_details_in_batches_at_once_match_one_at_a_time_and_report_each_batch(api, clock):
+    codes = [f"K{i:03d}" for i in range(250)]  # three batches of at most 100
+    known = {c: detail(c, tower="T" if i % 2 else "", passengers=str(i)) for i, c in enumerate(codes)}
+    api(known=known)
+    alone = airports.details(codes, clock=clock, workers=1)
+    api(known=known, latency=0.003, seed=3)
+    calls = []
+    got = airports.details(
+        codes, clock=SafeClock(), workers=3, progress=lambda done, total: calls.append((done, total))
+    )
+    assert got == alone and got.failed == 0 and len(got.items) == 250
+    assert calls == [(0, 3), (1, 3), (2, 3), (3, 3)]
+    assert fetch_threads() == []
+
+
+def test_load_reports_the_stations_and_then_the_details(api, clock, tmp_path):
+    api(stations=tile_stations, known={})
+    calls = []
+    result = airports.load(
+        BIG_BOX,
+        cache_path=str(tmp_path / "a.json"),
+        clock=SafeClock(),
+        workers=3,
+        progress=lambda phase, done, total: calls.append((phase, done, total)),
+    )
+    assert result.airports and result.error is None
+    phases = [phase for phase, _, _ in calls]
+    assert phases == sorted(phases, key=["stations", "details"].index)  # all the stations, then all the details
+    assert calls[0] == ("stations", 0, 16) and ("details", 0, 1) in calls
+    last = {phase: (done, total) for phase, done, total in calls}
+    assert last["stations"][0] == last["stations"][1] and last["details"][0] == last["details"][1]
+
+
+def test_load_does_not_report_a_cache_it_uses_as_it_is(api, clock, tmp_path):
+    api(stations=tile_stations)
+    path = str(tmp_path / "a.json")
+    airports.load(BIG_BOX, cache_path=path, clock=clock, workers=3)
+    calls = []
+    airports.load(BIG_BOX, cache_path=path, clock=clock, progress=lambda *args: calls.append(args))
+    assert calls == []
