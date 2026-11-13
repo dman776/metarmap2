@@ -432,8 +432,12 @@
         const holder = $('pl-map');
         const node = holder.firstChild;
         if (!node || !board) return;
-        const width = holder.clientWidth * ZOOMS[zoom];
         const aspect = (board.height_mm + 2 * board.pad) / (board.width_mm + 2 * board.pad);
+        let width = holder.clientWidth * ZOOMS[zoom];
+        if (zoom === 0) {  // Fit: the whole board in view, so a tall board on a wide screen is not cut off
+            const room = Math.max(window.innerHeight * 0.8 - 24, 240);
+            width = Math.min(width, room / aspect);
+        }
         node.setAttribute('width', Math.round(width));
         node.setAttribute('height', Math.round(width * aspect));
     }
@@ -481,7 +485,7 @@
     // ---- the lists --------------------------------------------------------------------------------------------
 
     function card(title) {
-        const c = el('div', {'class': 'card'});
+        const c = el('div', {'class': 'card pl-gen'});
         c.appendChild(add(el('div', {'class': 'card-head'}), [el('h2', null, title)]));
         const body = el('div', {'class': 'pl-body'});
         c.appendChild(body);
@@ -505,9 +509,10 @@
 
     function drawLists(r) {
         const out = $('pl-lists');
-        while (out.firstChild) out.removeChild(out.firstChild);
+        Array.prototype.slice.call(out.querySelectorAll('.pl-gen')).forEach(function (old) { out.removeChild(old); });
         const sheet = r.sheet, shop = sheet.shopping, pw = sheet.power, prob = sheet.problems;
-        const stack = function (c) { out.appendChild(c.card); };
+        const last = $('pl-snippet-card');  // the generated cards go before the config snippet
+        const stack = function (c) { out.insertBefore(c.card, last); };
 
         let c = card('Shopping list');
         kv(c.body, [

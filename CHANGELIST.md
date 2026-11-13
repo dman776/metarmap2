@@ -19,7 +19,7 @@
   height of any other sectional), and the pitch, spacing, move, string length and tolerance. The result is a build map (every pixel
   numbered with its airport, the wire coloured green, amber or red with the extension to cut printed on it, the free
   joins dashed with their cable length, a start marker and a line to where each moved pixel truly is; Print gives the
-  map and then the lists), a cut list, joins, a shopping list, power advice, the crowded airports and why, the three nearest board
+  map and then the lists; the map spans the page and the lists sit under it in two columns on a wide screen, and Fit shows the whole board within 80% of the window's height), a cut list, joins, a shopping list, power advice, the crowded airports and why, the three nearest board
   sizes, and the airports in the new order as a `config.json` snippet to copy. Lengths show in mm and inches. It only
   plans: nothing changes on the Chart (Apply comes later), and **Allow skipped pixels** is shown off until the Chart
   supports it. The planning runs in the background (the airport fetch of a national chart takes a few minutes on

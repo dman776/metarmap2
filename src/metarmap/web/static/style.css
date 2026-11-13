@@ -646,8 +646,7 @@ textarea { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--cont
 .btn.sm { min-height: 36px; padding: 0 12px; border-radius: 8px; }
 .planner-grid { display: grid; grid-template-columns: minmax(0, 1fr); grid-gap: 24px; margin-top: 24px; }
 .planner-side > * { margin-bottom: 24px; }
-.planner-side > *:last-child, #pl-lists > *:last-child { margin-bottom: 0; }
-#pl-lists > * { margin-bottom: 24px; }
+.planner-side > *:last-child { margin-bottom: 0; }
 .pl-body { padding: 16px 24px; }
 .pl-body p { margin: 0 0 8px; }
 .pl-pad { padding: 12px 24px 0; margin: 0; font-size: 13px; }
@@ -659,7 +658,7 @@ textarea { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--cont
 textarea.snippet { display: block; width: calc(100% - 48px); margin: 12px 24px 24px; font-size: 12px; }
 .map-card .card-head .chip-row .chip { margin-left: 8px; }
 .pm-scroll { overflow: auto; -webkit-overflow-scrolling: touch; max-height: 80vh; padding: 12px; background: var(--sunken); }
-.pm-scroll svg { display: block; }
+.pm-scroll svg { display: block; margin: 0 auto; }
 .pm-board { fill: #0f1a24; stroke: var(--control); stroke-width: 1.2; }
 .pm-area { fill: #14212d; stroke: var(--line); stroke-width: .8; stroke-dasharray: 6 4; }
 .pm-wire { stroke-width: 2.4; stroke-linecap: round; fill: none; }
@@ -683,7 +682,9 @@ textarea.snippet { display: block; width: calc(100% - 48px); margin: 12px 24px 2
 .pm-legend li { display: flex; align-items: center; margin: 4px 18px 4px 0; }
 .pm-legend svg { margin-right: 8px; flex: none; }
 @media (min-width: 1000px) {
-    .planner-grid { grid-template-columns: minmax(0, 3fr) minmax(320px, 2fr); }
+    /* the map spans the width; the cards under it flow in two balanced columns, none split across them */
+    .planner-side { -webkit-column-count: 2; column-count: 2; -webkit-column-gap: 24px; column-gap: 24px; }
+    .planner-side > * { display: inline-block; width: 100%; box-sizing: border-box; -webkit-column-break-inside: avoid; page-break-inside: avoid; break-inside: avoid; }
 }
 @media (max-width: 640px) {
     .pl-body { padding: 14px 18px; }
@@ -706,7 +707,8 @@ textarea.snippet { display: block; width: calc(100% - 48px); margin: 12px 24px 2
     /* the map is the first page, the lists follow: shopping, cuts, joins, power, problems, board sizes */
     .map-card { page-break-inside: avoid; break-inside: avoid; page-break-after: always; break-after: page; }
     .pm-legend { padding: 6px 0 0; font-size: 11px; }
-    .planner-side > *, #pl-lists > * { margin-bottom: 12px; }
+    .planner-side { -webkit-column-count: 1; column-count: 1; display: block; }
+    .planner-side > * { display: block; margin-bottom: 12px; }
     .planner-side .card { page-break-inside: avoid; break-inside: avoid; }
     .pl-body { padding: 4px 0 8px; color: #000; }
     .pl-list li { page-break-inside: avoid; break-inside: avoid; }

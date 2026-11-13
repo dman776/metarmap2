@@ -210,9 +210,8 @@
             <div class="pm-scroll" id="pl-map"></div>
             <ul class="pm-legend" id="pl-legend"></ul>
         </div>
-        <div class="planner-side">
-            <div id="pl-lists"></div>
-            <div class="card no-print">
+        <div class="planner-side" id="pl-lists">
+            <div class="card no-print" id="pl-snippet-card">
                 <div class="card-head">
                     <h2>config.json airports</h2>
                     <button class="btn sm" type="button" id="pl-copy">Copy</button>
