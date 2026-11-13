@@ -36,6 +36,16 @@
 </section>
 
 <section class="card">
+    <div class="set" style="border-top: 0">
+        <div>
+            <span class="t">Plan a new chart</span>
+            <div class="d">Lay the airports out on a board, with the pixel order, the wire to cut and the power to buy. It only plans: nothing here changes.</div>
+        </div>
+        <a class="btn" href="/config/planner">Plan a new chart</a>
+    </div>
+</section>
+
+<section class="card">
     <div class="ap-row trow head" style="border-top: 0"><span>Pixel</span><span>ICAO</span><span class="ap-name">Name</span><span>Micro</span><span class="ap-move">Move</span></div>
     % for led in leds:
     % n = led['pixel'] + 1

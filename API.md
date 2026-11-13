@@ -650,6 +650,48 @@ curl -u metar:map -H 'Content-Type: application/json' -d '{"user": "pilot", "pas
 | `GET /update/check` | Asks GitHub now what's newest (the Chart also does this when it starts and every 6 hours) and returns the same object as `update` in `/api/status`. |
 | `GET /restart` | Clears the pixels and restarts the Chart's process. The connection usually drops before a response is sent. |
 
+## Chart Planner (auth)
+
+The planner behind `/config/planner` lays airports out on a board and returns a build sheet. It only reads: it never
+changes the Chart's settings. It runs as one background job (the airport fetch of a national chart is about 280 requests,
+roughly ten minutes on a Pi); only one runs at a time.
+
+| Endpoint | Description |
+|---|---|
+| `POST /config/planner/plan` | Starts a plan from a JSON body (below) and answers `202` with the job. A value that can't be used (or a body that is not JSON, `400`, or over 100 KB, `413`) is `{"error": "<sentence>", "reason": "invalid"}` and nothing starts (a code or value it echoes back is cut to 40 characters; a number too big to read, such as a 400-digit integer, is refused like any other bad number). While a plan runs the answer is `409` with the running job's fields plus `"reason": "running"` and `"error": "A plan is already running"`. |
+| `GET /config/planner/progress` | The job: `{"id", "idle", "fraction", "label", "done", "ok", "cancelled", "message", "error", "elapsed", "params", "result"}`, plus `"fetched_at"` and `"stale"` once an airport fetch has finished. `fraction` is 0 to 1, or `null` while the airport fetch runs (its length is unknown); `elapsed` is whole seconds; `params` is the body that was accepted (so a reloaded page can fill the form again); `result` is `null` until `done` and `ok`. Before any job `idle` is true and `done` is true. The last job stays until the next one starts. |
+| `POST /config/planner/cancel` | Asks the running job to stop and answers with the job; its `label` is `Cancelling` until it ends with `cancelled` true. The airport fetch stops at its next request, and choosing and planning stop between their sweeps and passes (they ask every few pins, and measured on a Mac with 1000 airports the longest time between two questions was 0.01 s with the defaults and 0.14 s for the worst input allowed; a Pi Zero is 20 to 40 times slower, so a few seconds there, and one position lookup request can take up to 8 s before a cancel is seen); a cancel that comes after the last step still ends the job as cancelled, never as a success. Nothing running: the job as it is. |
+
+Request body of `POST /config/planner/plan` (all but `chart` optional; numbers may be strings):
+
+| Key | Default | |
+|---|---|---|
+| `chart` | | A sectional's name or `US Wall Planning` (case is ignored; an unknown name is a `400`) |
+| `source` | `current` | `current` (the Chart's pixels' airports), `paste` or `recommended` (METAR stations in the chart's box, from aviationweather.gov, cached for a day) |
+| `codes` | `[]` | For `paste`: a list of text codes, or text with spaces, commas or lines between the codes (at most 10000 entries, 1000 airports once the duplicates are gone) |
+| `must_keep` | `[]` | Codes never dropped, and the only ones kept from your own airports when `source` is `recommended`: the page ticks the current airports for you unless `start_fresh` is true, so an API caller lists the ones to keep. A code that is not among the airports being planned is listed in `left_out`. More codes than the Chart can take (1000 pixels minus the virtual airports) is a `400` before anything starts |
+| `start_fresh` | `false` | `true` or `false` (the text `"false"` is a `400`). Only decides which current airports the page ticks as must keep; the plan keeps exactly `must_keep` |
+| `target` | `"strings"` | `recommended` only: `"strings"` (a number of whole strings of `string_len`, see `strings`), `"max"` (as many as fit) or a whole number of airports (1 up to the Chart's 1000-pixel limit). Every target stops at 1000 pixels minus the virtual airports, and `notes` says so when that limit applied. If fewer airports fit than the target asks for, `notes` says how many fit and that a larger board or a smaller minimum spacing would fit more. A pasted or current list over that limit is a failed job |
+| `strings` | the strings `must_keep` fills | Whole number, at least 1: with `target` `"strings"`, the plan fills this many strings of `string_len` pixels (`strings` x `string_len` airports). Empty or missing: the strings the `must_keep` airports already need, `max(1, ceil(must_keep / string_len))`, which adds nothing when they fill whole strings, so raise it to ask for more. A number too small for `must_keep` is raised to what they need, and `notes` says so. Ignored (answered as `null` in `params`) for any other `target` |
+| `coverage` | `0` | 0 to 1: importance first (0) to evenly spread (1) |
+| `width_in`, `height_in` | `32`, the chart's board shape | Board in inches (above 0, at most 400). `height_in` empty or missing: the chart's own shape. Only Houston's and the wall chart's shapes are measured |
+| `pitch`, `min_gap`, `max_move` | `80`, `18`, `18` | mm. `pitch` 20 to 1000; `min_gap` and `max_move` 0 to 25 (limits that keep a plan from running for hours on a Pi: on a Mac the worst 1000-pin input they allow, a dense blob that cannot fit, takes about 40 s and a normal one 5 to 10 s; a plan still running after 15 minutes is stopped and the job ends with an `error` saying so, whatever the values) |
+| `string_len`, `tolerance` | `50`, `5` | pixels (10 to 1000); percent |
+| `suggest_sizes` | `true` | `true` or `false`. Also try the ten other widths from 90% to 115% of `width_in` in 2.5% steps, keeping the board's shape (the board's own width is the plan itself). Not tried, with a note in `notes`, for a plan of more than 400 airports |
+| `start_corner` | none | `tl`, `tr`, `bl` or `br` |
+| `brightness`, `ma_white_5v`, `ma_white_12v` | `0.5`, `60`, `25` | For the power advice |
+| `allow_skips` | always `false` | Accepted and ignored: skipped pixels need Chart support (a later change) |
+
+`result`: `{"message", "chart": {"name", "kind", "margins": {"left", "right", "top", "bottom"}, "height_measured"},
+"sheet", "airports", "names", "left_out": [{"code", "reason"}], "notes": [], "stale", "fetched_at", "sizes": null or
+{"best": [{"width_in", "height_in", "extensions", "crowded", "drops"}], "current": {...}}, "recommended",
+"skips_allowed": false, "seconds", "made_at"}`. `sheet` is the build sheet (`board`, `settings`, `pixels`, `start`,
+`route`, `cuts`, `joins`, `strings`, `shopping`, `problems` with `skips_wanted` and `skips_note`, `power`), all
+lengths in mm; `airports` is the airports in the new pixel order in the shape of `config.json`'s `airports`
+(`{"code", "name", "display"}`; a hidden pixel would be `""`). `left_out` lists the codes that were not planned, each with a `reason`: `no known position`, `the position lookup failed (offline?)`,
+`outside the <chart> chart` or `not one of the airports being planned`. If the airport fetch failed and an older cache was used, `stale` is true and `notes` says so; a fetch that
+failed with no cache ends the job with `ok` false and the reason in `error`.
+
 ## Web UI pages
 
 | Endpoint | Auth | Description |
@@ -664,6 +706,7 @@ curl -u metar:map -H 'Content-Type: application/json' -d '{"user": "pilot", "pas
 | `GET /debug` | | Debug information |
 | `GET /config` | yes | Configuration page |
 | `GET /config/airports` | yes | Airport configuration page |
+| `GET /config/planner` | yes | Plan a new chart (the Chart Planner): a form and, when a plan has run, its build map, lists and a `config.json` snippet. Reached from the button on `/config/airports`. See "Chart Planner" above |
 | `GET /config/speak/<code>.audio` | yes | Config's Test: an airport's AWOS as `/api/speak/<code>.audio`, but asking the speech server even while the Chart leaves it alone after it didn't answer |
 | `GET /static/<file>` | | Stylesheet and script for the web UI |
 

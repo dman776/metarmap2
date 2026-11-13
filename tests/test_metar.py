@@ -1,6 +1,7 @@
 """Tests for METAR fetching and parsing (metar.py)."""
 
 import json
+import threading
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
@@ -304,6 +305,38 @@ def test_a_failed_lookup_is_tried_again(monkeypatch, make_config, fixture_bytes)
     assert m.locate() is True  # the app's retry calls this on its own, without fetching the METARs again
     assert asked == [["KDKR"]] and m.position("KDKR") == (31.307, -95.404)
     assert m.locate_failed is False
+
+
+def test_lookup_asks_for_codes_not_looked_up_yet_and_says_if_it_failed(monkeypatch, make_config, fixture_bytes):
+    stations_api(monkeypatch, fixture_bytes, fail=True)
+    m = metar.Reports(make_config("KHOU"), clock=CLOCK)
+    assert m.lookup(["KDKR", "KEFD"]) is False  # offline: the answer is False and the codes are not marked unknown
+    assert "KDKR" not in m.positions and m.position("KDKR") is None
+    asked = stations_api(monkeypatch, fixture_bytes)
+    assert m.lookup(["KDKR", "KEFD"]) is True
+    assert asked == [["KDKR", "KEFD"]] and m.position("KEFD") == (29.606, -95.16)
+    assert m.lookup(["KDKR", "KEFD"]) is True and len(asked) == 1  # a code is only looked up once
+    assert m.lookup([]) is True
+
+
+def test_station_names_can_be_read_while_another_thread_adds_positions(make_config):
+    m = metar.Reports(make_config("KHOU"), clock=CLOCK)
+    stop = threading.Event()
+
+    def add():
+        i = 0
+        while not stop.is_set() and i < 200000:
+            m.positions[f"K{i}"] = {"lat": 1.0, "lon": 2.0, "name": "n"}
+            i += 1
+
+    thread = threading.Thread(target=add)
+    thread.start()
+    try:
+        for _ in range(300):
+            m.station_names()  # "dictionary changed size during iteration" if it iterated the live dict
+    finally:
+        stop.set()
+        thread.join()
 
 
 def test_a_failed_metar_fetch_skips_the_lookup(monkeypatch, make_config):

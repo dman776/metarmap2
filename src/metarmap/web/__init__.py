@@ -16,6 +16,7 @@ import bottle
 from bottle import auth_basic
 
 from metarmap.web import api, control, pages, views
+from metarmap.web import planner as planner_page
 from metarmap.web.site import Site, my_ip
 
 if TYPE_CHECKING:  # app.py imports the web, so only for the type checker
@@ -24,10 +25,11 @@ if TYPE_CHECKING:  # app.py imports the web, so only for the type checker
 log = logging.getLogger(__name__)
 
 
-def create_app(services: "App", ip=None, updates=None, installs=None) -> bottle.Bottle:
+def create_app(services: "App", ip=None, updates=None, installs=None, planner=None) -> bottle.Bottle:
     """
     The web app for a map. ip: shown in the header and /api/status (default: this machine's address);
-    updates: a control.Updates (tests pass one with a fake update).
+    updates: a control.Updates (tests pass one with a fake update); planner: a planner.Planner (tests pass one with a
+    fake airport fetch).
     """
     site = Site(
         ip=ip if ip is not None else my_ip(),
@@ -40,6 +42,7 @@ def create_app(services: "App", ip=None, updates=None, installs=None) -> bottle.
     pages.add_routes(app, services, site, auth)
     api.add_routes(app, services, site)
     control.add_routes(app, services, site, auth, updates, installs)
+    planner_page.add_routes(app, services, site, auth, planner)
     app.route("/static/<filename:path>", "GET", lambda filename: bottle.static_file(filename, root=views.STATIC_DIR))
     return app
 

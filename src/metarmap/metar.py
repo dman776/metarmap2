@@ -469,9 +469,18 @@ class Reports:
             self._look_up([code], timeout=timeout)
         return (self.positions.get(code) or {}).get("name", "")
 
+    def lookup(self, codes, timeout=30):
+        """
+        Looks up the positions of codes not looked up yet (for a code outside the Chart's airports, e.g. the Chart
+        Planner's pasted list). Returns False if the lookup failed (offline, a 502): the codes are then not marked as
+        unknown, so a later lookup tries them again.
+        """
+        return self._look_up([c for c in codes if c not in self.positions], timeout=timeout)
+
     def station_names(self):
         """The names looked up so far, as {code: name}."""
-        return {code: known["name"] for code, known in self.positions.items() if known and known.get("name")}
+        # a copy of the items: another thread (the Chart Planner's lookup) may add codes while this one iterates
+        return {code: known["name"] for code, known in list(self.positions.items()) if known and known.get("name")}
 
     def position(self, code):
         """Where an airport is, as (lat, lon): from its METAR, else from the station lookup; None if unknown."""

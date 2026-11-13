@@ -6,7 +6,8 @@ from dataclasses import replace
 
 import pytest
 
-from metarmap.planner.layout import Pin, Settings, fill_strings, plan, recommend, sweep_sizes
+from metarmap.planner import layout
+from metarmap.planner.layout import Cancelled, Pin, Settings, fill_strings, plan, recommend, sweep_sizes
 
 
 def settings(**kw):
@@ -483,3 +484,99 @@ def test_sweep_sizes_lists_the_best_size_first():
     assert results[0].extensions == 0 and results[0].crowded == 0
     assert results[1].extensions > 0 and results[1].crowded == 0
     assert results[2].crowded > 0 and results[2].drops > 0
+
+
+# ---- cancel: the caller can stop a plan, a recommendation or a sweep part way ---------------------------------------
+
+
+class StopAfter:
+    """A cancel callable that says False for the first `calls` times it is asked and True after that."""
+
+    def __init__(self, calls):
+        self.left, self.asked = calls, 0
+
+    def __call__(self):
+        self.asked += 1
+        self.left -= 1
+        return self.left < 0
+
+
+def test_a_plan_stops_when_cancel_says_so():
+    pins = spaced(60)
+    with pytest.raises(Cancelled):
+        plan(pins, settings(), cancel=lambda: True)
+    stop = StopAfter(3)  # part way: the planner asks between sweeps, passes and pins
+    with pytest.raises(Cancelled):
+        plan(pins, settings(), cancel=stop)
+    assert stop.asked >= 4
+
+
+def test_a_cancel_that_never_fires_changes_nothing():
+    pins = spaced(60)
+    assert plan(pins, settings(), cancel=lambda: False) == plan(pins, settings())
+
+
+def test_a_plan_asks_cancel_inside_its_passes_not_only_between_them():
+    """
+    Cancel is asked every CHECK_EVERY pins inside a pass over the order (and in the neighbour search and the nearest
+    path), so the time between two questions does not grow with the pin count. Counted, not timed: a pass over n pins
+    asks at least n / CHECK_EVERY times, and every restart makes at least one pass. Measured on a Mac with 1000 pins:
+    the longest time between two questions was 0.01 s with the defaults and 0.14 s in the worst case allowed.
+    """
+    n = 400
+    stop = StopAfter(10**9)
+    plan(spaced(n, columns=25, step=60.0), settings(board_w=1700.0, board_h=1100.0), cancel=stop)
+    assert stop.asked >= layout.RESTARTS * (n // layout.CHECK_EVERY)
+    assert stop.asked >= 6 * (n // layout.CHECK_EVERY)  # the neighbour search and each nearest path ask as well
+
+
+def test_a_cancel_inside_a_pass_stops_the_plan_at_once():
+    pins = spaced(300, columns=20, step=60.0)
+    stop = StopAfter(7)  # well inside the first pass over the order
+    with pytest.raises(Cancelled):
+        plan(pins, settings(board_w=1500.0, board_h=1000.0), cancel=stop)
+    assert stop.asked == 8  # asked once more after it said yes: nothing runs on after the answer
+
+
+def test_the_neighbour_search_and_the_nearest_path_ask_cancel():
+    xs, ys = [float(k) for k in range(100)], [0.0] * 100
+    with pytest.raises(Cancelled):
+        layout._neighbours(xs, ys, 4, cancel=lambda: True)
+    with pytest.raises(Cancelled):
+        layout._nearest_path(xs, ys, 0, random.Random(0), 0.0, cancel=lambda: True)
+    assert layout._neighbours(xs, ys, 4, cancel=lambda: False) == layout._neighbours(xs, ys, 4)
+
+
+def test_recommend_stops_when_cancel_says_so():
+    pins = spaced(80)
+    with pytest.raises(Cancelled):
+        recommend(pins, settings(), cancel=lambda: True)
+    stop = StopAfter(5)
+    with pytest.raises(Cancelled):
+        recommend(pins, settings(), cancel=stop)
+    assert stop.asked == 6  # asked before each pin added, so it stopped at once when it said yes
+    assert recommend(pins, settings(), cancel=lambda: False) == recommend(pins, settings())
+
+
+def test_sweep_sizes_stops_between_widths_and_inside_a_plan():
+    def make_pins(width):
+        return grid(4, 4, width / 10, x0=0, y0=0)
+
+    def settings_for(width):
+        return settings(board_w=width, board_h=width)
+
+    widths = [320, 640, 1600]
+    with pytest.raises(Cancelled):
+        sweep_sizes(make_pins, widths, settings_for, cancel=lambda: True)
+    seen = []
+
+    def count(width):
+        seen.append(width)
+        return make_pins(width)
+
+    with pytest.raises(Cancelled):
+        sweep_sizes(count, widths, settings_for, cancel=lambda: len(seen) >= 1)
+    assert seen == [320]  # the second width was never planned
+    assert sweep_sizes(make_pins, widths, settings_for, cancel=lambda: False) == sweep_sizes(
+        make_pins, widths, settings_for
+    )
