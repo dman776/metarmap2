@@ -38,6 +38,7 @@ class FakeApi:
         self.known = known or {}
         self.fail = list(fail)  # statuses to answer the next requests with, then everything works
         self.metar_boxes = []
+        self.bbox_texts = []  # the bbox parameter exactly as sent
         self.airport_ids = []
 
     def get(self, url, params=None, **kwargs):
@@ -49,6 +50,7 @@ class FakeApi:
         if url == airports.METAR_URL:
             bbox = tuple(float(x) for x in params["bbox"].split(","))
             self.metar_boxes.append(bbox)
+            self.bbox_texts.append(params["bbox"])
             return FakeResponse(self.stations(bbox))
         ids = params["ids"].split(",")
         self.airport_ids.append(ids)
@@ -92,6 +94,31 @@ def test_a_small_box_is_one_request_with_its_own_bounds(api, clock):
     got = airports.candidates(-96, 29, -95, 30, clock=clock)
     assert fake.metar_boxes == [(29.0, -96.0, 30.0, -95.0)]
     assert [s.code for s in got.items] == ["KHOU"] and got.failed == 0
+
+
+def test_the_bbox_sent_has_no_float_noise(api, clock):
+    # the API answers 400 to 34.019999999999996 (31.52 + 2.5 in floats); it takes at most four decimals
+    fake = api()
+    airports.candidates(-95.7306, 31.52, -94.7655, 34.02, clock=clock)
+    assert fake.bbox_texts and all(
+        len(part.partition(".")[2]) <= 4 for text in fake.bbox_texts for part in text.split(",")
+    )
+    assert "31.52,-95.7306,34.02,-94.7655" in fake.bbox_texts
+
+
+@pytest.mark.parametrize(
+    "value, text",
+    [
+        (34.019999999999996, "34.02"),
+        (30.0, "30"),
+        (-96.0, "-96"),
+        (-95.73064, "-95.7306"),
+        (-0.00001, "0"),
+        (0.5, "0.5"),
+    ],
+)
+def test_a_coordinate_is_short_and_exact(value, text):
+    assert airports._coordinate(value) == text
 
 
 def test_a_big_box_is_fetched_in_tiles_that_cover_it(api, clock):
