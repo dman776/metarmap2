@@ -852,3 +852,64 @@ def test_form_values_may_be_strings(make):
     client = make()
     job = run(client, width_in="30", pitch="75", string_len=50, tolerance="4")
     assert job["ok"] is True and job["result"]["sheet"]["board"]["width_in"] == 30
+
+
+# ---- the chart's grid, for the sectional drawn under the plan ------------------------------------------------
+
+
+def test_the_result_has_a_grid_of_the_earth_under_the_map(make):
+    client = make()
+    chart = run(client)["result"]["chart"]
+    grid = chart["grid"]
+    assert set(grid) == {"cols", "rows", "lat", "lon"} and (grid["cols"], grid["rows"]) == (25, 17)
+    assert len(grid["lat"]) == len(grid["lon"]) == 17 and all(len(r) == 25 for r in grid["lat"] + grid["lon"])
+    # south falls going down and east grows going right
+    assert grid["lat"][0][0] > grid["lat"][-1][0] and grid["lon"][0][0] < grid["lon"][0][-1]
+    # it is Houston's: the airports the plan spread over the chart are inside its bounds
+    bounds = chart["bounds"]
+    assert set(bounds) == {"west", "east", "south", "north"}
+    for lat, lon in (spot(k, len(client.codes)) for k in range(len(client.codes))):
+        assert bounds["south"] < lat < bounds["north"] and bounds["west"] < lon < bounds["east"]
+    assert 29 < (bounds["south"] + bounds["north"]) / 2 < 31 and -97 < (bounds["west"] + bounds["east"]) / 2 < -93
+    json.dumps(chart, allow_nan=False)  # plain JSON
+    assert len(json.dumps(chart["grid"])) < 12_000  # a few KB, not a map
+
+
+def test_usable_is_the_map_area_in_board_mm_and_matches_the_margins(make):
+    client = make()
+    result = run(client)["result"]
+    usable, board = result["chart"]["usable"], result["sheet"]["board"]
+    assert set(usable) == {"x", "y", "w", "h"}
+    margins = result["chart"]["margins"]
+    assert usable["x"] == pytest.approx(board["width_mm"] * margins["left"], abs=1e-2)
+    assert usable["y"] == pytest.approx(board["height_mm"] * margins["top"], abs=1e-2)
+    assert usable["w"] == pytest.approx(board["width_mm"] * (1 - margins["left"] - margins["right"]), abs=1e-2)
+    assert usable["h"] == pytest.approx(board["height_mm"] * (1 - margins["top"] - margins["bottom"]), abs=1e-2)
+    # Houston at 32 x 22 in: 10 mm at the left and 7 mm at the bottom
+    assert usable["x"] == pytest.approx(10.0, abs=1e-2) and usable["h"] == pytest.approx(22 * 25.4 - 7.0, abs=1e-2)
+
+
+def test_the_grid_is_for_the_board_the_plan_used(make):
+    client = make()
+    entered = run(client, width_in=30, height_in=20)["result"]
+    usable = entered["chart"]["usable"]
+    assert usable["w"] == pytest.approx(30 * 25.4 - 10 * 30 / 32, abs=0.05)  # margins grow and shrink with the board
+    assert usable["h"] == pytest.approx(20 * 25.4 * (1 - 7 / (22 * 25.4)), abs=0.05)
+    assert entered["sheet"]["board"]["width_in"] == 30 and entered["sheet"]["board"]["height_in"] == 20
+    # the same chart on another board has the same earth under its map area
+    other = run(client, width_in=16, height_in=11)["result"]["chart"]
+    assert other["grid"]["lat"] == entered["chart"]["grid"]["lat"]
+    assert other["grid"]["lon"] == entered["chart"]["grid"]["lon"]
+    assert other["usable"]["w"] < usable["w"]
+
+
+def test_the_wall_charts_grid_covers_the_continental_us(make):
+    client = make()
+    chart = run(client, chart="US Wall Planning", width_in=36, height_in=22)["result"]["chart"]
+    assert chart["name"] == "US Wall Planning" and chart["usable"]["x"] == chart["usable"]["y"] == 0.0
+    lat, lon = chart["grid"]["lat"], chart["grid"]["lon"]
+    corners = [(lat[j][i], lon[j][i]) for j in (0, -1) for i in (0, -1)]
+    assert all(20 < a < 55 and -135 < b < -60 for a, b in corners)
+    bounds = chart["bounds"]
+    assert bounds["west"] < -125 and bounds["east"] > -67 and bounds["south"] < 25 and bounds["north"] > 49
+    assert lat[0][0] > lat[-1][0] and lon[0][0] < lon[0][-1]

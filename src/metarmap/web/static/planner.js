@@ -29,6 +29,7 @@
     let stringsTouched = false;  // the user typed a number of strings: stop following the default
     let zoom = 0;
     let board = null;  // the last result's board, for the map's size
+    let sectionalHolder = null;  // the SVG group the sectional's image is put in
     const currentCodes = Array.prototype.map.call($('pl-keep').querySelectorAll('input'), function (b) { return b.value; });
     const unlocated = Array.prototype.filter.call($('pl-keep').querySelectorAll('input'), function (b) { return b.dataset.unlocated; })
         .map(function (b) { return b.value; });
@@ -371,6 +372,8 @@
         root.appendChild(svg('rect', {x: 0, y: 0, width: W, height: H, 'class': 'pm-board'}));
         root.appendChild(svg('rect', {
             x: W * m.left, y: H * m.top, width: W * (1 - m.left - m.right), height: H * (1 - m.top - m.bottom), 'class': 'pm-area'}));
+        sectionalHolder = svg('g', {'class': 'pm-sectional-holder'});  // the sectional goes here: under the plan, over the area
+        root.appendChild(sectionalHolder);
         const px = sheet.pixels;
 
         px.forEach(function (p) {  // a moved pixel's line to its true place
@@ -426,6 +429,7 @@
         zoom = 0;
         sizeMap();
         drawLegend(r);
+        sectionalNewResult(r);
     }
 
     function sizeMap() {
@@ -481,6 +485,365 @@
         const chart = el('li', {'class': 'muted'}, r.chart.name + ' chart: the shaded area is the map, the rest its margins.');
         list.appendChild(chart);
     }
+
+    // ---- the sectional chart under the plan ---------------------------------------------------------------------
+    // The FAA sectional tiles (Web Mercator) are resampled onto the plan's map area with the lat/lon grid the plan
+    // sends, tile by tile as each loads, into one canvas of the area, which is shown as an image under the route.
+
+    const TILE_URL = 'https://tiles.arcgis.com/tiles/ssFJjBXIUyZDrSYZ/arcgis/rest/services/VFR_Sectional/MapServer/tile/{z}/{y}/{x}';
+    const TILE_MIN_ZOOM = 8, TILE_MAX_ZOOM = 10;
+    const TILE_BIG = 300;       // tiles above which the size note shows, and a sectional stays at zoom 9
+    const TILE_KB = 46;
+    const IN_FLIGHT = 6;
+    const REFRESH_MS = 700;
+    const AREA_COLOR = [20, 33, 45];  // the map area's fill (#14212d): what shows where a tile is missing
+    const KEY_SHOW = 'metarmap.planner.sectional';
+    const KEY_OPACITY = 'metarmap.planner.sectionalOpacity';
+    const sect = {
+        box: $('pl-sect'), range: $('pl-sect-op'), val: $('pl-sect-op-val'), note: $('pl-sect-note'),
+        progress: $('pl-sect-progress'), status: $('pl-sect-status'),
+        chart: null,   // the current result's chart (grid, usable, bounds)
+        plan: null,    // {z, outW, outH, tiles: n}, worked out once a result is in
+        run: 0,        // each load has a number; cancelling makes the one in flight stale
+        active: null,  // the running load's state
+        image: null,
+    };
+
+    function store(key, value) {
+        try { window.localStorage.setItem(key, value); } catch (e) { /* storage blocked or full: the page works without it */ }
+    }
+
+    function stored(key) {
+        try { return window.localStorage.getItem(key); } catch (e) { return null; }
+    }
+
+    function mercX(lon, z) { return (lon + 180) / 360 * 256 * Math.pow(2, z); }
+
+    function mercY(lat, z) {
+        const s = Math.sin(Math.max(-85.05, Math.min(85.05, lat)) * Math.PI / 180);
+        return (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * 256 * Math.pow(2, z);
+    }
+
+    // lat and lon at fractions (fx, fy) across and down the map area, bilinear on the grid's corners
+    function gridAt(grid, fx, fy) {
+        const gx = Math.min(Math.max(fx, 0), 1) * (grid.cols - 1), gy = Math.min(Math.max(fy, 0), 1) * (grid.rows - 1);
+        const i = Math.min(Math.floor(gx), grid.cols - 2), j = Math.min(Math.floor(gy), grid.rows - 2);
+        const tx = gx - i, ty = gy - j;
+        const mix = function (t) {
+            return (t[j][i] * (1 - tx) + t[j][i + 1] * tx) * (1 - ty) + (t[j + 1][i] * (1 - tx) + t[j + 1][i + 1] * tx) * ty;
+        };
+        return {lat: mix(grid.lat), lon: mix(grid.lon)};
+    }
+
+    function gridOk(c) {
+        const g = c && c.grid, u = c && c.usable;
+        if (!g || !u || !g.lat || !g.lon || !(g.cols >= 2) || !(g.rows >= 2) || !(u.w > 0) || !(u.h > 0)) return false;
+        if (g.lat.length !== g.rows || g.lon.length !== g.rows) return false;
+        for (let j = 0; j < g.rows; j++) if (g.lat[j].length !== g.cols || g.lon[j].length !== g.cols) return false;
+        return true;
+    }
+
+    // the distinct tiles the area touches at zoom z, found on a coarse sample of the output (a tile is 256 px: a step of
+    // 8 px of the output cannot skip one, apart from a sliver at a corner)
+    function tilesFor(c, z, outW, outH) {
+        const seen = {}, list = [], n = Math.pow(2, z);
+        const stepX = Math.max(1, Math.round(outW / 200)), stepY = Math.max(1, Math.round(outH / 140));
+        for (let y = 0; y <= outH; y += stepY) {
+            for (let x = 0; x <= outW; x += stepX) {
+                const at = gridAt(c.grid, x / outW, y / outH);
+                const tx = Math.floor(mercX(at.lon, z) / 256), ty = Math.floor(mercY(at.lat, z) / 256);
+                if (tx < 0 || ty < 0 || tx >= n || ty >= n) continue;
+                const key = tx + ',' + ty;
+                if (!seen[key]) { seen[key] = true; list.push([tx, ty]); }
+            }
+        }
+        return list;
+    }
+
+    // the canvas size and the tile zoom: the smallest zoom (8 to 10) with about as many tile pixels across the area as the
+    // canvas has; a sectional stays at 9 if zoom 10 would need more than TILE_BIG tiles
+    function planSectional(c) {
+        const small = window.innerWidth <= 640;
+        const outW = small ? 900 : 1600;
+        const outH = Math.max(2, Math.round(outW * c.usable.h / c.usable.w));
+        const b = c.bounds || {};
+        let span = null;
+        const lons = c.grid.lon;
+        let west = Infinity, east = -Infinity;
+        lons.forEach(function (row) { row.forEach(function (v) { west = Math.min(west, v); east = Math.max(east, v); }); });
+        if (isFinite(b.west) && isFinite(b.east)) { west = Math.min(west, b.west); east = Math.max(east, b.east); }
+        let z = TILE_MAX_ZOOM;
+        for (let t = TILE_MIN_ZOOM; t <= TILE_MAX_ZOOM; t++) {
+            span = (mercX(east, t) - mercX(west, t));
+            if (span >= outW * 0.9) { z = t; break; }
+        }
+        let tiles = tilesFor(c, z, outW, outH);
+        if (z === TILE_MAX_ZOOM && c.kind !== 'wall' && tiles.length > TILE_BIG) {
+            z = TILE_MAX_ZOOM - 1;
+            tiles = tilesFor(c, z, outW, outH);
+        }
+        return {z: z, outW: outW, outH: outH, count: tiles.length};
+    }
+
+    function setNote(text) {
+        sect.note.textContent = text || '';
+        sect.note.hidden = !text;
+    }
+
+    function setStatus(text, progress) {  // the polite status is only for what happens (done, trouble); the count is a visible aside
+        sect.progress.textContent = progress || '';
+        sect.progress.hidden = !progress;
+        if (sect.status.textContent !== (text || '')) sect.status.textContent = text || '';
+        sect.status.hidden = !text;
+    }
+
+    function setCredit(on) {
+        const list = $('pl-legend');
+        const old = list.querySelector('.pm-credit');
+        if (old) list.removeChild(old);
+        if (on) list.appendChild(el('li', {'class': 'pm-credit muted'}, 'Chart under the plan: FAA VFR Sectional'));
+    }
+
+    function removeImage() {
+        if (sect.image && sect.image.parentNode) sect.image.parentNode.removeChild(sect.image);
+        sect.image = null;
+        setCredit(false);
+    }
+
+    function stopSectional() {
+        sect.run += 1;
+        const a = sect.active;
+        sect.active = null;
+        if (a) {
+            a.loading.forEach(function (img) { img.onload = img.onerror = null; img.src = ''; });
+            a.canvas = a.out = a.order = a.starts = null;
+            if (a.timer) clearTimeout(a.timer);
+        }
+    }
+
+    function applyOpacity() {
+        const pct = Math.min(100, Math.max(10, parseInt(sect.range.value, 10) || 60));
+        sect.val.textContent = pct + '%';
+        if (sect.image) sect.image.setAttribute('opacity', pct / 100);
+    }
+
+    function enableSectional(on) {
+        sect.box.disabled = !on;
+        sect.range.disabled = !on;
+    }
+
+    // a new result (or none): stop any load, forget the old image and work out the new area
+    function sectionalNewResult(r) {
+        stopSectional();
+        removeImage();
+        setStatus('', '');
+        setNote('');
+        sect.chart = null;
+        sect.plan = null;
+        const c = r && r.chart;
+        if (!gridOk(c)) {
+            enableSectional(false);
+            setNote(c ? 'The sectional chart is not available for this plan.' : '');
+            return;
+        }
+        sect.chart = c;
+        sect.plan = planSectional(c);
+        enableSectional(true);
+        const n = sect.plan.count;
+        if (n > TILE_BIG) {
+            const rounded = Math.round(n / 10) * 10;
+            setNote((c.kind === 'wall' ? 'The whole US' : 'This chart') + ' is about ' + rounded.toLocaleString('en-US') + ' tiles, about '
+                + Math.round(rounded * TILE_KB / 1000) + ' MB; they load as you watch and your browser keeps them for an hour.');
+        }
+        if (sect.box.checked) startSectional();
+    }
+
+    function startSectional() {
+        stopSectional();
+        removeImage();
+        const c = sect.chart, plan = sect.plan;
+        if (!c || !plan || !sectionalHolder) return;
+        const run = sect.run;
+        const a = {c: c, plan: plan, loading: [], done: 0, failed: 0, total: 0, queue: [], dirty: false, last: 0, timer: null, broken: false};
+        sect.active = a;
+        try {
+            a.canvas = document.createElement('canvas');
+            a.canvas.width = plan.outW;
+            a.canvas.height = plan.outH;
+            a.ctx = a.canvas.getContext('2d');
+            a.out = a.ctx.createImageData(plan.outW, plan.outH);
+        } catch (e) {
+            sectionalFail('The chart could not be drawn: this browser would not make the canvas.');
+            return;
+        }
+        const d = a.out.data;
+        for (let k = 0; k < d.length; k += 4) { d[k] = AREA_COLOR[0]; d[k + 1] = AREA_COLOR[1]; d[k + 2] = AREA_COLOR[2]; d[k + 3] = 255; }
+
+        // each output pixel's tile, then the pixels grouped by tile (a counting sort), so a tile is filled when it arrives
+        const z = plan.z, n = Math.pow(2, z), W = plan.outW, H = plan.outH;
+        const ids = {}, tiles = [];
+        const key = new Int32Array(W * H);
+        for (let y = 0; y < H; y++) {
+            for (let x = 0; x < W; x++) {
+                const at = gridAt(c.grid, (x + 0.5) / W, (y + 0.5) / H);
+                const tx = Math.floor(mercX(at.lon, z) / 256), ty = Math.floor(mercY(at.lat, z) / 256);
+                let k = -1;
+                if (tx >= 0 && ty >= 0 && tx < n && ty < n) {
+                    const name = tx + ',' + ty;
+                    k = ids[name];
+                    if (k === undefined) { k = tiles.length; ids[name] = k; tiles.push({x: tx, y: ty, count: 0}); }
+                    tiles[k].count += 1;
+                }
+                key[y * W + x] = k;
+            }
+        }
+        a.tiles = tiles;
+        a.starts = new Uint32Array(tiles.length + 1);
+        tiles.forEach(function (t, k) { a.starts[k + 1] = a.starts[k] + t.count; });
+        const fill = a.starts.slice(0, tiles.length);
+        a.order = new Uint32Array(a.starts[tiles.length]);
+        for (let p = 0; p < key.length; p++) if (key[p] >= 0) a.order[fill[key[p]]++] = p;
+        a.total = tiles.length;
+        a.queue = tiles.map(function (t, k) { return k; });
+        setStatus('', 'Loading chart tiles: 0 of ' + a.total);
+        sectionalPump(run);
+    }
+
+    function sectionalFail(text) {
+        stopSectional();
+        removeImage();
+        setStatus(text, '');
+    }
+
+    function sectionalPump(run) {
+        const a = sect.active;
+        if (!a || run !== sect.run) return;
+        while (a.loading.length < IN_FLIGHT && a.queue.length) loadTile(run, a, a.queue.shift());
+        if (!a.loading.length && !a.queue.length) sectionalDone(run);
+    }
+
+    function loadTile(run, a, k) {
+        const t = a.tiles[k];
+        const img = new Image();
+        a.loading.push(img);
+        const settle = function (ok) {
+            if (run !== sect.run || sect.active !== a) return;
+            const at = a.loading.indexOf(img);
+            if (at >= 0) a.loading.splice(at, 1);
+            img.onload = img.onerror = null;
+            if (ok) {
+                try {
+                    paintTile(a, k, img);
+                } catch (e) {  // a canvas the page may not read (the tiles came without CORS), or no memory
+                    sectionalFail('The chart could not be read.');
+                    return;
+                }
+            } else {
+                a.failed += 1;
+            }
+            a.done += 1;
+            setStatus('', 'Loading chart tiles: ' + a.done + ' of ' + a.total);
+            refreshSoon(run, a);
+            sectionalPump(run);
+        };
+        img.onload = function () { settle(true); };
+        img.onerror = function () { settle(false); };
+        img.crossOrigin = 'anonymous';
+        img.src = TILE_URL.replace('{z}', a.plan.z).replace('{y}', t.y).replace('{x}', t.x);
+    }
+
+    // decode one tile into a 256 px canvas and write the output pixels that fall on it (bilinear within the tile)
+    let tileCanvas = null;
+    function paintTile(a, k, img) {
+        const t = a.tiles[k], size = img.naturalWidth || 256;
+        if (!tileCanvas) tileCanvas = document.createElement('canvas');
+        tileCanvas.width = tileCanvas.height = size;
+        const tctx = tileCanvas.getContext('2d');
+        tctx.drawImage(img, 0, 0, size, size);
+        const src = tctx.getImageData(0, 0, size, size).data;  // throws on a tainted canvas
+        const z = a.plan.z, W = a.plan.outW, H = a.plan.outH, scale = size / 256, out = a.out.data, max = size - 1;
+        const x0 = t.x * 256, y0 = t.y * 256;
+        for (let q = a.starts[k]; q < a.starts[k + 1]; q++) {
+            const p = a.order[q], px = p % W, py = (p - px) / W;
+            const at = gridAt(a.c.grid, (px + 0.5) / W, (py + 0.5) / H);
+            const u = Math.min(Math.max((mercX(at.lon, z) - x0) * scale - 0.5, 0), max);
+            const v = Math.min(Math.max((mercY(at.lat, z) - y0) * scale - 0.5, 0), max);
+            const iu = Math.min(Math.floor(u), max - 1), iv = Math.min(Math.floor(v), max - 1);
+            const fu = u - iu, fv = v - iv;
+            const s0 = (iv * size + iu) * 4, s1 = s0 + size * 4;
+            const o = p * 4;
+            for (let ch = 0; ch < 3; ch++) {
+                out[o + ch] = (src[s0 + ch] * (1 - fu) + src[s0 + 4 + ch] * fu) * (1 - fv) + (src[s1 + ch] * (1 - fu) + src[s1 + 4 + ch] * fu) * fv;
+            }
+            // a transparent tile pixel shows the area's colour
+            const alpha = src[s0 + 3] / 255;
+            if (alpha < 1) for (let ch = 0; ch < 3; ch++) out[o + ch] = out[o + ch] * alpha + AREA_COLOR[ch] * (1 - alpha);
+        }
+        a.dirty = true;
+    }
+
+    function refreshSoon(run, a) {
+        if (a.timer || !a.dirty) return;
+        const wait = Math.max(0, REFRESH_MS - (Date.now() - a.last));
+        a.timer = setTimeout(function () { a.timer = null; if (run === sect.run && sect.active === a) showCanvas(a); }, wait);
+    }
+
+    function showCanvas(a) {
+        if (!a.dirty && sect.image) return;
+        a.dirty = false;
+        a.last = Date.now();
+        let url;
+        try {
+            a.ctx.putImageData(a.out, 0, 0);
+            url = a.canvas.toDataURL('image/jpeg', 0.85);
+        } catch (e) {
+            sectionalFail('The chart could not be read.');
+            return;
+        }
+        if (!sect.image) {
+            const u = sect.chart.usable;
+            sect.image = svg('image', {x: u.x, y: u.y, width: u.w, height: u.h, preserveAspectRatio: 'none', 'class': 'pm-sectional'});
+            sectionalHolder.appendChild(sect.image);
+            applyOpacity();
+            setCredit(true);
+        }
+        sect.image.setAttribute('href', url);
+        sect.image.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', url);  // Safari 12 reads only this one
+    }
+
+    function sectionalDone(run) {
+        const a = sect.active;
+        if (!a || run !== sect.run) return;
+        if (a.timer) { clearTimeout(a.timer); a.timer = null; }
+        showCanvas(a);
+        if (sect.active !== a) return;  // showCanvas found the canvas unreadable
+        a.dirty = false;
+        setStatus(a.failed
+            ? plural(a.failed, 'chart tile') + ' could not be loaded.'
+            : 'The chart is loaded.', '');
+        a.canvas = a.out = a.order = a.starts = null;  // the picture is in the page now; let the memory go
+    }
+
+    sect.box.addEventListener('change', function () {
+        store(KEY_SHOW, sect.box.checked ? '1' : '0');
+        if (sect.box.checked) {
+            startSectional();
+        } else {
+            stopSectional();
+            removeImage();
+            setStatus('', '');
+        }
+    });
+    sect.range.addEventListener('input', function () {
+        applyOpacity();
+        store(KEY_OPACITY, sect.range.value);
+    });
+    (function restoreSectional() {
+        const op = parseInt(stored(KEY_OPACITY), 10);
+        if (op >= 10 && op <= 100) sect.range.value = op;
+        sect.box.checked = stored(KEY_SHOW) === '1';
+        applyOpacity();
+    })();
 
     // ---- the lists --------------------------------------------------------------------------------------------
 

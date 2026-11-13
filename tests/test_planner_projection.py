@@ -199,3 +199,149 @@ def test_the_wall_charts_central_meridian_is_a_vertical_line():
     wall = chart_by_name("US Wall Planning")
     xs = [project(wall, lat, projection.WALL_CENTRAL_MERIDIAN, BOARD_MM)[0] for lat in (26, 35, 45, 49)]
     assert xs == pytest.approx([xs[0]] * 4)
+
+
+# ---- unproject and chart_grid --------------------------------------------------------------------------------
+
+FRACTIONS = (0.0, 0.013, 0.5, 0.987, 1.0)  # the corners, near them, and the centre of the map area
+
+
+def map_points(chart, width_mm, height_mm=None):
+    """(x, y) board points over the map area: the corners, near the corners, the centre."""
+    width, height = board_size(chart, width_mm, height_mm)
+    left, top, map_width, map_height = projection._map_area(chart, width, height)
+    return [(left + fx * map_width, top + fy * map_height) for fx in FRACTIONS for fy in FRACTIONS]
+
+
+@pytest.mark.parametrize("width_in", [12, 32, 59, 100])
+@pytest.mark.parametrize("height_in", [None, 14.0])
+def test_unproject_is_the_inverse_of_project_for_every_chart(width_in, height_in):
+    width_mm = width_in * 25.4
+    height_mm = None if height_in is None else height_in * 25.4
+    for chart in charts():
+        for x, y in map_points(chart, width_mm, height_mm):
+            lat, lon = projection.unproject(chart, x, y, width_mm, height_mm)
+            assert -90 <= lat <= 90 and -180 <= lon <= 180, chart.name
+            assert project(chart, lat, lon, width_mm, height_mm) == pytest.approx((x, y), abs=1e-3), chart.name
+            # and from the other side: a latitude and longitude come back as they went in
+            x2, y2 = project(chart, lat, lon, width_mm, height_mm)
+            lat2, lon2 = projection.unproject(chart, x2, y2, width_mm, height_mm)
+            assert lat2 == pytest.approx(lat, abs=1e-6) and lon2 == pytest.approx(lon, abs=1e-6), chart.name
+
+
+def test_unproject_gives_back_the_airports_that_were_projected():
+    for name in ("Houston", "US Wall Planning"):
+        chart = chart_by_name(name)
+        for lat, lon in AIRPORTS.values():
+            x, y = project(chart, lat, lon, BOARD_MM)
+            assert projection.unproject(chart, x, y, BOARD_MM) == pytest.approx((lat, lon), abs=1e-6)
+
+
+def test_houston_at_32_by_22_inches_has_its_margins_and_its_corners_on_the_chart():
+    houston = chart_by_name("Houston")
+    width, height = BOARD_MM, 22 * 25.4
+    top_left = projection.unproject(houston, 10.0, 0.0, width, height)  # the left margin is 10 mm
+    assert top_left == pytest.approx((houston.north, houston.west), abs=1e-6)
+    bottom_right = projection.unproject(houston, width, height - 7.0, width, height)  # the bottom margin is 7 mm
+    assert bottom_right == pytest.approx((houston.south, houston.east), abs=1e-6)
+
+
+def test_unproject_gives_a_negative_longitude_past_the_antimeridian():
+    aleutians = chart_by_name("Western Aleutian Islands")
+    assert aleutians.east > 180
+    x, y = project(aleutians, 51.88, -176.65, BOARD_MM)  # Adak
+    lat, lon = projection.unproject(aleutians, x, y, BOARD_MM)
+    assert (lat, lon) == pytest.approx((51.88, -176.65), abs=1e-6)
+    west_edge = projection.unproject(aleutians, *map_points(aleutians, BOARD_MM)[0], BOARD_MM)
+    assert west_edge[1] == pytest.approx(aleutians.west, abs=1e-6)  # 168 east is still 168
+
+
+def test_unproject_refuses_a_board_that_is_not_a_size():
+    houston = chart_by_name("Houston")
+    with pytest.raises(ValueError):
+        projection.unproject(houston, 10, 10, float("nan"))
+    with pytest.raises(ValueError):
+        projection.unproject(houston, 10, 10, BOARD_MM, -5)
+
+
+def test_the_grid_has_the_shape_the_page_expects():
+    grid = projection.chart_grid(chart_by_name("Houston"), BOARD_MM)
+    assert (grid["cols"], grid["rows"]) == (25, 17)
+    assert len(grid["lat"]) == len(grid["lon"]) == 17
+    assert all(len(row) == 25 for row in grid["lat"] + grid["lon"])
+    assert set(grid) == {"cols", "rows", "lat", "lon", "usable", "bounds"}
+
+
+def test_a_grid_runs_south_down_and_east_right():
+    for name in ("Houston", "Albuquerque", "US Wall Planning"):
+        grid = projection.chart_grid(chart_by_name(name), BOARD_MM)
+        lat, lon = grid["lat"], grid["lon"]
+        for j in range(1, grid["rows"]):
+            assert lat[j][0] < lat[j - 1][0], name  # latitude falls going down
+        for i in range(1, grid["cols"]):
+            assert lon[0][i] > lon[0][i - 1], name  # longitude grows going right
+
+
+def test_the_houston_grid_is_the_chart_and_holds_houston():
+    houston = chart_by_name("Houston")
+    grid = projection.chart_grid(houston, BOARD_MM)
+    # a flat projection: the grid's corners are the chart's bounds
+    assert grid["lat"][0][0] == pytest.approx(houston.north, abs=1e-5)
+    assert grid["lat"][-1][0] == pytest.approx(houston.south, abs=1e-5)
+    assert grid["lon"][0][0] == pytest.approx(houston.west, abs=1e-5)
+    assert grid["lon"][0][-1] == pytest.approx(houston.east, abs=1e-5)
+    bounds = grid["bounds"]
+    assert (bounds["west"], bounds["east"], bounds["south"], bounds["north"]) == pytest.approx(
+        (houston.west, houston.east, houston.south, houston.north), abs=1e-5
+    )
+    khou_lat, khou_lon = AIRPORTS["KHOU"]
+    assert bounds["south"] < khou_lat < bounds["north"] and bounds["west"] < khou_lon < bounds["east"]
+
+
+def test_usable_is_the_board_less_its_margins_in_mm():
+    houston = chart_by_name("Houston")
+    width, height = BOARD_MM, 22 * 25.4
+    usable = projection.chart_grid(houston, width, height)["usable"]
+    assert usable["x"] == pytest.approx(10.0, abs=1e-3) and usable["y"] == 0.0
+    assert usable["w"] == pytest.approx(width - 10.0, abs=1e-3)
+    assert usable["h"] == pytest.approx(height - 7.0, abs=1e-3)
+    wall = projection.chart_grid(chart_by_name("US Wall Planning"), width)
+    assert wall["usable"]["x"] == wall["usable"]["y"] == 0.0 and wall["usable"]["w"] == pytest.approx(width, abs=1e-3)
+
+
+def test_the_grid_is_for_the_board_that_was_planned():
+    houston = chart_by_name("Houston")
+    small = projection.chart_grid(houston, 16 * 25.4)  # the same chart on half the board
+    big = projection.chart_grid(houston, 32 * 25.4)
+    assert small["usable"]["w"] == pytest.approx(big["usable"]["w"] / 2, abs=1e-3)
+    assert small["lat"] == big["lat"] and small["lon"] == big["lon"]  # the earth under the map area does not move
+    taller = projection.chart_grid(houston, 32 * 25.4, 30 * 25.4)  # an explicit height changes the usable area
+    assert taller["usable"]["h"] > big["usable"]["h"]
+
+
+def test_the_wall_charts_grid_corners_are_around_the_continental_us():
+    grid = projection.chart_grid(chart_by_name("US Wall Planning"), BOARD_MM)
+    corners = [(grid["lat"][j][i], grid["lon"][j][i]) for j in (0, -1) for i in (0, -1)]
+    for lat, lon in corners:  # the printed rectangle is a little wider than the states: the sea and Canada
+        assert 20 < lat < 55 and -135 < lon < -60
+    top_left, top_right, bottom_left, bottom_right = corners
+    assert top_left[1] < -125 and bottom_right[1] > -75  # west of Washington, east of Maine
+    assert top_left[0] > 45 and bottom_left[0] < 25  # north of the border, south of Florida
+
+
+def test_a_grid_over_the_antimeridian_is_unwrapped_by_its_bounds():
+    aleutians = chart_by_name("Western Aleutian Islands")
+    grid = projection.chart_grid(aleutians, BOARD_MM)
+    assert all(-180 <= v <= 180 for row in grid["lon"] for v in row)
+    assert any(v < 0 for row in grid["lon"] for v in row) and any(v > 100 for row in grid["lon"] for v in row)
+    assert grid["bounds"]["east"] > 180 and grid["bounds"]["west"] == pytest.approx(aleutians.west, abs=1e-5)
+    assert grid["bounds"]["east"] == pytest.approx(aleutians.east, abs=1e-5)
+
+
+def test_the_grid_is_small_and_plain_json():
+    import json
+
+    grid = projection.chart_grid(chart_by_name("US Wall Planning"), BOARD_MM)
+    text = json.dumps(grid, allow_nan=False)
+    assert len(text) < 12_000
+    assert all(round(v, 5) == v for row in grid["lat"] + grid["lon"] for v in row)

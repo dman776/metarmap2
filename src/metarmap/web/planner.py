@@ -513,6 +513,9 @@ class Planner:
         message = f"Planned {_plural(len(pins), 'airport')} on {_plural(sheet['shopping']['strings'], 'string')}"
         if left_out:
             message += f"; left out {len(left_out)}"
+        # the earth under the plan's map area, for a page that draws the chart's own picture under the pixels: the grid
+        # is for the board the plan used (its width and height), and usable/bounds come with it
+        grid = projection.chart_grid(chart, board_w, board_h)
         return {
             "message": message,
             "chart": {
@@ -525,6 +528,9 @@ class Planner:
                     "bottom": chart.margin_bottom,
                 },
                 "height_measured": bool(chart.board_aspect or chart.printed_in),
+                "grid": {key: grid[key] for key in ("cols", "rows", "lat", "lon")},
+                "usable": grid["usable"],
+                "bounds": grid["bounds"],
             },
             "sheet": sheet,
             "airports": snippet,

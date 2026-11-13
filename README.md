@@ -118,9 +118,17 @@ cut, the join cables, what to buy and the power you need, and gives the airports
 `config.json` snippet to copy. Planning runs in the background and can be cancelled; the **Print** button prints the map
 and, after it, the cut list, joins, shopping list and power advice. It only plans: it never changes the Chart.
 
+Tick **Show the sectional chart** above the map to see the real FAA sectional (or, for the US Wall Planning chart, the
+US chart) under the plan, lined up with the board; the **Opacity** slider fades it (10 to 100%). It is off by default
+and never prints; your choice is remembered in this browser. The tiles come from the FAA over the internet as you watch
+(a sectional is about 100 tiles, about 5 MB; the whole US about 1,050, about 47 MB, which the page tells you before you
+tick the box), and unticking the box stops the loading.
+
 ![Plan a new chart: the form, here choosing 100 recommended airports](docs/images/config_planner.png)
 
 ![The plan's build map: each pixel numbered with its airport, the wire green where it fits and red where an extension is needed, a dashed join cable and the start](docs/images/config_planner_map.png)
+
+![The build map with the FAA sectional chart under the plan at 60% opacity](docs/images/config_planner_sectional.jpg)
 
 ### Cockpit
 

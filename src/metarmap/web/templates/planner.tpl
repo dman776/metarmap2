@@ -207,6 +207,15 @@
                     <button class="chip sm" type="button" id="pl-print">Print</button>
                 </div>
             </div>
+            <div class="pm-bar no-print">
+                <label class="pm-check" for="pl-sect"><input id="pl-sect" type="checkbox" disabled> Show the sectional chart</label>
+                <label class="pm-op" for="pl-sect-op">Opacity</label>
+                <input id="pl-sect-op" type="range" min="10" max="100" step="5" value="60" disabled aria-describedby="pl-sect-op-val">
+                <span class="val mono" id="pl-sect-op-val">60%</span>
+                <span class="muted pm-sect-text" id="pl-sect-progress" aria-hidden="true" hidden></span>
+                <span class="muted pm-sect-text" id="pl-sect-status" role="status" hidden></span>
+                <span class="muted pm-sect-text" id="pl-sect-note" hidden></span>
+            </div>
             <div class="pm-scroll" id="pl-map"></div>
             <ul class="pm-legend" id="pl-legend"></ul>
         </div>

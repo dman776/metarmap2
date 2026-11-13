@@ -1,5 +1,13 @@
 ### Unreleased
 
+- **The sectional chart under the plan** (Chart Planner build map): a **Show the sectional chart** box above the map
+  draws the real FAA VFR Sectional (the US Wall Planning chart gets it too, from the same tiles the Web map uses
+  zoomed out across the US) under the plan, lined up with the board, with an **Opacity** slider (10 to 100%, starts at
+  60%). It is off by default, the box and the opacity are remembered in this browser, and it never prints. The tiles load
+  as you watch ("Loading chart tiles: 12 of 35", six at a time, and unticking the box stops it); a tile that cannot be
+  loaded leaves its area blank and a note counts them. A sectional takes about 100 tiles (about 5 MB); the whole US takes
+  about 1,050 (about 47 MB), which the page says next to the box before you tick it. A plan again redraws it.
+
 - **Plan a new chart** (the Chart Planner page, B90 part 3): a new page at `/config/planner`, reached from the
   **Plan a new chart** button on **Config > Airports**. Pick a chart (a sectional, starting with the Web map's, or the
   US Wall Planning chart), the airports (your current ones, a pasted list of codes, or a recommended set picked from the

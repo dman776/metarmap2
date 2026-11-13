@@ -179,9 +179,7 @@ def project(chart, lat, lon, width_mm, height_mm=None):
     map to fill the area. A point outside the chart's bounds still projects, outside that area; use contains() to tell.
     """
     width, height = board_size(chart, width_mm, height_mm)
-    left, top = width * chart.margin_left, height * chart.margin_top
-    map_width = width * (1 - chart.margin_left - chart.margin_right)
-    map_height = height * (1 - chart.margin_top - chart.margin_bottom)
+    left, top, map_width, map_height = _map_area(chart, width, height)
     if chart.kind == "wall":
         x, y = _lambert_fraction(chart, lat, lon)
     else:
@@ -190,20 +188,36 @@ def project(chart, lat, lon, width_mm, height_mm=None):
     return left + x * map_width, top + y * map_height
 
 
+def _tan_half(phi):
+    return math.tan(math.pi / 4 + phi / 2)
+
+
+@lru_cache(maxsize=None)
+def _lambert_constants(chart):
+    """(n, f, rho0) of the chart's cone: project() and unproject() share them, so the two cannot drift apart."""
+    phi1, phi2 = (math.radians(p) for p in chart.parallels)
+    n = math.log(math.cos(phi1) / math.cos(phi2)) / math.log(_tan_half(phi2) / _tan_half(phi1))
+    f = math.cos(phi1) * _tan_half(phi1) ** n / n
+    rho0 = f / _tan_half(math.radians(chart.origin_latitude)) ** n
+    return n, f, rho0
+
+
 def _lambert(chart, lat, lon):
     """(x, y) of a point in a spherical Lambert conformal conic projection of the unit sphere, y up."""
-    phi1, phi2 = (math.radians(p) for p in chart.parallels)
-    quarter = math.pi / 4
-
-    def tan_half(phi):
-        return math.tan(quarter + phi / 2)
-
-    n = math.log(math.cos(phi1) / math.cos(phi2)) / math.log(tan_half(phi2) / tan_half(phi1))
-    f = math.cos(phi1) * tan_half(phi1) ** n / n
-    rho = f / tan_half(math.radians(lat)) ** n
-    rho0 = f / tan_half(math.radians(chart.origin_latitude)) ** n
+    n, f, rho0 = _lambert_constants(chart)
+    rho = f / _tan_half(math.radians(lat)) ** n
     theta = n * math.radians(lon - chart.central_meridian)
     return rho * math.sin(theta), rho0 - rho * math.cos(theta)
+
+
+def _inverse_lambert(chart, x, y):
+    """(lat, lon) in degrees of a point (x, y) in the unit-sphere Lambert projection above (the inverse of it)."""
+    n, f, rho0 = _lambert_constants(chart)
+    sign = math.copysign(1.0, n)
+    rho = sign * math.hypot(x, rho0 - y)
+    theta = math.atan2(sign * x, sign * (rho0 - y))
+    lat = 2 * math.atan((f / rho) ** (1 / n)) - math.pi / 2
+    return math.degrees(lat), chart.central_meridian + math.degrees(theta / n)
 
 
 @lru_cache(maxsize=None)
@@ -241,3 +255,80 @@ def _lambert_fraction(chart, lat, lon):
     x0, x1, y0, y1 = _wall_rectangle(chart)
     x, y = _lambert(chart, lat, lon)
     return (x - x0) / (x1 - x0), (y1 - y) / (y1 - y0)
+
+
+def _inverse_lambert_fraction(chart, fx, fy):
+    """(lat, lon) of a point given as fractions of the wall chart's rectangle (the inverse of _lambert_fraction)."""
+    x0, x1, y0, y1 = _wall_rectangle(chart)
+    return _inverse_lambert(chart, x0 + fx * (x1 - x0), y1 - fy * (y1 - y0))
+
+
+def _map_area(chart, width, height):
+    """(left, top, map_width, map_height) in mm of the map area: the board less its margins."""
+    return (
+        width * chart.margin_left,
+        height * chart.margin_top,
+        width * (1 - chart.margin_left - chart.margin_right),
+        height * (1 - chart.margin_top - chart.margin_bottom),
+    )
+
+
+def unproject(chart, x_mm, y_mm, width_mm, height_mm=None):
+    """
+    (lat, lon) of a point `x_mm` right and `y_mm` down from the board's top left corner: the exact inverse of
+    project() for the same chart and board, whatever the margins, the explicit height or the projection. The
+    longitude is in -180 to 180, so a point on the Western Aleutians chart past 180 degrees comes back as a negative
+    longitude (a caller drawing that chart unwraps it, as contains() and project() do).
+    """
+    width, height = board_size(chart, width_mm, height_mm)
+    left, top, map_width, map_height = _map_area(chart, width, height)
+    fx, fy = (x_mm - left) / map_width, (y_mm - top) / map_height
+    if chart.kind == "wall":
+        lat, lon = _inverse_lambert_fraction(chart, fx, fy)
+    else:
+        lat = chart.north - fy * (chart.north - chart.south)
+        lon = chart.west + fx * (chart.east - chart.west)
+    if lon > 180:
+        lon -= 360
+    return lat, lon
+
+
+GRID_COLS = 25
+GRID_ROWS = 17
+
+
+def chart_grid(chart, width_mm, height_mm=None, cols=GRID_COLS, rows=GRID_ROWS):
+    """
+    A coarse map from the board to the earth, for a page that draws the chart's own picture under the plan: the
+    latitude and longitude, to 5 decimals, of cols x rows points spread evenly over the map area (the board less its
+    margins), row by row from its top left: lat[j][i] and lon[j][i] are at i / (cols - 1) of the way across and
+    j / (rows - 1) of the way down. Between the points a page interpolates, which is as good as the projection is
+    smooth: about a tenth of a millimetre on a 32 inch board.
+
+    Returns {"cols", "rows", "lat", "lon", "usable", "bounds"}. usable is the map area in board mm (x, y, w, h), the
+    coordinates the pixels use. bounds is the west, east, south and north of the points, for choosing which map tiles
+    to load; longitudes are -180 to 180 in the grid but bounds is in the chart's own range, so the Western Aleutians
+    chart, which crosses the antimeridian, has an east above 180 and a page unwraps negative grid longitudes (adds
+    360) to match it.
+    """
+    width, height = board_size(chart, width_mm, height_mm)
+    left, top, map_width, map_height = _map_area(chart, width, height)
+    lat, lon = [], []
+    for j in range(rows):
+        lat_row, lon_row = [], []
+        for i in range(cols):
+            a, b = unproject(chart, left + i / (cols - 1) * map_width, top + j / (rows - 1) * map_height, width, height)
+            lat_row.append(round(a, 5))
+            lon_row.append(round(b, 5))
+        lat.append(lat_row)
+        lon.append(lon_row)
+    lons = [_unwrapped(chart, v) for row in lon for v in row]
+    lats = [v for row in lat for v in row]
+    return {
+        "cols": cols,
+        "rows": rows,
+        "lat": lat,
+        "lon": lon,
+        "usable": {"x": round(left, 3), "y": round(top, 3), "w": round(map_width, 3), "h": round(map_height, 3)},
+        "bounds": {"west": min(lons), "east": max(lons), "south": min(lats), "north": max(lats)},
+    }

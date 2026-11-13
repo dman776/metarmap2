@@ -657,6 +657,13 @@ textarea { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--cont
 .pl-kv dd { margin: 0; }
 textarea.snippet { display: block; width: calc(100% - 48px); margin: 12px 24px 24px; font-size: 12px; }
 .map-card .card-head .chip-row .chip { margin-left: 8px; }
+.pm-bar { display: flex; flex-wrap: wrap; align-items: center; padding: 8px 24px 10px; font-size: 14px; }
+.pm-bar > * { margin: 4px 14px 4px 0; }
+.pm-check { display: flex; align-items: center; min-height: 36px; cursor: pointer; }
+.pm-check input { accent-color: var(--accent); width: 20px; height: 20px; margin: 0 8px 0 0; }
+.pm-bar input[type=range] { width: 160px; max-width: 40vw; margin: 4px 14px 4px 0; accent-color: var(--accent); }
+.pm-bar .val { min-width: 3.2em; }
+.pm-sect-text { font-size: 13px; }
 .pm-scroll { overflow: auto; -webkit-overflow-scrolling: touch; max-height: 80vh; padding: 12px; background: var(--sunken); }
 .pm-scroll svg { display: block; margin: 0 auto; }
 .pm-board { fill: #0f1a24; stroke: var(--control); stroke-width: 1.2; }
@@ -689,6 +696,7 @@ textarea.snippet { display: block; width: calc(100% - 48px); margin: 12px 24px 2
 @media (max-width: 640px) {
     .pl-body { padding: 14px 18px; }
     .pm-legend { padding: 12px 18px 16px; }
+    .pm-bar { padding: 8px 18px 10px; }
     textarea.snippet { width: calc(100% - 36px); margin: 12px 18px 18px; }
 }
 @media print {
@@ -714,6 +722,7 @@ textarea.snippet { display: block; width: calc(100% - 48px); margin: 12px 24px 2
     .pl-list li { page-break-inside: avoid; break-inside: avoid; }
     .pm-scroll { overflow: visible; max-height: none; padding: 0; background: #fff; }
     .pm-scroll svg { width: 100% !important; height: auto !important; max-height: 128mm; }  /* the summary, the heading and the legend share the page */
+    .pm-sectional, .pm-sectional-holder, .pm-credit { display: none !important; }  /* the chart is for the screen: it does not print */
     .pm-board { fill: #fff; stroke: #000; }
     .pm-area { fill: #f1f1f1; stroke: #888; }
     .pm-dot { fill: #fff; stroke: #000; }
