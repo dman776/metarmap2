@@ -1,10 +1,11 @@
 """
 The Chart Planner page (B90): Config > Plan a new chart. The form posts its choices, the planner runs in a background
-thread (the airport fetch alone can take ten minutes on a Pi Zero) and the page polls for its progress and, at last, the
-build sheet. Same shape as an update: a POST starts it and answers 202, a GET answers its progress, only one runs at a
-time and a page that is reloaded picks it up again. It only reads: nothing here changes the Chart's settings.
+thread (the first airport download for a national chart takes minutes) and the page polls for its progress and, at
+last, the build sheet. Same shape as an update: a POST starts it and answers 202, a GET answers its progress, only one
+runs at a time and a page that is reloaded picks it up again. It only reads: nothing here changes the Chart's settings.
 """
 
+import inspect
 import json
 import logging
 import math
@@ -72,6 +73,26 @@ def _shown(value, limit=40):
 
 def _plural(n, one, many=None):
     return f"{n} {one if n == 1 else many or one + 's'}"
+
+
+def _accepts_progress(load):
+    """Whether the airport loader takes a progress= callback (the fetch reports its tiles and batches to it)."""
+    try:
+        params = inspect.signature(load).parameters
+    except (TypeError, ValueError):
+        return False
+    return "progress" in params or any(p.kind == inspect.Parameter.VAR_KEYWORD for p in params.values())
+
+
+def _minutes_ago(when):
+    """Whole minutes since an ISO time, or None if it is not one."""
+    try:
+        then = datetime.fromisoformat(when)
+        if then.tzinfo is None:
+            then = then.replace(tzinfo=timezone.utc)
+        return max(0, int((datetime.now(timezone.utc) - then).total_seconds() // 60))
+    except (TypeError, ValueError):
+        return None
 
 
 class Invalid(ValueError):
@@ -274,7 +295,14 @@ class Planner:
         job = self.job
         if job is None:
             return dict(NO_JOB)
-        return {**job, "elapsed": int((self._ended or time.monotonic()) - self._started)}
+        # dict() copies in one C call, so a worker or the planner thread adding a key (_downloaded, fetched_at,
+        # stale) can't land in the middle of it; looping over job.items() here raised "dictionary changed size
+        # during iteration", the route answered 500 and the page stopped polling
+        snap = dict(job)
+        return {
+            **{k: v for k, v in snap.items() if not k.startswith("_")},
+            "elapsed": int((self._ended or time.monotonic()) - self._started),
+        }
 
     def _run(self, job, params, cancel):
         try:
@@ -310,7 +338,50 @@ class Planner:
     def _step(self, job, cancel, fraction, label):
         if cancel.is_set():
             raise Cancelled()
+        before = job.get("fraction")
+        if fraction is not None and isinstance(before, (int, float)):
+            fraction = max(fraction, before)  # a bar never goes back
         job["fraction"], job["label"] = fraction, label
+
+    def _later(self, p, x):
+        """
+        Where the bar is for a step that is `x` (0 to 1) of the way through the work after the airports are found. A
+        recommended plan has downloaded first: stations fill 0 to 0.6 of the bar, the details 0.6 to 0.7, and the rest
+        (finding positions, planning, the board-size trials) 0.7 to 1.0. The other sources have no download.
+        """
+        return 0.7 + 0.3 * x if p["source"] == "recommended" else x
+
+    def _reporter(self, job, cancel):
+        """
+        The callback for airports.load(progress=): progress(phase, done, total). It runs on the fetch's worker
+        threads, so it only stores numbers under the lock, and it never raises: a bad value is ignored.
+        """
+
+        def progress(phase, done, total):
+            try:
+                if phase not in ("stations", "details"):
+                    return
+                if any(isinstance(v, bool) or not isinstance(v, int) for v in (done, total)):
+                    return
+                if total < 1 or done < 0:
+                    return
+                done = min(done, total)
+                if phase == "stations":
+                    fraction = 0.6 * done / total
+                    label = f"Downloading stations: tile {done} of {total}"
+                else:
+                    fraction = 0.6 + 0.1 * done / total
+                    label = f"Downloading airport details: batch {done} of {total}"
+                with self._lock:
+                    if job["done"] or cancel.is_set():
+                        return
+                    job["fraction"] = max(fraction, job["fraction"] or 0.0)  # the total can grow: never go back
+                    job["label"] = label
+                    job["_downloaded"] = True
+            except Exception:  # noqa: BLE001 - a progress report must never break the fetch
+                pass
+
+        return progress
 
     # -- where the airports are --
 
@@ -355,7 +426,9 @@ class Planner:
             self._step(job, cancel, None, "Fetching airports from aviationweather.gov")
             clock = JobClock(cancel)
             box = (chart.west, chart.south, chart.east, chart.north)
-            result = self._load(box, clock=clock)
+            reports = _accepts_progress(self._load)
+            extra = {"progress": self._reporter(job, cancel)} if reports else {}
+            result = self._load(box, clock=clock, **extra)
             if cancel.is_set():
                 raise Cancelled()
             if result.error:
@@ -375,13 +448,19 @@ class Planner:
                 }
             job["fetched_at"] = result.fetched_at
             job["stale"] = stale
+            if reports and not job.get("_downloaded") and result.fetched_at and not result.error:
+                # the cache answered, so nothing was downloaded: say so in the result, where it stays on screen (a
+                # status label would be replaced by the next step within a moment)
+                ago = _minutes_ago(result.fetched_at)
+                if ago is not None:
+                    notes.append(f"The airports came from the copy saved {_plural(ago, 'minute')} ago.")
             wanted = list(p["must_keep"])  # only these stay: the page ticks the current airports unless Start fresh
         else:
             wanted = p["codes"] if p["source"] == "paste" else [code for code, _n, _d in current]
             for code in p["must_keep"]:
                 if code not in wanted:
                     left_out.append({"code": code, "reason": "not one of the airports being planned"})
-        self._step(job, cancel, 0.04, "Finding where the airports are")
+        self._step(job, cancel, self._later(p, 0.04), "Finding where the airports are")
         failed = self._locate([c for c in wanted if c not in found], cancel)
         for code in wanted:
             if code in found:
@@ -447,7 +526,7 @@ class Planner:
             raise Invalid(f"You keep more airports than the Chart can take: {cap} pixels")
         cap_note = f"The Chart takes at most {cap} pixels, so the plan stops at {cap} airports."
         if p["source"] == "recommended":
-            self._step(job, stop, 0.5, "Choosing the airports")
+            self._step(job, stop, self._later(p, 0.5), "Choosing the airports")
             if p["target"] == "max":
                 target = cap  # as many as fit, but no more than the Chart can have
             elif p["target"] == "strings":
@@ -482,7 +561,7 @@ class Planner:
             found = {x.code: found[x.code] for x in pins}
         elif len(pins) > cap:
             raise Invalid(f"{len(pins)} airports is more than the Chart can take: {cap} pixels")
-        self._step(job, stop, 0.6, f"Planning {_plural(len(pins), 'airport')}")
+        self._step(job, stop, self._later(p, 0.6), f"Planning {_plural(len(pins), 'airport')}")
         planned = layout.plan(pins, settings, stop.is_set)
         if cancel.is_set():
             raise Cancelled()
@@ -499,7 +578,9 @@ class Planner:
                     "and ten more plans of that size would take too long."
                 )
             else:
-                sizes = self._sizes(job, stop, pins_at, settings_at, board_w, board_h, planned)
+                sizes = self._sizes(
+                    job, stop, pins_at, settings_at, board_w, board_h, planned, lambda x: self._later(p, x)
+                )
         if cancel.is_set():  # a cancel that came after the last step must not end as a success
             raise Cancelled()
 
@@ -540,7 +621,7 @@ class Planner:
             "made_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         }
 
-    def _sizes(self, job, cancel, pins_at, settings_at, board_w, board_h, planned):
+    def _sizes(self, job, cancel, pins_at, settings_at, board_w, board_h, planned, later):
         """
         The best few board widths from 90% to 115% of this one, with the board's shape kept. The board's own width is
         the plan already made, so it is not planned again.
@@ -550,7 +631,10 @@ class Planner:
 
         def make_pins(width):
             self._step(
-                job, cancel, 0.7 + 0.3 * len(done) / len(widths), f"Trying board size {len(done) + 1} of {len(widths)}"
+                job,
+                cancel,
+                later(0.7 + 0.3 * len(done) / len(widths)),
+                f"Trying board size {len(done) + 1} of {len(widths)}",
             )
             done.append(width)
             return pins_at(width)
