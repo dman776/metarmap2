@@ -12,6 +12,28 @@ import random
 from dataclasses import dataclass, field, replace
 from typing import Callable, List, NamedTuple, Optional, Sequence
 
+
+class Cancelled(Exception):
+    """Raised when the cancel callable given to plan(), recommend() or sweep_sizes() says to stop."""
+
+
+def _stop(cancel):
+    """Raises Cancelled if the caller asked to stop; called at the loop boundaries (a sweep, a pass, a pin added)."""
+    if cancel is not None and cancel():
+        raise Cancelled()
+
+
+# inside a long loop (a pass over every pin, the pairs of a sweep) cancel is asked once per this many steps, so a stop
+# is seen within a fraction of a second even for a thousand pins, not only at the end of a whole pass
+CHECK_EVERY = 16
+
+
+def _stop_every(cancel, step, every=CHECK_EVERY):
+    """_stop for loops with many short steps: asks cancel on every `every`-th step."""
+    if cancel is not None and step % every == 0:
+        _stop(cancel)
+
+
 # a gap over the limit costs this much (more than any excess can add up to), so extensions are counted first
 EXTENSION_COST = 10000.0
 # a little cost per mm, so among orders with the same extensions the shorter wire wins (the search needs a slope)
@@ -146,12 +168,14 @@ class SizeResult(NamedTuple):
     drops: int  # airports to drop to fix them
 
 
-def plan(pins: Sequence[Pin], settings: Settings) -> Plan:
+def plan(pins: Sequence[Pin], settings: Settings, cancel: Optional[Callable[[], bool]] = None) -> Plan:
     """
     Spaces the pins out, orders them into strings and measures every gap. Every string but the last is full, so the
     free joins are at fixed places in the order; the last one may end in spare pixels. Same input and seed, same plan.
     A pin that begins off the board is put on its edge first (listed in clipped), so max_move counts from there. A
-    position that isn't a finite number, or two pins with the same code, is a ValueError.
+    position that isn't a finite number, or two pins with the same code, is a ValueError. cancel is an optional callable
+    that says True when the caller wants it to stop: it is asked between sweeps, passes and pins, and then Cancelled is
+    raised.
     """
     pins = list(pins)
     _check_pins(pins)
@@ -163,17 +187,17 @@ def plan(pins: Sequence[Pin], settings: Settings) -> Plan:
         if (x, y) != (pin.x, pin.y):
             pins[k] = replace(pin, x=x, y=y)
             result.clipped.append(pin.code)
-    xs, ys, close = _declutter([p.x for p in pins], [p.y for p in pins], settings)
+    xs, ys, close = _declutter([p.x for p in pins], [p.y for p in pins], settings, cancel)
     result.crowded = _clusters(pins, close)
     if close:
-        result.drops = _suggest_drops(pins, settings)
+        result.drops = _suggest_drops(pins, settings, cancel)
     items = []
-    for k in _order(xs, ys, settings):
+    for k in _order(xs, ys, settings, cancel):
         pin = pins[k]
         moved = math.hypot(xs[k] - pin.x, ys[k] - pin.y)
         items.append(Item(pin.code, xs[k], ys[k], moved, pin.x, pin.y))
     if settings.allow_skips:
-        items = _place_skips(items, settings)
+        items = _place_skips(items, settings, cancel)
     result.items = items
     result.strings = _strings(len(items), settings.string_len)
     _measure(result, settings)
@@ -184,11 +208,16 @@ def sweep_sizes(
     make_pins: Callable[[float], Sequence[Pin]],
     widths_mm: Sequence[float],
     settings_for: Callable[[float], Settings],
+    cancel: Optional[Callable[[], bool]] = None,
 ) -> List[SizeResult]:
-    """Plans each trial board width and lists them best first: fewest crowded, then drops, then extensions."""
+    """
+    Plans each trial board width and lists them best first: fewest crowded, then drops, then extensions. cancel works as
+    in plan().
+    """
     results = []
     for width in widths_mm:
-        planned = plan(make_pins(width), settings_for(width))
+        _stop(cancel)
+        planned = plan(make_pins(width), settings_for(width), cancel)
         results.append(SizeResult(width, planned.extensions, len(planned.crowded), len(planned.drops)))
     return sorted(results, key=lambda r: (r.crowded, r.drops, r.extensions, r.width_mm))
 
@@ -198,12 +227,18 @@ def fill_strings(n: int, string_len: int = 50) -> int:
     return max(1, -(-n // string_len)) * string_len
 
 
-def recommend(candidates: Sequence[Pin], settings: Settings, target: Optional[int] = None, coverage: float = 0.0):
+def recommend(
+    candidates: Sequence[Pin],
+    settings: Settings,
+    target: Optional[int] = None,
+    coverage: float = 0.0,
+    cancel: Optional[Callable[[], bool]] = None,
+):
     """
     A set of the candidates that fits the board without crowding. The must_keep pins come first; then the most
     important ones, each only if it can sit min_gap from the chosen ones within max_move. coverage (0..1) trades
     importance for a pin far from the chosen ones (0: importance first, ties go to the farther one). target None takes
-    as many as fit.
+    as many as fit. cancel works as in plan(), and is asked before each pin is added.
     """
     _check_pins(candidates)
     kept = [p for p in candidates if p.must_keep]
@@ -215,6 +250,7 @@ def recommend(candidates: Sequence[Pin], settings: Settings, target: Optional[in
     nearest = [min((_dist(p, q) for q in kept), default=math.inf) for p in pool]
     left = [True] * len(pool)  # candidates not yet tried; one that doesn't fit never will, as chosen only grows
     while target is None or len(placed.pins) < target:
+        _stop(cancel)
         far = max((d for d, o in zip(nearest, left) if o and d != math.inf), default=0.0)
         keys = []  # the best score first; the tiny extra term breaks a tie in favour of the farther one, then the order
         for rank, d, o in zip(ranks, nearest, left):
@@ -222,6 +258,7 @@ def recommend(candidates: Sequence[Pin], settings: Settings, target: Optional[in
             keys.append((1 - coverage) * rank + coverage * cover + 1e-9 * cover if o else -math.inf)
         pin = None
         while pin is None:
+            _stop(cancel)
             best = keys.index(max(keys))
             if keys[best] == -math.inf:
                 return list(placed.pins)
@@ -349,7 +386,7 @@ def _close_pairs(xs, ys, min_gap):
     return sorted(pairs)
 
 
-def _declutter(xs, ys, settings):
+def _declutter(xs, ys, settings, cancel=None):
     """
     Pushes pins apart until all are min_gap apart, none further than max_move from where it began and none off the
     board. Returns the new xs, ys and the pairs still too close (a spot with more pins than fit around it), which it
@@ -367,6 +404,7 @@ def _declutter(xs, ys, settings):
         seen.add((px[k], py[k]))
     best, stalled = math.inf, 0
     for _ in range(RELAX_SWEEPS):
+        _stop(cancel)
         pairs = _close_pairs(px, py, gap)
         if not pairs:
             break
@@ -377,7 +415,8 @@ def _declutter(xs, ys, settings):
             stalled += 1
             if stalled >= STALL_SWEEPS:
                 break
-        for _d, i, j in pairs:
+        for step, (_d, i, j) in enumerate(pairs, 1):
+            _stop_every(cancel, step, 512)  # a sweep over a crowded thousand can have hundreds of thousands of pairs
             dx, dy = px[j] - px[i], py[j] - py[i]
             d = math.hypot(dx, dy)
             if d >= gap:  # an earlier push in this sweep already spaced them
@@ -420,7 +459,7 @@ def _clusters(pins, close):
     return sorted(sorted(codes) for codes in groups.values())
 
 
-def _suggest_drops(pins, settings):
+def _suggest_drops(pins, settings, cancel=None):
     """
     Airports to drop so the rest can be spaced out: the pins are taken most important first (a must_keep one always
     stays), each kept only if it can sit min_gap from the ones kept within max_move of its spot. The ones that can't
@@ -429,11 +468,15 @@ def _suggest_drops(pins, settings):
     """
     placed = _seeded([p for p in pins if p.must_keep], settings)
     rest = sorted((p for p in pins if not p.must_keep), key=_worth, reverse=True)
-    dropped = [p for p in rest if not placed.try_add(p, settings)]
+    dropped = []
+    for p in rest:
+        _stop(cancel)
+        if not placed.try_add(p, settings):
+            dropped.append(p)
     return [Drop(p.code, min(placed.pins, key=lambda q: (_dist(p, q), q.code)).code) for p in reversed(dropped)]
 
 
-def _order(xs, ys, settings):
+def _order(xs, ys, settings, cancel=None):
     """
     The order that visits every pin with the fewest gaps over the limit (then the least wire). The joins between strings
     are at fixed places in the order (after every string_len-th pin) and cost nothing, so a long gap suits a join.
@@ -452,7 +495,7 @@ def _order(xs, ys, settings):
         """The cost of a whole order: every gap but the free joins, which are at fixed places."""
         return sum(edge(a, b) for k, (a, b) in enumerate(zip(order, order[1:])) if (k + 1) % settings.string_len)
 
-    nbrs = _neighbours(xs, ys, min(NEIGHBOURS, n - 1))
+    nbrs = _neighbours(xs, ys, min(NEIGHBOURS, n - 1), cancel)
     rng = random.Random(settings.seed)
     corner = settings.start_corner
     if corner:
@@ -464,36 +507,41 @@ def _order(xs, ys, settings):
         first = max(range(n), key=lambda k: (math.hypot(xs[k] - mx, ys[k] - my), -k))
     best, best_cost = None, math.inf
     for attempt in range(RESTARTS):
+        _stop(cancel)
         if fixed is not None:
             start = fixed
         elif attempt == 0:
             start = first
         else:
             start = rng.randrange(n)
-        order = _nearest_path(xs, ys, start, rng, 0.0 if attempt == 0 else 0.2)
-        order = _improve(order, edge, nbrs, fixed is not None, settings.string_len)
+        order = _nearest_path(xs, ys, start, rng, 0.0 if attempt == 0 else 0.2, cancel)
+        order = _improve(order, edge, nbrs, fixed is not None, settings.string_len, cancel)
         cost = cost_of(order)
         if cost < best_cost - EPS:
             best, best_cost = order, cost
     return best
 
 
-def _neighbours(xs, ys, k):
-    return [
-        heapq.nsmallest(
-            k,
-            (b for b in range(len(xs)) if b != a),
-            key=lambda b, a=a: (xs[a] - xs[b]) ** 2 + (ys[a] - ys[b]) ** 2,
+def _neighbours(xs, ys, k, cancel=None):
+    result = []
+    for a in range(len(xs)):
+        _stop_every(cancel, a, 32)
+        result.append(
+            heapq.nsmallest(
+                k,
+                (b for b in range(len(xs)) if b != a),
+                key=lambda b, a=a: (xs[a] - xs[b]) ** 2 + (ys[a] - ys[b]) ** 2,
+            )
         )
-        for a in range(len(xs))
-    ]
+    return result
 
 
-def _nearest_path(xs, ys, start, rng, noise):
+def _nearest_path(xs, ys, start, rng, noise, cancel=None):
     """A path that always goes to the nearest pin not yet visited (now and then the second nearest, if noise)."""
     order = [start]
     left = [k for k in range(len(xs)) if k != start]
     while left:
+        _stop_every(cancel, len(left), 32)
         last = order[-1]
         near = heapq.nsmallest(
             2, range(len(left)), key=lambda k: (xs[left[k]] - xs[last]) ** 2 + (ys[left[k]] - ys[last]) ** 2
@@ -503,7 +551,7 @@ def _nearest_path(xs, ys, start, rng, noise):
     return order
 
 
-def _improve(order, edge, nbrs, fixed_first, every):
+def _improve(order, edge, nbrs, fixed_first, every, cancel=None):
     """
     2-opt and Or-opt on an open path, trying only each pin's nearest neighbours, until a pass finds nothing better.
     The path is padded with None at both ends (an end has no wire beyond it), so the moves treat the ends like any
@@ -575,8 +623,10 @@ def _improve(order, edge, nbrs, fixed_first, every):
     first = 2 if fixed_first else 1  # the first place an Or-opt segment may start
     low = 1 if fixed_first else 0  # the first edge an Or-opt segment may be put in
     for _ in range(PASSES):
+        _stop(cancel)
         improved = False
-        for a in list(t[1 : n + 1]):  # 2-opt: reverse the stretch between two pins that should be neighbours
+        for step, a in enumerate(list(t[1 : n + 1]), 1):  # 2-opt: reverse the stretch between two neighbours
+            _stop_every(cancel, step)
             for c in nbrs[a]:
                 p, q = pos[a], pos[c]
                 i, j = (p, q) if p < q else (q, p)
@@ -586,11 +636,13 @@ def _improve(order, edge, nbrs, fixed_first, every):
                     reindex()
                     improved = True
         for j in range(1, n + 1):  # reverse a start (only if the first pin may change)
+            _stop_every(cancel, j, 64)
             if not fixed_first and edge(t[1], t[j + 1]) - edge(t[j], t[j + 1]) - gain_2opt(0, j) < -EPS:
                 t[1 : j + 1] = t[1 : j + 1][::-1]
                 reindex()
                 improved = True
         for i in range(1, n):  # reverse an end
+            _stop_every(cancel, i, 64)
             if edge(t[i], t[n]) - edge(t[i], t[i + 1]) - gain_2opt(i, n) < -EPS:
                 t[i + 1 : n + 1] = t[i + 1 : n + 1][::-1]
                 reindex()
@@ -598,6 +650,7 @@ def _improve(order, edge, nbrs, fixed_first, every):
         for length in (1, 2, 3):  # Or-opt: move a stretch of up to three pins somewhere better
             s = first
             while s + length - 1 <= n:
+                _stop_every(cancel, s)
                 e = s + length - 1
                 seg = t[s : e + 1]
                 prev, nxt = t[s - 1], t[e + 1]
@@ -653,7 +706,7 @@ def _skips_ok(items, string_len):
     return not any(item.skipped and (k % string_len in (0, string_len - 1)) for k, item in enumerate(items))
 
 
-def _place_skips(items, settings):
+def _place_skips(items, settings, cancel=None):
     """
     items with hidden pixels in the gaps that would need an extension, using only the spare slots of the last string
     (so no string is added). A hidden pixel shifts the pins after it, which moves the joins relative to them: a long gap
@@ -665,6 +718,7 @@ def _place_skips(items, settings):
     spare = -(-len(items) // every) * every - len(items)
     best_items, best_count = items, _extensions(items, settings)
     while spare > 0 and best_count:
+        _stop(cancel)
         step = None
         for k, (a, b) in enumerate(zip(items, items[1:])):
             if (k + 1) % every == 0 or math.hypot(b.x - a.x, b.y - a.y) <= settings.limit + EPS:

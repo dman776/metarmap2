@@ -1,3 +1,23 @@
+### Unreleased
+
+- **Plan a new chart** (the Chart Planner page, B90 part 3): a new page at `/config/planner`, reached from the
+  **Plan a new chart** button on **Config > Airports**. Pick a chart (a sectional, starting with the Web map's, or the
+  US Wall Planning chart), the airports (your current ones, a pasted list of codes, or a recommended set picked from the
+  METAR stations on the chart: a number of strings (it starts at the strings your kept airports fill, and you raise it
+  to ask for more), a number of airports or as many as fit, with an even-coverage slider and "must keep"
+  ticks), the board size (width and height in inches; only Houston's 22 in height and the wall chart's shape are measured, so check the
+  height of any other sectional), and the pitch, spacing, move, string length and tolerance. The result is a build map (every pixel
+  numbered with its airport, the wire coloured green, amber or red with the extension to cut printed on it, the free
+  joins dashed with their cable length, a start marker and a line to where each moved pixel truly is; Print gives the
+  map and then the lists), a cut list, joins, a shopping list, power advice, the crowded airports and why, the three nearest board
+  sizes, and the airports in the new order as a `config.json` snippet to copy. Lengths show in mm and inches. It only
+  plans: nothing changes on the Chart (Apply comes later), and **Allow skipped pixels** is shown off until the Chart
+  supports it. The planning runs in the background (the airport fetch of a national chart takes about ten minutes on
+  a Pi), with progress and a Cancel button that also stops a plan in the middle; a reloaded page picks the running plan
+  up. A plan never goes over the Chart's 1000 pixels, the pitch (20 mm or more), string length (10 or more), spacing and
+  moves (up to 25 mm) have limits that keep it from running for hours, a plan still running after 15 minutes is
+  stopped, and the board sizes are not tried above 400 airports. New endpoints in `API.md`.
+
 ### dman776 26.11.12 (2026-11-12)
 
 - **The Chart announces itself on the network**: the first part of running several maps on one network. Each Chart now

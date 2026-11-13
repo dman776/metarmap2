@@ -107,6 +107,21 @@ Settings save as you change them.
 
 ![Config, Web map: the Map page's background, chart and starting view, and the live traffic settings](docs/images/config_virtual_map.png)
 
+#### Plan a new chart
+
+Building a new Chart? **Config > Airports > Plan a new chart** (`/config/planner`) lays the airports out on a board for
+you. Choose the chart printed on the board, the airports (your current ones, a list you paste, or recommended ones from
+the METAR stations on the chart: you choose a number of strings to fill, which starts at what your kept airports already
+fill, a number of airports, or as many as fit; your own airports start ticked as "must keep", untick any you do not want), the board's
+width and height in inches (only Houston's and the wall chart's heights are measured: check the height of any other sectional), and the pixel pitch (20 mm or more), spacing and move (up to 25 mm) and string length (10 or more). It draws a build map and lists the wire to
+cut, the join cables, what to buy and the power you need, and gives the airports in the new pixel order as a
+`config.json` snippet to copy. Planning runs in the background and can be cancelled; the **Print** button prints the map
+and, after it, the cut list, joins, shopping list and power advice. It only plans: it never changes the Chart.
+
+![Plan a new chart: the form, here choosing 100 recommended airports](docs/images/config_planner.png)
+
+![The plan's build map: each pixel numbered with its airport, the wire green where it fits and red where an extension is needed, a dashed join cable and the start](docs/images/config_planner_map.png)
+
 ### Cockpit
 
 MetarMap2 Cockpit, at `/remote`, is a remote control for a tablet in kiosk mode, here on an iPad in landscape: pick a visualizer, or, on the
