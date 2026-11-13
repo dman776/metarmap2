@@ -31,7 +31,7 @@
         <div class="set">
             <div>
                 <label class="t" for="pl-source">Airports</label>
-                <div class="d">Your current airports, a list you paste, or airports picked for you from the METAR stations on the chart (fetched from aviationweather.gov; a national chart takes about ten minutes).</div>
+                <div class="d">Your current airports, a list you paste, or airports picked for you from the METAR stations on the chart (fetched from aviationweather.gov; the first download for a national chart takes minutes, and it is saved for a day).</div>
             </div>
             <select id="pl-source" name="source">
                 <option value="current" selected>My current airports</option>
@@ -191,7 +191,7 @@
     <h2 id="pl-progress-title">Planning</h2>
     <p class="update-label"><span id="pl-label" role="status">Starting</span> <span class="muted" id="pl-elapsed" aria-hidden="true"></span></p>
     <progress class="update-bar" id="pl-bar" max="1" aria-labelledby="pl-progress-title"></progress>
-    <p class="muted" id="pl-note">You can leave this page and come back: the plan keeps running. A national chart's airport fetch takes about ten minutes on a Pi.</p>
+    <p class="muted" id="pl-note">You can leave this page and come back: the plan keeps running. The first airport download for a national chart takes minutes (a few hundred requests, several at a time within the weather service's limit); it is saved for a day, so the next plan is quick.</p>
 </section>
 
 <section id="pl-result" hidden>

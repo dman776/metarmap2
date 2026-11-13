@@ -115,7 +115,7 @@ the METAR stations on the chart: you choose a number of strings to fill, which s
 fill, a number of airports, or as many as fit; your own airports start ticked as "must keep", untick any you do not want), the board's
 width and height in inches (only Houston's and the wall chart's heights are measured: check the height of any other sectional), and the pixel pitch (20 mm or more), spacing and move (up to 25 mm) and string length (10 or more). It draws a build map across the full width of the page (on a wide screen the cards under it sit in two columns) and lists the wire to
 cut, the join cables, what to buy and the power you need, and gives the airports in the new pixel order as a
-`config.json` snippet to copy. Planning runs in the background and can be cancelled; the **Print** button prints the map
+`config.json` snippet to copy. Planning runs in the background and can be cancelled. A recommended plan first downloads the airports (minutes for a national chart, which we have not yet timed from start to end: it sends 3 requests at a time, within aviationweather.gov's limit of 100 a minute), and the bar shows where it is ("Downloading stations: tile 87 of 270", then "Downloading airport details"); the estimate of the tiles can grow as the download goes, but the bar never goes back, and airports saved in the last day are reused instead of downloaded again (the result's notes say so). The **Print** button prints the map
 and, after it, the cut list, joins, shopping list and power advice. It only plans: it never changes the Chart.
 
 Tick **Show the sectional chart** above the map to see the real FAA sectional (or, for the US Wall Planning chart, the
