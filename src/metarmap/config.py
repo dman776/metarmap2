@@ -61,9 +61,10 @@ class Config:
     airports.json as a backup.
 
     Every change is published as the keys that changed (subscribe()): a setting's dotted path ("led.pin"), or for
-    the airport list airports.code, airports.name, airports.display, airports.order (moved), airports.mock and
-    airports.other (keys of their own, set by the older by-code edits). led.count and led.virtual_count also add
-    or remove airports. A change that leaves a value as it was isn't published.
+    the airport list airports.code, airports.name, airports.display, airports.skip (a Hidden Pixel turned on or off),
+    airports.order (moved), airports.mock and airports.other (keys of their own, set by the older by-code edits).
+    led.count and led.virtual_count also add or remove airports. A change that leaves a value as it was isn't
+    published.
     """
 
     def __init__(self, file):
@@ -113,6 +114,7 @@ class Config:
         # airports past both (older files kept airports past the strip) are already on the web map only: virtual
         led.virtual_count = max(led.virtual_count, len(airports) - led.count, 0)
         airports.extend(Airport() for _ in range(led.count + led.virtual_count - len(airports)))
+        tidy_hidden(airports, led.count)
 
     def _migrate(self, raw):
         path = raw.get("airports_file", "airports.json")
@@ -129,6 +131,7 @@ class Config:
 
     @locked
     def write(self):
+        tidy_hidden(self._data.airports, self._data.led.count)
         self._data.save(self._file)
         self.read()
 
@@ -237,13 +240,20 @@ class Config:
     @locked
     def set_airport(self, pixel, key, value):
         """
-        Sets the code, name or display flag of the airport on LED `pixel` (counting from 0).
-        "-" or "" clears the code or name. Raises IndexError for no such LED, and ValueError for another key or
-        a code that isn't 3-4 letters and digits.
+        Sets the code, name, display flag or Hidden Pixel switch (skip) of the airport on LED `pixel` (counting
+        from 0). "-" or "" clears the code or name. Raises IndexError for no such LED, and ValueError for another key,
+        a code that isn't 3-4 letters and digits, and for what a Hidden Pixel can't be or do: it is an LED on the
+        strip with no airport, so it takes no code, is not shown on the OLED, and the switch can't be turned on
+        for an LED that has an airport (remove the airport first) or for a virtual airport.
         """
-        airport = self.airports[self._pixel(pixel)]
+        index = self._pixel(pixel)
+        airport = self.airports[index]
         if key == "code":
             code = parse_code(value)
+            if code and airport.skip:
+                raise ValueError(
+                    f"LED {index + 1} is a Hidden Pixel: turn Hidden Pixel off before giving it the airport {code}"
+                )
             if code != airport.code:
                 airport.code = code
                 self._changed("airports.code")
@@ -255,7 +265,25 @@ class Config:
         elif key == "name":
             self._set(airport, "name", "" if value == NO_AIRPORT else str(value))
         elif key == "display":
-            self._set(airport, "display", parse_value(value, bool, "display"))
+            show = parse_value(value, bool, "display")
+            if show and airport.skip:
+                raise ValueError(f"LED {index + 1} is a Hidden Pixel: it has no airport to show on the OLED")
+            self._set(airport, "display", show)
+        elif key == "skip":
+            hide = parse_value(value, bool, "skip")
+            if hide and not airport.skip:
+                if airport.code:
+                    raise ValueError(
+                        f"LED {index + 1} has the airport {airport.code}: remove the airport first "
+                        "(clear its code), then turn Hidden Pixel on"
+                    )
+                if self.is_virtual(index):
+                    raise ValueError(
+                        f"virtual airport {index - self._data.led.count + 1} has no LED: "
+                        "Hidden Pixel is for an LED on the strip"
+                    )
+                self._set(airport, "display", False)
+            self._set(airport, "skip", hide)
         else:
             raise ValueError(f"unknown airport setting: {key}")
         self.write()
@@ -311,6 +339,9 @@ class Config:
         src, dst = self._pixel(src), self._pixel(dst)
         if src != dst:
             airports.insert(dst, airports.pop(src))
+            if any(a.skip for a in airports[self._data.led.count :]):  # a Hidden Pixel is an LED on the strip
+                airports.insert(src, airports.pop(dst))
+                raise ValueError("that move would push a Hidden Pixel off the strip, among the virtual airports")
             self._changed("airports.order")
         self.write()
 
@@ -349,11 +380,18 @@ class Config:
                 f"{led_count} LEDs and {virtual_count} virtual airports are over {MAX_LEDS} airports in all"
             )
         new = []
-        for airport in airports:
+        for index, airport in enumerate(airports):
             clean = copy.deepcopy(airport)
             clean.code = parse_code(airport.code)
             clean.name = str(airport.name or "")
             clean.display = bool(airport.display)
+            clean.skip = bool(airport.skip)
+            if clean.skip and (clean.code or clean.display or index >= led_count):
+                raise ValueError(
+                    f"{'LED' if index < led_count else 'virtual airport'} "
+                    f"{index + 1 if index < led_count else index - led_count + 1} is a Hidden Pixel: it has no airport "
+                    "and is an LED on the strip"
+                )
             new.append(clean)
         if len(new) != led_count + virtual_count:
             raise ValueError(f"{len(new)} airports for {led_count} LEDs and {virtual_count} virtual airports")
@@ -383,6 +421,7 @@ class Config:
         back if the file cannot be written. Returns the keys."""
         data = self._data
         old = (data.airports, data.led.count, data.led.virtual_count)
+        tidy_hidden(new, led_count)  # a restored backup was not checked by apply_plan
         keys = plan_keys(old[0], new, old[1], old[2], led_count, virtual_count)
         pending = list(self._pending)
         data.airports, data.led.count, data.led.virtual_count = new, led_count, virtual_count
@@ -593,6 +632,28 @@ def _twice(airports, led_count):
     return f"the airport code {code} is in the list twice ({' and '.join(places)})"
 
 
+def tidy_hidden(airports, led_count):
+    """
+    Keeps the Hidden Pixels (Airport.skip) what they are: an LED on the strip with no airport. A hand-edited
+    config.json can have one with an airport code, or past the strip (a virtual airport has no LED); the flag goes and
+    the row stays as it was. Changes the list in place; returns how many flags it cleared.
+    """
+    cleared = 0
+    for index, airport in enumerate(airports):
+        if not airport.skip:
+            continue
+        if airport.code or index >= led_count:
+            airport.skip = False
+            cleared += 1
+            log.warning(
+                f"airport {index + 1} is not a Hidden Pixel any more: "
+                f"{'it has the airport ' + airport.code if airport.code else 'it is past the LEDs'}"
+            )
+        elif airport.display:
+            airport.display = False  # it has no airport to show on the OLED
+    return cleared
+
+
 def _other_keys(airports):
     """The keys an airport keeps of its own, besides its mock METAR (set by the older by-code edits)."""
     return [{k: v for k, v in a._extra.items() if k != MOCK_KEY} for a in airports]
@@ -602,7 +663,8 @@ def plan_keys(old, new, old_led, old_virtual, led, virtual):
     """
     The change keys (see Config) for swapping the airport list `old` for `new`, only for what differs: airports.order
     when the codes are in another order (or the list is another length), airports.code when airports came or went (it
-    fetches their METARs), airports.name, airports.display, airports.mock, airports.other, led.count, led.virtual_count.
+    fetches their METARs), airports.name, airports.display, airports.skip, airports.mock, airports.other, led.count,
+    led.virtual_count.
     """
     keys = []
     # a list that only grows or shrinks by blank LEDs has not changed for the ones that are there
@@ -618,6 +680,8 @@ def plan_keys(old, new, old_led, old_virtual, led, virtual):
         keys.append("airports.name")
     if [a.display for a in old] != [a.display for a in new]:
         keys.append("airports.display")
+    if [a.skip for a in old] != [a.skip for a in new]:
+        keys.append("airports.skip")
     if [a._extra.get(MOCK_KEY) for a in old] != [a._extra.get(MOCK_KEY) for a in new]:
         keys.append("airports.mock")
     if _other_keys(old) != _other_keys(new):

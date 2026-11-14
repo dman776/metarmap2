@@ -231,7 +231,8 @@ def parse(data):
         "brightness": _number(data, "brightness", 0.5, 0.0, 1.0, "The brightness"),
         "ma_white_5v": _number(data, "ma_white_5v", 60.0, 0.0, 1000.0, "The mA per pixel at 5 V", low_open=True),
         "ma_white_12v": _number(data, "ma_white_12v", 25.0, 0.0, 1000.0, "The mA per pixel at 12 V", low_open=True),
-        "allow_skips": False,  # needs Chart support (a later change): always planned without skipped pixels
+        # hidden pixels bridge a gap between two airports, so a string needs no cut (Apply writes them as Hidden Pixels)
+        "allow_skips": _flag(data, "allow_skips", False, "allow_skips"),
     }
     if data.get("height_in") in (None, ""):
         p["height_in"] = None
@@ -545,7 +546,7 @@ class Planner:
                 min_gap=p["min_gap"],
                 max_move=p["max_move"],
                 string_len=p["string_len"],
-                allow_skips=False,
+                allow_skips=p["allow_skips"],
                 start_corner=p["start_corner"],
             )
 
@@ -618,9 +619,14 @@ class Planner:
 
         old = {code: display for code, _name, display in self._current()}
         snippet = [
-            {"code": "", "name": "", "display": False}
+            {"code": "", "name": "", "display": False, "skip": True}  # a hidden pixel: between two airports
             if item.code is None
-            else {"code": item.code, "name": found[item.code]["name"], "display": old.get(item.code, False)}
+            else {
+                "code": item.code,
+                "name": found[item.code]["name"],
+                "display": old.get(item.code, False),
+                "skip": False,
+            }
             for item in planned.items
         ]
         message = f"Planned {_plural(len(pins), 'airport')} on {_plural(sheet['shopping']['strings'], 'string')}"
@@ -650,7 +656,7 @@ class Planner:
             "fetched_at": job.get("fetched_at"),
             "sizes": sizes,
             "recommended": p["source"] == "recommended",
-            "skips_allowed": False,
+            "skips_allowed": p["allow_skips"],
             "seconds": round(time.monotonic() - started, 1),
             "made_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         }

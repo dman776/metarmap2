@@ -94,6 +94,7 @@ class Renderer:
         self.active_visualizer: int = 0
         self._looks = []  # one Look per airport, in LED order
         self._strip_look = None  # set instead when one look drives the whole strip
+        self._hidden = ()  # the Hidden Pixels a whole-strip look must leave dark (see _darken_hidden)
         self._animations = []
         self._frozen = None  # the animations stop() froze, until resume()
         # (animations, monotonic_ms) when render() draws the next frame of those animations; other ones draw at once
@@ -128,6 +129,13 @@ class Renderer:
             for i in range(lit, len(self._pixels)):  # nothing draws them now: dark, not stuck on their last color
                 self._pixels[i] = colors_lib.color(colors_lib.OFF)
         self._looks, self._strip_look, self._animations = looks, strip_look, animations
+        # a whole-strip look (Rainbow, Chase) is one animation over every LED, so it would light the Hidden Pixels too;
+        # a look per airport already draws "off" for an LED with no airport
+        self._hidden = (
+            tuple(i for i, a in enumerate(settings.airports[:lit]) if a.skip and not a.code and i < len(self._pixels))
+            if strip_look is not None
+            else ()
+        )
         self._started = self._clock.time()  # the steps of a stepping visualizer count from here (step())
         self._look_dicts = None  # led_states()'s cache
 
@@ -200,9 +208,22 @@ class Renderer:
             with self._lock:
                 for animation in self._animations:
                     animation.animate(show=False)
+                self._darken_hidden()
                 self._pixels.show()
         except Exception as e:
             log.warning("draw_frame error: " + str(e))
+
+    def _darken_hidden(self):
+        """
+        Puts the Hidden Pixels (LEDs wired into the string that are not an airport) back to off after a whole-strip look
+        has drawn: Rainbow and Chase draw one animation over every LED. Called between drawing and show(), in
+        the lock, so the strip's skip-unchanged check sees the final colors. The startup sequences and the test
+        pattern write the LEDs themselves and still light them: they check the hardware.
+        """
+        if self._hidden:
+            off = colors_lib.color(colors_lib.OFF)
+            for i in self._hidden:
+                self._pixels[i] = off
 
     def frame_seconds(self):
         """
@@ -238,6 +259,7 @@ class Renderer:
                     self._wake.clear()
                     for animation in built:  # each draws into the strip's buffer if it's due...
                         animation.animate(show=False)
+                    self._darken_hidden()  # ...a whole-strip look leaves the Hidden Pixels dark...
                     self._pixels.show()  # ...and the strip is sent once per frame
                     self._next_frame = (built, self._next_frame_at(built, tick))
         except Exception as e:
@@ -338,12 +360,15 @@ class Renderer:
 
     def locate(self, pixnum):
         """
-        Pulses one LED white (ignored while an exclusive visualizer is running). A virtual airport has no LED: only
-        the web map pulses it (from last_locate).
+        Pulses one LED white (ignored while an exclusive visualizer is running, and for a Hidden Pixel). A virtual
+        airport has no LED: only the web map pulses it (from last_locate).
         """
         if self._vis.exclusive:
             return
         try:
+            airports = self._config.data.airports
+            if 0 <= int(pixnum) < len(airports) and airports[int(pixnum)].skip and not airports[int(pixnum)].code:
+                return  # a Hidden Pixel has no airport to find: nothing pulses, on the strip or on the web map
             self.last_locate = {"pixel": int(pixnum), "at": self._clock.time()}
             if int(pixnum) >= self._config.data.led.count:
                 return

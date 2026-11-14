@@ -382,6 +382,10 @@ class Airport(_Section):
     code: str = ""  # ICAO code; empty for an LED with no airport
     name: str = ""  # shown next to the code in the web UI
     display: bool = False  # show this airport on the OLED screen
+    # a Hidden Pixel: an LED that is wired into the string but shows nothing and is not an airport (a plan uses one to
+    # bridge a gap between two airports, so the string needs no cut). Its code is always empty, it is always on the
+    # strip (never a virtual airport), and Rainbow and Chase leave it dark
+    skip: bool = field(default=False, metadata={"omit_default": True})  # not written to config.json while false
 
 
 @dataclass
@@ -578,6 +582,8 @@ def _to_dict(obj):
         if f.name.startswith("_"):
             continue
         value = getattr(obj, f.name)
+        if f.metadata.get("omit_default") and value == default_of(f):
+            continue  # a newer key that most files never need: an older config.json stays as it was
         if dataclasses.is_dataclass(value):
             value = _to_dict(value)
         elif isinstance(value, list) and value and dataclasses.is_dataclass(value[0]):

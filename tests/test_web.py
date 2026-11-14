@@ -2510,3 +2510,23 @@ def test_a_name_change_announces_again(client):
     client("/config/edit/web_server.name/Dallas")
     client("/config/edit/web_server.announce/false")
     assert len(started) == 2
+
+
+def test_markup_airports_page_has_a_hidden_pixel_switch_on_each_pixel_row(client):
+    app = client.services
+    body = client("/config/airports")[1]
+    assert body.count('data-field="skip"') == app.config.data.led.count  # a pixel row each; virtual rows have none
+    assert 'aria-label="Hidden pixel, pixel 1"' in body and 'role="switch"' in body
+    assert (
+        "A hidden pixel is wired but shows nothing: it bridges a gap in a string so no wire has to be cut. "  # noqa: E501
+        "Its number stays in the strip." in body
+    )
+    assert '<span class="ap-error" role="alert" hidden></span>' in body  # the server's refusal shows here
+
+
+def test_source_airports_js_saves_the_hidden_pixel_switch_and_shows_the_refusal(client):
+    js = client("/static/app.js")[1]
+    block = js[js.index("the Hidden pixel switch") : js.index("airports (dev_mode)")]
+    assert "/skip/" in block and "note.textContent = err.message" in block  # the server's sentence, as text
+    assert "innerHTML" not in block
+    assert "?." not in block and "=>" not in block

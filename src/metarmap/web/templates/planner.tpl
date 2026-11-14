@@ -174,8 +174,8 @@
             <input id="pl-sizes" class="switch" type="checkbox" checked>
         </div>
         <div class="set">
-            <div><label class="t" for="pl-skips">Allow skipped pixels</label><div class="d">{{skips_note}} The plan still tells you how many hidden pixels would remove the extensions left.</div></div>
-            <input id="pl-skips" class="switch" type="checkbox" disabled>
+            <div><label class="t" for="pl-skips">Allow skipped pixels</label><div class="d">Uses a spare pixel of the last string to bridge a gap instead of cutting; the pixel is wired but hidden.</div></div>
+            <input id="pl-skips" class="switch" type="checkbox">
         </div>
         <div class="set">
             <div><label class="t" for="pl-corner">Start near this corner</label><div class="d">The first pixel is the one nearest it, where the power and the Pi go.</div></div>
