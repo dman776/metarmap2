@@ -687,13 +687,22 @@ Request body of `POST /config/planner/plan` (all but `chart` optional; numbers m
 | `brightness`, `ma_white_5v`, `ma_white_12v` | `0.5`, `60`, `25` | For the power advice |
 | `allow_skips` | always `false` | Accepted and ignored: skipped pixels need Chart support (a later change) |
 
-`result`: `{"message", "chart": {"name", "kind", "margins": {"left", "right", "top", "bottom"}, "height_measured"},
+`result`: `{"message", "chart": {"name", "kind", "margins": {"left", "right", "top", "bottom"}, "height_measured",
+"outline", "bounds"},
 "sheet", "airports", "names", "left_out": [{"code", "reason"}], "notes": [], "stale", "fetched_at", "sizes": null or
 {"best": [{"width_in", "height_in", "extensions", "crowded", "drops"}], "current": {...}}, "recommended",
 "skips_allowed": false, "seconds", "made_at"}`. `sheet` is the build sheet (`board`, `settings`, `pixels`, `start`,
 `route`, `cuts`, `joins`, `strings`, `shopping`, `problems` with `skips_wanted` and `skips_note`, `power`), all
 lengths in mm; `airports` is the airports in the new pixel order in the shape of `config.json`'s `airports`
-(`{"code", "name", "display"}`; a hidden pixel would be `""`). `left_out` lists the codes that were not planned, each with a `reason`: `no known position`, `the position lookup failed (offline?)`,
+(`{"code", "name", "display"}`; a hidden pixel would be `""`). For a map that draws the plan over real tiles, each
+entry of `sheet.pixels` also has `lat` and `lon` (where the pixel is placed) and `orig_lat` and `orig_lon` (where its
+airport really is; `null` for a hidden pixel); `chart.outline` is the map area (the board less its margins, the shaded
+area of the board view) as 64 `[lat, lon]` points, clockwise from the top left (16 along each edge, the first point not
+repeated; a conic chart's edges are curves, which is why they are sampled); `chart.bounds` is
+`{"south", "west", "north", "east"}` around the outline and every pixel, true and placed, for fitting a map to the plan.
+All of them are to 5 decimals and in the chart's own longitude range: the Western Aleutian Islands chart crosses the
+antimeridian, so its longitudes go up to 187.65 and are never wrapped back to -172.35, and a map draws it without a
+jump. `left_out` lists the codes that were not planned, each with a `reason`: `no known position`, `the position lookup failed (offline?)`,
 `outside the <chart> chart` or `not one of the airports being planned`. If the airports saved in the last day answered, `notes` says how old they are (`The airports came from the copy saved 7 minutes ago.`). If the airport fetch failed and an older cache was used, `stale` is true and `notes` says so; a fetch that
 failed with no cache ends the job with `ok` false and the reason in `error`.
 

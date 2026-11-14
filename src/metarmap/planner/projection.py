@@ -139,7 +139,7 @@ def chart_by_name(name):
     return next((c for c in charts() if c.name.lower() == wanted), None)
 
 
-def _unwrapped(chart, lon):
+def unwrapped(chart, lon):
     """
     A longitude in the chart's own range. The Western Aleutian Islands chart crosses the antimeridian (its east is
     above 180), so a longitude west of it, such as Adak's -176.65, is that chart's 183.35.
@@ -149,7 +149,7 @@ def _unwrapped(chart, lon):
 
 def contains(chart, lat, lon):
     """Whether a point is inside the chart's bounds."""
-    return chart.south <= lat <= chart.north and chart.west <= _unwrapped(chart, lon) <= chart.east
+    return chart.south <= lat <= chart.north and chart.west <= unwrapped(chart, lon) <= chart.east
 
 
 def board_size(chart, width_mm, height_mm=None):
@@ -179,31 +179,45 @@ def project(chart, lat, lon, width_mm, height_mm=None):
     map to fill the area. A point outside the chart's bounds still projects, outside that area; use contains() to tell.
     """
     width, height = board_size(chart, width_mm, height_mm)
-    left, top = width * chart.margin_left, height * chart.margin_top
-    map_width = width * (1 - chart.margin_left - chart.margin_right)
-    map_height = height * (1 - chart.margin_top - chart.margin_bottom)
+    left, top, map_width, map_height = _map_area(chart, width, height)
     if chart.kind == "wall":
         x, y = _lambert_fraction(chart, lat, lon)
     else:
-        x = (_unwrapped(chart, lon) - chart.west) / (chart.east - chart.west)
+        x = (unwrapped(chart, lon) - chart.west) / (chart.east - chart.west)
         y = (chart.north - lat) / (chart.north - chart.south)
     return left + x * map_width, top + y * map_height
 
 
+def _tan_half(phi):
+    return math.tan(math.pi / 4 + phi / 2)
+
+
+@lru_cache(maxsize=None)
+def _lambert_constants(chart):
+    """(n, f, rho0) of the chart's cone: project() and unproject() share them, so the two cannot drift apart."""
+    phi1, phi2 = (math.radians(p) for p in chart.parallels)
+    n = math.log(math.cos(phi1) / math.cos(phi2)) / math.log(_tan_half(phi2) / _tan_half(phi1))
+    f = math.cos(phi1) * _tan_half(phi1) ** n / n
+    rho0 = f / _tan_half(math.radians(chart.origin_latitude)) ** n
+    return n, f, rho0
+
+
 def _lambert(chart, lat, lon):
     """(x, y) of a point in a spherical Lambert conformal conic projection of the unit sphere, y up."""
-    phi1, phi2 = (math.radians(p) for p in chart.parallels)
-    quarter = math.pi / 4
-
-    def tan_half(phi):
-        return math.tan(quarter + phi / 2)
-
-    n = math.log(math.cos(phi1) / math.cos(phi2)) / math.log(tan_half(phi2) / tan_half(phi1))
-    f = math.cos(phi1) * tan_half(phi1) ** n / n
-    rho = f / tan_half(math.radians(lat)) ** n
-    rho0 = f / tan_half(math.radians(chart.origin_latitude)) ** n
+    n, f, rho0 = _lambert_constants(chart)
+    rho = f / _tan_half(math.radians(lat)) ** n
     theta = n * math.radians(lon - chart.central_meridian)
     return rho * math.sin(theta), rho0 - rho * math.cos(theta)
+
+
+def _inverse_lambert(chart, x, y):
+    """(lat, lon) in degrees of a point (x, y) in the unit-sphere Lambert projection above (the inverse of it)."""
+    n, f, rho0 = _lambert_constants(chart)
+    sign = math.copysign(1.0, n)
+    rho = sign * math.hypot(x, rho0 - y)
+    theta = math.atan2(sign * x, sign * (rho0 - y))
+    lat = 2 * math.atan((f / rho) ** (1 / n)) - math.pi / 2
+    return math.degrees(lat), chart.central_meridian + math.degrees(theta / n)
 
 
 @lru_cache(maxsize=None)
@@ -241,3 +255,78 @@ def _lambert_fraction(chart, lat, lon):
     x0, x1, y0, y1 = _wall_rectangle(chart)
     x, y = _lambert(chart, lat, lon)
     return (x - x0) / (x1 - x0), (y1 - y) / (y1 - y0)
+
+
+def _inverse_lambert_fraction(chart, fx, fy):
+    """(lat, lon) of a point given as fractions of the wall chart's rectangle (the inverse of _lambert_fraction)."""
+    x0, x1, y0, y1 = _wall_rectangle(chart)
+    return _inverse_lambert(chart, x0 + fx * (x1 - x0), y1 - fy * (y1 - y0))
+
+
+def _map_area(chart, width, height):
+    """(left, top, map_width, map_height) in mm of the map area: the board less its margins."""
+    return (
+        width * chart.margin_left,
+        height * chart.margin_top,
+        width * (1 - chart.margin_left - chart.margin_right),
+        height * (1 - chart.margin_top - chart.margin_bottom),
+    )
+
+
+def unproject(chart, x_mm, y_mm, width_mm, height_mm=None, unwrap=False):
+    """
+    (lat, lon) of a point `x_mm` right and `y_mm` down from the board's top left corner: the exact inverse of
+    project() for the same chart and board, whatever the margins, the explicit height or the projection. The
+    longitude is in -180 to 180, so a point on the Western Aleutians chart past 180 degrees comes back as a negative
+    longitude; with unwrap=True it is in the chart's own range instead (183.35, not -176.65), which is what a map that
+    draws that chart continuously needs (see unwrapped()).
+    """
+    for name, value in (("x_mm", x_mm), ("y_mm", y_mm)):
+        if not math.isfinite(value):  # a NaN would come back as a NaN position, silently
+            raise ValueError(f"{name} must be a finite number, not {value!r}")
+    width, height = board_size(chart, width_mm, height_mm)
+    left, top, map_width, map_height = _map_area(chart, width, height)
+    fx, fy = (x_mm - left) / map_width, (y_mm - top) / map_height
+    if chart.kind == "wall":
+        lat, lon = _inverse_lambert_fraction(chart, fx, fy)
+    else:
+        lat = chart.north - fy * (chart.north - chart.south)
+        lon = chart.west + fx * (chart.east - chart.west)
+    if lon > 180:
+        lon -= 360
+    return lat, unwrapped(chart, lon) if unwrap else lon
+
+
+EDGE_POINTS = 16  # points along each edge of the outline: 64 in all, enough for a conic chart's curved edges
+
+
+def outline(chart, width_mm, height_mm=None, per_edge=EDGE_POINTS):
+    """
+    The map area (the board less its margins, the shaded area on the plan) as a polygon on the earth for a page that
+    draws the plan over a real map: [lat, lon] points to 5 decimals, per_edge along each edge, clockwise from the top
+    left (the top edge left to right, then down the right edge, back along the bottom and up the left), the first
+    point not repeated. Longitudes are in the chart's own range, so the Western Aleutians chart, which crosses the
+    antimeridian, has longitudes up to 187.65 and no jump. On a conic chart the edges are curves, which is why they
+    are sampled.
+    """
+    width, height = board_size(chart, width_mm, height_mm)
+    left, top, map_width, map_height = _map_area(chart, width, height)
+    right, bottom = left + map_width, top + map_height
+    points = []
+    for k in range(per_edge):
+        t = k / per_edge
+        points.append((left + t * map_width, top))  # across the top
+    for k in range(per_edge):
+        t = k / per_edge
+        points.append((right, top + t * map_height))  # down the right
+    for k in range(per_edge):
+        t = k / per_edge
+        points.append((right - t * map_width, bottom))  # back along the bottom
+    for k in range(per_edge):
+        t = k / per_edge
+        points.append((left, bottom - t * map_height))  # up the left
+    out = []
+    for x, y in points:
+        lat, lon = unproject(chart, x, y, width, height, unwrap=True)
+        out.append([round(lat, 5), round(lon, 5)])
+    return out

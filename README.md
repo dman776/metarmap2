@@ -113,14 +113,16 @@ Building a new Chart? **Config > Airports > Plan a new chart** (`/config/planner
 you. Choose the chart printed on the board, the airports (your current ones, a list you paste, or recommended ones from
 the METAR stations on the chart: you choose a number of strings to fill, which starts at what your kept airports already
 fill, a number of airports, or as many as fit; your own airports start ticked as "must keep", untick any you do not want), the board's
-width and height in inches (only Houston's and the wall chart's heights are measured: check the height of any other sectional), and the pixel pitch (20 mm or more), spacing and move (up to 25 mm) and string length (10 or more). It draws a build map across the full width of the page (on a wide screen the cards under it sit in two columns) and lists the wire to
-cut, the join cables, what to buy and the power you need, and gives the airports in the new pixel order as a
-`config.json` snippet to copy. Planning runs in the background and can be cancelled. A recommended plan first downloads the airports (minutes for a national chart, which we have not yet timed from start to end: it sends 3 requests at a time, within aviationweather.gov's limit of 100 a minute), and the bar shows where it is ("Downloading stations: tile 87 of 270", then "Downloading airport details"); the estimate of the tiles can grow as the download goes, but the bar never goes back, and airports saved in the last day are reused instead of downloaded again (the result's notes say so). The **Print** button prints the map
-and, after it, the cut list, joins, shopping list and power advice. It only plans: it never changes the Chart.
+width and height in inches (only Houston's and the wall chart's heights are measured: check the height of any other sectional), and the pixel pitch (20 mm or more), spacing and move (up to 25 mm) and string length (10 or more). It draws a build map across the full width of the page (on a wide screen the cards under it sit in two columns). The map is the same kind of map as the Map page: drag, scroll, pinch or double-click to zoom. Every pixel is a numbered circle (tap it for its airport, string, position and how far it moved), the wire is green, amber or red, and the usable area of the chart is outlined; airport codes show beside the pixels from zoom 8 up, or always for a plan under 40 pixels. Pick a **Background** (None, Sectional, Satellite or Street) and its **Opacity** above the map: it starts on None, and the browser remembers your choice. **Map | Board** switches to the board's own drawing in millimetres. Under it are the wire to
+cut, the join cables, what to buy and the power you need, and the the airports in the new pixel order as a
+`config.json` snippet to copy. Planning runs in the background and can be cancelled. A recommended plan first downloads the airports (minutes for a national chart, which we have not yet timed from start to end: it sends 3 requests at a time, within aviationweather.gov's limit of 100 a minute), and the bar shows where it is ("Downloading stations: tile 87 of 270", then "Downloading airport details"); the estimate of the tiles can grow as the download goes, but the bar never goes back, and airports saved in the last day are reused instead of downloaded again (the result's notes say so).
+It only plans: it never changes the Chart.
 
 ![Plan a new chart: the form, here choosing 100 recommended airports](docs/images/config_planner.png)
 
-![The plan's build map: each pixel numbered with its airport, the wire green where it fits and red where an extension is needed, a dashed join cable and the start](docs/images/config_planner_map.png)
+![The plan's build map, a Leaflet map like the Map page: each pixel numbered, the wire green where it fits and red where an extension is needed, a dashed join cable and the start; Background is None](docs/images/config_planner_map.png)
+
+![The same plan with the Sectional background: drag, scroll or pinch to zoom](docs/images/config_planner_sectional.jpg)
 
 ### Cockpit
 

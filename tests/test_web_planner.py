@@ -149,17 +149,58 @@ def test_form_defaults(make):
     for code in client.codes[:3]:
         assert f'value="{code}"' in body  # the must-keep list
     assert "/static/planner.js" in body
-    assert "@media print" in client("/static/style.css")[1]
 
 
-def test_the_print_stylesheet_prints_the_lists_under_the_map(make):
-    css = make()("/static/style.css")[1]
-    printing = css[css.index("@media print") :]
-    hidden = re.findall(r"([^{}]*)\{[^}]*display:\s*none", printing)
-    assert hidden, "the page's chrome is hidden when printing"
-    assert not any(".planner-side" in h or "#pl-lists" in h or "#pl-summary" in h for h in hidden)
-    assert ".no-print" in "".join(hidden) and ".planner-form" in "".join(hidden)
-    assert "break-after: page" in printing and ".planner-side .card" in printing
+def test_the_planner_page_uses_leaflet_like_the_map_page(make):
+    client = make()
+    body = client("/config/planner")[1]
+    assert "leaflet@1.9.4/dist/leaflet.js" in body and "leaflet@1.9.4/dist/leaflet.css" in body
+    assert "leaflet.js" in client("/map")[1]
+    assert body.index("leaflet.js") < body.index("/static/planner.js")  # Leaflet loads first
+    assert 'id="pl-leaflet"' in body and 'class="pm-leaflet"' in body
+    assert 'role="group" aria-label="Build map' in body  # the map is labelled (Leaflet makes it focusable)
+
+
+def test_the_map_has_a_view_toggle_and_a_background_control(make):
+    body = make()("/config/planner")[1]
+    for view in ("map", "board"):
+        assert f'data-view="{view}"' in body
+    assert 'id="pl-view" role="group" aria-label="View"' in body
+    for bg in ("none", "sectional", "satellite", "street"):
+        assert f'data-bg="{bg}"' in body
+    assert 'data-bg="none" aria-pressed="true"' in body  # off by default
+    assert 'id="pl-opacity" type="range" min="10" max="100"' in body
+    assert 'for="pl-opacity"' in body and 'aria-labelledby="pl-bg-label"' in body
+    assert 'id="pl-board-svg"' in body and 'data-zoom="fit"' in body  # the Board keeps its own zoom buttons
+
+
+def test_nothing_about_printing_or_the_old_overlay_is_left(make):
+    client = make()
+    body = client("/config/planner")[1]
+    css = client("/static/style.css")[1]
+    js = client("/static/planner.js")[1]
+    assert "@media print" not in css and "no-print" not in css + body + js
+    assert "pl-print" not in body + js and "window.print" not in js
+    for gone in ("usable", "chart.grid", "createObjectURL", "resample", "putImageData"):
+        assert gone not in js
+
+
+def test_planner_js_is_leaflet_with_its_own_storage_keys(make):
+    js = make()("/static/planner.js")[1]
+    assert "L.map('pl-leaflet'" in js and "zoomSnap: 0.25" in js
+    assert "static/map.js" in js  # says where the background setup was copied from
+    assert "VFR_Sectional/MapServer/tile/{z}/{y}/{x}" in js
+    for key in ("metarmap.planner.background", "metarmap.planner.opacity", "metarmap.planner.view"):
+        assert key in js
+    assert "'metarmap.background'" not in js  # the Map page's key is not shared
+    assert "fitBounds" in js and "invalidateSize" in js and "L.divIcon" in js
+    for newer in ("?.", "??", "replaceAll", "Object.fromEntries", "allSettled", ".flat("):
+        assert newer not in js  # iPad Safari 12
+    assert "=>" not in js
+
+
+def test_the_map_page_still_has_its_own_background_key(make):
+    assert "'metarmap.background'" in make()("/static/map.js")[1]
 
 
 def boards_of(body):
