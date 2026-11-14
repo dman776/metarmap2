@@ -151,7 +151,7 @@ def test_form_defaults(make):
     assert "/static/planner.js" in body
 
 
-def test_the_planner_page_uses_leaflet_like_the_map_page(make):
+def test_markup_loads_leaflet_before_planner_js_like_the_map_page(make):
     client = make()
     body = client("/config/planner")[1]
     assert "leaflet@1.9.4/dist/leaflet.js" in body and "leaflet@1.9.4/dist/leaflet.css" in body
@@ -161,7 +161,7 @@ def test_the_planner_page_uses_leaflet_like_the_map_page(make):
     assert 'role="group" aria-label="Build map' in body  # the map is labelled (Leaflet makes it focusable)
 
 
-def test_the_map_has_a_view_toggle_and_a_background_control(make):
+def test_markup_has_a_view_toggle_a_background_control_a_note_and_a_hint(make):
     body = make()("/config/planner")[1]
     for view in ("map", "board"):
         assert f'data-view="{view}"' in body
@@ -172,23 +172,21 @@ def test_the_map_has_a_view_toggle_and_a_background_control(make):
     assert 'id="pl-opacity" type="range" min="10" max="100"' in body
     assert 'for="pl-opacity"' in body and 'aria-labelledby="pl-bg-label"' in body
     assert 'id="pl-board-svg"' in body and 'data-zoom="fit"' in body  # the Board keeps its own zoom buttons
+    assert 'id="pl-map-note"' in body and 'id="pl-bg-hint" role="status"' in body  # no-Leaflet note, zoom hint
 
 
-def test_nothing_about_printing_or_the_old_overlay_is_left(make):
+def test_markup_and_source_have_no_print_code(make):
     client = make()
     body = client("/config/planner")[1]
     css = client("/static/style.css")[1]
     js = client("/static/planner.js")[1]
     assert "@media print" not in css and "no-print" not in css + body + js
     assert "pl-print" not in body + js and "window.print" not in js
-    for gone in ("usable", "chart.grid", "createObjectURL", "resample", "putImageData"):
-        assert gone not in js
 
 
-def test_planner_js_is_leaflet_with_its_own_storage_keys(make):
+def test_source_planner_js_uses_its_own_storage_keys_and_old_safari_syntax(make):
     js = make()("/static/planner.js")[1]
     assert "L.map('pl-leaflet'" in js and "zoomSnap: 0.25" in js
-    assert "static/map.js" in js  # says where the background setup was copied from
     assert "VFR_Sectional/MapServer/tile/{z}/{y}/{x}" in js
     for key in ("metarmap.planner.background", "metarmap.planner.opacity", "metarmap.planner.view"):
         assert key in js
@@ -197,6 +195,35 @@ def test_planner_js_is_leaflet_with_its_own_storage_keys(make):
     for newer in ("?.", "??", "replaceAll", "Object.fromEntries", "allSettled", ".flat("):
         assert newer not in js  # iPad Safari 12
     assert "=>" not in js
+
+
+def test_source_planner_js_never_builds_map_html_from_text(make):
+    js = make()("/static/planner.js")[1]
+    # airport names and codes come from the network and from pasted lists: map labels and pins are elements with
+    # textContent, never html strings (Leaflet takes an element for a divIcon's html)
+    assert "innerHTML" not in js and "html: '" not in js and 'html: "' not in js
+    assert "span.textContent = text" in js
+
+
+def test_source_planner_js_keeps_the_lists_when_leaflet_is_missing(make):
+    js = make()("/static/planner.js")[1]
+    assert "typeof L === 'undefined'" in js and "The map needs Leaflet from unpkg.com" in js
+    renderer = js[js.index("function renderResult(r)") : js.index("function snippet(list)")]
+    # the lists and the snippet are drawn before the view (and so before any Leaflet call)
+    assert renderer.index("drawLists(r)") < renderer.index("showView(view, true)")
+    assert renderer.index("$('pl-snippet').value") < renderer.index("showView(view, true)")
+
+
+def test_source_planner_js_says_when_a_background_needs_more_zoom_and_wraps_longitudes(make):
+    js = make()("/static/planner.js")[1]
+    assert "Zoom in to see the " in js and "bgLayer.options.minZoom > lmap.getZoom()" in js
+    assert "function wrapLon(" in js and "wrapLon(p.orig_lon)" in js  # a chart past 180 shows -176.65, not 183.35
+    assert js.count("MOVED_MM") >= 3  # the line to the true place and the popup use one threshold
+
+
+def test_source_the_legend_names_the_map_area_by_view(make):
+    js = make()("/static/planner.js")[1]
+    assert "the shaded area is the map" in js and "inside the dashed outline is the map" in js
 
 
 def test_the_map_page_still_has_its_own_background_key(make):

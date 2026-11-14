@@ -22,8 +22,8 @@
   map is a Leaflet map like the Map page's: drag, scroll, pinch or double-click to zoom, with the pixels at their real
   latitude and longitude (a chart across the date line, such as the Western Aleutians, shows continuously), the
   chart's usable area outlined, and an optional **Background** (None, Sectional, Satellite or Street, with an
-  **Opacity** slider; off by default, remembered in the browser). A **Map | Board** switch shows the board's own
-  drawing in millimetres instead; the map spans the page and the lists sit under it in two columns on a wide screen), a cut list, joins, a shopping list, power advice, the crowded airports and why, the three nearest board
+  **Opacity** slider; off by default, remembered in the browser; the Sectional is the FAA's VFR Sectional, and a hint says to zoom in when it is too far out to show, as on the whole-US chart). Without internet for Leaflet the page shows the Board view and a note, with the lists and the snippet. A **Map | Board** switch shows the board's own
+  drawing in millimetres instead (the Fit, - and + buttons belong to that view); the map spans the page and the lists sit under it in two columns on a wide screen), a cut list, joins, a shopping list, power advice, the crowded airports and why, the three nearest board
   sizes, and the airports in the new order as a `config.json` snippet to copy. Lengths show in mm and inches. It only
   plans: nothing changes on the Chart (Apply comes later), and **Allow skipped pixels** is shown off until the Chart
   supports it. The planning runs in the background (the airport fetch of a national chart takes a few minutes on

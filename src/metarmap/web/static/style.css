@@ -664,6 +664,8 @@ textarea.snippet { display: block; width: calc(100% - 48px); margin: 12px 24px 2
 .pm-lab { font-size: 13px; color: var(--muted); }
 .pm-controls input[type=range] { width: 160px; flex: none; }
 .pm-opval { min-width: 4ch; font-size: 13px; color: var(--text-2); }
+.pm-hint { font-size: 13px; }
+.pm-note { margin: 0; padding: 12px 24px 0; font-size: 13px; }
 .leaflet-container.pm-leaflet { background: var(--sunken); }
 .pm-leaflet { height: 560px; height: min(80vh, 720px); min-height: 420px; }
 .pm-leaflet:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
@@ -672,10 +674,10 @@ textarea.snippet { display: block; width: calc(100% - 48px); margin: 12px 24px 2
 .pl-pin .pl-n { display: block; }
 .pl-pin .pl-c { display: none; position: absolute; left: 22px; top: 50%; margin-top: -8px; padding: 0 4px; border-radius: 4px; background: rgba(11, 17, 23, .82); color: var(--text-2); font: 600 10px/16px var(--sans); white-space: nowrap; pointer-events: none; }
 .pl-codes .pl-pin .pl-c { display: block; }
-.pl-tag { position: absolute; left: 0; top: 0; padding: 1px 6px; border-radius: 6px; background: rgba(11, 17, 23, .88); font: 600 11px/16px var(--sans); white-space: nowrap; pointer-events: none; -webkit-transform: translate(-50%, -150%); transform: translate(-50%, -150%); }
+.pl-tag { position: absolute; left: 0; top: 0; margin-top: -17px; padding: 1px 6px; border-radius: 6px; background: rgba(11, 17, 23, .88); font: 600 11px/16px var(--sans); white-space: nowrap; pointer-events: none; -webkit-transform: translate(-50%, -100%); transform: translate(-50%, -100%); }
 .pl-tag.ext { color: #ff9a9a; border: 1px solid var(--ifr); }
 .pl-tag.join { color: #a9d3ff; border: 1px solid var(--mvfr); }
-.pl-tag.start { color: var(--accent-ink); background: var(--accent); font-weight: 700; -webkit-transform: translate(-50%, -190%); transform: translate(-50%, -190%); }
+.pl-tag.start { color: var(--accent-ink); background: var(--accent); font-weight: 700; margin-top: -14px; }
 .pl-pop-row { font-size: 13px; color: var(--text-2); margin-top: 2px; }
 .pm-scroll { overflow: auto; -webkit-overflow-scrolling: touch; max-height: 80vh; padding: 12px; background: var(--sunken); }
 .pm-scroll svg { display: block; margin: 0 auto; }

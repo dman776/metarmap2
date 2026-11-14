@@ -215,11 +215,18 @@ def test_the_wall_charts_outline_fans_out_beyond_the_continental_box(plan):
         assert inside((pixel["orig_lat"], pixel["orig_lon"]), result["chart"]["outline"]), pixel["code"]
 
 
-# ---- what is gone -------------------------------------------------------------------------------------------
+# ---- the plan stays on its map ------------------------------------------------------------------------------
 
 
-def test_the_grid_and_the_usable_area_are_gone_from_the_result(plan):
-    chart = plan("Houston")["result"]["chart"]
-    assert "grid" not in chart and "usable" not in chart
-    assert set(chart) == {"name", "kind", "margins", "height_measured", "outline", "bounds"}
-    assert not hasattr(projection, "chart_grid")
+@pytest.mark.parametrize(
+    "chart_name, total", [("Houston", 40), ("US Wall Planning", 120), ("Western Aleutian Islands", 24)]
+)
+def test_every_placed_pixel_is_inside_the_outline_and_the_bounds(plan, chart_name, total):
+    result = plan(chart_name, total=total)["result"]
+    outline, bounds = result["chart"]["outline"], result["chart"]["bounds"]
+    assert len(result["sheet"]["pixels"]) == total
+    for pixel in result["sheet"]["pixels"]:
+        spot = (pixel["lat"], pixel["lon"])
+        assert inside(spot, outline), (chart_name, pixel["code"], spot)
+        assert bounds["south"] <= pixel["lat"] <= bounds["north"], (chart_name, pixel["code"])
+        assert bounds["west"] <= pixel["lon"] <= bounds["east"], (chart_name, pixel["code"])

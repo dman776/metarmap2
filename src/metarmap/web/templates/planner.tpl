@@ -205,6 +205,7 @@
                     <button class="chip sm" type="button" data-view="board" aria-pressed="false">Board</button>
                 </div>
             </div>
+            <p class="muted pm-note" id="pl-map-note" hidden></p>
             <div id="pl-map">
                 <div class="pm-controls">
                     <span class="pm-lab" id="pl-bg-label">Background</span>
@@ -217,6 +218,7 @@
                     <label class="pm-lab" for="pl-opacity">Opacity</label>
                     <input id="pl-opacity" type="range" min="10" max="100" step="5" value="100" disabled>
                     <span class="mono pm-opval" id="pl-opacity-val">100%</span>
+                    <span class="muted pm-hint" id="pl-bg-hint" role="status" hidden></span>
                 </div>
                 <div class="pm-leaflet" id="pl-leaflet" role="group" aria-label="Build map: drag to move, scroll or pinch to zoom, arrow keys and plus and minus when focused"></div>
             </div>

@@ -348,9 +348,10 @@
         summary.appendChild(text);
 
         lastResult = r;
-        showView(view, true);
+        // the lists and the snippet first: they need no Leaflet, so a map that cannot start leaves them on screen
         drawLists(r);
         $('pl-snippet').value = snippet(r.airports);
+        showView(view, true);
         $('pl-result').scrollIntoView({block: 'start'});
     }
 
@@ -365,6 +366,10 @@
     const KEYS = {background: 'metarmap.planner.background', opacity: 'metarmap.planner.opacity', view: 'metarmap.planner.view'};
     const COLORS = {ok: '#3ddc84', slack: '#f5b544', extension: '#ff5a5a', join: '#4ea8ff', moved: '#d77bff'};
     const BACKGROUNDS = ['none', 'sectional', 'satellite', 'street'];
+    const BG_NAMES = {sectional: 'sectional', satellite: 'satellite imagery', street: 'street map'};
+    const MOVED_MM = 1;  // a pixel moved further than this gets a line to its true place, and the popup says it moved
+    const NO_MAP = 'The map needs Leaflet from unpkg.com, which could not be loaded: showing the Board view.';
+    let mapFailed = typeof L === 'undefined';  // Leaflet comes from the internet: a Chart without it still plans
     let lmap = null;
     let planLayer = null;
     let bgLayer = null;
@@ -404,11 +409,49 @@
 
     function ensureMap() {
         if (lmap) return;
-        lmap = L.map('pl-leaflet', {zoomControl: true, attributionControl: true, zoomSnap: 0.25, minZoom: 2, maxZoom: 18});
-        lmap.setView([39, -98], 4);
-        planLayer = L.layerGroup().addTo(lmap);
-        lmap.on('zoomend', updateCodes);
+        const m = L.map('pl-leaflet', {zoomControl: true, attributionControl: true, zoomSnap: 0.25, minZoom: 2, maxZoom: 18});
+        m.setView([39, -98], 4);
+        planLayer = L.layerGroup().addTo(m);
+        m.on('zoomend', function () { updateCodes(); updateHint(); });
+        lmap = m;
         applyBackground();
+    }
+
+    // true when the Map can be drawn; when Leaflet is missing or fails to start, the Board view takes over
+    function mapReady() {
+        if (mapFailed) return false;
+        if (lmap) return true;
+        try {
+            ensureMap();
+            return true;
+        } catch (e) {
+            mapFailed = true;
+            lmap = null;
+            planLayer = null;
+            bgLayer = null;
+            return false;
+        }
+    }
+
+    function noMap() {
+        $('pl-map-note').textContent = NO_MAP;
+        $('pl-map-note').hidden = false;
+        const mapButton = $('pl-view').querySelector('button[data-view="map"]');
+        mapButton.disabled = true;
+        Array.prototype.forEach.call($('pl-bg').querySelectorAll('button'), function (b) { b.disabled = true; });
+        $('pl-opacity').disabled = true;
+    }
+
+    // the FAA tiles start at zoom 8 and Leaflet scales them down, but not below the layer's minZoom: say so, never
+    // change the user's zoom
+    function updateHint() {
+        const hint = $('pl-bg-hint');
+        let text = '';
+        if (lmap && bgLayer && bgLayer.options.minZoom > lmap.getZoom()) {
+            text = 'Zoom in to see the ' + BG_NAMES[background] + ': it shows from zoom ' + bgLayer.options.minZoom + '.';
+        }
+        if (hint.textContent !== text) hint.textContent = text;  // a status region: only a change is announced
+        hint.hidden = !text;
     }
 
     function applyBackground() {
@@ -425,6 +468,7 @@
         $('pl-opacity').disabled = background === 'none';
         $('pl-opacity').value = opacity;
         $('pl-opacity-val').textContent = opacity + '%';
+        updateHint();
     }
 
     // airport codes beside the pixels: from zoom LABEL_ZOOM up, or always for a small plan
@@ -434,11 +478,24 @@
         $('pl-leaflet').classList.toggle('pl-codes', few || lmap.getZoom() >= LABEL_ZOOM);
     }
 
+    // a label on the map (a cut, a join cable, START): built from an element, so its text can never be taken as html;
+    // it sits under the pins (a negative z offset) so a pin's number is never covered
     function tag(latlng, text, cls) {
+        const span = document.createElement('span');
+        span.className = 'pl-tag ' + cls;
+        span.textContent = text;
         return L.marker(latlng, {
-            interactive: false, keyboard: false, zIndexOffset: 1200,
-            icon: L.divIcon({className: 'pl-tag-box', iconSize: [0, 0], html: '<span class="pl-tag ' + cls + '">' + text + '</span>'})
+            interactive: false, keyboard: false, zIndexOffset: -1000,
+            icon: L.divIcon({className: 'pl-tag-box', iconSize: [0, 0], html: span})
         });
+    }
+
+    // a longitude past 180 (the Western Aleutians are kept continuous for the map) shown as people write it
+    function wrapLon(lon) {
+        let x = lon;
+        while (x > 180) x -= 360;
+        while (x < -180) x += 360;
+        return x;
     }
 
     function popupFor(p) {
@@ -451,11 +508,11 @@
         box.appendChild(el('div', {'class': 'pop-head'}, p.code + ' · pixel ' + p.number));
         if (names[p.code]) box.appendChild(el('div', {'class': 'pl-pop-row'}, names[p.code]));
         box.appendChild(el('div', {'class': 'pl-pop-row'}, 'String ' + p.string + ', position ' + p.position));
-        box.appendChild(el('div', {'class': 'pl-pop-row'}, p.moved_mm > 0.05
+        box.appendChild(el('div', {'class': 'pl-pop-row'}, p.moved_mm > MOVED_MM
             ? 'Moved ' + len(p.moved_mm) + ' from its true place'
             : 'On its true place'));
         if (p.orig_lat !== null && p.orig_lat !== undefined) {
-            box.appendChild(el('div', {'class': 'pl-pop-row muted'}, 'True position ' + p.orig_lat.toFixed(4) + ', ' + p.orig_lon.toFixed(4)));
+            box.appendChild(el('div', {'class': 'pl-pop-row muted'}, 'True position ' + p.orig_lat.toFixed(4) + ', ' + wrapLon(p.orig_lon).toFixed(4)));
         }
         return box;
     }
@@ -470,7 +527,7 @@
         }
 
         placed.forEach(function (p) {  // a moved pixel's line to its true place
-            if (p.skipped || !(p.moved_mm > 1) || typeof p.orig_lat !== 'number') return;
+            if (p.skipped || !(p.moved_mm > MOVED_MM) || typeof p.orig_lat !== 'number') return;
             L.polyline([[p.orig_lat, p.orig_lon], at(p)], {color: COLORS.moved, weight: 1.5, dashArray: '3 4', interactive: false}).addTo(planLayer);
             L.circleMarker([p.orig_lat, p.orig_lon], {radius: 3, color: COLORS.moved, weight: 1, fillColor: COLORS.moved, fillOpacity: 1, interactive: false}).addTo(planLayer);
         });
@@ -489,16 +546,17 @@
         });
 
         placed.forEach(function (p) {
+            const pin = document.createElement('div');
+            pin.appendChild(el('span', {'class': 'pl-n'}, p.skipped ? '' : String(p.number)));
+            if (!p.skipped) pin.appendChild(el('span', {'class': 'pl-c'}, p.code));
             const icon = L.divIcon({
                 className: 'pl-pin' + (p.skipped ? ' skipped' : ''), iconSize: [22, 22], iconAnchor: [11, 11], popupAnchor: [0, -11],
-                html: '<span class="pl-n">' + (p.skipped ? '' : p.number) + '</span>' + (p.skipped ? '' : '<span class="pl-c"></span>')
+                html: pin
             });
-            const m = L.marker(at(p), {
+            L.marker(at(p), {
                 icon: icon, title: p.skipped ? 'Hidden pixel ' + p.number : p.code + ', pixel ' + p.number,
                 keyboard: placed.length <= 60  // a thousand tab stops would trap a keyboard user
-            }).bindPopup(popupFor(p), {className: 'led-popup pl-popup', maxWidth: 300});
-            m.on('add', function () { const c = m.getElement().querySelector('.pl-c'); if (c) c.textContent = p.code; });
-            m.addTo(planLayer);
+            }).bindPopup(popupFor(p), {className: 'led-popup pl-popup', maxWidth: 300}).addTo(planLayer);
         });
 
         if (placed.length && px[0] && typeof px[0].lat === 'number') tag(at(px[0]), 'START', 'start').addTo(planLayer);
@@ -508,10 +566,16 @@
         if (bounds) lmap.fitBounds([[bounds.south, bounds.west], [bounds.north, bounds.east]], {padding: [24, 24], maxZoom: 14, animate: false});
         else if (placed.length) lmap.fitBounds(L.latLngBounds(placed.map(at)), {padding: [24, 24], maxZoom: 14, animate: false});
         updateCodes();
+        updateHint();
     }
 
-    // show the Map or the Board; a result drawn while the Map was hidden is drawn when it comes back
+    // show the Map or the Board; a result drawn while the Map was hidden is drawn when it comes back; with no Leaflet
+    // the Board is all there is
     function showView(which, fresh) {
+        if (which === 'map' && !mapReady()) {
+            which = 'board';
+            noMap();
+        }
         view = which;
         const onMap = which === 'map';
         $('pl-map').hidden = !onMap;
@@ -519,13 +583,14 @@
         Array.prototype.forEach.call($('pl-view').querySelectorAll('button'), function (b) {
             b.setAttribute('aria-pressed', b.dataset.view === which ? 'true' : 'false');
         });
-        if (fresh && lastResult) {
-            drawBoard(lastResult);
-            drawLegend(lastResult);
-            mapPending = lastResult;
+        if (lastResult) {
+            if (fresh) {
+                drawBoard(lastResult);
+                mapPending = lastResult;
+            }
+            drawLegend(lastResult);  // its last line says what the map area looks like in this view
         }
         if (onMap) {
-            ensureMap();
             lmap.invalidateSize();
             if (mapPending) { const r = mapPending; mapPending = null; drawPlan(r); }
         } else {
@@ -561,6 +626,7 @@
     $('pl-opacity').value = opacity;
     $('pl-opacity-val').textContent = opacity + '%';
     $('pl-opacity').disabled = background === 'none';
+    if (mapFailed) noMap();  // Leaflet did not load: the Map button and the Background controls are off from the start
 
     function mid(a, b) { return {x: (a.x + b.x) / 2, y: (a.y + b.y) / 2}; }
 
@@ -686,7 +752,8 @@
             add(li, [pair[0], el('span', null, pair[1])]);
             list.appendChild(li);
         });
-        const chart = el('li', {'class': 'muted'}, r.chart.name + ' chart: inside the outline is the map, the rest its margins.');
+        const where = view === 'board' ? 'the shaded area is the map' : 'inside the dashed outline is the map';
+        const chart = el('li', {'class': 'muted'}, r.chart.name + ' chart: ' + where + ', the rest its margins.');
         list.appendChild(chart);
     }
 
