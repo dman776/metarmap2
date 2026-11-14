@@ -146,7 +146,7 @@ Returns a read-only snapshot of the Chart's state as `application/json`. No auth
 | `brightness` | Current pixel brightness, `0.0`–`1.0` |
 | `build` | What's running, read when the Chart started: `tag` is the release it's at or after (`null` if none), `ahead` how many commits after it, `commit` and `sha` the commit, `modified` whether the code was changed on the Chart itself (`config.json` and `airports.json` don't count). `release` is true on a release exactly; otherwise `pill` says why not ("Unreleased: 3 commits after v2.9.2", "Not tagged: v2.9.3" when `untagged`, "Pre-release: v2.9.0-rc1", "Modified: local changes to v2.9.2", "Unreleased: no release tag"). `chip` is the header's version text and `url` the commit on GitHub (`null` if the Chart isn't from GitHub). `null` outside a git checkout. |
 | `update` | What's newest on GitHub: `current` is the running version, `commit` the running commit, `channel` is the channel in use (`branch` counts as `releases` without `dev_mode`), `available` the release (or, on the `latest` and `branch` channels, the commit) an update would install, or `null` when up to date; `installed` is what an update installed that needs a restart; `releases` lists the releases that can be installed, newest first; with `dev_mode`, `branches` lists GitHub's branches and `branch` is the one the `branch` channel follows; `checked` is when GitHub was last asked, and `error` why that failed. `null` if the Chart doesn't check. |
-| `visualizer` | The visualizer that is running now: `active` is its number, `id` its id (see the table under Control). `shortName` is its name where there's little room (at most 11 characters, e.g. "Density Alt"), and `icon` names what its icon shows: one of `plane`, `cloud`, `eye`, `wind`, `gust`, `compass`, `thermometer`, `droplet`, `mountain`, `gauge`, `rain`, `warning`, `ban`, `rainbow`, `chase`, `clock`, `umbrella` (each visualizer has its own; a client draws them its own way, and should show none for a name it doesn't know). `exclusive` visualizers ignore `/locate`. |
+| `visualizer` | The visualizer that is running now: `active` is its number, `id` its id (see the table under Control). `shortName` is its name where there's little room (at most 11 characters, e.g. "Density Alt"), and `icon` names what its icon shows: one of `plane`, `cloud`, `eye`, `wind`, `gust`, `compass`, `thermometer`, `droplet`, `mountain`, `gauge`, `rain`, `warning`, `ban`, `rainbow`, `chase`, `clock`, `umbrella`, `hourglass` (each visualizer has its own; a client draws them its own way, and should show none for a name it doesn't know). `exclusive` visualizers ignore `/locate`. |
 | `visualizer.legend` | What the pixels mean for that visualizer. `colors` are CSS hex colors; two or more mean a gradient across the range. `effect` is `solid`, `blink`, `pulse`, `flash` (the first color with flashes of the second), `chase` or `off`. `period` is the seconds per blink or pulse, or `null`. `key` names the entry (stable, unlike `label`, which can change with the settings); `inUse` is whether a pixel (or a virtual airport) shows it now, always `true` for a whole-strip visualizer (Rainbow, Chase). |
 | `visualizers` | Every visualizer, in index order: `index` is its number and `id` its id, both accepted by `/visualizer/<id>`; `shortName` and `icon` as in `visualizer` |
 | `config` | The saved `config.json` values, keyed by the dotted path accepted by `/config/edit` |
@@ -510,13 +510,14 @@ Visualizers:
 | 10 | `dewpoint_spread` | Dewpoint Spread | |
 | 11 | `advisories` | Advisories | |
 | 12 | `tfr` | TFR | |
-| 13 | `flight_category_forecast` | Flight Category Forecast | |
-| 14 | `precipitation_forecast` | Precipitation Forecast | |
-| 15 | `rainbow` | Rainbow | yes |
-| 16 | `chase` | Chase | yes |
+| 13 | `faa_delays` | FAA Delays | |
+| 14 | `flight_category_forecast` | Flight Category Forecast | |
+| 15 | `precipitation_forecast` | Precipitation Forecast | |
+| 16 | `rainbow` | Rainbow | yes |
+| 17 | `chase` | Chase | yes |
 
 Use the id in scripts and automations: it never changes, while a number moves when a visualizer is added before
-it (Wind Direction after 3.0.1, Advisories and TFR after 3.1.0 each did) and a name can be reworded. `config.json`
+it (Wind Direction after 3.0.1, Advisories and TFR after 3.1.0, Precipitation Forecast and FAA Delays later each did) and a name can be reworded. `config.json`
 saves ids; one saved before ids (`visualizer.active` a number, with `visualizer.numbering`) is converted when the
 map starts, keeping the same visualizer.
 

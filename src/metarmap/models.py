@@ -70,6 +70,9 @@ class Report:
     airmets: Optional[List[dict]] = None  # G-AIRMET hazards over the airport (metar.with_advisories)
     sigmets: Optional[List[dict]] = None
     tfrs: Optional[List[dict]] = None  # TFRs at or near it (metar.with_tfrs)
+    # its worst FAA status now, {"kind": "closed" | "ground_stop" | "delay" | "normal", "minutes"} (metar.with_delays;
+    # metarmap.delays); None before the first FAA status ("normal" for an airport with no FAA id)
+    faa_status: Optional[dict] = None
     # the TAF's flight category 3, 6 and 12 hours ahead (forecast.HOURS; metar.with_forecast), None for an hour it
     # doesn't cover; the whole field is None while the airport has no TAF (only about 700 US stations issue one)
     forecast: Optional[Tuple[Optional[str], ...]] = None

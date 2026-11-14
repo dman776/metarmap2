@@ -24,10 +24,20 @@ Written from the ground up with a web UI, an API and a Home Assistant integratio
 - **Visualizers**: show the flight category, wind, wind gusts, wind direction, temperature, pressure, precipitation,
   visibility, density altitude, ceiling, dewpoint spread (fog risk), AIRMETs and SIGMETs (the advisory over each
   airport: IFR, mountain obscuration, turbulence, wind shear, strong wind or icing, and SIGMETs such as
-  thunderstorms blinking on top) or TFRs (temporary flight restrictions in or near each airport, by type) on the
-  pixels, plus Flight Category Forecast and Precipitation Forecast (each airport steps through now and the TAF's
+  thunderstorms blinking on top), TFRs (temporary flight restrictions in or near each airport, by type) or FAA Delays
+  (the FAA's airport status, see below) on the pixels, plus Flight Category Forecast and Precipitation Forecast (each airport steps through now and the TAF's
   3, 6 and 12 hours ahead) and the Rainbow and Chase patterns.
   Switch between them on the web UI, or let the Chart rotate through them.
+- **FAA Delays**: each airport in its worst status on the FAA's
+  [NAS Status](https://nasstatus.faa.gov/) right now: **closed** magenta, a **ground stop** blinking red (bright and
+  dim), a **delay** yellow under 30 minutes, orange for 30-59 minutes and red for an hour or more (a Ground Delay
+  Program's average delay, or the middle of an arrival or departure delay's range), and **no delay** dim white. Only
+  full closures count: a NOTAM that closes an airport only to some aircraft (`TO NON SKED`, `EXC` or `PPR`, such as
+  the long-running closures of LAX, SAN and LAS to transient general aviation) is left out. The status is fetched every
+  5 minutes. US airports only: the FAA's ids (SAN, HNL) are matched to your airports through the station lookup, so
+  Hawaii, Alaska and the territories work once it has run; until then, and for airports outside the US, the pixel
+  is dim white, as with no delay. Before the first status comes, every pixel shows "No FAA status yet" (a slow red
+  blink, or off with **Missing data blink** off).
 - **Lightning**: airports reporting lightning or a thunderstorm flicker yellow or white (a double flash every 2 s) in every weather visualizer, unless you turn the animation off in Config. Lightning at, over or near the airport counts; distant lightning alone (more than 10 miles away, `LTG DSNT` in the METAR) doesn't flash, though the Decoded tab and the spoken weather still mention it.
 - **Estimated flight categories**: a station that doesn't report its flight category, but does report its visibility
   or clouds, gets an estimate from them. Its pixel breathes slowly so you can tell, and the Micro shows it with a `*`

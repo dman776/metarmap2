@@ -45,12 +45,13 @@ def test_api_fields():
         longitude=-95.3,
         mock=True,
         tfrs=[],
+        faa_status={"kind": "closed", "minutes": None},
     )
     api = r.to_api()
     assert (api["windGust"], api["vis"], api["visibilitySM"]) == (True, 0, 0.25)
     assert api["skyConditions"] == [{"cover": "BKN", "cloudBaseFt": 800}]
     assert api["obsTime"] == "2026-10-24T14:53:00+00:00" and api["obs"] == "-RA" and api["altimHg"] == 29.95
-    assert "mock" not in api and "tfrs" not in api  # the map's additions, not the report's
+    assert "mock" not in api and "tfrs" not in api and "faa_status" not in api  # the map's additions, not the report's
     json.dumps(api)  # ready for JSON
 
 
