@@ -652,8 +652,9 @@ curl -u metar:map -H 'Content-Type: application/json' -d '{"user": "pilot", "pas
 
 ## Chart Planner (auth)
 
-The planner behind `/config/planner` lays airports out on a board and returns a build sheet. It only reads: it never
-changes the Chart's settings. It runs as one background job; only one runs at a time. The airport fetch of a national
+The planner behind `/config/planner` lays airports out on a board and returns a build sheet. Planning only reads: it
+never changes the Chart's settings (applying a finished plan is a separate step, "Applying a plan" below). It runs as
+one background job; only one runs at a time. The airport fetch of a national
 chart is about 280 requests, sent 3 at a time but never faster than about 92 a minute in all (aviationweather.gov limits
 a client to 100 requests a minute), so it takes minutes (never under three, and longer when the API is slow; a whole national chart has not been timed yet); a fetch
 still running after 15 minutes gives up (the plan after it has its own 15 minute limit, below). If the weather service
@@ -705,6 +706,42 @@ antimeridian, so its longitudes go up to 187.65 and are never wrapped back to -1
 jump. `left_out` lists the codes that were not planned, each with a `reason`: `no known position`, `the position lookup failed (offline?)`,
 `outside the <chart> chart` or `not one of the airports being planned`. If the airports saved in the last day answered, `notes` says how old they are (`The airports came from the copy saved 7 minutes ago.`). If the airport fetch failed and an older cache was used, `stale` is true and `notes` says so; a fetch that
 failed with no cache ends the job with `ok` false and the reason in `error`.
+
+### Applying a plan
+
+These four routes put the last finished plan into **this Chart's** `config.json` (the airports and the LED counts) and
+undo it. They work from the plan the server holds, never from a list the browser sends, and they need the login like
+the rest of Config. Every answer is JSON; a failure is `{"error": "<sentence>", "reason": "<code>"}`, never an HTML
+error page.
+
+The airports become exactly the plan, in the plan's LED order: an airport the Chart already had keeps its name, its OLED
+flag and its other keys (a mock METAR) by its code; an airport the Chart did not have is added with its name from the
+plan; the blank LEDs of the last string follow (`led.count` becomes the strings x `string_len` of the plan, the spare
+pixels have no airport); then the **virtual airports** (the web map only, after the strip): the airports the plan
+dropped, in their old order (a plan never deletes an airport), then the virtual ones the Chart already had (a virtual
+airport the plan now includes becomes a real one; a virtual placeholder with no airport is left out). `led.virtual_count`
+is the number of virtual airports. All of it is saved in one write and published once, so the OLED, the strip and the
+METAR fetch follow once. `led.count` changing takes effect on a NeoPixel strip at a restart (`restart_needed`).
+
+| Endpoint | Description |
+|---|---|
+| `GET /config/planner/apply/preview` | What applying would do, computed now against the Chart as it is: `{"ok": true, "job": <the plan's id>, "token": "<64 hex digits>", "summary": {...}, "backup": "config.json.before-plan-YYYYMMDD-HHMMSS"}` (`backup` is the name the copy would get; the time can differ by a second). The `token` identifies this exact preview (the plan, the Chart's airports now and the airports it would have). Changes nothing. `409` `{"error", "reason"}` when there is nothing to apply: `no_result` (nothing planned yet), `running` (a plan is running), `cancelled` or `failed` (the last plan has no result), `over_limit` (the airports and the virtual ones would be over 1000). |
+| `POST /config/planner/apply` | Body `{"token": "<from the preview>"}`. Applies the plan only if the token still matches, then answers `200` `{"ok": true, "backup": "<file name>", "summary": {...}, "restart_needed": <whether led.count changed>}`. The check and the write happen under the Chart's config lock, so a change made after the preview (by anyone), or a newer plan, is never overwritten: `409` `"reason": "stale"` (look at the preview again). Also `409` `running` (a plan or another apply is running), the preview's reasons, and `invalid` (a list that cannot be saved). A body that is not a JSON object with a text `token` is `400` `"reason": "invalid"` (a body that is not JSON, or over 100 KB, likewise). If the copy of `config.json` or the write fails: `500` `"reason": "failed"`, and nothing has changed. A token is used once: after an apply the Chart is different and the same token is `stale`. |
+| `GET /config/planner/apply/status` | `{"undo": {"available": bool, "backup": "<file name>" or null, "made_at": "<ISO time>" or null, "summary": {...} or null}}`: the newest applied plan that has not been undone, for the Undo button. It lives in files beside `config.json`, so it survives a restart. |
+| `POST /config/planner/undo` | Body `{"backup": "<name from the status>"}` (it must be the newest one: `409` `stale` otherwise; the name is what stops another website from posting an Undo with your login, as a cross-site form cannot read it). Puts back **only** the airports, `led.count` and `led.virtual_count` that the backup has; every other setting changed since stays as it is. `200` `{"ok": true, "restored": {"airports": <with a code>, "led_count", "virtual_count"}, "backup": "<name>", "restart_needed": bool}`; `409` `none` (nothing to undo); `500` `failed` (the backup cannot be read, nothing changed). The backup is renamed `...-undone`, so a second Undo goes to the apply before it, one step at a time. |
+
+**The backup.** Before it writes, an apply copies `config.json` to `config.json.before-plan-YYYYMMDD-HHMMSS` in the same
+folder (UTC; the same file mode, because it holds the web password; it is in `.gitignore`), with the summary beside it
+in `config.json.before-plan-YYYYMMDD-HHMMSS.summary.json`. The newest 5 stay. An apply that cannot make the copy does not
+write anything.
+
+`summary` (in the preview, the apply and the status): `kept` (airports on the same LED as now), `moved` (on another LED),
+`moves` (`[{"code", "from", "to"}]`, LED numbers from 0), `added` (codes), `became_virtual` (codes the plan dropped),
+`promoted` (virtual airports that became real), `blank_leds` (LEDs with no airport, spare ones and hidden pixels),
+`blank_virtual_dropped`, `merged_duplicates` (a code that was twice in the config), `led_count` and `virtual_count`
+(`{"from", "to"}`), `airports_total`, `over_limit`, `limit` (1000), `unchanged` (applying would change nothing) and
+`wiring_note`, a sentence for the confirmation: the strip has to be wired in this order (LED 1 is the first airport) or
+the LEDs light for the wrong airports.
 
 ## Web UI pages
 

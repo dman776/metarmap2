@@ -15,6 +15,8 @@ htmlcov/
 *.log
 *.log.*
 planner-cache/
+# copies of config.json that applying a plan leaves beside it (they hold the web password)
+config.json.before-plan-*
 
 # editors / OS
 .idea/

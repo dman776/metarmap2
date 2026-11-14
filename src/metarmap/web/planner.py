@@ -2,7 +2,8 @@
 The Chart Planner page (B90): Config > Plan a new chart. The form posts its choices, the planner runs in a background
 thread (the first airport download for a national chart takes minutes) and the page polls for its progress and, at
 last, the build sheet. Same shape as an update: a POST starts it and answers 202, a GET answers its progress, only one
-runs at a time and a page that is reloaded picks it up again. It only reads: nothing here changes the Chart's settings.
+runs at a time and a page that is reloaded picks it up again. The plan itself only reads; the Applier (below) is what
+puts a finished plan into the Chart's airports, after a preview, with a backup and an Undo.
 """
 
 import inspect
@@ -20,6 +21,7 @@ import bottle
 from metarmap.clock import Clock
 from metarmap.config import MAX_LEDS
 from metarmap.planner import airports as live_airports
+from metarmap.planner import apply as plan_apply
 from metarmap.planner import layout, projection
 from metarmap.web.control import as_json
 from metarmap.web.site import render
@@ -690,6 +692,182 @@ class Planner:
 # ---- the page and its routes ------------------------------------------------------------------------------------
 
 
+class Stale(ValueError):
+    """The Chart or the plan is not what the preview showed."""
+
+
+class Applier:
+    """
+    Puts the last finished plan into this Chart's airports (see metarmap.planner.apply). It works from the plan the
+    server holds, never from a list the browser sends: preview() says what would change and gives a token for exactly
+    that; apply() goes ahead only with a token that still matches, then Config.apply_plan makes the one write after
+    a backup; undo() restores the airports and the LED counts from the newest backup. Each answer is (status, body).
+    """
+
+    def __init__(self, services: "App", planner: "Planner"):
+        self.services = services
+        self.planner = planner
+        self._lock = threading.Lock()  # one apply at a time
+
+    def _job(self):
+        """(the finished job, None), or (None, (reason, message)) when there is nothing to apply."""
+        job = self.planner.job
+        if job is None:
+            return None, ("no_result", "There is no plan to apply: plan a chart first")
+        snap = dict(job)
+        if not snap["done"]:
+            return None, ("running", "A plan is still running")
+        if snap.get("cancelled"):
+            return None, ("cancelled", "The last plan was cancelled: plan again")
+        if not snap.get("ok") or not snap.get("result"):
+            return None, ("failed", "The last plan failed: plan again")
+        return job, None
+
+    def _change(self, job, current, led_count, virtual_count):
+        result, params = job["result"], job["params"]
+        change = plan_apply.plan_changes(
+            current,
+            led_count,
+            virtual_count,
+            result["sheet"]["pixels"],
+            params["string_len"],
+            result["sheet"]["shopping"]["strings"],
+            result["names"],
+        )
+        return change, plan_apply.fingerprint(job["id"], current, led_count, virtual_count, change)
+
+    def _preview(self):
+        """(job, change, token, None) or (None, None, None, (status, body))."""
+        job, err = self._job()
+        if err:
+            return None, None, None, (409, {"error": err[1], "reason": err[0]})
+        current, led_count, virtual_count = self.services.config.layout()
+        try:
+            change, token = self._change(job, current, led_count, virtual_count)
+        except ValueError as e:  # a plan that does not fit its own strip: a bug, keep the traceback
+            log.exception(f"the plan cannot be applied: {e}")
+            return (
+                None,
+                None,
+                None,
+                (409, {"error": "The plan cannot be applied: it does not fit.", "reason": "failed"}),
+            )
+        if change.summary["over_limit"]:
+            n = change.summary["airports_total"]
+            return (
+                None,
+                None,
+                None,
+                (
+                    409,
+                    {
+                        "error": f"The Chart can take {MAX_LEDS} airports in all, with the virtual ones: this would "
+                        f"have {n}. Delete some virtual airports on the Airports page, then apply.",
+                        "reason": "over_limit",
+                    },
+                ),
+            )
+        return job, change, token, None
+
+    def preview(self):
+        job, change, token, err = self._preview()
+        if err:
+            return err
+        return 200, {
+            "ok": True,
+            "job": job["id"],
+            "token": token,
+            "summary": change.summary,
+            "backup": self.services.config.next_plan_backup_name(),
+        }
+
+    def apply(self, token):
+        config = self.services.config
+        if not self._lock.acquire(blocking=False):
+            return 409, {"error": "Another apply is running", "reason": "running"}
+        try:
+            job, change, now, err = self._preview()
+            if err:
+                return err
+            if now != token:
+                return 409, {"error": "The Chart or the plan changed since the preview: look again", "reason": "stale"}
+
+            def check(current, led_count, virtual_count):
+                # under the config's lock, on the airports as they are at this moment
+                if self.planner.job is not job:
+                    raise Stale("a newer plan has started")
+                _, token_now = self._change(job, current, led_count, virtual_count)
+                if token_now != token:
+                    raise Stale("the airports changed since the preview")
+
+            try:
+                done = config.apply_plan(
+                    change.airports, change.led_count, change.virtual_count, summary=change.summary, check=check
+                )
+            except Stale as e:
+                return 409, {"error": f"The Chart changed since the preview ({e}): look again", "reason": "stale"}
+            except ValueError as e:
+                return 409, {"error": str(e), "reason": "invalid"}
+            except OSError as e:
+                log.exception(f"could not apply the plan: {e}")
+                return 500, {
+                    "error": "Could not make the backup or save config.json: nothing changed",
+                    "reason": "failed",
+                }
+            return 200, {
+                "ok": True,
+                "backup": done["backup"],
+                "summary": change.summary,
+                "restart_needed": done["restart_needed"],
+            }
+        finally:
+            self._lock.release()
+
+    def status(self):
+        backups = self.services.config.plan_backups()
+        if not backups:
+            return 200, {"undo": {"available": False, "backup": None, "made_at": None, "summary": None}}
+        newest = backups[0]
+        return 200, {
+            "undo": {
+                "available": True,
+                "backup": newest["file"],
+                "made_at": newest["made_at"],
+                "summary": newest["summary"],
+            }
+        }
+
+    def undo(self, backup):
+        config = self.services.config
+        if not self._lock.acquire(blocking=False):
+            return 409, {"error": "An apply is running", "reason": "running"}
+        try:
+            backups = config.plan_backups()
+            if not backups:
+                return 409, {"error": "There is no applied plan to undo", "reason": "none"}
+            if backup != backups[0]["file"]:
+                return 409, {"error": "That is not the newest backup: look again", "reason": "stale"}
+            try:
+                done = config.restore_plan_backup(backup)
+            except LookupError:
+                return 409, {"error": "There is no applied plan to undo", "reason": "none"}
+            except (ValueError, OSError) as e:
+                log.exception(f"could not undo the plan: {e}")
+                return 500, {"error": "Could not restore the backup: nothing changed", "reason": "failed"}
+            return 200, {
+                "ok": True,
+                "restored": {
+                    "airports": done["airports"],
+                    "led_count": done["led_count"],
+                    "virtual_count": done["virtual_count"],
+                },
+                "backup": done["backup"],
+                "restart_needed": done["restart_needed"],
+            }
+        finally:
+            self._lock.release()
+
+
 def height_note(chart):
     """What the board height field says for a chart: whether its shape is measured or only an estimate."""
     if chart.printed_in:
@@ -793,7 +971,59 @@ def add_routes(app, services: "App", site, auth, planner: Optional[Planner] = No
             return as_json({**job, "error": "A plan is already running", "reason": "running"}, 409)
         return as_json(job, 202)
 
+    applier = Applier(services, planner)
+
+    def json_body():
+        """(the JSON body, None), or (None, the answer to give) for a body that is not JSON or is too big."""
+        try:
+            return bottle.request.json, None
+        except bottle.HTTPError as e:
+            big = e.status_code == 413
+            return None, refuse(
+                "invalid", "The request is too big" if big else "The body is not valid JSON", e.status_code
+            )
+        except ValueError:
+            return None, refuse("invalid", "The body is not valid JSON")
+
+    def answer(call):
+        """as_json for an Applier's (status, body); a bug is logged and answered as JSON, never as a 500 page."""
+        try:
+            status, body = call()
+        except Exception as e:
+            log.exception(f"planner apply failed: {e}")
+            return refuse("failed", "The Chart could not do that: its log has the details", 500)
+        return as_json(body, status)
+
+    def apply_preview():
+        return answer(applier.preview)
+
+    def apply_now():
+        data, bad = json_body()
+        if bad:
+            return bad
+        token = data.get("token") if isinstance(data, dict) else None
+        if not isinstance(token, str) or not token:
+            return refuse("invalid", "The request needs the token from the preview")
+        return answer(lambda: applier.apply(token))
+
+    def apply_status():
+        return answer(applier.status)
+
+    def undo():
+        data, bad = json_body()
+        if bad:
+            return bad
+        backup = data.get("backup") if isinstance(data, dict) else None
+        if not isinstance(backup, str) or not backup:
+            return refuse("invalid", "The request needs the backup's name from the status")
+        return answer(lambda: applier.undo(backup))
+
     app.route("/config/planner", "GET", lambda: page(services, site), apply=auth)
     app.route("/config/planner/plan", "POST", start, apply=auth)
     app.route("/config/planner/progress", "GET", lambda: as_json(planner.progress()), apply=auth)
     app.route("/config/planner/cancel", "POST", lambda: as_json(planner.cancel()), apply=auth)
+    # putting the plan into this Chart: a preview (and its token), the apply, and an Undo of the newest apply
+    app.route("/config/planner/apply/preview", "GET", apply_preview, apply=auth)
+    app.route("/config/planner/apply", "POST", apply_now, apply=auth)
+    app.route("/config/planner/apply/status", "GET", apply_status, apply=auth)
+    app.route("/config/planner/undo", "POST", undo, apply=auth)

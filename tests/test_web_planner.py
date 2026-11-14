@@ -1087,3 +1087,51 @@ def test_a_loader_without_progress_still_works(make):
 
     client = make(Old())
     assert run(client, source="recommended", target=30, start_fresh=True)["ok"]
+
+
+# ---- apply the plan to this Chart (the page and its script; the routes are tested with the server side) -----------
+
+
+def test_markup_has_the_apply_button_the_panel_and_the_undo_area(make):
+    page = make()("/config/planner")[1]
+    for ident in (
+        "pl-apply-btn", "pl-apply-panel", "pl-apply-head", "pl-apply-lists", "pl-apply-warning", "pl-apply-backup",
+        "pl-apply-wired", "pl-apply-go", "pl-apply-cancel", "pl-apply-done", "pl-undo-line", "pl-undo-btn",
+        "pl-undo-panel", "pl-undo-go", "pl-undo-cancel",
+    ):  # fmt: skip
+        assert f'id="{ident}"' in page, ident
+    assert "Apply to this Chart..." in page
+    assert re.search(r'id="pl-apply-go"[^>]*\bdisabled\b', page)  # off until the strip is confirmed
+    assert re.search(r'id="pl-apply-status"[^>]*role="status"', page)
+    assert 'id="pl-apply-head" tabindex="-1"' in page  # focus lands on the headline
+    assert 'id="pl-apply-restart" data-call="/restart" data-then="restart"' in page  # the Airports page's restart
+    assert "Apply above changes this one" in page  # the snippet is for another Chart
+    # all of it sits inside the result, so it goes with no finished plan
+    result = page[page.index('id="pl-result"') :]
+    assert result.index('id="pl-apply-btn"') > 0
+
+
+def test_source_apply_is_gated_by_the_checkbox_and_the_running_job(make):
+    js = make()("/static/planner.js")[1]
+    gate = js[js.index("function applyChanged()") : js.index("// close the confirmation")]
+    assert "jobRunning" in gate and "applyWired.checked" in gate and "applyToken" in gate
+    for route in (
+        "/config/planner/apply/preview", "/config/planner/apply/status", "/config/planner/apply'",
+        "/config/planner/undo",
+    ):  # fmt: skip
+        assert route in js
+    assert "{token: applyToken}" in js
+    assert "reason === 'stale'" in js and "reason === 'running'" in js
+    assert "function resetApply()" in js and js.index("resetApply();\n                setRunning(true)") > 0
+
+
+def test_source_apply_uses_no_dialogs_and_only_text_content(make):
+    js = make()("/static/planner.js")[1]
+    block = js[js.index("// ---- apply the plan to this Chart") : js.index("// ---- copy ---")]
+    for banned in ("confirm(", "alert(", "prompt(", "innerHTML", "insertAdjacentHTML", "outerHTML", "document.write"):
+        assert banned not in block, banned
+    assert "textContent" in block
+    assert ".focus()" in block and "$('pl-apply-head').focus()" in block
+    page = make()("/config/planner")[1]
+    card = page[page.index('id="pl-apply-card"') : page.index('id="pl-snippet-card"')]
+    assert "data-confirm" not in card  # app.js would show window.confirm()

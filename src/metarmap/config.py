@@ -1,10 +1,13 @@
+import copy
 import fnmatch
 import functools
 import json
 import logging
+import os
 import re
+import shutil
 import threading
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Callable, List, Sequence, Union
 
 from metarmap.metar import MOCK_KEY, parse_raw
@@ -15,6 +18,8 @@ log = logging.getLogger(__name__)
 MAX_LEDS = 1000
 ICAO = re.compile(r"^[A-Z0-9]{3,4}$")
 NO_AIRPORT = "-"  # in a URL, stands for an empty code or name
+PLAN_BACKUPS = 5  # the copies of config.json that applying a plan leaves beside it (the newest ones)
+PLAN_STAMP = re.compile(r"^(\d{8}-\d{6})(-undone)?$")  # what follows ".before-plan-" in a backup's name
 
 
 def locked(method):
@@ -314,6 +319,178 @@ class Config:
             raise IndexError(f"no LED {pixel}")
         return pixel
 
+    # ---- applying a plan (the Chart Planner) ------------------------------------------------------------------
+
+    @locked
+    def layout(self):
+        """(copies of the airports, led.count, led.virtual_count): a consistent view for the planner's preview."""
+        return copy.deepcopy(self._data.airports), self._data.led.count, self._data.led.virtual_count
+
+    @locked
+    def apply_plan(self, airports, led_count, virtual_count, *, backup=True, summary=None, check=None):
+        """
+        Replaces the airports (one per LED, then the virtual ones) and the two counts in ONE write; the changes are
+        published once, so the OLED, the strip and the METAR fetch follow once. Before it writes, config.json is
+        copied to config.json.before-plan-YYYYMMDD-HHMMSS (the newest PLAN_BACKUPS stay) and `summary` is kept beside
+        it, for restore_plan_backup(). `check(airports, led_count, virtual_count)` runs under the lock on the
+        airports as they are now and can raise to refuse (the planner uses it so that a change made since its
+        preview is not overwritten). Nothing is half applied: if the write fails the old airports stay.
+        Raises ValueError for a count out of range, a list of the wrong length, a bad code or a code twice, and
+        OSError when the backup cannot be made. Returns {"backup": file name or None, "keys": [changed keys],
+        "restart_needed": whether led.count changed (a NeoPixel strip changes at a restart)}.
+        """
+        led_count = parse_value(led_count, int, "led.count")
+        virtual_count = parse_value(virtual_count, int, "led.virtual_count")
+        if led_count < 0 or virtual_count < 0 or led_count + virtual_count > MAX_LEDS:
+            raise ValueError(
+                f"{led_count} LEDs and {virtual_count} virtual airports are over {MAX_LEDS} airports in all"
+            )
+        new = []
+        for airport in airports:
+            clean = copy.deepcopy(airport)
+            clean.code = parse_code(airport.code)
+            clean.name = str(airport.name or "")
+            clean.display = bool(airport.display)
+            new.append(clean)
+        if len(new) != led_count + virtual_count:
+            raise ValueError(f"{len(new)} airports for {led_count} LEDs and {virtual_count} virtual airports")
+        codes = [a.code for a in new if a.code]
+        if len(set(codes)) != len(codes):
+            raise ValueError("an airport code is in the list twice")
+        if check is not None:
+            check(copy.deepcopy(self._data.airports), self._data.led.count, self._data.led.virtual_count)
+        name = self._backup_before_plan(summary) if backup else None
+        keys = self._replace_airports(new, led_count, virtual_count)
+        log.info(
+            f"applied a plan: {len(codes)} airports on {led_count} LEDs and {virtual_count} virtual "
+            f"({', '.join(keys) or 'nothing changed'}); backup {name}"
+        )
+        return {"backup": name, "keys": keys, "restart_needed": "led.count" in keys}
+
+    def _replace_airports(self, new, led_count, virtual_count):
+        """The one write: swaps in the list and the counts, publishes the keys that differ, and puts the old ones
+        back if the file cannot be written. Returns the keys."""
+        data = self._data
+        old = (data.airports, data.led.count, data.led.virtual_count)
+        keys = plan_keys(old[0], new, old[1], old[2], led_count, virtual_count)
+        pending = list(self._pending)
+        data.airports, data.led.count, data.led.virtual_count = new, led_count, virtual_count
+        try:
+            for key in keys:
+                self._changed(key)
+            self.write()
+        except BaseException:
+            self._data.airports, self._data.led.count, self._data.led.virtual_count = old
+            self._pending = pending
+            raise
+        return keys
+
+    def _plan_files(self):
+        """[(stamp, undone, file name)] of the backups apply_plan made beside config.json, newest first."""
+        folder, base = os.path.split(os.path.abspath(self._file))
+        prefix = base + ".before-plan-"
+        found = []
+        try:
+            names = os.listdir(folder)
+        except OSError:
+            return []
+        for name in names:
+            match = name.startswith(prefix) and PLAN_STAMP.match(name[len(prefix) :])
+            if match:
+                found.append((match.group(1), bool(match.group(2)), name))
+        return sorted(found, reverse=True)
+
+    def next_plan_backup_name(self):
+        """The name the next backup would get (the time may differ by a second when it is made)."""
+        return f"{os.path.basename(self._file)}.before-plan-{datetime.now(timezone.utc):%Y%m%d-%H%M%S}"
+
+    def _backup_before_plan(self, summary):
+        """Copies config.json to config.json.before-plan-<UTC time> (same mode: it holds the web password), keeps
+        the summary beside it and removes all but the newest PLAN_BACKUPS. Returns the new file's name."""
+        now = datetime.now(timezone.utc).replace(microsecond=0)
+        taken = {stamp for stamp, _undone, _name in self._plan_files()}
+        while f"{now:%Y%m%d-%H%M%S}" in taken:
+            now += timedelta(seconds=1)
+        stamp = f"{now:%Y%m%d-%H%M%S}"
+        dest = f"{self._file}.before-plan-{stamp}"
+        shutil.copy2(self._file, dest)
+        try:
+            with open(f"{dest}.summary.json", "w") as f:
+                json.dump({"made_at": now.isoformat(), "summary": summary or {}}, f)
+        except OSError as e:  # the backup is what matters; the Undo button just shows less
+            log.warning(f"could not keep the summary of the plan backup {os.path.basename(dest)}: {e}")
+        for old_stamp, _undone, _name in self._plan_files()[PLAN_BACKUPS:]:
+            self._remove_plan_files(old_stamp)
+        return os.path.basename(dest)
+
+    def _remove_plan_files(self, stamp):
+        folder, base = os.path.split(os.path.abspath(self._file))
+        prefix = f"{base}.before-plan-{stamp}"
+        for name in os.listdir(folder):
+            if name.startswith(prefix) and (len(name) == len(prefix) or name[len(prefix)] in "-."):
+                try:
+                    os.remove(os.path.join(folder, name))
+                except OSError as e:
+                    log.warning(f"could not remove the old plan backup {name}: {e}")
+
+    def plan_backups(self):
+        """
+        The backups an Undo can restore, newest first: [{"file", "path", "made_at" (ISO time), "summary"}]; one that
+        was restored already is not listed.
+        """
+        folder = os.path.dirname(os.path.abspath(self._file))
+        out = []
+        for stamp, undone, name in self._plan_files():
+            if undone:
+                continue
+            path = os.path.join(folder, name)
+            made_at, summary = None, None
+            try:
+                with open(f"{path}.summary.json") as f:
+                    saved = json.load(f)
+                made_at, summary = saved.get("made_at"), saved.get("summary")
+            except (OSError, ValueError, AttributeError):
+                pass
+            if not made_at:
+                made_at = datetime.strptime(stamp, "%Y%m%d-%H%M%S").replace(tzinfo=timezone.utc).isoformat()
+            out.append({"file": name, "path": path, "made_at": made_at, "summary": summary})
+        return out
+
+    @locked
+    def restore_plan_backup(self, name=None):
+        """
+        Undoes an applied plan: puts back the airports, led.count and led.virtual_count that a plan backup has
+        (the newest one, or the one called `name`) and nothing else, so a setting changed since stays as it is. The
+        backup is renamed "...-undone" so it is not offered twice. Raises LookupError when there is none to restore
+        and ValueError (or OSError) for one that cannot be read. Returns {"airports", "led_count", "virtual_count",
+        "backup", "keys", "restart_needed"}.
+        """
+        backups = self.plan_backups()
+        chosen = next((b for b in backups if name is None or b["file"] == name), None)
+        if chosen is None:
+            raise LookupError("there is no applied plan to undo")
+        with open(chosen["path"]) as f:
+            saved = Settings.from_dict(json.load(f))
+        airports, led_count = saved.airports, saved.led.count
+        virtual_count = max(saved.led.virtual_count, len(airports) - led_count, 0)
+        airports.extend(Airport() for _ in range(led_count + virtual_count - len(airports)))
+        if led_count + virtual_count > MAX_LEDS:
+            raise ValueError(f"the backup has {led_count + virtual_count} airports: over {MAX_LEDS}")
+        keys = self._replace_airports(airports, led_count, virtual_count)
+        try:
+            os.replace(chosen["path"], chosen["path"] + "-undone")
+        except OSError as e:
+            log.warning(f"restored {chosen['file']} but could not mark it undone: {e}")
+        log.info(f"undid the plan: {led_count} LEDs and {virtual_count} virtual airports from {chosen['file']}")
+        return {
+            "airports": len([a for a in airports if a.code]),
+            "led_count": led_count,
+            "virtual_count": virtual_count,
+            "backup": chosen["file"],
+            "keys": keys,
+            "restart_needed": "led.count" in keys,
+        }
+
     # the older, by-code edits (GET /config/airports/edit/...), for the first airport with that code
 
     @locked
@@ -343,6 +520,42 @@ class Config:
             if airport.code == code:
                 return pixel
         raise KeyError(code)
+
+
+def _other_keys(airports):
+    """The keys an airport keeps of its own, besides its mock METAR (set by the older by-code edits)."""
+    return [{k: v for k, v in a._extra.items() if k != MOCK_KEY} for a in airports]
+
+
+def plan_keys(old, new, old_led, old_virtual, led, virtual):
+    """
+    The change keys (see Config) for swapping the airport list `old` for `new`, only for what differs: airports.order
+    when the codes are in another order (or the list is another length), airports.code when airports came or went (it
+    fetches their METARs), airports.name, airports.display, airports.mock, airports.other, led.count, led.virtual_count.
+    """
+    keys = []
+    # a list that only grows or shrinks by blank LEDs has not changed for the ones that are there
+    size = max(len(old), len(new))
+    old = list(old) + [Airport() for _ in range(size - len(old))]
+    new = list(new) + [Airport() for _ in range(size - len(new))]
+    old_codes, new_codes = [a.code for a in old], [a.code for a in new]
+    if old_codes != new_codes:
+        keys.append("airports.order")
+    if {c for c in old_codes if c} != {c for c in new_codes if c}:
+        keys.append("airports.code")
+    if [a.name for a in old] != [a.name for a in new]:
+        keys.append("airports.name")
+    if [a.display for a in old] != [a.display for a in new]:
+        keys.append("airports.display")
+    if [a._extra.get(MOCK_KEY) for a in old] != [a._extra.get(MOCK_KEY) for a in new]:
+        keys.append("airports.mock")
+    if _other_keys(old) != _other_keys(new):
+        keys.append("airports.other")
+    if old_led != led:
+        keys.append("led.count")
+    if old_virtual != virtual:
+        keys.append("led.virtual_count")
+    return keys
 
 
 def parse_user(value):

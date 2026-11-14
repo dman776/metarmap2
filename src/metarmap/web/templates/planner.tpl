@@ -236,12 +236,45 @@
             <ul class="pm-legend" id="pl-legend"></ul>
         </div>
         <div class="planner-side" id="pl-lists">
+            <div class="card" id="pl-apply-card">
+                <div class="card-head">
+                    <h2>Apply to this Chart</h2>
+                    <button class="btn primary sm" type="button" id="pl-apply-btn" aria-controls="pl-apply-panel">Apply to this Chart...</button>
+                </div>
+                <p class="muted pl-pad">Apply changes the Chart that serves this page: its airports, pixel count and virtual airports. A backup of <span class="mono">config.json</span> is made first, and you can undo it.</p>
+                <p class="pl-pad pl-undo-line" id="pl-undo-line" hidden>
+                    <span id="pl-undo-text"></span>
+                    <button class="btn sm" type="button" id="pl-undo-btn" aria-controls="pl-undo-panel">Undo last apply</button>
+                </p>
+                <div class="pl-pad pl-confirm" id="pl-undo-panel" hidden>
+                    <p id="pl-undo-head" tabindex="-1"><strong>Undo the last apply?</strong> Undo restores the airports, pixel count and virtual airports from the backup; other settings stay.</p>
+                    <button class="btn danger sm" type="button" id="pl-undo-go">Undo</button>
+                    <button class="btn sm" type="button" id="pl-undo-cancel">Keep it</button>
+                </div>
+                <div class="pl-pad pl-confirm" id="pl-apply-panel" hidden>
+                    <h3 id="pl-apply-head" tabindex="-1"></h3>
+                    <div id="pl-apply-lists"></div>
+                    <p class="pl-warn" id="pl-apply-warning"></p>
+                    <p class="muted">Backup to be made: <span class="mono" id="pl-apply-backup"></span></p>
+                    <label class="keep"><input type="checkbox" id="pl-apply-wired"> <span>My strip is wired in this order</span></label>
+                    <div class="pl-buttons">
+                        <button class="btn primary" type="button" id="pl-apply-go" disabled>Apply</button>
+                        <button class="btn" type="button" id="pl-apply-cancel">Cancel</button>
+                    </div>
+                </div>
+                <div class="pl-pad pl-confirm" id="pl-apply-done" hidden>
+                    <p id="pl-apply-done-text"></p>
+                    <button class="btn primary" type="button" id="pl-apply-restart" data-call="/restart" data-then="restart" hidden>Restart now</button>
+                </div>
+                <p class="pl-pad" id="pl-apply-status" role="status"></p>
+                <div class="pl-bottom"></div>
+            </div>
             <div class="card" id="pl-snippet-card">
                 <div class="card-head">
                     <h2>config.json airports</h2>
                     <button class="btn sm" type="button" id="pl-copy">Copy</button>
                 </div>
-                <p class="muted pl-pad">These are the airports in the new pixel order, the same shape as <span class="mono">airports</span> in <span class="mono">config.json</span>. Virtual airports are not in it, so if you have any, pasting this over <span class="mono">airports</span> drops them and <span class="mono">led.count</span> may need changing. Applying them to the Chart comes in a later change.</p>
+                <p class="muted pl-pad">These are the airports in the new pixel order, the same shape as <span class="mono">airports</span> in <span class="mono">config.json</span>. Virtual airports are not in it, so if you have any, pasting this over <span class="mono">airports</span> drops them and <span class="mono">led.count</span> may need changing. Use it to carry a plan to another Chart; Apply above changes this one.</p>
                 <textarea class="snippet mono" id="pl-snippet" readonly rows="8" aria-label="config.json airports"></textarea>
             </div>
         </div>

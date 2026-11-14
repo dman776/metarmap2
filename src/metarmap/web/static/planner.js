@@ -32,6 +32,7 @@
     let zoom = 0;
     let board = null;  // the last result's board, for the Board view's size
     let lastResult = null;
+    let jobRunning = false;
     const currentCodes = Array.prototype.map.call($('pl-keep').querySelectorAll('input'), function (b) { return b.value; });
     const unlocated = Array.prototype.filter.call($('pl-keep').querySelectorAll('input'), function (b) { return b.dataset.unlocated; })
         .map(function (b) { return b.value; });
@@ -231,6 +232,9 @@
     }
 
     function setRunning(running) {
+        jobRunning = running;
+        if (running) resetApply();
+        applyChanged();
         goButton.disabled = running;
         cancelButton.hidden = !running;
         $('pl-progress').hidden = !running;
@@ -307,6 +311,7 @@
             if (reply.status === 202 || reply.status === 409) {
                 if (reply.status === 409) showError('A plan is already running (maybe from another browser); showing it.');
                 $('pl-result').hidden = true;
+                resetApply();
                 setRunning(true);
                 showProgress(reply.data);
                 stopPolling();
@@ -348,6 +353,9 @@
         summary.appendChild(text);
 
         lastResult = r;
+        resetApply();
+        applyChanged();
+        loadUndo();
         // the lists and the snippet first: they need no Leaflet, so a map that cannot start leaves them on screen
         drawLists(r);
         $('pl-snippet').value = snippet(r.airports);
@@ -847,6 +855,236 @@
             stack(c);
         }
     }
+
+
+    // ---- apply the plan to this Chart --------------------------------------------------------------------------
+
+    const LONG_LIST = 12;  // a list of codes longer than this is collapsed
+    const applyBtn = $('pl-apply-btn');
+    const applyPanel = $('pl-apply-panel');
+    const applyGo = $('pl-apply-go');
+    const applyWired = $('pl-apply-wired');
+    const undoBtn = $('pl-undo-btn');
+    const undoPanel = $('pl-undo-panel');
+    let applyToken = null;
+    let applyBusy = false;  // a request is on its way
+    let undoInfo = null;
+
+    function say(text, bad) {  // the one polite status line: set only when something happened
+        const box = $('pl-apply-status');
+        box.textContent = text || '';
+        box.className = 'pl-pad' + (bad ? ' bad' : '');
+    }
+
+    function applyChanged() {
+        applyBtn.disabled = jobRunning || applyBusy || !lastResult || !applyPanel.hidden;
+        applyGo.disabled = jobRunning || applyBusy || !applyWired.checked || !applyToken;
+        undoBtn.disabled = jobRunning || applyBusy || !undoPanel.hidden;
+    }
+
+    // close the confirmation, the success message and the undo question: a new plan starts clean
+    function resetApply() {
+        applyToken = null;
+        applyPanel.hidden = true;
+        undoPanel.hidden = true;
+        $('pl-apply-done').hidden = true;
+        applyWired.checked = false;
+        say('');
+        applyChanged();
+    }
+
+    function closePanel(panel, back) {
+        panel.hidden = true;
+        applyToken = null;
+        applyChanged();
+        if (back && !back.disabled) back.focus();
+    }
+
+    function changeWords(s) {
+        const parts = [];
+        parts.push(s.moved + (s.moved === 1 ? ' airport moves' : ' airports move'));
+        parts.push(s.added.length + (s.added.length === 1 ? ' is added' : ' are added'));
+        parts.push(s.became_virtual.length + (s.became_virtual.length === 1 ? ' becomes virtual' : ' become virtual'));
+        if (s.promoted && s.promoted.length) parts.push(s.promoted.length + (s.promoted.length === 1 ? ' virtual airport gets a pixel' : ' virtual airports get pixels'));
+        const a = s.led_count.from;
+        const b = s.led_count.to;
+        parts.push(a === b ? 'the pixel count stays at ' + a : 'the pixel count goes from ' + a + ' to ' + b);
+        return parts.join(', ');
+    }
+
+    function codeList(parent, title, codes) {
+        if (!codes || !codes.length) return;
+        const label = title + ' (' + codes.length + ')';
+        const text = codes.join(', ');
+        if (codes.length > LONG_LIST) {
+            const d = el('details');
+            d.appendChild(el('summary', null, label));
+            d.appendChild(el('div', {'class': 'mono'}, text));
+            parent.appendChild(d);
+        } else {
+            const p = el('p', {'style': 'margin: 0 0 8px'});
+            p.appendChild(document.createTextNode(label + ': '));
+            p.appendChild(el('span', {'class': 'mono'}, text));
+            parent.appendChild(p);
+        }
+    }
+
+    function showPreview(s, backup) {
+        $('pl-apply-head').textContent = 'Apply this plan to this Chart? ' + changeWords(s);
+        const box = $('pl-apply-lists');
+        while (box.firstChild) box.removeChild(box.firstChild);
+        codeList(box, 'Added', s.added);
+        codeList(box, 'Become virtual airports', s.became_virtual);
+        codeList(box, 'Virtual airports that get a pixel', s.promoted);
+        if (s.blank_leds) box.appendChild(el('p', {'style': 'margin: 0 0 8px'}, plural(s.blank_leds, 'pixel') + ' will have no airport.'));
+        $('pl-apply-warning').textContent = s.over_limit
+            ? 'This plan has more airports than the Chart takes, so it cannot be applied.'
+            : s.wiring_note || 'The strip must be wired in the plan\'s order.';
+        $('pl-apply-backup').textContent = backup || '';
+        applyWired.checked = false;
+        applyWired.disabled = !!s.over_limit;
+        applyPanel.hidden = false;
+        applyChanged();
+        $('pl-apply-head').focus();
+    }
+
+    function errorText(reply, fallback) {
+        return (reply.data && reply.data.error) || fallback || 'The Chart answered with ' + reply.status + '.';
+    }
+
+    async function preview(again) {
+        applyBusy = true;
+        applyChanged();
+        say('Checking what the plan would change...');
+        try {
+            const reply = await send('/config/planner/apply/preview', 'GET');
+            const d = reply.data;
+            if (reply.status === 200 && d && d.ok) {
+                applyToken = d.token;
+                $('pl-apply-done').hidden = true;
+                applyBusy = false;
+                say(again ? 'The plan or the config changed since you looked: check the new numbers.' : '');
+                showPreview(d.summary, d.backup);
+            } else {
+                applyBusy = false;
+                applyToken = null;
+                applyPanel.hidden = true;
+                say(errorText(reply), true);
+            }
+        } catch (e) {
+            applyBusy = false;
+            applyPanel.hidden = true;
+            say('Could not reach the Chart: ' + e, true);
+        }
+        applyBusy = false;
+        applyChanged();
+    }
+
+    applyBtn.addEventListener('click', function () { preview(false); });
+    applyWired.addEventListener('change', applyChanged);
+    $('pl-apply-cancel').addEventListener('click', function () { say(''); closePanel(applyPanel, applyBtn); });
+
+    function whatChanged(s) {
+        return s ? changeWords(s).replace(/^./, function (c) { return c.toUpperCase(); }) + '.' : '';
+    }
+
+    function showDone(text, restart) {
+        $('pl-apply-done-text').textContent = text;
+        $('pl-apply-restart').hidden = !restart;
+        $('pl-apply-done').hidden = false;
+        say(restart ? 'Done. Restart the Chart to use the new pixel count.' : 'Done.');
+    }
+
+    applyGo.addEventListener('click', async function () {
+        if (!applyToken || !applyWired.checked) return;
+        applyBusy = true;
+        applyChanged();
+        say('Applying...');
+        try {
+            const reply = await send('/config/planner/apply', 'POST', {token: applyToken});
+            const d = reply.data;
+            applyBusy = false;
+            if (reply.status === 200 && d && d.ok) {
+                closePanel(applyPanel);
+                showDone('Applied. ' + whatChanged(d.summary) + ' The backup is ' + d.backup + '.', d.restart_needed);
+                await loadUndo();
+                applyBtn.focus();
+            } else if (reply.status === 409 && d && d.reason === 'stale') {
+                await preview(true);
+            } else if (reply.status === 409 && d && d.reason === 'running') {
+                closePanel(applyPanel, applyBtn);
+                say(errorText(reply, 'A plan is running: wait for it to finish.'), true);
+            } else {
+                say(errorText(reply), true);
+            }
+        } catch (e) {
+            say('Could not reach the Chart: ' + e, true);
+        }
+        applyBusy = false;
+        applyChanged();
+    });
+
+    async function loadUndo() {
+        let info = null;
+        try {
+            const reply = await send('/config/planner/apply/status', 'GET');
+            info = reply.status === 200 && reply.data ? reply.data.undo : null;
+        } catch (e) { /* no undo shown */ }
+        undoInfo = info && info.available ? info : null;
+        const line = $('pl-undo-line');
+        line.hidden = !undoInfo;
+        if (undoInfo) {
+            let when = undoInfo.made_at || '';
+            const t = new Date(when);
+            if (when && !isNaN(t.getTime())) when = t.toLocaleString();
+            $('pl-undo-text').textContent = 'Last applied ' + when + ' (backup ' + undoInfo.backup + ')';
+        } else {
+            undoPanel.hidden = true;
+        }
+        applyChanged();
+    }
+
+    undoBtn.addEventListener('click', function () {
+        undoPanel.hidden = false;
+        applyChanged();
+        $('pl-undo-head').focus();
+    });
+    $('pl-undo-cancel').addEventListener('click', function () { closePanel(undoPanel, undoBtn); });
+    $('pl-undo-go').addEventListener('click', async function () {
+        if (!undoInfo || !undoInfo.backup) {
+            undoPanel.hidden = true;
+            say('There is nothing to undo.', true);
+            return;
+        }
+        applyBusy = true;
+        applyChanged();
+        say('Restoring from the backup...');
+        try {
+            // the server wants the backup's name (from apply/status), so an Undo it did not offer is refused
+            const reply = await send('/config/planner/undo', 'POST', {backup: undoInfo.backup});
+            const d = reply.data;
+            applyBusy = false;
+            if (reply.status === 200 && d && d.ok) {
+                const r = d.restored || {};
+                undoPanel.hidden = true;
+                applyPanel.hidden = true;
+                applyToken = null;
+                showDone('Undone. Restored ' + plural(r.airports, 'airport') + ', ' + plural(r.led_count, 'pixel') + ' and ' + plural(r.virtual_count, 'virtual airport') + ' from the backup.', d.restart_needed);
+                await loadUndo();
+                applyBtn.focus();
+            } else {
+                undoPanel.hidden = true;
+                say(errorText(reply), true);
+                await loadUndo();
+            }
+        } catch (e) {
+            say('Could not reach the Chart: ' + e, true);
+        }
+        applyBusy = false;
+        applyChanged();
+    });
+
+    applyChanged();
 
     // ---- copy -------------------------------------------------------------------------------------------------
 

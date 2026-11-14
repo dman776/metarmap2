@@ -1,5 +1,7 @@
 ### Unreleased
 
+- **Plan a new chart: Apply to this Chart.** A finished plan has an **Apply to this Chart...** button. It opens a panel on the page (no pop-up) that sums up the change (airports moved, added, dropped ones that become virtual airports, the pixel count before and after), warns that the strip must be wired in the plan's order, names the backup and asks you to tick "My strip is wired in this order" before **Apply** enables. Apply makes a timestamped backup of `config.json`, changes the airports, pixel count and virtual airports, and offers **Restart now** when the pixel count changed. **Undo last apply** (asks first) restores those from the backup, also after a reload. If the plan or config changed since you looked, the panel checks again; it is off while a plan runs. The config snippet stays for carrying a plan to another Chart.
+
 - **Plan a new chart: the airport download sends several requests at a time and shows its progress.** It now sends 3
   requests at a time instead of one (still within aviationweather.gov's limit of 100 a minute), so one slow answer no
   longer holds up the rest. How much faster that is depends on how often the weather service times out: one test of a
