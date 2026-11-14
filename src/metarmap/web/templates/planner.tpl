@@ -1,4 +1,4 @@
-%include("header.tpl", title="Plan a new chart", page="config")
+%include("header.tpl", title="Plan a new chart", page="config", leaflet=True)
 <section class="page-head">
     <div>
         <h1>Plan a new chart</h1>
@@ -200,18 +200,43 @@
         <div class="card map-card">
             <div class="card-head">
                 <h2>Build map</h2>
-                <div class="chip-row no-print">
-                    <button class="chip sm" type="button" data-zoom="out" aria-label="Zoom out">&minus;</button>
-                    <button class="chip sm" type="button" data-zoom="fit">Fit</button>
-                    <button class="chip sm" type="button" data-zoom="in" aria-label="Zoom in">+</button>
-                    <button class="chip sm" type="button" id="pl-print">Print</button>
+                <div class="pm-seg" id="pl-view" role="group" aria-label="View">
+                    <button class="chip sm" type="button" data-view="map" aria-pressed="true">Map</button>
+                    <button class="chip sm" type="button" data-view="board" aria-pressed="false">Board</button>
                 </div>
             </div>
-            <div class="pm-scroll" id="pl-map"></div>
+            <p class="muted pm-note" id="pl-map-note" hidden></p>
+            <div id="pl-map">
+                <div class="pm-controls">
+                    <span class="pm-lab" id="pl-bg-label">Background</span>
+                    <div class="pm-seg" id="pl-bg" role="group" aria-labelledby="pl-bg-label">
+                        <button class="chip sm" type="button" data-bg="none" aria-pressed="true">None</button>
+                        <button class="chip sm" type="button" data-bg="sectional" aria-pressed="false">Sectional</button>
+                        <button class="chip sm" type="button" data-bg="satellite" aria-pressed="false">Satellite</button>
+                        <button class="chip sm" type="button" data-bg="street" aria-pressed="false">Street</button>
+                    </div>
+                    <label class="pm-lab" for="pl-opacity">Opacity</label>
+                    <input id="pl-opacity" type="range" min="10" max="100" step="5" value="100" disabled>
+                    <span class="mono pm-opval" id="pl-opacity-val">100%</span>
+                    <span class="muted pm-hint" id="pl-bg-hint" role="status" hidden></span>
+                </div>
+                <div class="pm-leaflet" id="pl-leaflet" role="group" aria-label="Build map: drag to move, scroll or pinch to zoom, arrow keys and plus and minus when focused"></div>
+            </div>
+            <div id="pl-board" hidden>
+                <div class="pm-controls">
+                    <span class="pm-lab" id="pl-zoom-label">Zoom</span>
+                    <div class="pm-seg" role="group" aria-labelledby="pl-zoom-label">
+                        <button class="chip sm" type="button" data-zoom="out" aria-label="Zoom out">&minus;</button>
+                        <button class="chip sm" type="button" data-zoom="fit">Fit</button>
+                        <button class="chip sm" type="button" data-zoom="in" aria-label="Zoom in">+</button>
+                    </div>
+                </div>
+                <div class="pm-scroll" id="pl-board-svg"></div>
+            </div>
             <ul class="pm-legend" id="pl-legend"></ul>
         </div>
         <div class="planner-side" id="pl-lists">
-            <div class="card no-print" id="pl-snippet-card">
+            <div class="card" id="pl-snippet-card">
                 <div class="card-head">
                     <h2>config.json airports</h2>
                     <button class="btn sm" type="button" id="pl-copy">Copy</button>

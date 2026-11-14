@@ -252,6 +252,35 @@ class _Limit:
         return self._cancel.is_set() or time.monotonic() > self._end
 
 
+def _on_the_earth(sheet, chart, board_w, board_h, found):
+    """
+    Puts the plan on the earth for a map that draws it over real tiles: each pixel in the sheet gets `lat` and `lon`
+    (where it is placed) and `orig_lat` and `orig_lon` (where its airport really is; None for a skipped pixel), and
+    the chart's map area comes back as an outline polygon. Returns (outline, bounds): bounds is {south, west, north,
+    east} around the outline and every pixel, true and placed, for fitBounds. Everything is to 5 decimals and in the
+    chart's own longitude range, so the Western Aleutians chart, which crosses the antimeridian, goes up to 187.65
+    and the map draws it without a jump.
+    """
+    outline = projection.outline(chart, board_w, board_h)
+    lats = [lat for lat, _lon in outline]
+    lons = [lon for _lat, lon in outline]
+    for pixel in sheet["pixels"]:
+        lat, lon = projection.unproject(chart, pixel["x"], pixel["y"], board_w, board_h, unwrap=True)
+        pixel["lat"], pixel["lon"] = round(lat, 5), round(lon, 5)
+        info = found.get(pixel["code"]) if pixel["code"] else None
+        if info:
+            pixel["orig_lat"] = round(info["lat"], 5)
+            pixel["orig_lon"] = round(projection.unwrapped(chart, info["lon"]), 5)
+        else:
+            pixel["orig_lat"] = pixel["orig_lon"] = None
+        for key in (("lat", "lon"), ("orig_lat", "orig_lon")):
+            if pixel[key[0]] is not None:
+                lats.append(pixel[key[0]])
+                lons.append(pixel[key[1]])
+    bounds = {"south": min(lats), "west": min(lons), "north": max(lats), "east": max(lons)}
+    return outline, bounds
+
+
 class Planner:
     """The planner job started from the web UI. One runs at a time; the page polls progress()."""
 
@@ -569,6 +598,7 @@ class Planner:
         sheet = make_sheet(
             planned, settings, power, (p["width_in"], p["height_in"] or board_h / projection.MM_PER_INCH)
         )
+        outline, bounds = _on_the_earth(sheet, chart, board_w, board_h, found)
 
         sizes = None
         if p["suggest_sizes"]:
@@ -606,6 +636,8 @@ class Planner:
                     "bottom": chart.margin_bottom,
                 },
                 "height_measured": bool(chart.board_aspect or chart.printed_in),
+                "outline": outline,
+                "bounds": bounds,
             },
             "sheet": sheet,
             "airports": snippet,
