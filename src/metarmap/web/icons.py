@@ -1,9 +1,17 @@
 """
 The web pages' visualizer icons (metarmap.visualizers.visualizer.ICONS), drawn as SVG: sprite() puts them in a page
 once, as <symbol id="vi-<name>">, and use(name) draws one, so the pages' scripts can switch icons by name.
+
+mask(name) is the same icon as a 20x20 alpha mask, for clients that draw it themselves (GET /api/icon/<name>: the
+Copilot). The masks are drawn ahead of time, on a dev machine, into icon_masks.py: a Pi draws nothing. Editing SHAPES
+(or SOLID's rainbow) means running tools/make_icon_masks.py again and committing icon_masks.py with the change
+(tests/test_icon_masks.py checks they match where rsvg-convert is installed).
 """
 
+from typing import Optional
+
 from metarmap.visualizers.visualizer import ICONS
+from metarmap.web.icon_masks import MASKS, REV
 
 # icon name -> the inside of a 24x24 SVG, drawn in the text color (stroke) unless it sets its own
 SHAPES = {
@@ -67,3 +75,14 @@ def use(name: str, size: int = 16) -> str:
     if name not in SHAPES:
         return ""
     return f'<svg class="vi" width="{size}" height="{size}" aria-hidden="true"><use href="#vi-{name}"/></svg>'
+
+
+def mask(name: str) -> Optional[bytes]:
+    """The icon as a 20x20 alpha mask (400 bytes, row by row, 0 clear to 255 solid); None for a name it doesn't know.
+    Rainbow's is its one-color version (three plain arcs): a mask has no colors."""
+    return MASKS.get(name)
+
+
+def mask_rev(name: str) -> Optional[str]:
+    """What the icon's mask is known by (8 hex digits, its ETag); it changes when the mask does. None if unknown."""
+    return REV.get(name)

@@ -102,12 +102,12 @@ class Client:
 
         result = self.app(environ, start_response)
         try:
-            body = b"".join(result).decode(errors="replace")  # binary bodies (audio) too
+            self.raw = b"".join(result)  # the body's bytes, for the binary ones (an icon mask)
         finally:
             if hasattr(result, "close"):
                 result.close()  # as a WSGI server does: a static file's body is an open file
         self.headers = dict(headers)
-        return int(status[0].split()[0]), body
+        return int(status[0].split()[0]), self.raw.decode(errors="replace")  # binary bodies (audio) too
 
     def json(self, path, **kwargs):
         status, body = self(path, **kwargs)
@@ -759,6 +759,77 @@ def test_live(services):
     assert api.live(services)["display"] == {"enabled": False, "on": False, "screen": None}
 
 
+# ---- visualizer icons as masks (/api/icon/<name>, iconRev) ------------------------------------------------------
+
+# what /api/status said about each visualizer before iconRev: none of these may go or change name
+STATUS_VISUALIZER_KEYS = {"active", "id", "name", "shortName", "icon", "exclusive", "description", "legend"}
+STATUS_VISUALIZERS_KEYS = {"index", "id", "name", "shortName", "icon", "exclusive", "skipped"}
+LIVE_VISUALIZER_KEYS = {
+    "active",
+    "id",
+    "name",
+    "shortName",
+    "icon",
+    "exclusive",
+    "areas",
+    "autoRotate",
+    "legendInUse",
+    "legendInUseOnly",
+    "step",
+}
+
+
+def test_icon_mask_route(client):
+    status, _ = client("/api/icon/hourglass", auth=False)  # public, as /api/status
+    # bottle writes the header as "Etag" (HTTP header names are case-insensitive)
+    assert status == 200
+    assert client.raw == icons.mask("hourglass") and len(client.raw) == 400
+    assert client.headers["Content-Type"] == "application/octet-stream"
+    assert client.headers["Etag"] == f'"{icons.mask_rev("hourglass")}"'
+    assert client.headers["Cache-Control"] == "public, max-age=86400"
+    assert client.headers["X-Icon-Size"] == "20"
+    assert client("/api/icon/hourglass?v=whatever", auth=False)[0] == 200  # the query is ignored
+    assert client.raw == icons.mask("hourglass")
+
+
+def test_icon_mask_route_not_modified(client):
+    etag = f'"{icons.mask_rev("chase")}"'
+    for asked in (etag, f'"00000000", {etag}', f"W/{etag}", "*"):
+        status, body = client("/api/icon/chase", auth=False, headers={"If-None-Match": asked})
+        assert (status, body) == (304, ""), asked
+        assert client.headers["Etag"] == etag
+    status, _ = client("/api/icon/chase", auth=False, headers={"If-None-Match": '"00000000"'})
+    assert status == 200 and len(client.raw) == 400  # an old rev: the new mask
+
+
+@pytest.mark.parametrize("path", ["/api/icon/sun", "/api/icon/snowflake_2"])
+def test_icon_mask_route_unknown(client, path):
+    status, body = client(path, auth=False)
+    assert status == 404
+    assert client.headers["Content-Type"] == "application/json"
+    assert json.loads(body)["reason"] == "unknown" and json.loads(body)["error"]
+
+
+@pytest.mark.parametrize("name", ["../x", "..%2Fx", "Plane", "PLANE", "1plane", "_plane", "plane.svg", "a b"])
+def test_icon_mask_route_malformed(client, name):
+    status, body = client(f"/api/icon/{name}", auth=False)
+    assert status == 400, name
+    assert client.headers["Content-Type"] == "application/json"
+    assert json.loads(body)["reason"] == "invalid"
+
+
+def test_icon_revs_in_status_and_live(client):
+    status = client.json("/api/status", auth=False)
+    for entry in [status["visualizer"], *status["visualizers"]]:
+        client(f"/api/icon/{entry['icon']}", auth=False)
+        assert entry["iconRev"] == client.headers["Etag"].strip('"')
+    assert set(status["visualizer"]) == STATUS_VISUALIZER_KEYS | {"iconRev"}
+    assert all(set(v) == STATUS_VISUALIZERS_KEYS | {"iconRev"} for v in status["visualizers"])
+    live = client.json("/api/live", auth=False)["visualizer"]
+    assert live["iconRev"] == icons.mask_rev(live["icon"]) == status["visualizer"]["iconRev"]
+    assert set(live) == LIVE_VISUALIZER_KEYS | {"iconRev"}
+
+
 def test_live_says_whether_the_map_can_speak(services):
     """The touchscreen remote offers hold-to-hear only then: speech on, with a server set for its engine."""
     from metarmap.speech import Speech
@@ -808,6 +879,7 @@ def test_live_whole_strip_visualizer(services):
         "name": "Rainbow",
         "shortName": "Rainbow",
         "icon": "rainbow",
+        "iconRev": icons.mask_rev("rainbow"),
         "exclusive": True,
         "areas": None,
         "autoRotate": {"enabled": False, "seconds": 60, "next": None, "skip": []},
