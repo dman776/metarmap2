@@ -363,7 +363,8 @@ def faa_id(code, known):
 def with_delays(data, delays, known):
     """
     The METARs, each with faa_status: its worst FAA status now (metarmap.delays.Delays.status), or None before the
-    first FAA status or when the airport has no FAA id (faa_id). known: code -> what the station lookup found.
+    first FAA status. An airport with no FAA id (faa_id: abroad, or PHNL before the station lookup) isn't in the
+    FAA's status, so it has no delay. known: code -> what the station lookup found.
     Airports with no report stay None.
     """
     result = {}
@@ -372,7 +373,7 @@ def with_delays(data, delays, known):
             result[code] = m
             continue
         faa = faa_id(code, known.get(code))
-        result[code] = replace(m, faa_status=delays.status(faa) if faa else None)
+        result[code] = replace(m, faa_status=delays.status(faa or ""))  # "": in no list, so no delay
     return result
 
 

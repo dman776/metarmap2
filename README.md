@@ -36,7 +36,8 @@ Written from the ground up with a web UI, an API and a Home Assistant integratio
   the long-running closures of LAX, SAN and LAS to transient general aviation) is left out. The status is fetched every
   5 minutes. US airports only: the FAA's ids (SAN, HNL) are matched to your airports through the station lookup, so
   Hawaii, Alaska and the territories work once it has run; until then, and for airports outside the US, the pixel
-  shows "No FAA status yet" (a slow red blink, or off with **Missing data blink** off).
+  is dim white, as with no delay. Before the first status comes, every pixel shows "No FAA status yet" (a slow red
+  blink, or off with **Missing data blink** off).
 - **Lightning**: airports reporting lightning or a thunderstorm flicker yellow or white (a double flash every 2 s) in every weather visualizer, unless you turn the animation off in Config. Lightning at, over or near the airport counts; distant lightning alone (more than 10 miles away, `LTG DSNT` in the METAR) doesn't flash, though the Decoded tab and the spoken weather still mention it.
 - **Estimated flight categories**: a station that doesn't report its flight category, but does report its visibility
   or clouds, gets an estimate from them. Its pixel breathes slowly so you can tell, and the Micro shows it with a `*`

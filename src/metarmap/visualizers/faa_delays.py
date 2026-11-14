@@ -1,7 +1,8 @@
 """
 FAA Delays: colors each airport by its worst FAA status now (metarmap.delays): closed magenta, a ground stop blinking
 red, a delay (a Ground Delay Program's average, or an arrival or departure delay) yellow, orange or red by its minutes,
-and no delay dim white. Only full closures count: one to some aircraft only (TO NON SKED, EXC, PPR) is left out.
+and no delay (or an airport the FAA doesn't list, such as one abroad) dim white. Only full closures count: one to
+some aircraft only (TO NON SKED, EXC, PPR) is left out.
 """
 
 from typing import Optional
@@ -23,7 +24,7 @@ CLOSED_COLOR = colors_lib.MAGENTA
 STOP_COLOR = colors_lib.RED
 NONE = colors_lib.GRAY
 STOP_PERIOD = style.HEAVY_PERIOD  # a ground stop blinks like heavy weather: bright and dim, never dark
-CLOSED_LABEL, STOP_LABEL, NORMAL_LABEL = "Closed", "Ground stop", "No delay"
+CLOSED_LABEL, STOP_LABEL, NORMAL_LABEL = "Closed", "Ground stop", "No delay, or not an FAA airport"
 
 
 def stop_look() -> Look:
@@ -40,7 +41,7 @@ def legend(settings):
         ),
         *style.band_legend(DELAY_BANDS, settings),
         legend_item(NORMAL_LABEL, "Dim white", style.named(NONE)),
-        style.missing_legend("", label="No FAA status yet, or not an FAA airport"),
+        style.missing_legend("", label="No FAA status yet"),
         style.no_report_legend(),
     ]
 
@@ -67,7 +68,7 @@ VISUALIZER = Visualizer(
     id="faa_delays",
     name="FAA Delays",
     description="Display each airport's FAA status: closed magenta, a ground stop blinking red, delays yellow under "
-    "30 minutes, orange to an hour, red an hour or more; no delay is dim white.",
+    "30 minutes, orange to an hour, red an hour or more; no delay, or not an FAA airport, is dim white.",
     short_name="FAA Delays",
     icon="hourglass",
     legend=legend,

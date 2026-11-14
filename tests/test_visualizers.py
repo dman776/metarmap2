@@ -1081,7 +1081,7 @@ def faa(kind, minutes=None):
         (faa("delay", 60), Look.solid(C[colors_lib.RED])),
         (faa("delay", 138), Look.solid(C[colors_lib.RED])),
         (faa("normal"), Look.solid(C[colors_lib.GRAY])),
-        (metar(faa_status=None), Look.blink(C[colors_lib.RED], period=2)),  # no status yet, or not an FAA airport
+        (metar(faa_status=None), Look.blink(C[colors_lib.RED], period=2)),  # no FAA status fetched yet
         (faa("something new"), Look.blink(C[colors_lib.RED], period=2)),
         (None, OFF),
     ],
@@ -1099,7 +1099,7 @@ def test_faa_delays_legend(settings):
         "Delay under 30 min",
         "Delay 30-59 min",
         "Delay of an hour or more",
-        "No delay",
+        "No delay, or not an FAA airport",
     ]
     stop = items[1]
     assert stop["effect"] == "alternate" and stop["period"] == 1.0

@@ -409,5 +409,7 @@ def test_with_delays():
     assert shown["PHNL"].faa_status["kind"] == GROUND_STOP
     assert shown["KEWR"].faa_status == {"kind": DELAY, "minutes": 138}
     assert shown["KIAH"].faa_status["kind"] == NORMAL
-    assert shown["CYYZ"].faa_status is None  # no FAA id
+    assert shown["CYYZ"].faa_status == {"kind": NORMAL, "minutes": None}  # no FAA id: not in the FAA's status
+    before = with_delays(data, Delays(get=Get(), clock=lambda: NOW), known)
+    assert before["CYYZ"].faa_status is None and before["KEWR"].faa_status is None  # nothing fetched yet
     assert shown["KXXX"] is None  # no report stays None
