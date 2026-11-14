@@ -1,4 +1,5 @@
 import copy
+import filecmp
 import fnmatch
 import functools
 import json
@@ -331,13 +332,15 @@ class Config:
         """
         Replaces the airports (one per LED, then the virtual ones) and the two counts in ONE write; the changes are
         published once, so the OLED, the strip and the METAR fetch follow once. Before it writes, config.json is
-        copied to config.json.before-plan-YYYYMMDD-HHMMSS (the newest PLAN_BACKUPS stay) and `summary` is kept beside
-        it, for restore_plan_backup(). `check(airports, led_count, virtual_count)` runs under the lock on the
+        copied to config.json.before-plan-YYYYMMDD-HHMMSS and `summary` is kept beside it, for
+        restore_plan_backup(); once the write is done only the newest PLAN_BACKUPS stay, and a write that fails
+        takes its backup away again. `check(airports, led_count, virtual_count)` runs under the lock on the
         airports as they are now and can raise to refuse (the planner uses it so that a change made since its
         preview is not overwritten). Nothing is half applied: if the write fails the old airports stay.
         Raises ValueError for a count out of range, a list of the wrong length, a bad code or a code twice, and
         OSError when the backup cannot be made. Returns {"backup": file name or None, "keys": [changed keys],
-        "restart_needed": whether led.count changed (a NeoPixel strip changes at a restart)}.
+        "led_count_changed": whether led.count changed}. A NeoPixel strip only changes length at a restart: whether
+        one is needed is the caller's to say (the strip is the renderer's).
         """
         led_count = parse_value(led_count, int, "led.count")
         virtual_count = parse_value(virtual_count, int, "led.virtual_count")
@@ -356,16 +359,24 @@ class Config:
             raise ValueError(f"{len(new)} airports for {led_count} LEDs and {virtual_count} virtual airports")
         codes = [a.code for a in new if a.code]
         if len(set(codes)) != len(codes):
-            raise ValueError("an airport code is in the list twice")
+            raise ValueError(_twice(new, led_count))
         if check is not None:
             check(copy.deepcopy(self._data.airports), self._data.led.count, self._data.led.virtual_count)
-        name = self._backup_before_plan(summary) if backup else None
-        keys = self._replace_airports(new, led_count, virtual_count)
+        stamp = self._backup_before_plan(summary) if backup else None
+        try:
+            keys = self._replace_airports(new, led_count, virtual_count)
+        except BaseException:
+            if stamp:
+                self._drop_failed_backup(stamp)  # an apply that did not happen offers no Undo
+            raise
+        if stamp:
+            self._prune_plan_backups(keep=stamp)  # only now that the write is safe
+        name = f"{os.path.basename(self._file)}.before-plan-{stamp}" if stamp else None
         log.info(
             f"applied a plan: {len(codes)} airports on {led_count} LEDs and {virtual_count} virtual "
             f"({', '.join(keys) or 'nothing changed'}); backup {name}"
         )
-        return {"backup": name, "keys": keys, "restart_needed": "led.count" in keys}
+        return {"backup": name, "keys": keys, "led_count_changed": "led.count" in keys}
 
     def _replace_airports(self, new, led_count, virtual_count):
         """The one write: swaps in the list and the counts, publishes the keys that differ, and puts the old ones
@@ -398,40 +409,82 @@ class Config:
             match = name.startswith(prefix) and PLAN_STAMP.match(name[len(prefix) :])
             if match:
                 found.append((match.group(1), bool(match.group(2)), name))
+        # the stamps only ever go up (see _backup_before_plan), so the newest is the highest, whatever the clock says
         return sorted(found, reverse=True)
 
     def next_plan_backup_name(self):
         """The name the next backup would get (the time may differ by a second when it is made)."""
-        return f"{os.path.basename(self._file)}.before-plan-{datetime.now(timezone.utc):%Y%m%d-%H%M%S}"
+        return f"{os.path.basename(self._file)}.before-plan-{self._next_stamp()[0]:%Y%m%d-%H%M%S}"
+
+    def _next_stamp(self):
+        """(the UTC time for the next backup's name, its time as made). The name's time never goes below the newest
+        backup's: a Pi that booted before its clock was set would otherwise sort its new backup as the oldest, and
+        prune it or undo the wrong apply."""
+        now = datetime.now(timezone.utc).replace(microsecond=0)
+        stamp = now
+        files = self._plan_files()
+        if files:
+            newest = datetime.strptime(files[0][0], "%Y%m%d-%H%M%S").replace(tzinfo=timezone.utc)
+            if stamp <= newest:
+                stamp = newest + timedelta(seconds=1)
+        return stamp, now
 
     def _backup_before_plan(self, summary):
-        """Copies config.json to config.json.before-plan-<UTC time> (same mode: it holds the web password), keeps
-        the summary beside it and removes all but the newest PLAN_BACKUPS. Returns the new file's name."""
-        now = datetime.now(timezone.utc).replace(microsecond=0)
-        taken = {stamp for stamp, _undone, _name in self._plan_files()}
-        while f"{now:%Y%m%d-%H%M%S}" in taken:
-            now += timedelta(seconds=1)
-        stamp = f"{now:%Y%m%d-%H%M%S}"
+        """
+        Copies config.json to config.json.before-plan-<stamp> and keeps the summary beside it. It holds the web
+        password, so the copy is made private from the start (no moment when another user could read it) and then
+        takes the original's mode. Does not remove old backups: apply_plan does that once the write is done.
+        Returns the new stamp.
+        """
+        stamp_time, made = self._next_stamp()
+        stamp = f"{stamp_time:%Y%m%d-%H%M%S}"
         dest = f"{self._file}.before-plan-{stamp}"
-        shutil.copy2(self._file, dest)
+        fd = os.open(dest, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         try:
-            with open(f"{dest}.summary.json", "w") as f:
-                json.dump({"made_at": now.isoformat(), "summary": summary or {}}, f)
+            with os.fdopen(fd, "wb") as out, open(self._file, "rb") as source:
+                shutil.copyfileobj(source, out)
+            shutil.copystat(self._file, dest)
+        except BaseException:
+            self._remove_plan_files(stamp)
+            raise
+        try:
+            fd = os.open(f"{dest}.summary.json", os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+            with os.fdopen(fd, "w") as f:
+                json.dump({"made_at": made.isoformat(), "summary": summary or {}}, f)
         except OSError as e:  # the backup is what matters; the Undo button just shows less
             log.warning(f"could not keep the summary of the plan backup {os.path.basename(dest)}: {e}")
+        return stamp
+
+    def _drop_failed_backup(self, stamp):
+        """The write failed: take the backup made for it away, unless config.json changed after all (the save went
+        through and only the read back failed): then the backup is the way back, so it stays."""
+        dest = f"{self._file}.before-plan-{stamp}"
+        try:
+            same = filecmp.cmp(self._file, dest, shallow=False)
+        except OSError:
+            same = False
+        if same:
+            self._remove_plan_files(stamp)
+        else:
+            log.warning(f"config.json changed while the plan was applied and the save failed: keeping {dest}")
+
+    def _prune_plan_backups(self, keep):
+        """Removes all but the newest PLAN_BACKUPS, never the one called `keep`."""
         for old_stamp, _undone, _name in self._plan_files()[PLAN_BACKUPS:]:
-            self._remove_plan_files(old_stamp)
-        return os.path.basename(dest)
+            if old_stamp != keep:
+                self._remove_plan_files(old_stamp)
 
     def _remove_plan_files(self, stamp):
-        folder, base = os.path.split(os.path.abspath(self._file))
-        prefix = f"{base}.before-plan-{stamp}"
-        for name in os.listdir(folder):
-            if name.startswith(prefix) and (len(name) == len(prefix) or name[len(prefix)] in "-."):
-                try:
-                    os.remove(os.path.join(folder, name))
-                except OSError as e:
-                    log.warning(f"could not remove the old plan backup {name}: {e}")
+        """Removes the files that belong to one backup and nothing else: its copy, the copy marked undone and their
+        summaries (a file a user named like them, e.g. with ".mine" after it, stays)."""
+        base = f"{self._file}.before-plan-{stamp}"
+        for path in (base, base + "-undone", base + ".summary.json", base + "-undone.summary.json"):
+            try:
+                os.remove(path)
+            except FileNotFoundError:
+                pass
+            except OSError as e:
+                log.warning(f"could not remove the plan backup file {os.path.basename(path)}: {e}")
 
     def plan_backups(self):
         """
@@ -463,7 +516,7 @@ class Config:
         (the newest one, or the one called `name`) and nothing else, so a setting changed since stays as it is. The
         backup is renamed "...-undone" so it is not offered twice. Raises LookupError when there is none to restore
         and ValueError (or OSError) for one that cannot be read. Returns {"airports", "led_count", "virtual_count",
-        "backup", "keys", "restart_needed"}.
+        "backup", "keys", "led_count_changed"}.
         """
         backups = self.plan_backups()
         chosen = next((b for b in backups if name is None or b["file"] == name), None)
@@ -481,6 +534,13 @@ class Config:
             os.replace(chosen["path"], chosen["path"] + "-undone")
         except OSError as e:
             log.warning(f"restored {chosen['file']} but could not mark it undone: {e}")
+        else:
+            try:  # its summary goes with it, so no orphan is left behind
+                os.replace(chosen["path"] + ".summary.json", chosen["path"] + "-undone.summary.json")
+            except FileNotFoundError:
+                pass
+            except OSError as e:
+                log.warning(f"could not rename the summary of {chosen['file']}: {e}")
         log.info(f"undid the plan: {led_count} LEDs and {virtual_count} virtual airports from {chosen['file']}")
         return {
             "airports": len([a for a in airports if a.code]),
@@ -488,7 +548,7 @@ class Config:
             "virtual_count": virtual_count,
             "backup": chosen["file"],
             "keys": keys,
-            "restart_needed": "led.count" in keys,
+            "led_count_changed": "led.count" in keys,
         }
 
     # the older, by-code edits (GET /config/airports/edit/...), for the first airport with that code
@@ -520,6 +580,17 @@ class Config:
             if airport.code == code:
                 return pixel
         raise KeyError(code)
+
+
+def _twice(airports, led_count):
+    """The refusal for a code in the list twice: which code, and where (LED numbers, then virtual airports)."""
+    where = {}
+    for index, airport in enumerate(airports):
+        if airport.code:
+            place = f"LED {index + 1}" if index < led_count else f"virtual airport {index - led_count + 1}"
+            where.setdefault(airport.code, []).append(place)
+    code, places = next((c, p) for c, p in where.items() if len(p) > 1)
+    return f"the airport code {code} is in the list twice ({' and '.join(places)})"
 
 
 def _other_keys(airports):

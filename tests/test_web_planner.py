@@ -1135,3 +1135,33 @@ def test_source_apply_uses_no_dialogs_and_only_text_content(make):
     page = make()("/config/planner")[1]
     card = page[page.index('id="pl-apply-card"') : page.index('id="pl-snippet-card"')]
     assert "data-confirm" not in card  # app.js would show window.confirm()
+
+
+def test_markup_no_page_says_the_planner_only_plans(make):
+    client = make()
+    for path in ("/config/planner", "/config/airports"):
+        page = client(path)[1]
+        assert "only plans" not in page and "nothing here changes" not in page, path
+    assert "Apply" in client("/config/airports")[1] and "Undo" in client("/config/airports")[1]
+    assert "Apply, further down, can then put it on this Chart" in client("/config/planner")[1]
+
+
+def test_markup_the_undo_question_says_what_is_lost(make):
+    page = make()("/config/planner")[1]
+    question = page[page.index('id="pl-undo-head"') : page.index('id="pl-undo-go"')]
+    assert "Other settings stay" in question and "airport edits made since the apply" in question
+    assert "virtual airports added" in question
+
+
+def test_source_apply_says_when_there_is_nothing_to_apply(make):
+    client = make()
+    js = client("/static/planner.js")[1]
+    page = client("/config/planner")[1]
+    for ident in ("pl-apply-backup-line", "pl-apply-wired-line"):  # hidden when there is nothing to apply
+        assert f'id="{ident}"' in page, ident
+    block = js[js.index("function showPreview(") : js.index("function errorText(")]
+    assert "Nothing to apply: the Chart already has this plan." in block
+    assert "s.unchanged" in block and "applyUnchanged = true" not in block  # it is set from the summary
+    gate = js[js.index("function applyChanged()") : js.index("// close the confirmation")]
+    assert "applyUnchanged" in gate  # Apply stays disabled
+    assert "reason === 'unchanged'" in js  # an answer from the server shows the same panel

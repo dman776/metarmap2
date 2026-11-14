@@ -209,3 +209,75 @@ def test_the_token_follows_the_plan_the_config_and_the_result():
     assert token != apply.fingerprint(7, edited, 2, 0, run(edited, 2, 0, ["B", "A"], 1, 2))
     other = run(current, 2, 0, ["A", "B"], 1, 2)
     assert token != apply.fingerprint(7, current, 2, 0, other)  # another result
+
+
+# ---- the wiring note counts LEDs, not airports --------------------------------------------------------------
+
+
+def test_the_wiring_note_counts_hidden_and_blank_pixels():
+    plan = [{"code": "KAUS"}, {"code": None}, {"code": ""}, {"code": "KHOU"}]
+    note = apply.wiring_note(plan, 50)
+    assert "LED 1 is KAUS" in note and "LED 4 is KHOU" in note and "50 pixels in all" in note
+
+
+def test_the_wiring_note_starts_at_the_first_airport_when_the_chain_starts_with_a_hidden_pixel():
+    note = apply.wiring_note([{"code": None}, {"code": "KAUS"}, {"code": "KHOU"}], 50)
+    assert "LED 2 is KAUS" in note and "LED 3 is KHOU" in note
+
+
+def test_the_summary_has_the_led_numbers_of_the_chain():
+    change = apply.plan_changes([], 0, 0, [{"code": "KAUS"}, {"code": None}, {"code": "KHOU"}], 10, 1, {})
+    assert "LED 3 is KHOU" in change.summary["wiring_note"]
+
+
+# ---- codes are compared without case and spaces -------------------------------------------------------------
+
+
+def test_a_lowercase_or_padded_code_in_the_config_is_the_plans_airport():
+    current = [airport("kaus", "Austin", True, **{MOCK_KEY: "a mock"}), airport(" KHOU ", "Hobby")]
+    change = run(current, 2, 0, ["KHOU", "KAUS"], 1, 2)
+    s = change.summary
+    assert codes_of(change) == ["KHOU", "KAUS"]  # both come out in the plan's form
+    assert s["added"] == [] and s["became_virtual"] == [] and s["moved"] == 2
+    austin = change.airports[1]
+    assert (austin.name, austin.display, austin._extra[MOCK_KEY]) == ("Austin", True, "a mock")
+
+
+def test_a_dropped_airport_with_a_lowercase_code_becomes_virtual_in_the_normal_form():
+    change = run([airport("kaus", "Austin"), airport("KHOU")], 2, 0, ["KHOU"], 1, 1)
+    assert codes_of(change) == ["KHOU", "KAUS"] and change.summary["became_virtual"] == ["KAUS"]
+    assert change.airports[1].name == "Austin"
+
+
+def test_a_virtual_airport_with_a_padded_code_is_promoted():
+    change = run([airport("KHOU"), airport(" kgls ", "Galveston")], 1, 1, ["KHOU", "KGLS"], 1, 2)
+    assert codes_of(change) == ["KHOU", "KGLS"] and change.summary["promoted"] == ["KGLS"]
+    assert change.airports[1].name == "Galveston"
+
+
+def test_a_plan_code_twice_in_other_cases_is_refused():
+    with pytest.raises(ValueError, match="twice"):
+        run([], 0, 0, ["KHOU", "khou"], 1, 2)
+
+
+def test_a_code_twice_in_the_config_in_other_cases_merges():
+    change = run([airport("KHOU", "Hobby"), airport("khou ")], 2, 0, ["KHOU"], 1, 1)
+    assert codes_of(change) == ["KHOU"] and change.summary["merged_duplicates"] == 1
+
+
+def test_a_config_with_lowercase_codes_can_be_applied_to_a_real_config(tmp_path):
+    """The case the reviewer found: the plan used to add KAUS and move 'kaus' to the virtual airports, and the write
+    then refused the list because the two became the same code."""
+    from metarmap.config import Config
+    from metarmap.settings import Settings
+
+    settings = Settings()
+    settings.led.count = 2
+    settings.airports = [airport("kaus", "Austin", True), airport(" KHOU ", "Hobby")]
+    settings.save(tmp_path / "config.json")
+    config = Config(str(tmp_path / "config.json"))
+    current, led, virtual = config.layout()
+    change = run(current, led, virtual, ["KHOU", "KAUS", "KGLS"], 1, 3, {"KGLS": "Galveston"})
+    config.apply_plan(change.airports, change.led_count, change.virtual_count)
+    assert [(a.code, a.name) for a in config.airports] == [("KHOU", "Hobby"), ("KAUS", "Austin"), ("KGLS", "Galveston")]
+    assert config.airports[1].display is True

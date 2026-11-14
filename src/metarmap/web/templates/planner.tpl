@@ -2,7 +2,7 @@
 <section class="page-head">
     <div>
         <h1>Plan a new chart</h1>
-        <p>Lay the airports out on a board: where each pixel goes, the wire to cut and the power to buy. This only plans; nothing here changes the Chart.</p>
+        <p>Lay the airports out on a board: where each pixel goes, the wire to cut and the power to buy. It lays the plan out first; Apply, further down, can then put it on this Chart, with a backup and an Undo.</p>
     </div>
     <a class="btn" href="/config/airports">Back to Airports</a>
 </section>
@@ -247,7 +247,7 @@
                     <button class="btn sm" type="button" id="pl-undo-btn" aria-controls="pl-undo-panel">Undo last apply</button>
                 </p>
                 <div class="pl-pad pl-confirm" id="pl-undo-panel" hidden>
-                    <p id="pl-undo-head" tabindex="-1"><strong>Undo the last apply?</strong> Undo restores the airports, pixel count and virtual airports from the backup; other settings stay.</p>
+                    <p id="pl-undo-head" tabindex="-1"><strong>Undo the last apply?</strong> Undo restores the airports, pixel count and virtual airports from the backup. Other settings stay, but airport edits made since the apply (including virtual airports added) are lost.</p>
                     <button class="btn danger sm" type="button" id="pl-undo-go">Undo</button>
                     <button class="btn sm" type="button" id="pl-undo-cancel">Keep it</button>
                 </div>
@@ -255,8 +255,8 @@
                     <h3 id="pl-apply-head" tabindex="-1"></h3>
                     <div id="pl-apply-lists"></div>
                     <p class="pl-warn" id="pl-apply-warning"></p>
-                    <p class="muted">Backup to be made: <span class="mono" id="pl-apply-backup"></span></p>
-                    <label class="keep"><input type="checkbox" id="pl-apply-wired"> <span>My strip is wired in this order</span></label>
+                    <p class="muted" id="pl-apply-backup-line">Backup to be made: <span class="mono" id="pl-apply-backup"></span></p>
+                    <label class="keep" id="pl-apply-wired-line"><input type="checkbox" id="pl-apply-wired"> <span>My strip is wired in this order</span></label>
                     <div class="pl-buttons">
                         <button class="btn primary" type="button" id="pl-apply-go" disabled>Apply</button>
                         <button class="btn" type="button" id="pl-apply-cancel">Cancel</button>

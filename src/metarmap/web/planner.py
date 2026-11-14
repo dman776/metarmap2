@@ -700,8 +700,9 @@ class Applier:
     """
     Puts the last finished plan into this Chart's airports (see metarmap.planner.apply). It works from the plan the
     server holds, never from a list the browser sends: preview() says what would change and gives a token for exactly
-    that; apply() goes ahead only with a token that still matches, then Config.apply_plan makes the one write after
-    a backup; undo() restores the airports and the LED counts from the newest backup. Each answer is (status, body).
+    that; apply() goes ahead only with a token that still matches (and only when the plan changes something), then
+    Config.apply_plan makes the one write after a backup; undo() restores the airports and the LED counts from the
+    newest backup. Each answer is (status, body).
     """
 
     def __init__(self, services: "App", planner: "Planner"):
@@ -722,6 +723,12 @@ class Applier:
         if not snap.get("ok") or not snap.get("result"):
             return None, ("failed", "The last plan failed: plan again")
         return job, None
+
+    def _restart_needed(self, led_count):
+        """Whether the strip has to restart for `led_count` pixels: the same test as the Airports page's banner
+        (the count against the pixels the strip is running with). A strip that can change length (the in-memory one)
+        has followed the new count already; a NeoPixel strip only changes at a restart."""
+        return led_count != len(self.services.renderer.pixels())
 
     def _change(self, job, current, led_count, virtual_count):
         result, params = job["result"], job["params"]
@@ -791,6 +798,8 @@ class Applier:
                 return err
             if now != token:
                 return 409, {"error": "The Chart or the plan changed since the preview: look again", "reason": "stale"}
+            if change.summary["unchanged"]:  # no backup, no write, nothing for an Undo to undo
+                return 409, {"error": "Nothing to apply: the Chart already has this plan", "reason": "unchanged"}
 
             def check(current, led_count, virtual_count):
                 # under the config's lock, on the airports as they are at this moment
@@ -818,7 +827,7 @@ class Applier:
                 "ok": True,
                 "backup": done["backup"],
                 "summary": change.summary,
-                "restart_needed": done["restart_needed"],
+                "restart_needed": self._restart_needed(change.led_count),
             }
         finally:
             self._lock.release()
@@ -862,7 +871,7 @@ class Applier:
                     "virtual_count": done["virtual_count"],
                 },
                 "backup": done["backup"],
-                "restart_needed": done["restart_needed"],
+                "restart_needed": self._restart_needed(done["led_count"]),
             }
         finally:
             self._lock.release()

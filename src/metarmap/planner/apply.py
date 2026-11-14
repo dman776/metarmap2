@@ -31,8 +31,13 @@ class Change:
     summary: Dict = field(default_factory=dict)
 
 
+def norm(code):
+    """A code as the Chart compares them: no spaces, upper case (a hand-edited config.json can have "kaus")."""
+    return str(code or "").strip().upper()
+
+
 def _copy(airport):
-    other = Airport(code=airport.code, name=airport.name, display=airport.display)
+    other = Airport(code=norm(airport.code), name=airport.name, display=airport.display)
     other._extra = copy.deepcopy(airport._extra)
     return other
 
@@ -55,22 +60,25 @@ def plan_changes(
     strip = int(strings) * int(string_len)
     if strip < len(result_pixels):
         raise ValueError(f"the plan has {len(result_pixels)} pixels but {strings} strings of {string_len} are {strip}")
-    plan_codes = [p.get("code") for p in result_pixels if p.get("code")]
+    plan_codes = [norm(p.get("code")) for p in result_pixels if norm(p.get("code"))]
     if len(set(plan_codes)) != len(plan_codes):
         raise ValueError("the plan has an airport twice")
     in_plan = set(plan_codes)
+    names = {norm(k): v for k, v in names.items()}
 
-    # the first LED that has each code now (a code twice in the config keeps its first)
+    # the first LED that has each code now (a code twice in the config keeps its first); codes are compared
+    # without case and spaces, so "kaus" in a hand-edited config is the plan's KAUS
     old_at = {}
     for index, airport in enumerate(current):
-        if airport.code and airport.code not in old_at:
-            old_at[airport.code] = index
+        code = norm(airport.code)
+        if code and code not in old_at:
+            old_at[code] = index
 
     new_strip: List[Airport] = []
     kept = moved = 0
     moves, added, promoted = [], [], []
     for number, pixel in enumerate(result_pixels):
-        code = pixel.get("code")
+        code = norm(pixel.get("code"))
         if not code:
             new_strip.append(Airport())
             continue
@@ -80,6 +88,7 @@ def plan_changes(
             added.append(code)
         else:
             new = _copy(current[old])
+            new.code = code
             new.name = new.name or names.get(code, "")
             if old >= led_count:
                 promoted.append(code)
@@ -102,7 +111,7 @@ def plan_changes(
         for index, airport in enumerate(current):
             if (index >= led_count) != want_virtual:
                 continue
-            code = airport.code
+            code = norm(airport.code)
             if not code:
                 blank_virtual += want_virtual  # a virtual placeholder with no airport: nothing is lost without it
                 continue
@@ -134,7 +143,7 @@ def plan_changes(
         "airports_total": len(airports),
         "over_limit": len(airports) > MAX_LEDS,
         "limit": MAX_LEDS,
-        "wiring_note": wiring_note(plan_codes, new_led),
+        "wiring_note": wiring_note(result_pixels, new_led),
     }
     summary["unchanged"] = (
         not summary["added"]
@@ -148,12 +157,18 @@ def plan_changes(
     return Change(airports, new_led, new_virtual, summary)
 
 
-def wiring_note(codes, led_count):
-    """The sentence the confirmation shows: the strip has to be wired as planned."""
-    if not codes:
+def wiring_note(pixels, led_count):
+    """
+    The sentence the confirmation shows: the strip has to be wired as planned. `pixels` is the plan's `sheet.pixels`
+    in LED order: the LED numbers it names are positions in the chain, so a pixel with no airport (a hidden or spare
+    one) still counts.
+    """
+    coded = [(number, norm(p.get("code"))) for number, p in enumerate(pixels) if norm(p.get("code"))]
+    if not coded:
         return "The plan has no airports: every LED would be left blank."
+    (first, first_code), (last, last_code) = coded[0], coded[-1]
     return (
-        f"The strip must be wired in this order: LED 1 is {codes[0]}, LED {len(codes)} is {codes[-1]}, "
+        f"The strip must be wired in this order: LED {first + 1} is {first_code}, LED {last + 1} is {last_code}, "
         f"{led_count} pixels in all. Apply only when your pixels are connected like this, or the LEDs will light for "
         "the wrong airports."
     )

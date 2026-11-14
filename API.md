@@ -721,27 +721,34 @@ pixels have no airport); then the **virtual airports** (the web map only, after 
 dropped, in their old order (a plan never deletes an airport), then the virtual ones the Chart already had (a virtual
 airport the plan now includes becomes a real one; a virtual placeholder with no airport is left out). `led.virtual_count`
 is the number of virtual airports. All of it is saved in one write and published once, so the OLED, the strip and the
-METAR fetch follow once. `led.count` changing takes effect on a NeoPixel strip at a restart (`restart_needed`).
+METAR fetch follow once. `restart_needed` (in the answers of the apply and the Undo) says whether the new pixel count differs from the pixels
+the strip is running with, the same test as the banner on the Airports page: an in-memory strip follows the new count
+at once, a NeoPixel strip only at a restart.
 
 | Endpoint | Description |
 |---|---|
 | `GET /config/planner/apply/preview` | What applying would do, computed now against the Chart as it is: `{"ok": true, "job": <the plan's id>, "token": "<64 hex digits>", "summary": {...}, "backup": "config.json.before-plan-YYYYMMDD-HHMMSS"}` (`backup` is the name the copy would get; the time can differ by a second). The `token` identifies this exact preview (the plan, the Chart's airports now and the airports it would have). Changes nothing. `409` `{"error", "reason"}` when there is nothing to apply: `no_result` (nothing planned yet), `running` (a plan is running), `cancelled` or `failed` (the last plan has no result), `over_limit` (the airports and the virtual ones would be over 1000). |
-| `POST /config/planner/apply` | Body `{"token": "<from the preview>"}`. Applies the plan only if the token still matches, then answers `200` `{"ok": true, "backup": "<file name>", "summary": {...}, "restart_needed": <whether led.count changed>}`. The check and the write happen under the Chart's config lock, so a change made after the preview (by anyone), or a newer plan, is never overwritten: `409` `"reason": "stale"` (look at the preview again). Also `409` `running` (a plan or another apply is running), the preview's reasons, and `invalid` (a list that cannot be saved). A body that is not a JSON object with a text `token` is `400` `"reason": "invalid"` (a body that is not JSON, or over 100 KB, likewise). If the copy of `config.json` or the write fails: `500` `"reason": "failed"`, and nothing has changed. A token is used once: after an apply the Chart is different and the same token is `stale`. |
+| `POST /config/planner/apply` | Body `{"token": "<from the preview>"}`. Applies the plan only if the token still matches, then answers `200` `{"ok": true, "backup": "<file name>", "summary": {...}, "restart_needed": <whether the strip has to restart for the new pixel count>}`. The check and the write happen under the Chart's config lock, so a change made after the preview (by anyone), or a newer plan, is never overwritten: `409` `"reason": "stale"` (look at the preview again). Also `409` `running` (a plan or another apply is running), `unchanged` (`Nothing to apply: the Chart already has this plan`: the preview's `summary.unchanged` is true; nothing is written, no backup is made and no Undo is offered), the preview's other reasons, and `invalid` (a list that cannot be saved, for example an airport code twice: the sentence names the code and where, such as `LED 3 and virtual airport 2`). A body that is not a JSON object with a text `token` is `400` `"reason": "invalid"` (a body that is not JSON, or over 100 KB, likewise). If the copy of `config.json` or the write fails: `500` `"reason": "failed"`, and nothing has changed. A token works once: after an apply the Chart is different and the same token is `stale`. |
 | `GET /config/planner/apply/status` | `{"undo": {"available": bool, "backup": "<file name>" or null, "made_at": "<ISO time>" or null, "summary": {...} or null}}`: the newest applied plan that has not been undone, for the Undo button. It lives in files beside `config.json`, so it survives a restart. |
-| `POST /config/planner/undo` | Body `{"backup": "<name from the status>"}` (it must be the newest one: `409` `stale` otherwise; the name is what stops another website from posting an Undo with your login, as a cross-site form cannot read it). Puts back **only** the airports, `led.count` and `led.virtual_count` that the backup has; every other setting changed since stays as it is. `200` `{"ok": true, "restored": {"airports": <with a code>, "led_count", "virtual_count"}, "backup": "<name>", "restart_needed": bool}`; `409` `none` (nothing to undo); `500` `failed` (the backup cannot be read, nothing changed). The backup is renamed `...-undone`, so a second Undo goes to the apply before it, one step at a time. |
+| `POST /config/planner/undo` | Body `{"backup": "<name from the status>"}` (it must be the newest one: `409` `stale` otherwise. The name is easy to guess, so it is not what keeps another website from posting an Undo with your login: that is that a cross-site form cannot send `application/json`, which the route requires, and a text, form or missing content type is a `400` `invalid`). Puts back **only** the airports, `led.count` and `led.virtual_count` that the backup has; every other setting changed since stays as it is. `200` `{"ok": true, "restored": {"airports": <with a code>, "led_count", "virtual_count"}, "backup": "<name>", "restart_needed": <whether the strip has to restart for the restored pixel count>}`; `409` `none` (nothing to undo), `running` (an apply is running); `400` `invalid` (no text `backup`); `500` `failed` (the backup cannot be read, nothing changed). The backup and its summary are renamed `...-undone` and `...-undone.summary.json`, so a second Undo goes to the apply before it, one step at a time. Airport edits made since the apply (including virtual airports added) are lost: only the three settings above come back from the backup. |
 
 **The backup.** Before it writes, an apply copies `config.json` to `config.json.before-plan-YYYYMMDD-HHMMSS` in the same
-folder (UTC; the same file mode, because it holds the web password; it is in `.gitignore`), with the summary beside it
-in `config.json.before-plan-YYYYMMDD-HHMMSS.summary.json`. The newest 5 stay. An apply that cannot make the copy does not
-write anything.
+folder (UTC), with the summary beside it in `config.json.before-plan-YYYYMMDD-HHMMSS.summary.json`. The copy holds the
+web password, so it is made private (mode 0600) from the first byte and then takes the original's mode; the pattern
+is in `.gitignore`. The time in the name never goes below the newest backup's, so a Pi whose clock was behind (it
+booted before the time was set) still sorts the new backup as the newest: it is never pruned at once and Undo
+restores the right apply. Only after the write has succeeded are all but the newest 5 removed, and only files with
+exactly those names (a file you named `...before-plan-<time>.mine` stays). An apply that cannot make the copy does not
+write anything, and one whose write fails takes its copy away again (`500` `failed`, and no Undo is offered for an
+apply that did not happen). A plan the Chart already has makes no backup at all.
 
 `summary` (in the preview, the apply and the status): `kept` (airports on the same LED as now), `moved` (on another LED),
 `moves` (`[{"code", "from", "to"}]`, LED numbers from 0), `added` (codes), `became_virtual` (codes the plan dropped),
 `promoted` (virtual airports that became real), `blank_leds` (LEDs with no airport, spare ones and hidden pixels),
 `blank_virtual_dropped`, `merged_duplicates` (a code that was twice in the config), `led_count` and `virtual_count`
-(`{"from", "to"}`), `airports_total`, `over_limit`, `limit` (1000), `unchanged` (applying would change nothing) and
-`wiring_note`, a sentence for the confirmation: the strip has to be wired in this order (LED 1 is the first airport) or
-the LEDs light for the wrong airports.
+(`{"from", "to"}`), `airports_total`, `over_limit`, `limit` (1000), `unchanged` (applying would change nothing: the apply answers `409` `unchanged`) and
+`wiring_note`, a sentence for the confirmation: the strip has to be wired in this order (it names the LED numbers of the
+first and last airport, counting hidden or blank pixels as LEDs) or the LEDs light for the wrong airports.
 
 ## Web UI pages
 

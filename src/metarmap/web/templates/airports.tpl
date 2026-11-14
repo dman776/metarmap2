@@ -39,7 +39,7 @@
     <div class="set" style="border-top: 0">
         <div>
             <span class="t">Plan a new chart</span>
-            <div class="d">Lay the airports out on a board, with the pixel order, the wire to cut and the power to buy. It only plans: nothing here changes.</div>
+            <div class="d">Lay the airports out on a board, with the pixel order, the wire to cut and the power to buy. The planner lays the plan out; Apply there can put it on this Chart, with a backup and an Undo.</div>
         </div>
         <a class="btn" href="/config/planner">Plan a new chart</a>
     </div>

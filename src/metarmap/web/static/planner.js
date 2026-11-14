@@ -868,6 +868,7 @@
     const undoPanel = $('pl-undo-panel');
     let applyToken = null;
     let applyBusy = false;  // a request is on its way
+    let applyUnchanged = false;  // the preview says the Chart already has this plan: nothing to apply
     let undoInfo = null;
 
     function say(text, bad) {  // the one polite status line: set only when something happened
@@ -878,13 +879,14 @@
 
     function applyChanged() {
         applyBtn.disabled = jobRunning || applyBusy || !lastResult || !applyPanel.hidden;
-        applyGo.disabled = jobRunning || applyBusy || !applyWired.checked || !applyToken;
+        applyGo.disabled = jobRunning || applyBusy || applyUnchanged || !applyWired.checked || !applyToken;
         undoBtn.disabled = jobRunning || applyBusy || !undoPanel.hidden;
     }
 
     // close the confirmation, the success message and the undo question: a new plan starts clean
     function resetApply() {
         applyToken = null;
+        applyUnchanged = false;
         applyPanel.hidden = true;
         undoPanel.hidden = true;
         $('pl-apply-done').hidden = true;
@@ -930,9 +932,23 @@
     }
 
     function showPreview(s, backup) {
-        $('pl-apply-head').textContent = 'Apply this plan to this Chart? ' + changeWords(s);
+        applyUnchanged = !!s.unchanged && !s.over_limit;
         const box = $('pl-apply-lists');
         while (box.firstChild) box.removeChild(box.firstChild);
+        // with nothing to apply there is no warning, no backup and no wiring box to tick: just the answer
+        $('pl-apply-warning').hidden = applyUnchanged;
+        $('pl-apply-backup-line').hidden = applyUnchanged;
+        $('pl-apply-wired-line').hidden = applyUnchanged;
+        if (applyUnchanged) {
+            $('pl-apply-head').textContent = 'Nothing to apply: the Chart already has this plan.';
+            applyWired.checked = false;
+            applyWired.disabled = true;
+            applyPanel.hidden = false;
+            applyChanged();
+            $('pl-apply-head').focus();
+            return;
+        }
+        $('pl-apply-head').textContent = 'Apply this plan to this Chart? ' + changeWords(s);
         codeList(box, 'Added', s.added);
         codeList(box, 'Become virtual airports', s.became_virtual);
         codeList(box, 'Virtual airports that get a pixel', s.promoted);
@@ -1011,6 +1027,8 @@
                 applyBtn.focus();
             } else if (reply.status === 409 && d && d.reason === 'stale') {
                 await preview(true);
+            } else if (reply.status === 409 && d && d.reason === 'unchanged') {
+                await preview(false);  // the panel then says there is nothing to apply
             } else if (reply.status === 409 && d && d.reason === 'running') {
                 closePanel(applyPanel, applyBtn);
                 say(errorText(reply, 'A plan is running: wait for it to finish.'), true);

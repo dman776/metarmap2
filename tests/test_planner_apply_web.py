@@ -16,7 +16,7 @@ import pytest
 from test_web import AUTH, Client
 from test_web_planner import FakeLoad, run, spot, wait
 
-from metarmap.config import MAX_LEDS
+from metarmap.config import MAX_LEDS, PLAN_BACKUPS
 from metarmap.settings import Airport
 from metarmap.web import create_app
 from metarmap.web import planner as planner_web
@@ -209,15 +209,39 @@ def test_apply_puts_the_plan_into_the_airports_with_a_backup(make):
     assert body["summary"]["airports_total"] == 50
 
 
-def test_apply_makes_the_strip_the_size_of_the_plan_and_asks_for_a_restart(make):
+def test_apply_makes_the_strip_the_size_of_the_plan(make):
     client = make()
     planned(client, string_len=60)
     token = get(client, PREVIEW)[1]["token"]
     status, body = post(client, APPLY, {"token": token})
-    assert status == 200 and body["restart_needed"] is True
+    assert status == 200
+    assert body["restart_needed"] is False  # the in-memory strip followed the new count at once
     config = client.services.config
     assert config.data.led.count == 60 and len(config.airports) == 60
     assert [a.code for a in config.airports[50:]] == [""] * 10  # the spare LEDs have no airport
+
+
+def test_a_strip_that_cannot_change_length_needs_a_restart_until_it_is_back_to_what_it_runs(make, monkeypatch):
+    """A NeoPixel strip keeps its length until a restart: restart_needed is the new count against the pixels the strip
+    runs with (the Airports page's banner), so an Undo back to the count it started with needs none."""
+    client = make()
+    monkeypatch.setattr(client.services.renderer, "resize", lambda count: False)  # what NeoPixel answers
+    assert len(client.services.renderer.pixels()) == 50
+    planned(client, string_len=60)
+    status, body = post(client, APPLY, {"token": get(client, PREVIEW)[1]["token"]})
+    assert status == 200 and body["restart_needed"] is True  # 60 pixels planned, 50 on the strip
+    backup = get(client, STATUS)[1]["undo"]["backup"]
+    status, body = post(client, UNDO, {"backup": backup})
+    assert status == 200 and body["restored"]["led_count"] == 50
+    assert body["restart_needed"] is False  # back to the 50 the strip is running: nothing to restart for
+
+
+def test_a_plan_of_the_same_size_never_needs_a_restart(make, monkeypatch):
+    client = make()
+    monkeypatch.setattr(client.services.renderer, "resize", lambda count: False)
+    planned(client)
+    status, body = post(client, APPLY, {"token": get(client, PREVIEW)[1]["token"]})
+    assert status == 200 and body["restart_needed"] is False
 
 
 def test_the_airports_a_plan_drops_become_virtual(make):
@@ -296,7 +320,7 @@ def test_a_failing_save_changes_nothing_and_answers_json(make, monkeypatch):
     def broken(*args, **kwargs):
         raise OSError("read-only")
 
-    monkeypatch.setattr("metarmap.config.shutil.copy2", broken)
+    monkeypatch.setattr("metarmap.config.shutil.copyfileobj", broken)
     status, body = post(client, APPLY, {"token": token})
     assert status == 500 and body["reason"] == "failed" and "nothing changed" in body["error"]
     assert codes(client) == before
@@ -350,7 +374,7 @@ def test_undo_puts_the_airports_back(make):
     status, body = post(client, UNDO, {"backup": backup})
     assert status == 200 and body["ok"] is True and body["backup"] == backup
     assert body["restored"] == {"airports": 50, "led_count": 50, "virtual_count": 0}
-    assert body["restart_needed"] is True  # led.count went from 60 back to 50
+    assert body["restart_needed"] is False  # the strip followed 50 -> 60 -> 50 and runs 50 again
     assert codes(client) == original
     assert get(client, STATUS)[1]["undo"]["available"] is False
 
@@ -374,3 +398,73 @@ def test_undo_leaves_other_settings_alone(make):
     client.services.config.edit("led.brightness.normal", "0.2")
     post(client, UNDO, {"backup": get(client, STATUS)[1]["undo"]["backup"]})
     assert client.services.config.data.led.brightness.normal == 0.2
+
+
+# ---- a plan the Chart already has ---------------------------------------------------------------------------
+
+
+def hold_the_plan_the_chart_has(client):
+    """Makes the plan the SERVER holds exactly what the Chart's strip is now (the job `planned` returns is a copy)."""
+    planned(client)
+    result = client.planner.job["result"]
+    result["sheet"]["pixels"] = [{"code": a.code} for a in client.services.config.airports[:50]]
+    result["names"] = {}  # a blank name the plan could fill in would be a change of its own
+
+
+def test_a_plan_the_chart_already_has_says_so_and_makes_no_backup(make):
+    client = make()
+    hold_the_plan_the_chart_has(client)
+    status, body = get(client, PREVIEW)
+    assert status == 200 and body["summary"]["unchanged"] is True and body["summary"]["moved"] == 0
+    status, reply = post(client, APPLY, {"token": body["token"]})
+    assert status == 409 and reply["reason"] == "unchanged"
+    assert "Nothing to apply" in reply["error"] and "already has this plan" in reply["error"]
+    assert backups(client) == [] and get(client, STATUS)[1]["undo"]["available"] is False
+
+
+def test_an_apply_that_changes_nothing_prunes_no_older_backup(make):
+    client = make()
+    config = client.services.config
+    for _ in range(PLAN_BACKUPS):  # five backups from earlier applies
+        config.apply_plan(config.layout()[0], 50, 0)
+    before = backups(client)
+    assert len(before) == PLAN_BACKUPS
+    hold_the_plan_the_chart_has(client)
+    token = get(client, PREVIEW)[1]["token"]
+    assert post(client, APPLY, {"token": token})[1]["reason"] == "unchanged"
+    assert backups(client) == before  # no new copy, and none of the old ones removed to make room
+
+
+def test_the_wiring_note_names_the_led_numbers_of_the_plan(make):
+    client = make()
+    job = planned(client)
+    note = get(client, PREVIEW)[1]["summary"]["wiring_note"]
+    pixels = job["result"]["sheet"]["pixels"]
+    last = max(i for i, p in enumerate(pixels) if p["code"])
+    assert f"LED {last + 1} is {pixels[last]['code']}" in note
+
+
+# ---- a write that fails after the backup was made ------------------------------------------------------------
+
+
+def test_a_write_that_fails_after_the_backup_leaves_no_backup_and_no_undo(make, monkeypatch):
+    client = make()
+    planned(client)
+    token = get(client, PREVIEW)[1]["token"]
+    before = codes(client)
+    real = os.replace
+
+    def broken(src, dst, *args, **kwargs):
+        if str(dst).endswith("config.json"):
+            raise OSError("disk full")
+        return real(src, dst, *args, **kwargs)
+
+    with monkeypatch.context() as m:
+        m.setattr("metarmap.settings.os.replace", broken)
+        status, body = post(client, APPLY, {"token": token})
+    assert status == 500 and body["reason"] == "failed" and "nothing changed" in body["error"]
+    assert codes(client) == before
+    assert backups(client) == [] and get(client, STATUS)[1]["undo"]["available"] is False
+    assert not os.path.exists(os.path.join(config_dir(client), "config.json.tmp"))
+    # and the same token still works once the disk is back
+    assert post(client, APPLY, {"token": token})[0] == 200

@@ -6,6 +6,7 @@ it, and the Undo that puts back the airports and the LED counts and nothing else
 import json
 import os
 import stat
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -71,7 +72,7 @@ def test_apply_replaces_the_airports_and_the_counts_in_one_write(config, tmp_pat
     on_disk = json.loads((tmp_path / "config.json").read_text())
     assert [a["code"] for a in on_disk["airports"]] == ["KIAH", "KHOU", "", "KGLS", "KSGR"]
     assert on_disk["led"]["count"] == 3 and on_disk["led"]["virtual_count"] == 2
-    assert done["backup"].startswith("config.json.before-plan-") and done["restart_needed"] is False
+    assert done["backup"].startswith("config.json.before-plan-") and done["led_count_changed"] is False
     assert "airports.order" in done["keys"]
 
 
@@ -100,7 +101,7 @@ def test_a_changed_led_count_is_published_and_asks_for_a_restart(config):
     heard = listen(config, "led.*")
     done = config.apply_plan([airport(c) for c in ("KAAA", "KBBB", "KCCC", "KDDD", "KEEE")], 5, 0)
     assert heard == [["led.count", "led.virtual_count"]]
-    assert done["restart_needed"] is True and config.data.led.count == 5
+    assert done["led_count_changed"] is True and config.data.led.count == 5
 
 
 def test_a_plan_that_changes_nothing_publishes_nothing(config):
@@ -226,10 +227,11 @@ def test_a_backup_that_cannot_be_made_stops_the_apply(config, tmp_path, monkeypa
     def broken(*args, **kwargs):
         raise OSError("read-only")
 
-    monkeypatch.setattr("metarmap.config.shutil.copy2", broken)
+    monkeypatch.setattr("metarmap.config.shutil.copyfileobj", broken)
     with pytest.raises(OSError):
         config.apply_plan(new_strip() + [airport("KSGR")], 3, 1)
     assert (tmp_path / "config.json").read_text() == before and codes(config)[0] == "KHOU"
+    assert files(tmp_path) == []  # not even a half copy of the file that holds the password
 
 
 def test_the_next_backup_name_looks_like_a_backup(config):
@@ -249,7 +251,7 @@ def test_undo_puts_back_the_airports_and_the_counts_only(config, tmp_path):
     assert (config.data.led.count, config.data.led.virtual_count) == (3, 1)
     assert config.data.led.brightness.normal == 0.2
     assert done["airports"] == 4 and done["led_count"] == 3 and done["virtual_count"] == 1
-    assert done["restart_needed"] is True  # led.count went from 5 back to 3
+    assert done["led_count_changed"] is True  # led.count went from 5 back to 3
     assert len(heard) == 1 and "led.count" in heard[0] and "airports.code" in heard[0]
     assert json.loads((tmp_path / "config.json").read_text())["web_server"]["password"] == "secret-word"
 
@@ -293,3 +295,136 @@ def test_a_damaged_backup_is_refused_and_nothing_changes(config, tmp_path):
     with pytest.raises(ValueError):
         config.restore_plan_backup()
     assert codes(config) == before and len(config.plan_backups()) == 1
+
+
+# ---- a backup is only there for an apply that happened ---------------------------------------------------------
+
+
+def plan(i):
+    """A different plan each time, with KSGR virtual."""
+    return [airport(f"K{i:03d}"), airport("KIAH"), airport(""), airport("KSGR")]
+
+
+def clock(monkeypatch, start):
+    """Makes the config's idea of now whatever when["now"] says."""
+    when = {"now": start}
+
+    class Fake(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return when["now"] if tz is None else when["now"].astimezone(tz)
+
+    monkeypatch.setattr("metarmap.config.datetime", Fake)
+    return when
+
+
+def test_a_write_that_fails_after_the_backup_leaves_no_backup_and_no_undo(config, tmp_path, monkeypatch):
+    for i in range(PLAN_BACKUPS):
+        config.apply_plan(plan(i), 3, 1)
+    kept = backups_only(tmp_path)
+    before = (tmp_path / "config.json").read_bytes()
+    state = (codes(config), config.data.led.count, config.data.led.virtual_count)
+    heard = listen(config)
+    real = os.replace
+
+    def broken(src, dst, *args, **kwargs):
+        if str(dst).endswith("config.json"):
+            raise OSError("disk full")
+        return real(src, dst, *args, **kwargs)
+
+    with monkeypatch.context() as m:
+        m.setattr("metarmap.settings.os.replace", broken)
+        with pytest.raises(OSError):
+            config.apply_plan(plan(99), 3, 1)
+    assert backups_only(tmp_path) == kept  # the new copy is gone and the old ones were not pruned to make room
+    assert files(tmp_path, ".summary.json") == [n + ".summary.json" for n in kept]
+    assert (tmp_path / "config.json").read_bytes() == before
+    assert not (tmp_path / "config.json.tmp").exists()  # it holds the web password
+    assert (codes(config), config.data.led.count, config.data.led.virtual_count) == state and heard == []
+    assert config.plan_backups()[0]["file"] == kept[-1]  # an Undo is offered for the last apply that happened
+
+
+def test_the_backup_stays_when_the_save_went_through_but_the_read_back_failed(config, tmp_path, monkeypatch):
+    before = (tmp_path / "config.json").read_bytes()
+
+    def broken():
+        raise ValueError("cannot read it back")
+
+    monkeypatch.setattr(config, "read", broken)
+    with pytest.raises(ValueError):
+        config.apply_plan(new_strip() + [airport("KSGR")], 3, 1)
+    assert (tmp_path / "config.json").read_bytes() != before  # the file has the new list now
+    (name,) = backups_only(tmp_path)
+    assert (tmp_path / name).read_bytes() == before  # so the copy is the way back and stays
+
+
+def test_a_failed_save_removes_its_temporary_file(tmp_path, monkeypatch):
+    settings = Settings()
+    path = tmp_path / "config.json"
+    settings.save(path)
+
+    def broken(src, dst):
+        raise OSError("disk full")
+
+    monkeypatch.setattr("metarmap.settings.os.replace", broken)
+    with pytest.raises(OSError):
+        settings.save(path)
+    assert not (tmp_path / "config.json.tmp").exists()
+
+
+def test_a_clock_that_went_back_does_not_prune_or_hide_the_new_backup(config, tmp_path, monkeypatch):
+    when = clock(monkeypatch, datetime(2026, 11, 13, 12, 0, 0, tzinfo=timezone.utc))
+    for i in range(PLAN_BACKUPS):  # five applies, a minute apart
+        config.apply_plan(plan(i), 3, 1)
+        when["now"] += timedelta(minutes=1)
+    when["now"] = datetime(2026, 11, 1, 0, 0, 0, tzinfo=timezone.utc)  # a Pi that booted before its clock was set
+    name = config.apply_plan(plan(99), 3, 1)["backup"]
+    assert (tmp_path / name).exists()  # not pruned in the same call
+    assert config.plan_backups()[0]["file"] == name  # and the newest, for the Undo button
+    assert len(backups_only(tmp_path)) == PLAN_BACKUPS  # the OLDEST went to make room
+    assert config.next_plan_backup_name() > name  # the next one goes on from it
+    config.restore_plan_backup()
+    assert codes(config)[0] == "K004"  # undoes the apply just made, not the one before it
+
+
+def test_pruning_removes_only_the_backups_own_files(config, tmp_path, monkeypatch):
+    when = clock(monkeypatch, datetime(2026, 11, 13, 12, 0, 0, tzinfo=timezone.utc))
+    first = config.apply_plan(plan(0), 3, 1)["backup"]
+    mine = tmp_path / (first + ".mine")
+    keep = tmp_path / (first + "-keep")
+    mine.write_text("a copy of my own")
+    keep.write_text("another")
+    for i in range(1, PLAN_BACKUPS + 1):
+        when["now"] += timedelta(minutes=1)
+        config.apply_plan(plan(i), 3, 1)
+    assert not (tmp_path / first).exists() and not (tmp_path / (first + ".summary.json")).exists()
+    assert mine.exists() and keep.exists()  # a file named like a backup, but not one, stays
+
+
+def test_the_backup_is_private_from_the_first_byte(config, tmp_path, monkeypatch):
+    os.chmod(tmp_path / "config.json", 0o644)
+    opened = []
+    real = os.open
+
+    def spy(path, flags, mode=0o777, **kwargs):
+        opened.append((str(path), flags, mode))
+        return real(path, flags, mode, **kwargs)
+
+    monkeypatch.setattr("metarmap.config.os.open", spy)
+    name = config.apply_plan(plan(0), 3, 1)["backup"]
+    made = [o for o in opened if o[0].endswith(name)]
+    assert made and made[0][2] == 0o600 and made[0][1] & os.O_EXCL  # no moment when another user could read it
+    assert stat.S_IMODE((tmp_path / name).stat().st_mode) == 0o644  # then it takes the original's mode
+
+
+def test_a_code_twice_is_refused_with_the_code_and_where(config):
+    with pytest.raises(ValueError) as error:
+        config.apply_plan([airport("KHOU"), airport("KIAH"), airport(""), airport("khou")], 3, 1)
+    message = str(error.value)
+    assert "KHOU" in message and "LED 1" in message and "virtual airport 1" in message
+
+
+def test_undo_renames_the_summary_with_the_backup(config, tmp_path):
+    name = config.apply_plan(plan(0), 3, 1, summary={"n": 1})["backup"]
+    config.restore_plan_backup()
+    assert files(tmp_path) == sorted([name + "-undone", name + "-undone.summary.json"])  # no orphan summary
