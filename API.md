@@ -591,7 +591,16 @@ curl -u metar:map http://metarmap.local/config/edit/display_screen.delay/10
 ### Airports
 
 The airports are the `airports` list in `config.json`, one entry per pixel in the order the pixels are wired:
-`{"code": "KHOU", "name": "Hobby", "display": true}`. A pixel with no airport has `"code": ""`. The list has
+`{"code": "KHOU", "name": "Hobby", "display": true}`. A pixel with no airport has `"code": ""`. A **Hidden Pixel** is a
+pixel that is wired into the string but shows nothing and is not an airport (a plan uses one to bridge a gap between
+two airports, so the string needs no cut): `{"code": "", "name": "", "display": false, "skip": true}`. `skip` is only
+written to `config.json` when it is `true` (an older file is unchanged), a Hidden Pixel always has an empty code and
+is always on the strip (never a virtual airport). It is dark in every visualizer, Rainbow and Chase leave it dark
+too, and Locate ignores it (nothing pulses, on the strip or on the web map); the startup sequence and the test
+pattern still light every pixel, hidden ones included, since they check the hardware. **Nothing changes in what
+other programs see:** a Hidden Pixel, like any pixel with no airport, is left out of `/api/status`'s `airports` and
+`/api/live`'s `leds` (there is no `skip` key there), and the other pixels keep their `pixel` numbers (the gap is
+simply there). The list has
 `led.count` entries, then `led.virtual_count` virtual airports: airports with no pixel, shown on the Map page and in
 `/api/status` (for Home Assistant), and on the Micro if their `display` is on, with the code in a dashed box. `/config/edit/led.count/<n>`
 also adds pixels with no airport at the end of the strip, or removes the airports on the last pixels; the virtual
@@ -606,8 +615,9 @@ LED strip (the in-memory one), where it takes effect right away.
 |---|---|
 | `GET /config/airports/<led>/code/<code>` | Set the airport on a pixel: a 3-4 character ICAO code, or `-` for none. A new code replaces the name with the new airport's (from aviationweather.gov's station information), and METARs are fetched in the background. |
 | `GET /config/airports/<led>/name/<name>` | Set the airport's name, shown in the web UI. An empty name (`-`) is filled in with the airport's name after the next METAR fetch. |
-| `GET /config/airports/<led>/display/<true\|false>` | Whether the airport is shown on the Micro |
-| `GET /config/airports/move/<from>/<to>` | Move the airport on pixel `from` to pixel `to`; the airports in between shift by one |
+| `GET /config/airports/<led>/display/<true\|false>` | Whether the airport is shown on the Micro. A 400 for a Hidden Pixel (it has no airport to show) |
+| `GET /config/airports/<led>/skip/<true\|false>` | Turn the **Hidden Pixel** switch on or off for a pixel. The sentences count pixels from 1 (the route's `<led>` counts from 0). A 400 (nothing changes) to turn it on for a pixel that has an airport (`pixel 3 has the airport KHOU: remove the airport first (clear its code), then turn Hidden Pixel on`) or for a virtual airport (`virtual airport 1 has no pixel: Hidden Pixel is for a pixel on the strip`); turning it on also takes the OLED flag off. Giving a Hidden Pixel an airport (`.../code/<code>`, or the older by-code edit) is a 400 until the switch is off (`pixel 3 is a Hidden Pixel: turn Hidden Pixel off before giving it the airport KIAH`). Clearing its code (`-`) is fine. Published to the Chart as `airports.skip`, which refreshes the pixels |
+| `GET /config/airports/move/<from>/<to>` | Move the airport on pixel `from` to pixel `to`; the airports in between shift by one (a Hidden Pixel moves with its row). A 400, nothing moved, for a move that would push a Hidden Pixel past the strip, among the virtual airports |
 | `POST /config/airports/mock` | `dev_mode` only (a 400 without it): the Airports page's *Mock METAR* field. `{"pixel": 0, "metar": "METAR KDWH 272353Z AUTO 08003KT 9SM CLR 21/18 A3014"}` saves it as the airport's `mock_metar` in `config.json` and shows it at once, and after every fetch, in place of the fetched report; `"metar": ""` goes back to the real one. Text that doesn't start like a METAR (airport code, then the time) is a 400. Answers `{"code", "mock", "flightCategory"}`. See *Mock METARs* below. |
 | `GET /config/airports/edit/<oldcode>/<newcode>` | Older, by code: change the first airport with `oldcode` to `newcode` |
 | `GET /config/airports/edit/prop/<airport>/<key>/<value>` | Older, by code: set `text` (the name) or `display` of the first airport with that code (not `mock_metar`: a 400) |
@@ -686,16 +696,17 @@ Request body of `POST /config/planner/plan` (all but `chart` optional; numbers m
 | `suggest_sizes` | `true` | `true` or `false`. Also try the ten other widths from 90% to 115% of `width_in` in 2.5% steps, keeping the board's shape (the board's own width is the plan itself). Not tried, with a note in `notes`, for a plan of more than 400 airports |
 | `start_corner` | none | `tl`, `tr`, `bl` or `br` |
 | `brightness`, `ma_white_5v`, `ma_white_12v` | `0.5`, `60`, `25` | For the power advice |
-| `allow_skips` | always `false` | Accepted and ignored: skipped pixels need Chart support (a later change) |
+| `allow_skips` | `false` | `true` or `false`. Let the plan hide pixels in the middle of a string to bridge a gap between two airports instead of leaving an extension to cut and splice. A hidden pixel uses one of the spare slots of the last string (the strings stay full), is never the first or last pixel of a string, and is a pixel of `sheet.pixels` with `skipped: true` and no `code`. Apply writes each as a Hidden Pixel (`skip: true`) |
 
 `result`: `{"message", "chart": {"name", "kind", "margins": {"left", "right", "top", "bottom"}, "height_measured",
 "outline", "bounds"},
 "sheet", "airports", "names", "left_out": [{"code", "reason"}], "notes": [], "stale", "fetched_at", "sizes": null or
 {"best": [{"width_in", "height_in", "extensions", "crowded", "drops"}], "current": {...}}, "recommended",
-"skips_allowed": false, "seconds", "made_at"}`. `sheet` is the build sheet (`board`, `settings`, `pixels`, `start`,
+"skips_allowed" (what `allow_skips` was), "seconds", "made_at"}`. `sheet` is the build sheet (`board`, `settings`, `pixels`, `start`,
 `route`, `cuts`, `joins`, `strings`, `shopping`, `problems` with `skips_wanted` and `skips_note`, `power`), all
 lengths in mm; `airports` is the airports in the new pixel order in the shape of `config.json`'s `airports`
-(`{"code", "name", "display"}`; a hidden pixel would be `""`). For a map that draws the plan over real tiles, each
+(`{"code", "name", "display", "skip"}`; a hidden pixel is `{"code": "", "name": "", "display": false, "skip": true}`, every
+other entry has `"skip": false`). For a map that draws the plan over real tiles, each
 entry of `sheet.pixels` also has `lat` and `lon` (where the pixel is placed) and `orig_lat` and `orig_lon` (where its
 airport really is; `null` for a hidden pixel); `chart.outline` is the map area (the board less its margins, the shaded
 area of the board view) as 64 `[lat, lon]` points, clockwise from the top left (16 along each edge, the first point not
@@ -728,7 +739,7 @@ at once, a NeoPixel strip only at a restart.
 | Endpoint | Description |
 |---|---|
 | `GET /config/planner/apply/preview` | What applying would do, computed now against the Chart as it is: `{"ok": true, "job": <the plan's id>, "token": "<64 hex digits>", "summary": {...}, "backup": "config.json.before-plan-YYYYMMDD-HHMMSS"}` (`backup` is the name the copy would get; the time can differ by a second). The `token` identifies this exact preview (the plan, the Chart's airports now and the airports it would have). Changes nothing. `409` `{"error", "reason"}` when there is nothing to apply: `no_result` (nothing planned yet), `running` (a plan is running), `cancelled` or `failed` (the last plan has no result), `over_limit` (the airports and the virtual ones would be over 1000). |
-| `POST /config/planner/apply` | Body `{"token": "<from the preview>"}`. Applies the plan only if the token still matches, then answers `200` `{"ok": true, "backup": "<file name>", "summary": {...}, "restart_needed": <whether the strip has to restart for the new pixel count>}`. The check and the write happen under the Chart's config lock, so a change made after the preview (by anyone), or a newer plan, is never overwritten: `409` `"reason": "stale"` (look at the preview again). Also `409` `running` (a plan or another apply is running), `unchanged` (`Nothing to apply: the Chart already has this plan`: the preview's `summary.unchanged` is true; nothing is written, no backup is made and no Undo is offered), the preview's other reasons, and `invalid` (a list that cannot be saved, for example an airport code twice: the sentence names the code and where, such as `LED 3 and virtual airport 2`). A body that is not a JSON object with a text `token` is `400` `"reason": "invalid"` (a body that is not JSON, or over 100 KB, likewise). If the copy of `config.json` or the write fails: `500` `"reason": "failed"`, and nothing has changed. A token works once: after an apply the Chart is different and the same token is `stale`. |
+| `POST /config/planner/apply` | Body `{"token": "<from the preview>"}`. Applies the plan only if the token still matches, then answers `200` `{"ok": true, "backup": "<file name>", "summary": {...}, "restart_needed": <whether the strip has to restart for the new pixel count>}`. The check and the write happen under the Chart's config lock, so a change made after the preview (by anyone), or a newer plan, is never overwritten: `409` `"reason": "stale"` (look at the preview again). Also `409` `running` (a plan or another apply is running), `unchanged` (`Nothing to apply: the Chart already has this plan`: the preview's `summary.unchanged` is true; nothing is written, no backup is made and no Undo is offered), the preview's other reasons, and `invalid` (a list that cannot be saved, for example an airport code twice: the sentence names the code and where, such as `pixel 3 and virtual airport 2`). A body that is not a JSON object with a text `token` is `400` `"reason": "invalid"` (a body that is not JSON, or over 100 KB, likewise). If the copy of `config.json` or the write fails: `500` `"reason": "failed"`, and nothing has changed. A token works once: after an apply the Chart is different and the same token is `stale`. |
 | `GET /config/planner/apply/status` | `{"undo": {"available": bool, "backup": "<file name>" or null, "made_at": "<ISO time>" or null, "summary": {...} or null}}`: the newest applied plan that has not been undone, for the Undo button. It lives in files beside `config.json`, so it survives a restart. |
 | `POST /config/planner/undo` | Body `{"backup": "<name from the status>"}` (it must be the newest one: `409` `stale` otherwise. The name is easy to guess, so it is not what keeps another website from posting an Undo with your login: that is that a cross-site form cannot send `application/json`, which the route requires, and a text, form or missing content type is a `400` `invalid`). Puts back **only** the airports, `led.count` and `led.virtual_count` that the backup has; every other setting changed since stays as it is. `200` `{"ok": true, "restored": {"airports": <with a code>, "led_count", "virtual_count"}, "backup": "<name>", "restart_needed": <whether the strip has to restart for the restored pixel count>}`; `409` `none` (nothing to undo), `running` (an apply is running); `400` `invalid` (no text `backup`); `500` `failed` (the backup cannot be read, nothing changed). The backup and its summary are renamed `...-undone` and `...-undone.summary.json`, so a second Undo goes to the apply before it, one step at a time. Airport edits made since the apply (including virtual airports added) are lost: only the three settings above come back from the backup. |
 
@@ -744,11 +755,16 @@ apply that did not happen). A plan the Chart already has makes no backup at all.
 
 `summary` (in the preview, the apply and the status): `kept` (airports on the same LED as now), `moved` (on another LED),
 `moves` (`[{"code", "from", "to"}]`, LED numbers from 0), `added` (codes), `became_virtual` (codes the plan dropped),
-`promoted` (virtual airports that became real), `blank_leds` (LEDs with no airport, spare ones and hidden pixels),
+`promoted` (virtual airports that became real), `blank_leds` (the plain blank LEDs: the spare pixels at the end of the
+last string, which are not Hidden Pixels, so an airport can be added there later), `hidden` (the plan's hidden pixels
+between two airports, written as Hidden Pixel rows; a skipped pixel after the last airport has nothing to bridge and
+is a plain blank; the strip is rebuilt from the plan, so a Hidden Pixel the Chart has now that the plan does not hide
+is a plain blank afterwards, and Undo brings it back),
 `blank_virtual_dropped`, `merged_duplicates` (a code that was twice in the config), `led_count` and `virtual_count`
 (`{"from", "to"}`), `airports_total`, `over_limit`, `limit` (1000), `unchanged` (applying would change nothing: the apply answers `409` `unchanged`) and
-`wiring_note`, a sentence for the confirmation: the strip has to be wired in this order (it names the LED numbers of the
-first and last airport, counting hidden or blank pixels as LEDs) or the LEDs light for the wrong airports.
+`wiring_note`, a sentence for the confirmation: the strip has to be wired in this order (it names the pixel numbers, counted from 1, of the
+first and last airport, counting hidden or blank pixels, and the hidden pixels by number: `Pixel 12 is a
+hidden pixel: wire it into the string, but it shows no airport.`) or the pixels light for the wrong airports.
 
 ## Web UI pages
 

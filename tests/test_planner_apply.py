@@ -187,7 +187,7 @@ def test_over_the_limit_is_flagged():
 
 def test_the_wiring_note_names_the_first_and_last_led():
     note = run([], 0, 0, ["KAAA", "KBBB", "KCCC"], 1, 10).summary["wiring_note"]
-    assert "LED 1 is KAAA" in note and "LED 3 is KCCC" in note and "10 pixels" in note
+    assert "pixel 1 is KAAA" in note and "pixel 3 is KCCC" in note and "10 pixels" in note
     assert "no airports" in apply.wiring_note([], 5)
 
 
@@ -217,17 +217,17 @@ def test_the_token_follows_the_plan_the_config_and_the_result():
 def test_the_wiring_note_counts_hidden_and_blank_pixels():
     plan = [{"code": "KAUS"}, {"code": None}, {"code": ""}, {"code": "KHOU"}]
     note = apply.wiring_note(plan, 50)
-    assert "LED 1 is KAUS" in note and "LED 4 is KHOU" in note and "50 pixels in all" in note
+    assert "pixel 1 is KAUS" in note and "pixel 4 is KHOU" in note and "50 pixels in all" in note
 
 
 def test_the_wiring_note_starts_at_the_first_airport_when_the_chain_starts_with_a_hidden_pixel():
     note = apply.wiring_note([{"code": None}, {"code": "KAUS"}, {"code": "KHOU"}], 50)
-    assert "LED 2 is KAUS" in note and "LED 3 is KHOU" in note
+    assert "pixel 2 is KAUS" in note and "pixel 3 is KHOU" in note
 
 
 def test_the_summary_has_the_led_numbers_of_the_chain():
     change = apply.plan_changes([], 0, 0, [{"code": "KAUS"}, {"code": None}, {"code": "KHOU"}], 10, 1, {})
-    assert "LED 3 is KHOU" in change.summary["wiring_note"]
+    assert "pixel 3 is KHOU" in change.summary["wiring_note"]
 
 
 # ---- codes are compared without case and spaces -------------------------------------------------------------

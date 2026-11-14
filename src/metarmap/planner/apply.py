@@ -3,10 +3,13 @@ Applying a plan to the Chart (B90 part 4): what `airports` looks like after the 
 no web, no Config; web/planner.py asks it for the preview and Config.apply_plan writes what it answers.
 
 The airports become exactly the plan, in the plan's LED order. An airport the Chart already had keeps its name, its OLED
-flag and its other keys (a mock METAR) by its code. Then come the blank LEDs of the last string (the strip is
-strings x string_len pixels), then the virtual airports (the web map only): the airports the plan dropped, so
-planning never deletes one, then the virtual ones the Chart already had. A virtual airport the plan now includes
-becomes a real one.
+flag and its other keys (a mock METAR) by its code. A pixel the plan hides (a skipped pixel between two airports,
+which bridges a gap so the string needs no cut) becomes a Hidden Pixel row (`skip`, no code). Then come the blank LEDs
+of the last string (the strip is strings x string_len pixels; plain blanks, not Hidden Pixels: airports can be added
+there later), then the virtual airports (the web map only): the airports the plan dropped, so planning never deletes
+one, then the virtual ones the Chart already had. A virtual airport the plan now includes becomes a real one. The strip
+is rebuilt from the plan: a Hidden Pixel the Chart has now but the plan does not hide is a plain blank (or gone) like
+any other LED without an airport.
 """
 
 import copy
@@ -34,6 +37,15 @@ class Change:
 def norm(code):
     """A code as the Chart compares them: no spaces, upper case (a hand-edited config.json can have "kaus")."""
     return str(code or "").strip().upper()
+
+
+def hidden_numbers(pixels):
+    """
+    The LED numbers (from 0) of the plan's hidden pixels: pixels the plan skips (`skipped`) that come before its last
+    airport. A skipped pixel after the last airport has nothing to bridge: a plain blank LED.
+    """
+    last = max((n for n, p in enumerate(pixels) if norm(p.get("code"))), default=-1)
+    return [n for n, p in enumerate(pixels) if p.get("skipped") and not norm(p.get("code")) and n < last]
 
 
 def _copy(airport):
@@ -64,6 +76,7 @@ def plan_changes(
     if len(set(plan_codes)) != len(plan_codes):
         raise ValueError("the plan has an airport twice")
     in_plan = set(plan_codes)
+    hidden = set(hidden_numbers(result_pixels))
     names = {norm(k): v for k, v in names.items()}
 
     # the first LED that has each code now (a code twice in the config keeps its first); codes are compared
@@ -80,7 +93,7 @@ def plan_changes(
     for number, pixel in enumerate(result_pixels):
         code = norm(pixel.get("code"))
         if not code:
-            new_strip.append(Airport())
+            new_strip.append(Airport(skip=number in hidden))
             continue
         old = old_at.get(code)
         if old is None:
@@ -98,7 +111,7 @@ def plan_changes(
                 moved += 1
                 moves.append({"code": code, "from": old, "to": number})
         new_strip.append(new)
-    blank = strip - len(plan_codes)
+    blank = strip - len(plan_codes) - len(hidden)  # the LEDs with no airport that are not Hidden Pixels
     new_strip.extend(Airport() for _ in range(strip - len(new_strip)))
 
     # the virtual airports: the dropped real ones first (so a plan never deletes an airport), then the ones that were
@@ -136,6 +149,7 @@ def plan_changes(
         "became_virtual": became_virtual,
         "promoted": promoted,
         "blank_leds": blank,
+        "hidden": len(hidden),
         "blank_virtual_dropped": blank_virtual,
         "merged_duplicates": merged,
         "led_count": {"from": led_count, "to": new_led},
@@ -165,18 +179,33 @@ def wiring_note(pixels, led_count):
     """
     coded = [(number, norm(p.get("code"))) for number, p in enumerate(pixels) if norm(p.get("code"))]
     if not coded:
-        return "The plan has no airports: every LED would be left blank."
+        return "The plan has no airports: every pixel would be left blank."
     (first, first_code), (last, last_code) = coded[0], coded[-1]
+    hidden = [n + 1 for n in hidden_numbers(pixels)]
+    hidden_note = ""
+    if hidden:
+        names = [f"pixel {n}" for n in hidden]
+        which = ", ".join(names[:-1]) + (" and " if len(names) > 1 else "") + names[-1]
+        which = which[0].upper() + which[1:]  # it starts a sentence
+        hidden_note = (
+            f" {which} {'is a hidden pixel' if len(hidden) == 1 else 'are hidden pixels'}: wire "
+            f"{'it' if len(hidden) == 1 else 'them'} into the string, but "
+            f"{'it shows' if len(hidden) == 1 else 'they show'} no airport."
+        )
     return (
-        f"The strip must be wired in this order: LED {first + 1} is {first_code}, LED {last + 1} is {last_code}, "
-        f"{led_count} pixels in all. Apply only when your pixels are connected like this, or the LEDs will light for "
-        "the wrong airports."
+        f"The strip must be wired in this order: pixel {first + 1} is {first_code}, pixel {last + 1} is {last_code}, "
+        f"{led_count} pixels in all.{hidden_note} Apply only when your pixels are connected like this, or the pixels "
+        "will light for the wrong airports."
     )
 
 
 def key(airports):
-    """What identifies a list of airports for a comparison: code, name, OLED flag and other keys, in order."""
-    return [[a.code, a.name, bool(a.display), json.dumps(a._extra, sort_keys=True, default=str)] for a in airports]
+    """What identifies a list of airports for a comparison: code, name, OLED flag, Hidden Pixel and other keys, in
+    order."""
+    return [
+        [a.code, a.name, bool(a.display), bool(a.skip), json.dumps(a._extra, sort_keys=True, default=str)]
+        for a in airports
+    ]
 
 
 def fingerprint(job_id, current, led_count, virtual_count, change):

@@ -144,8 +144,8 @@ def test_form_defaults(make):
     assert 'id="pl-tol"' in body and 'value="5"' in body
     assert 'id="pl-bright"' in body and 'value="0.5"' in body  # led.brightness.normal
     assert 'id="pl-sizes" class="switch" type="checkbox" checked' in body
-    assert 'id="pl-skips" class="switch" type="checkbox" disabled' in body
-    assert "Needs Chart support" in body
+    assert 'id="pl-skips" class="switch" type="checkbox">' in body  # off to begin with, and switched on by the user
+    assert "Needs Chart support" not in body
     for code in client.codes[:3]:
         assert f'value="{code}"' in body  # the must-keep list
     assert "/static/planner.js" in body
@@ -208,7 +208,7 @@ def test_source_planner_js_never_builds_map_html_from_text(make):
 def test_source_planner_js_keeps_the_lists_when_leaflet_is_missing(make):
     js = make()("/static/planner.js")[1]
     assert "typeof L === 'undefined'" in js and "The map needs Leaflet from unpkg.com" in js
-    renderer = js[js.index("function renderResult(r)") : js.index("function snippet(list)")]
+    renderer = js[js.index("function renderResult(r)") : js.index("function snippet(list, pixels)")]
     # the lists and the snippet are drawn before the view (and so before any Leaflet call)
     assert renderer.index("drawLists(r)") < renderer.index("showView(view, true)")
     assert renderer.index("$('pl-snippet').value") < renderer.index("showView(view, true)")
@@ -314,11 +314,12 @@ def test_the_config_snippet_is_the_airports_in_the_new_order(make):
     result = run(client)["result"]
     snippet = result["airports"]
     assert [a["code"] for a in snippet] == [p["code"] for p in result["sheet"]["pixels"]]
-    assert all(set(a) == {"code", "name", "display"} for a in snippet)
+    assert all(set(a) == {"code", "name", "display", "skip"} for a in snippet)
     assert next(a for a in snippet if a["code"] == client.codes[0]) == {
         "code": client.codes[0],
         "name": client.services.config.airports[0].name,
         "display": True,
+        "skip": False,
     }
     json.dumps(snippet)
 
@@ -413,14 +414,40 @@ def test_the_board_height_is_the_one_entered(make):
     assert sheet["board"]["width_in"] == 30 and sheet["board"]["height_in"] == 20
 
 
-def test_skipped_pixels_are_always_off(make):
+def test_skipped_pixels_are_off_unless_asked_for(make):
     client = make()
-    job = run(client, allow_skips=True)
+    job = run(client)
     assert job["params"]["allow_skips"] is False
     assert job["result"]["skips_allowed"] is False
     assert job["result"]["sheet"]["settings"]["allow_skips"] is False
     assert not any(p["skipped"] for p in job["result"]["sheet"]["pixels"])
     assert "skips_wanted" in job["result"]["sheet"]["problems"]
+
+
+def test_allow_skips_reaches_the_plan(make):
+    client = make()
+    job = run(client, allow_skips=True)
+    assert job["params"]["allow_skips"] is True
+    assert job["result"]["skips_allowed"] is True
+    assert job["result"]["sheet"]["settings"]["allow_skips"] is True
+    snippet = job["result"]["airports"]
+    skipped = [p["number"] for p in job["result"]["sheet"]["pixels"] if p["skipped"]]
+    assert [i + 1 for i, a in enumerate(snippet) if a["skip"]] == skipped  # a hidden pixel is a skip row, in place
+    assert all(a["code"] == "" and a["display"] is False for a in snippet if a["skip"])
+
+
+@pytest.mark.parametrize("value", ["true", "false", 1, 0, "garbage", [True]])
+def test_allow_skips_must_be_true_or_false(make, value):
+    """The text "true" would be read as a switch by some forms and "false" is also text: only a real boolean is one."""
+    client = make()
+    status, body = post(client, allow_skips=value)
+    assert status == 400 and json.loads(body)["reason"] == "invalid" and "allow_skips" in json.loads(body)["error"]
+
+
+def test_a_null_allow_skips_is_the_default_off(make):
+    client = make()
+    job = run(client, allow_skips=None)
+    assert job["params"]["allow_skips"] is False and job["result"]["skips_allowed"] is False
 
 
 def test_the_start_corner_and_power_settings_reach_the_sheet(make):
@@ -1195,3 +1222,27 @@ def test_source_the_undo_card_loads_with_the_page_and_a_new_plan_leaves_it(make)
     for gone in ("pl-undo-line",):
         assert gone not in js
     assert "{backup: undoInfo.backup}" in js and "sayUndo(" in js and "showUndoDone(" in js
+
+
+def test_markup_allow_skipped_pixels_is_a_live_switch_with_a_one_line_explanation(make):
+    body = make()("/config/planner")[1]
+    assert (
+        'id="pl-skips" class="switch" type="checkbox">' in body
+        and "disabled" not in body[body.index('id="pl-skips"') :][:60]
+    )
+    assert (
+        "Uses a spare pixel of the last string to bridge a gap instead of cutting; the pixel is wired but hidden."
+        in body
+    )
+    assert "later change" not in body
+
+
+def test_source_planner_js_sends_and_restores_allow_skips_and_draws_hidden_pixels(make):
+    js = make()("/static/planner.js")[1]
+    assert "allow_skips: fields.skips.checked" in js  # sent with the plan request
+    assert "fields.skips.checked = !!p.allow_skips" in js  # and put back after a reload
+    assert "Pixel ' + p.number + ': hidden pixel, bridges a gap" in js  # the popup
+    assert "'Hidden pixels'" in js and "shop.skipped" in js  # the shopping list
+    assert "Skipped pixels need Chart support" not in js
+    assert "s.hidden" in js  # the Apply confirmation
+    assert """ + (hidden ? ', "skip": true' : '')""" in js  # the config snippet row of a hidden pixel

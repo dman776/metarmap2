@@ -18,7 +18,7 @@
         chart: $('pl-chart'), source: $('pl-source'), codes: $('pl-codes'), target: $('pl-target'),
         number: $('pl-number'), strings: $('pl-strings'), coverage: $('pl-coverage'), fresh: $('pl-fresh'), width: $('pl-width'),
         height: $('pl-height'), pitch: $('pl-pitch'), gap: $('pl-gap'), move: $('pl-move'), len: $('pl-len'),
-        tol: $('pl-tol'), sizes: $('pl-sizes'), corner: $('pl-corner'), bright: $('pl-bright'),
+        tol: $('pl-tol'), sizes: $('pl-sizes'), skips: $('pl-skips'), corner: $('pl-corner'), bright: $('pl-bright'),
         ma5: $('pl-ma5'), ma12: $('pl-ma12'),
     };
     const form = $('planner-form');
@@ -168,6 +168,7 @@
             string_len: parseInt(fields.len.value, 10),
             tolerance: parseFloat(fields.tol.value),
             suggest_sizes: fields.sizes.checked,
+            allow_skips: fields.skips.checked,
             start_corner: fields.corner.value || null,
             brightness: parseFloat(fields.bright.value),
             ma_white_5v: parseFloat(fields.ma5.value),
@@ -195,6 +196,7 @@
         fields.len.value = p.string_len;
         fields.tol.value = p.tolerance;
         fields.sizes.checked = !!p.suggest_sizes;
+        fields.skips.checked = !!p.allow_skips;
         fields.corner.value = p.start_corner || '';
         fields.bright.value = p.brightness;
         fields.ma5.value = p.ma_white_5v;
@@ -357,14 +359,17 @@
         applyChanged();
         // the lists and the snippet first: they need no Leaflet, so a map that cannot start leaves them on screen
         drawLists(r);
-        $('pl-snippet').value = snippet(r.airports);
+        $('pl-snippet').value = snippet(r.airports, sheet.pixels);
         showView(view, true);
         $('pl-result').scrollIntoView({block: 'start'});
     }
 
-    function snippet(list) {
-        return '[\n' + list.map(function (a) {
-            return '  {"code": ' + JSON.stringify(a.code) + ', "name": ' + JSON.stringify(a.name) + ', "display": ' + (a.display ? 'true' : 'false') + '}';
+    // one row per pixel in wired order; a hidden pixel is the row's "skip" (the result's airports and sheet.pixels
+    // are the same list, so the sheet says which rows are hidden)
+    function snippet(list, pixels) {
+        return '[\n' + list.map(function (a, i) {
+            const hidden = a.skip || !!(pixels && pixels[i] && pixels[i].skipped);
+            return '  {"code": ' + JSON.stringify(a.code) + ', "name": ' + JSON.stringify(a.name) + ', "display": ' + (a.display ? 'true' : 'false') + (hidden ? ', "skip": true' : '') + '}';
         }).join(',\n') + '\n]';
     }
 
@@ -508,8 +513,8 @@
     function popupFor(p) {
         const box = el('div', {'class': 'pl-pop'});
         if (p.skipped) {
-            box.appendChild(el('div', {'class': 'pop-head'}, 'Hidden pixel ' + p.number));
-            box.appendChild(el('div', {'class': 'pl-pop-row'}, 'String ' + p.string + ', position ' + p.position + '. Not lit; it only holds the wire.'));
+            box.appendChild(el('div', {'class': 'pop-head'}, 'Pixel ' + p.number + ': hidden pixel, bridges a gap'));
+            box.appendChild(el('div', {'class': 'pl-pop-row'}, 'No airport. String ' + p.string + ', position ' + p.position + '.'));
             return box;
         }
         box.appendChild(el('div', {'class': 'pop-head'}, p.code + ' · pixel ' + p.number));
@@ -554,14 +559,14 @@
 
         placed.forEach(function (p) {
             const pin = document.createElement('div');
-            pin.appendChild(el('span', {'class': 'pl-n'}, p.skipped ? '' : String(p.number)));
-            if (!p.skipped) pin.appendChild(el('span', {'class': 'pl-c'}, p.code));
+            pin.appendChild(el('span', {'class': 'pl-n'}, String(p.number)));
+            pin.appendChild(el('span', {'class': 'pl-c'}, p.skipped ? 'hidden' : p.code));
             const icon = L.divIcon({
                 className: 'pl-pin' + (p.skipped ? ' skipped' : ''), iconSize: [22, 22], iconAnchor: [11, 11], popupAnchor: [0, -11],
                 html: pin
             });
             L.marker(at(p), {
-                icon: icon, title: p.skipped ? 'Hidden pixel ' + p.number : p.code + ', pixel ' + p.number,
+                icon: icon, title: p.skipped ? 'Pixel ' + p.number + ': hidden pixel' : p.code + ', pixel ' + p.number,
                 keyboard: placed.length <= 60  // a thousand tab stops would trap a keyboard user
             }).bindPopup(popupFor(p), {className: 'led-popup pl-popup', maxWidth: 300}).addTo(planLayer);
         });
@@ -677,14 +682,12 @@
 
         px.forEach(function (p) {
             const g = svg('g', {'class': 'pm-pixel' + (p.skipped ? ' skipped' : '')});
-            g.appendChild(svg('title', null, p.skipped ? 'Hidden pixel ' + p.number
+            g.appendChild(svg('title', null, p.skipped ? 'Pixel ' + p.number + ': hidden pixel, bridges a gap'
                 : 'Pixel ' + p.number + ': ' + p.code + ' (string ' + p.string + ', position ' + p.position + ')'
                     + (p.moved_mm ? ', moved ' + len(p.moved_mm) : '')));
             g.appendChild(svg('circle', {cx: p.x, cy: p.y, r: rad, 'class': 'pm-dot'}));
-            if (!p.skipped) {
-                g.appendChild(svg('text', {x: p.x, y: p.y + font * 0.35, 'font-size': font, 'text-anchor': 'middle', 'class': 'pm-num'}, String(p.number)));
-                g.appendChild(svg('text', {x: p.x, y: p.y + rad + font * 1.05, 'font-size': font * 0.9, 'text-anchor': 'middle', 'class': 'pm-code'}, p.code));
-            }
+            g.appendChild(svg('text', {x: p.x, y: p.y + font * 0.35, 'font-size': font, 'text-anchor': 'middle', 'class': 'pm-num'}, String(p.number)));
+            g.appendChild(svg('text', {x: p.x, y: p.y + rad + font * 1.05, 'font-size': font * 0.9, 'text-anchor': 'middle', 'class': 'pm-code'}, p.skipped ? 'hidden' : p.code));
             root.appendChild(g);
         });
 
@@ -751,8 +754,8 @@
             [mark('slack'), 'Slack: a lot of wire to hide'],
             [mark('extension'), 'Needs an extension (the length is on it)'],
             [mark('join'), 'Free join between strings: use a join cable'],
-            [ring(''), 'Pixel, with its LED number and airport'],
-            [ring('hollow'), 'Skipped (hidden) pixel'],
+            [ring(''), 'Pixel, with its number and airport'],
+            [ring('hollow'), 'Hidden pixel: wired, shows nothing, bridges a gap'],
             [mark('moved'), 'Moved from the airport\'s true place'],
         ].forEach(function (pair) {
             const li = el('li');
@@ -803,6 +806,7 @@
             ['Extensions', shop.extensions ? plural(shop.extensions, 'extension') + ', ' + len(shop.extension_wire_mm) + ' of wire, ' + plural(shop.splices, 'splice') : 'none'],
             ['Join cables', shop.joins ? plural(shop.joins, 'cable') + ', ' + len(shop.join_cable_mm) + ' in all' : 'none'],
             ['Slack gaps', String(shop.slack_gaps)],
+            ['Hidden pixels', String(shop.skipped || 0)],
             ['Moved pixels', String(shop.moved)],
         ]);
         stack(c);
@@ -839,7 +843,7 @@
             why.push(cl.join(', ') + ' are too close together to space out at the minimum spacing.');
         });
         prob.clipped.forEach(function (code) { why.push(code + ' began off the board and was put on its edge.'); });
-        if (prob.skips_wanted) why.push(prob.skips_note + ' Skipped pixels need Chart support, a later change.');
+        if (prob.skips_wanted) why.push(prob.skips_note);
         items(c.body, why, 'Nothing crowded and nothing dropped.');
         stack(c);
 
@@ -909,6 +913,7 @@
     function changeWords(s) {
         const parts = [];
         parts.push(s.moved + (s.moved === 1 ? ' airport moves' : ' airports move'));
+        if (s.hidden) parts.push(plural(s.hidden, 'hidden pixel') + (s.hidden === 1 ? ' is wired' : ' are wired'));
         parts.push(s.added.length + (s.added.length === 1 ? ' is added' : ' are added'));
         parts.push(s.became_virtual.length + (s.became_virtual.length === 1 ? ' becomes virtual' : ' become virtual'));
         if (s.promoted && s.promoted.length) parts.push(s.promoted.length + (s.promoted.length === 1 ? ' virtual airport gets a pixel' : ' virtual airports get pixels'));
@@ -956,6 +961,7 @@
         codeList(box, 'Added', s.added);
         codeList(box, 'Become virtual airports', s.became_virtual);
         codeList(box, 'Virtual airports that get a pixel', s.promoted);
+        if (s.hidden) box.appendChild(el('p', {'style': 'margin: 0 0 8px'}, plural(s.hidden, 'hidden pixel') + (s.hidden === 1 ? ' is' : ' are') + ' wired but show nothing: they bridge gaps in a string.'));
         if (s.blank_leds) box.appendChild(el('p', {'style': 'margin: 0 0 8px'}, plural(s.blank_leds, 'pixel') + ' will have no airport.'));
         $('pl-apply-warning').textContent = s.over_limit
             ? 'This plan has more airports than the Chart takes, so it cannot be applied.'

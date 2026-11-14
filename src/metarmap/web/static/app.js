@@ -726,7 +726,37 @@
     });
 
     // airports: each LED's code, name and OLED switch ("-" clears a code or name)
-    document.querySelectorAll('[data-led]').forEach(function (el) {
+    // a refused change's sentence, from the server's error page (<pre>message</pre>)
+    function errorSentence(text, res) {
+        const pre = /<pre>([\s\S]*?)<\/pre>/i.exec(text);
+        return pre ? pre[1].replace(/&#039;|&#39;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
+            : res.status + ' ' + res.statusText;
+    }
+
+    // airports: the Hidden pixel switch. The server refuses it for a row that still has an airport (and a code on a
+    // hidden row): its sentence shows under the row, and the switch goes back. On success the page reloads, so the
+    // row's boxes, tag and the count line show what is saved
+    document.querySelectorAll('[data-field="skip"]').forEach(function (el) {
+        el.addEventListener('change', async function () {
+            const row = el.closest('.ap-row');
+            const note = row ? row.querySelector('.ap-error') : null;
+            const wanted = el.checked;
+            if (note) { note.hidden = true; note.textContent = ''; }
+            el.disabled = true;
+            try {
+                const res = await fetch('/config/airports/' + el.dataset.led + '/skip/' + (wanted ? 'true' : 'false'), {credentials: 'same-origin'});
+                if (!res.ok) throw new Error(errorSentence(await res.text(), res));
+                window.location.reload();
+            } catch (err) {
+                el.checked = !wanted;
+                el.disabled = false;
+                el.focus();
+                if (note) { note.textContent = err.message; note.hidden = false; } else showOutput('Could not save', err.message);
+            }
+        });
+    });
+
+    document.querySelectorAll('[data-led]:not([data-field="skip"])').forEach(function (el) {
         el.addEventListener('change', async function () {
             const field = el.dataset.field;
             let value = el.type === 'checkbox' ? el.checked : el.value.trim();

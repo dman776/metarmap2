@@ -72,6 +72,7 @@ def stations(airports, data, position=None, count=None):
 def leds(airports, count):
     """
     Every LED for the Airports page, with its airport (code "" for none), then the virtual airports after led.count.
+    `skip`: the LED is a Hidden Pixel (wired, shows nothing, no airport); never true for a virtual airport.
     """
     return [
         {
@@ -79,6 +80,7 @@ def leds(airports, count):
             "code": a.code,
             "name": a.name,
             "display": a.display,
+            "skip": bool(a.skip) and pixel < count and not a.code,
             "virtual": pixel >= count,
             "mock": mock_text(a),
         }

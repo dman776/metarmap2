@@ -15,8 +15,10 @@
 </section>
 
 %include("config_tabs.tpl", active="airports")
+% hidden_count = len([x for x in leds if x.get("skip")])
 
-<p class="tab-intro">{{count}} {{'pixel' if count == 1 else 'pixels'}} in the order they're wired{{!' and %d virtual %s' % (virtual, 'airport' if virtual == 1 else 'airports') if virtual else ''}}: {{with_airport}} with an airport{{', %d without' % without_airport if without_airport else ''}}. Changes save right away.</p>
+<p class="tab-intro">{{count}} {{'pixel' if count == 1 else 'pixels'}} in the order they're wired{{!' and %d virtual %s' % (virtual, 'airport' if virtual == 1 else 'airports') if virtual else ''}}: {{with_airport}} with an airport{{', %d without' % without_airport if without_airport else ''}}{{!'' if not hidden_count else ' (%d hidden)' % hidden_count}}. Changes save right away.</p>
+<p class="tab-intro help" id="hidden-help">A hidden pixel is wired but shows nothing: it bridges a gap in a string so no wire has to be cut. Its number stays in the strip.</p>
 
 <section class="card settings">
     <div class="set" style="border-top: 0">
@@ -46,17 +48,23 @@
 </section>
 
 <section class="card">
-    <div class="ap-row trow head" style="border-top: 0"><span>Pixel</span><span>ICAO</span><span class="ap-name">Name</span><span>Micro</span><span class="ap-move">Move</span></div>
+    <div class="ap-row trow head" style="border-top: 0"><span>Pixel</span><span>ICAO</span><span class="ap-name">Name</span><span>Micro</span><span>Hidden</span><span class="ap-move">Move</span></div>
     % for led in leds:
     % n = led['pixel'] + 1
     % if led['virtual'] and led['pixel'] == count:
     <div class="ap-divider">Virtual airports · web map and Home Assistant only</div>
     % end
-    <div class="ap-row{{' virtual' if led['virtual'] else ''}}" data-row="{{led['pixel']}}" data-code="{{led['code']}}">
-        <span class="mono muted">{{n}}{{!'<span class="tag">virtual</span>' if led['virtual'] else ''}}{{!'<span class="tag mock-tag">mock</span>' if dev_mode and led['mock'] else ''}}</span>
-        <input class="code" type="text" value="{{led['code']}}" maxlength="4" spellcheck="false" placeholder="—" aria-label="Airport for pixel {{n}}" data-led="{{led['pixel']}}" data-field="code">
-        <input class="ap-name" type="text" value="{{led['name']}}" maxlength="40" placeholder="Name" aria-label="Name for pixel {{n}}" data-led="{{led['pixel']}}" data-field="name">
-        <input class="switch" type="checkbox" aria-label="Show pixel {{n}} on the Micro" data-led="{{led['pixel']}}" data-field="display"{{!' checked' if led['display'] else ''}}{{!'' if led['code'] else ' disabled'}}>
+    % skip = bool(led.get('skip')) and not led['virtual']
+    <div class="ap-row{{' virtual' if led['virtual'] else ''}}{{' hidden-pixel' if skip else ''}}" data-row="{{led['pixel']}}" data-code="{{led['code']}}">
+        <span class="mono muted">{{n}}{{!'<span class="tag">virtual</span>' if led['virtual'] else ''}}{{!'<span class="tag skip-tag" title="Hidden pixel">hidden</span>' if skip else ''}}{{!'<span class="tag mock-tag">mock</span>' if dev_mode and led['mock'] else ''}}</span>
+        <input class="code" type="text" value="{{led['code']}}" maxlength="4" spellcheck="false" placeholder="—" aria-label="Airport for pixel {{n}}" data-led="{{led['pixel']}}" data-field="code"{{!' disabled' if skip else ''}}>
+        <input class="ap-name" type="text" value="{{led['name']}}" maxlength="40" placeholder="{{'Hidden pixel' if skip else 'Name'}}" aria-label="Name for pixel {{n}}" data-led="{{led['pixel']}}" data-field="name"{{!' disabled' if skip else ''}}>
+        <input class="switch" type="checkbox" aria-label="Show pixel {{n}} on the Micro" data-led="{{led['pixel']}}" data-field="display"{{!' checked' if led['display'] else ''}}{{!'' if led['code'] and not skip else ' disabled'}}>
+        % if led['virtual']:
+        <span></span>
+        % else:
+        <input class="switch" type="checkbox" role="switch" aria-label="Hidden pixel, pixel {{n}}" aria-describedby="hidden-help" data-led="{{led['pixel']}}" data-field="skip"{{!' checked' if skip else ''}}>
+        % end
         <span class="ap-move">
             <button class="btn icon sm" type="button" aria-label="Move pixel {{n}} up" data-call="/config/airports/move/{{led['pixel']}}/{{led['pixel'] - 1}}"{{!' disabled' if led['pixel'] == 0 else ''}}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="m6 15 6-6 6 6"/></svg>
@@ -66,8 +74,9 @@
             </button>
         </span>
         % if dev_mode:
-        <input class="ap-mock mono" type="text" value="{{led['mock']}}" spellcheck="false" autocapitalize="characters" placeholder="Mock METAR (dev_mode): replaces the real report, e.g. METAR {{led['code'] or 'KDWH'}} 272353Z 08003KT 9SM CLR 21/18 A3014" aria-label="Mock METAR for pixel {{n}}" data-mock="{{led['pixel']}}"{{!'' if led['code'] else ' disabled'}}>
+        <input class="ap-mock mono" type="text" value="{{led['mock']}}" spellcheck="false" autocapitalize="characters" placeholder="Mock METAR (dev_mode): replaces the real report, e.g. METAR {{led['code'] or 'KDWH'}} 272353Z 08003KT 9SM CLR 21/18 A3014" aria-label="Mock METAR for pixel {{n}}" data-mock="{{led['pixel']}}"{{!'' if led['code'] and not skip else ' disabled'}}>
         % end
+        <span class="ap-error" role="alert" hidden></span>
     </div>
     % end
 </section>
