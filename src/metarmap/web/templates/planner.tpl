@@ -9,6 +9,27 @@
 
 %include("config_tabs.tpl", active="airports", own_page=True)
 
+<div class="card" id="pl-undo-card" hidden>
+    <div class="card-head">
+        <h2>Undo last apply</h2>
+    </div>
+    <p class="pl-pad pl-undo-line">
+        <span id="pl-undo-text"></span>
+        <button class="btn sm" type="button" id="pl-undo-btn" aria-controls="pl-undo-panel">Undo last apply</button>
+    </p>
+    <div class="pl-pad pl-confirm" id="pl-undo-panel" hidden>
+        <p id="pl-undo-head" tabindex="-1"><strong>Undo the last apply?</strong> Undo restores the airports, pixel count and virtual airports from the backup. Other settings stay, but airport edits made since the apply (including virtual airports added) are lost.</p>
+        <button class="btn danger sm" type="button" id="pl-undo-go">Undo</button>
+        <button class="btn sm" type="button" id="pl-undo-cancel">Keep it</button>
+    </div>
+    <div class="pl-pad pl-confirm" id="pl-undo-done" hidden>
+        <p id="pl-undo-done-text"></p>
+        <button class="btn primary" type="button" id="pl-undo-restart" data-call="/restart" data-then="restart" hidden>Restart now</button>
+    </div>
+    <p class="pl-pad" id="pl-undo-status" role="status"></p>
+    <div class="pl-bottom"></div>
+</div>
+
 <div class="planner" id="planner" data-boards="{{boards}}">
 <form class="planner-form" id="planner-form" autocomplete="off" novalidate>
     <section class="card settings">
@@ -242,15 +263,6 @@
                     <button class="btn primary sm" type="button" id="pl-apply-btn" aria-controls="pl-apply-panel">Apply to this Chart...</button>
                 </div>
                 <p class="muted pl-pad">Apply changes the Chart that serves this page: its airports, pixel count and virtual airports. A backup of <span class="mono">config.json</span> is made first, and you can undo it.</p>
-                <p class="pl-pad pl-undo-line" id="pl-undo-line" hidden>
-                    <span id="pl-undo-text"></span>
-                    <button class="btn sm" type="button" id="pl-undo-btn" aria-controls="pl-undo-panel">Undo last apply</button>
-                </p>
-                <div class="pl-pad pl-confirm" id="pl-undo-panel" hidden>
-                    <p id="pl-undo-head" tabindex="-1"><strong>Undo the last apply?</strong> Undo restores the airports, pixel count and virtual airports from the backup. Other settings stay, but airport edits made since the apply (including virtual airports added) are lost.</p>
-                    <button class="btn danger sm" type="button" id="pl-undo-go">Undo</button>
-                    <button class="btn sm" type="button" id="pl-undo-cancel">Keep it</button>
-                </div>
                 <div class="pl-pad pl-confirm" id="pl-apply-panel" hidden>
                     <h3 id="pl-apply-head" tabindex="-1"></h3>
                     <div id="pl-apply-lists"></div>

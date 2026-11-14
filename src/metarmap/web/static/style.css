@@ -666,8 +666,9 @@ textarea { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--cont
 .pl-buttons .btn, .pl-confirm .btn { margin: 0 12px 8px 0; }
 .pl-undo-line .btn { margin-left: 8px; }
 .pl-bottom { height: 16px; }
-#pl-apply-status:empty { display: none; }
-#pl-apply-status.bad { color: var(--ifr); }
+#pl-apply-status:empty, #pl-undo-status:empty { display: none; }
+#pl-apply-status.bad, #pl-undo-status.bad { color: var(--ifr); }
+#pl-undo-card { margin-bottom: 16px; }
 textarea.snippet { display: block; width: calc(100% - 48px); margin: 12px 24px 24px; font-size: 12px; }
 .pm-seg { display: flex; flex-wrap: wrap; }
 .pm-seg .chip { margin: 0 8px 0 0; }

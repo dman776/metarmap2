@@ -355,7 +355,6 @@
         lastResult = r;
         resetApply();
         applyChanged();
-        loadUndo();
         // the lists and the snippet first: they need no Leaflet, so a map that cannot start leaves them on screen
         drawLists(r);
         $('pl-snippet').value = snippet(r.airports);
@@ -877,18 +876,23 @@
         box.className = 'pl-pad' + (bad ? ' bad' : '');
     }
 
+    function sayUndo(text, bad) {  // the Undo card's own polite status line
+        const box = $('pl-undo-status');
+        box.textContent = text || '';
+        box.className = 'pl-pad' + (bad ? ' bad' : '');
+    }
+
     function applyChanged() {
         applyBtn.disabled = jobRunning || applyBusy || !lastResult || !applyPanel.hidden;
         applyGo.disabled = jobRunning || applyBusy || applyUnchanged || !applyWired.checked || !applyToken;
         undoBtn.disabled = jobRunning || applyBusy || !undoPanel.hidden;
     }
 
-    // close the confirmation, the success message and the undo question: a new plan starts clean
+    // close the confirmation and the success message (the standing Undo card is left alone): a new plan starts clean
     function resetApply() {
         applyToken = null;
         applyUnchanged = false;
         applyPanel.hidden = true;
-        undoPanel.hidden = true;
         $('pl-apply-done').hidden = true;
         applyWired.checked = false;
         say('');
@@ -1022,6 +1026,8 @@
             applyBusy = false;
             if (reply.status === 200 && d && d.ok) {
                 closePanel(applyPanel);
+                $('pl-undo-done').hidden = true;
+                sayUndo('');
                 showDone('Applied. ' + whatChanged(d.summary) + ' The backup is ' + d.backup + '.', d.restart_needed);
                 await loadUndo();
                 applyBtn.focus();
@@ -1049,8 +1055,9 @@
             info = reply.status === 200 && reply.data ? reply.data.undo : null;
         } catch (e) { /* no undo shown */ }
         undoInfo = info && info.available ? info : null;
-        const line = $('pl-undo-line');
-        line.hidden = !undoInfo;
+        // the card stays while its done message (and the Restart now button) is showing
+        $('pl-undo-card').hidden = !undoInfo && $('pl-undo-done').hidden;
+        $('pl-undo-btn').parentNode.hidden = !undoInfo;
         if (undoInfo) {
             let when = undoInfo.made_at || '';
             const t = new Date(when);
@@ -1062,8 +1069,17 @@
         applyChanged();
     }
 
+    function showUndoDone(text, restart) {
+        $('pl-undo-done-text').textContent = text;
+        $('pl-undo-restart').hidden = !restart;
+        $('pl-undo-done').hidden = false;
+        sayUndo(restart ? 'Done. Restart the Chart to use the restored pixel count.' : 'Done.');
+    }
+
     undoBtn.addEventListener('click', function () {
         undoPanel.hidden = false;
+        $('pl-undo-done').hidden = true;
+        sayUndo('');
         applyChanged();
         $('pl-undo-head').focus();
     });
@@ -1071,12 +1087,13 @@
     $('pl-undo-go').addEventListener('click', async function () {
         if (!undoInfo || !undoInfo.backup) {
             undoPanel.hidden = true;
-            say('There is nothing to undo.', true);
+            sayUndo('There is nothing to undo.', true);
+            await loadUndo();
             return;
         }
         applyBusy = true;
         applyChanged();
-        say('Restoring from the backup...');
+        sayUndo('Restoring from the backup...');
         try {
             // the server wants the backup's name (from apply/status), so an Undo it did not offer is refused
             const reply = await send('/config/planner/undo', 'POST', {backup: undoInfo.backup});
@@ -1087,20 +1104,24 @@
                 undoPanel.hidden = true;
                 applyPanel.hidden = true;
                 applyToken = null;
-                showDone('Undone. Restored ' + plural(r.airports, 'airport') + ', ' + plural(r.led_count, 'pixel') + ' and ' + plural(r.virtual_count, 'virtual airport') + ' from the backup.', d.restart_needed);
+                $('pl-apply-done').hidden = true;
+                say('');
+                showUndoDone('Undone. Restored ' + plural(r.airports, 'airport') + ', ' + plural(r.led_count, 'pixel') + ' and ' + plural(r.virtual_count, 'virtual airport') + ' from the backup.', d.restart_needed);
                 await loadUndo();
-                applyBtn.focus();
+                if (!applyBtn.disabled) applyBtn.focus();
             } else {
                 undoPanel.hidden = true;
-                say(errorText(reply), true);
+                sayUndo(errorText(reply), true);
                 await loadUndo();
             }
         } catch (e) {
-            say('Could not reach the Chart: ' + e, true);
+            sayUndo('Could not reach the Chart: ' + e, true);
         }
         applyBusy = false;
         applyChanged();
     });
+
+    loadUndo();  // the standing card shows on every load, with or without a plan on the page
 
     applyChanged();
 

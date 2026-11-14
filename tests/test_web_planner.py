@@ -1096,8 +1096,9 @@ def test_markup_has_the_apply_button_the_panel_and_the_undo_area(make):
     page = make()("/config/planner")[1]
     for ident in (
         "pl-apply-btn", "pl-apply-panel", "pl-apply-head", "pl-apply-lists", "pl-apply-warning", "pl-apply-backup",
-        "pl-apply-wired", "pl-apply-go", "pl-apply-cancel", "pl-apply-done", "pl-undo-line", "pl-undo-btn",
-        "pl-undo-panel", "pl-undo-go", "pl-undo-cancel",
+        "pl-apply-wired", "pl-apply-go", "pl-apply-cancel", "pl-apply-done", "pl-undo-card", "pl-undo-text",
+        "pl-undo-btn", "pl-undo-panel", "pl-undo-go", "pl-undo-cancel", "pl-undo-done", "pl-undo-done-text",
+        "pl-undo-restart", "pl-undo-status",
     ):  # fmt: skip
         assert f'id="{ident}"' in page, ident
     assert "Apply to this Chart..." in page
@@ -1165,3 +1166,32 @@ def test_source_apply_says_when_there_is_nothing_to_apply(make):
     gate = js[js.index("function applyChanged()") : js.index("// close the confirmation")]
     assert "applyUnchanged" in gate  # Apply stays disabled
     assert "reason === 'unchanged'" in js  # an answer from the server shows the same panel
+
+
+def test_markup_the_undo_card_stands_outside_the_result_and_the_apply_card(make):
+    page = make()("/config/planner")[1]
+    card_at = page.index('id="pl-undo-card"')
+    assert re.search(r'id="pl-undo-card"[^>]*\bhidden\b', page)  # the script shows it when there is a backup
+    assert card_at < page.index('id="planner-form"') and card_at > page.index('class="page-head"')
+    result_at = page.index('id="pl-result"')
+    assert card_at < result_at  # not inside the section that waits for a finished plan
+    apply_card = page[page.index('id="pl-apply-card"') : page.index('id="pl-snippet-card"')]
+    for ident in ("pl-undo", "Undo last apply", "Undo the last apply"):
+        assert ident not in apply_card, ident  # the Apply card keeps only the Apply pieces
+    result = page[result_at:]
+    assert 'id="pl-undo' not in result
+    assert re.search(r'id="pl-undo-status"[^>]*role="status"', page)
+    assert 'id="pl-undo-restart" data-call="/restart" data-then="restart"' in page
+    assert 'id="pl-apply-restart" data-call="/restart" data-then="restart"' in apply_card
+
+
+def test_source_the_undo_card_loads_with_the_page_and_a_new_plan_leaves_it(make):
+    js = make()("/static/planner.js")[1]
+    assert "\n    loadUndo();" in js  # at load, with no plan on the page
+    reset = js[js.index("function resetApply()") : js.index("function closePanel(")]
+    assert "undo" not in reset.lower()  # a re-plan does not hide or reset the standing card
+    load = js[js.index("async function loadUndo()") : js.index("function showUndoDone(")]
+    assert "pl-undo-card" in load and "textContent" in load
+    for gone in ("pl-undo-line",):
+        assert gone not in js
+    assert "{backup: undoInfo.backup}" in js and "sayUndo(" in js and "showUndoDone(" in js
