@@ -435,18 +435,25 @@ class Settings(_Section):
         time can't leave half a file. The file keeps its owner and permissions (the map runs as root).
         """
         tmp = f"{path}.tmp"
-        with open(tmp, "w") as f:
-            json.dump(self.to_dict(), f, indent=4)
         try:
-            st = os.stat(path)
-            os.chmod(tmp, st.st_mode & 0o7777)
-            if hasattr(os, "chown") and (st.st_uid, st.st_gid) != (os.stat(tmp).st_uid, os.stat(tmp).st_gid):
-                os.chown(tmp, st.st_uid, st.st_gid)
-        except FileNotFoundError:
-            pass  # a new file
-        except PermissionError:
-            pass  # not root: the file is ours anyway
-        os.replace(tmp, path)
+            with open(tmp, "w") as f:
+                json.dump(self.to_dict(), f, indent=4)
+            try:
+                st = os.stat(path)
+                os.chmod(tmp, st.st_mode & 0o7777)
+                if hasattr(os, "chown") and (st.st_uid, st.st_gid) != (os.stat(tmp).st_uid, os.stat(tmp).st_gid):
+                    os.chown(tmp, st.st_uid, st.st_gid)
+            except FileNotFoundError:
+                pass  # a new file
+            except PermissionError:
+                pass  # not root: the file is ours anyway
+            os.replace(tmp, path)
+        except BaseException:
+            try:  # it holds the web password: don't leave it behind
+                os.remove(tmp)
+            except OSError:
+                pass
+            raise
 
     # ---- editing -------------------------------------------------------------------------------------------------
 

@@ -15,6 +15,8 @@ htmlcov/
 *.log
 *.log.*
 planner-cache/
+# what Config > Plan a new chart > Apply copies config.json to (it holds the web password), whatever the file is called
+*.before-plan-*
 
 # editors / OS
 .idea/

@@ -1,5 +1,9 @@
 ### Unreleased
 
+- **Plan a new chart: the Undo stays on the page, also after a restart.** **Undo last apply** now sits in its own card at the top of the page whenever a backup exists, with or without a plan on screen (it used to vanish when a restart cleared the plan).
+
+- **Plan a new chart: Apply to this Chart.** A finished plan has an **Apply to this Chart...** button. It opens a panel on the page (no pop-up) that sums up the change (airports moved, added, dropped ones that become virtual airports, the pixel count before and after), warns that the strip must be wired in the plan's order, names the backup and asks you to tick "My strip is wired in this order" before **Apply** enables. Apply makes a timestamped backup of `config.json` (private from the first byte; the newest 5 are kept, and an older one is removed only after the write has worked; a write that fails takes its backup away again, so an Undo is only offered for an apply that happened; the time in the name never goes below the newest backup's, so a Pi whose clock was behind still undoes the right apply), changes the airports, pixel count and virtual airports, and offers **Restart now** when the strip has to restart for the new pixel count (the same test as the Airports page's banner). A plan the Chart already has says "Nothing to apply" and makes no backup. The wiring warning names the real LED numbers, codes in a hand-edited `config.json` are compared without case or spaces, and a code twice is refused with its place. **Undo last apply** (asks first) restores those from the backup, also after a reload: other settings stay, airport edits made since are lost. If the plan or config changed since you looked, the panel checks again; it is off while a plan runs. The config snippet stays for carrying a plan to another Chart.
+
 - **Plan a new chart: the airport download sends several requests at a time and shows its progress.** It now sends 3
   requests at a time instead of one (still within aviationweather.gov's limit of 100 a minute), so one slow answer no
   longer holds up the rest. How much faster that is depends on how often the weather service times out: one test of a
@@ -24,9 +28,9 @@
   chart's usable area outlined, and an optional **Background** (None, Sectional, Satellite or Street, with an
   **Opacity** slider; off by default, remembered in the browser; the Sectional is the FAA's VFR Sectional, and a hint says to zoom in when it is too far out to show, as on the whole-US chart). Without internet for Leaflet the page shows the Board view and a note, with the lists and the snippet. A **Map | Board** switch shows the board's own
   drawing in millimetres instead (the Fit, - and + buttons belong to that view); the map spans the page and the lists sit under it in two columns on a wide screen), a cut list, joins, a shopping list, power advice, the crowded airports and why, the three nearest board
-  sizes, and the airports in the new order as a `config.json` snippet to copy. Lengths show in mm and inches. It only
-  plans: nothing changes on the Chart (Apply comes later), and **Allow skipped pixels** is shown off until the Chart
-  supports it. The planning runs in the background (the airport fetch of a national chart takes a few minutes on
+  sizes, and the airports in the new order as a `config.json` snippet to copy. Lengths show in mm and inches. **Allow skipped pixels** is
+  shown off until the Chart supports it, and **Apply to this Chart** (the next entry) can put a finished plan on the
+  Chart. The planning runs in the background (the airport fetch of a national chart takes a few minutes on
   a Pi), with progress and a Cancel button that also stops a plan in the middle; a reloaded page picks the running plan
   up. A plan never goes over the Chart's 1000 pixels, the pitch (20 mm or more), string length (10 or more), spacing and
   moves (up to 25 mm) have limits that keep it from running for hours, a plan still running after 15 minutes is
