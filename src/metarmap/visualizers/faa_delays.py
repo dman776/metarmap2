@@ -73,4 +73,5 @@ VISUALIZER = Visualizer(
     icon="hourglass",
     legend=legend,
     look=look,
+    lightning=False,  # not about the weather
 )

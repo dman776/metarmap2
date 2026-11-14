@@ -466,13 +466,30 @@ def test_lightning_flickers_over_the_category(settings):
     assert list(look.colors) == flicker(ifr, yellow) * 2  # every 2 s, for 4 s
 
 
-@pytest.mark.parametrize("v", visualizers.WEATHER)
+FLASHES = [v for v in visualizers.WEATHER if v.lightning]
+NO_LIGHTNING = [v for v in visualizers.ALL if not v.lightning and v.look is not None]
+
+
+@pytest.mark.parametrize("v", FLASHES)
 def test_every_weather_visualizer_shows_lightning(v, settings):
     settings.lightning.forecast = True  # off by default, and only the forecast visualizers care
     look = lit(v, settings, lightning=True)
     yellow = style.LIGHTNING
     assert look.effect == "cycle" and look.colors[:3] == (yellow,) * 3 and look.colors[40:43] == (yellow,) * 3
     assert any(i["label"] == "Lightning or a thunderstorm" for i in visualizer.legend(v, settings))
+
+
+def test_advisories_tfr_and_faa_delays_never_show_lightning():
+    assert {v.id for v in NO_LIGHTNING} == {"advisories", "tfr", "faa_delays"}
+
+
+@pytest.mark.parametrize("v", NO_LIGHTNING)
+def test_a_visualizer_not_about_the_weather_has_no_lightning(v, settings):
+    settings.lightning.animation = True
+    settings.lightning.forecast = True
+    m = metar(lightning=True, weather="TSRA")
+    assert visualizer.look(v, m, settings) == v.look(m, settings)
+    assert all(i["label"] != "Lightning or a thunderstorm" for i in visualizer.legend(v, settings))
 
 
 @pytest.mark.parametrize("v", visualizers.WEATHER)
@@ -609,7 +626,7 @@ def test_lightning_forecast_off_drops_it_from_the_forecast_visualizers(v, settin
     assert all(i["label"] != "Lightning or a thunderstorm" for i in visualizer.legend(v, settings))
 
 
-@pytest.mark.parametrize("v", [v for v in visualizers.WEATHER if v.steps is None])
+@pytest.mark.parametrize("v", [v for v in FLASHES if v.steps is None])
 def test_lightning_forecast_off_leaves_the_other_visualizers_alone(v, settings):
     look = lit(v, settings, lightning=True)
     assert look.effect == "cycle" and look.colors[:3] == (style.LIGHTNING,) * 3

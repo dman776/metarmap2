@@ -102,4 +102,5 @@ VISUALIZER = Visualizer(
     legend=legend,
     look=look,
     areas="tfrs",  # the Map page draws the TFRs (/api/tfrs)
+    lightning=False,  # not about the weather
 )
