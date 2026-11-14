@@ -139,4 +139,5 @@ VISUALIZER = Visualizer(
     legend=legend,
     look=look,
     areas="advisories",  # the Map page draws the G-AIRMET and SIGMET areas (/api/advisories)
+    lightning=False,  # not about the weather at the airport
 )

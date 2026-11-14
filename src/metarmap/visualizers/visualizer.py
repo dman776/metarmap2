@@ -56,11 +56,14 @@ class Visualizer:
     covers_virtual: with strip_look, whether the web map's virtual airports show it too (else they stay dark)
     barbs:       the Map page draws each airport's wind barb
     areas:       the areas the Map page draws (one of AREAS), or None
+    lightning:   whether lightning flickers over its looks and shows in its legend (with lightning.animation on);
+                 False for a visualizer that isn't about the weather at the airport (Advisories, TFR, FAA Delays)
     steps:       steps(settings) -> {"labels": [...], "seconds": s, "prefix": "FC"} for a visualizer whose looks go
                  through the same steps together (Flight Category Forecast), each lasting `seconds`, counted from when
                  the LEDs were built (Renderer.step()). The pages show which step is on, the Micro "<prefix> <label>".
                  None for the rest
-    Lightning isn't a visualizer's job: looks() and legend() below add it to every one with a look per airport.
+    Lightning isn't a visualizer's job: looks() and legend() below add it to every one with a look per airport
+    that doesn't opt out with lightning=False.
     """
 
     id: str
@@ -74,6 +77,7 @@ class Visualizer:
     covers_virtual: bool = False
     barbs: bool = False
     areas: Optional[str] = None
+    lightning: bool = True
     steps: Optional[Callable[[object], dict]] = None
 
     def __post_init__(self):
@@ -143,9 +147,10 @@ def looks(vis, codes, data, settings) -> List[Look]:
 def shows_lightning(vis: Visualizer, settings) -> bool:
     """
     Whether lightning goes over the visualizer's looks and into its legend: lightning.animation, for one with a look
-    per airport. A forecast visualizer (one with steps) also needs lightning.forecast.
+    per airport that hasn't opted out (lightning=False). A forecast visualizer (one with steps) also needs
+    lightning.forecast.
     """
-    if vis.look is None or not settings.lightning.animation:
+    if vis.look is None or not vis.lightning or not settings.lightning.animation:
         return False
     return vis.steps is None or settings.lightning.forecast
 
