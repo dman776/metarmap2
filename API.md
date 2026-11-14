@@ -34,6 +34,7 @@ Returns a read-only snapshot of the Chart's state as `application/json`. No auth
     "name": "Flight Category",
     "shortName": "Flight Cat",
     "icon": "plane",
+    "iconRev": "7cb23636",
     "exclusive": false,
     "description": "Display the flight category (ie. VFR, MVFR, IFR, LIFR).",
     "legend": [
@@ -45,9 +46,9 @@ Returns a read-only snapshot of the Chart's state as `application/json`. No auth
   },
   "visualizers": [
     { "index": 0, "id": "flight_category", "name": "Flight Category", "shortName": "Flight Cat", "icon": "plane",
-      "exclusive": false, "skipped": false },
-    { "index": 1, "id": "wind", "name": "Wind", "shortName": "Wind", "icon": "wind", "exclusive": false,
-      "skipped": true }
+      "iconRev": "7cb23636", "exclusive": false, "skipped": false },
+    { "index": 1, "id": "wind", "name": "Wind", "shortName": "Wind", "icon": "wind", "iconRev": "d3c55152",
+      "exclusive": false, "skipped": true }
   ],
   "config": {
     "visualizer.active": "flight_category",
@@ -146,9 +147,9 @@ Returns a read-only snapshot of the Chart's state as `application/json`. No auth
 | `brightness` | Current pixel brightness, `0.0`–`1.0` |
 | `build` | What's running, read when the Chart started: `tag` is the release it's at or after (`null` if none), `ahead` how many commits after it, `commit` and `sha` the commit, `modified` whether the code was changed on the Chart itself (`config.json` and `airports.json` don't count). `release` is true on a release exactly; otherwise `pill` says why not ("Unreleased: 3 commits after v2.9.2", "Not tagged: v2.9.3" when `untagged`, "Pre-release: v2.9.0-rc1", "Modified: local changes to v2.9.2", "Unreleased: no release tag"). `chip` is the header's version text and `url` the commit on GitHub (`null` if the Chart isn't from GitHub). `null` outside a git checkout. |
 | `update` | What's newest on GitHub: `current` is the running version, `commit` the running commit, `channel` is the channel in use (`branch` counts as `releases` without `dev_mode`), `available` the release (or, on the `latest` and `branch` channels, the commit) an update would install, or `null` when up to date; `installed` is what an update installed that needs a restart; `releases` lists the releases that can be installed, newest first; with `dev_mode`, `branches` lists GitHub's branches and `branch` is the one the `branch` channel follows; `checked` is when GitHub was last asked, and `error` why that failed. `null` if the Chart doesn't check. |
-| `visualizer` | The visualizer that is running now: `active` is its number, `id` its id (see the table under Control). `shortName` is its name where there's little room (at most 11 characters, e.g. "Density Alt"), and `icon` names what its icon shows: one of `plane`, `cloud`, `eye`, `wind`, `gust`, `compass`, `thermometer`, `droplet`, `mountain`, `gauge`, `rain`, `warning`, `ban`, `rainbow`, `chase`, `clock`, `umbrella`, `hourglass` (each visualizer has its own; a client draws them its own way, and should show none for a name it doesn't know). `exclusive` visualizers ignore `/locate`. |
+| `visualizer` | The visualizer that is running now: `active` is its number, `id` its id (see the table under Control). `shortName` is its name where there's little room (at most 11 characters, e.g. "Density Alt"), and `icon` names what its icon shows: one of `plane`, `cloud`, `eye`, `wind`, `gust`, `compass`, `thermometer`, `droplet`, `mountain`, `gauge`, `rain`, `warning`, `ban`, `rainbow`, `chase`, `clock`, `umbrella`, `hourglass` (each visualizer has its own; a client draws them its own way, and for a name it doesn't know it can fetch the icon from `/api/icon/<name>`, or show none). `iconRev` names that icon's current drawing: it is the ETag of `/api/icon/<name>`, and changes only when the drawing does, so a client that saved an icon fetches it again only when `iconRev` differs. `exclusive` visualizers ignore `/locate`. |
 | `visualizer.legend` | What the pixels mean for that visualizer. `colors` are CSS hex colors; two or more mean a gradient across the range. `effect` is `solid`, `blink`, `pulse`, `flash` (the first color with flashes of the second), `chase` or `off`. `period` is the seconds per blink or pulse, or `null`. `key` names the entry (stable, unlike `label`, which can change with the settings); `inUse` is whether a pixel (or a virtual airport) shows it now, always `true` for a whole-strip visualizer (Rainbow, Chase). |
-| `visualizers` | Every visualizer, in index order: `index` is its number and `id` its id, both accepted by `/visualizer/<id>`; `shortName` and `icon` as in `visualizer` |
+| `visualizers` | Every visualizer, in index order: `index` is its number and `id` its id, both accepted by `/visualizer/<id>`; `shortName`, `icon` and `iconRev` as in `visualizer` |
 | `config` | The saved `config.json` values, keyed by the dotted path accepted by `/config/edit` |
 | `display` | MetarMap2 Micro, the OLED screen: `enabled` is the Config setting (`display_screen.enabled`); `on` is whether it's showing now (false after `/display/off`, or when not enabled) |
 | `suntimes` | Today's dimming schedule (ISO 8601 with time zone) |
@@ -165,7 +166,7 @@ What the physical map is doing right now. The Map page polls it every second. No
   "now": 1792854523.9,
   "brightness": 0.5,
   "visualizer": { "active": 0, "id": "flight_category", "name": "Flight Category", "shortName": "Flight Cat",
-                  "icon": "plane", "exclusive": false, "areas": null,
+                  "icon": "plane", "iconRev": "7cb23636", "exclusive": false, "areas": null,
                   "autoRotate": { "enabled": true, "seconds": 60, "next": 1792854560.0, "skip": ["wind"] },
                   "legendInUse": ["VFR", "IFR", "lightning"], "legendInUseOnly": false },
   "fetch": { "next": 1792854900.0, "seconds": 600, "fetched": 1792854300.2 },
@@ -196,7 +197,7 @@ What the physical map is doing right now. The Map page polls it every second. No
 | `leds[].wind` | While a wind visualizer runs (Wind, Wind Gusts, Wind Direction): the airport's wind for its barb on the Map page, `{"dir": 270.0, "kt": 12}` (the direction it blows from, and the sustained speed). `null` when it's calm, variable (`VRB`), has no direction or no report, and for every other visualizer. |
 | `leds[].virtual` | A virtual airport: no pixel on the strip, so the Map page draws it in a dashed circle. |
 | `leds[].lightning` | Lightning at, over or near the airport, as `/api/status`'s `airports[].lightning`: not distant lightning alone (`LTG DSNT`). `false` with no report. |
-| `visualizer.shortName`, `visualizer.icon` | As in `/api/status`, for the visualizer running now |
+| `visualizer.shortName`, `visualizer.icon`, `visualizer.iconRev` | As in `/api/status`, for the visualizer running now |
 | `visualizer.areas` | Which areas the Map page draws while the visualizer runs: `advisories` (Advisories, from `/api/advisories`), `tfrs` (TFR, from `/api/tfrs`), else `null` |
 | `fetch` | The METAR fetch: `next` is when it next happens (Unix time, compare it with `now`; `null` if none is scheduled), `seconds` how long that wait is (600 for the regular fetch every 10 minutes; 60 for a retry after a failed fetch, which comes first), `fetched` when METARs were last fetched (`null` before the first). `GET /fetch` restarts the 10-minute wait. The Home page's Fetch METARs button counts down with it, and reloads once the next fetch has come |
 | `visualizer.autoRotate` | Auto-rotate: `enabled` and `seconds` are its settings (`visualizer.auto_rotate`); `next` is when it next changes the visualizer (Unix time, compare it with `now`), `null` while it's off. Picking a visualizer by hand (`/visualizer/...`) starts the wait again, so `next` moves a whole delay ahead. `skip` is the list of visualizer ids auto-rotate leaves out (`visualizer.auto_rotate.skip`; `[]` for none), so a client sees a change made elsewhere within a second |
@@ -210,6 +211,35 @@ What the physical map is doing right now. The Map page polls it every second. No
 | `locate` | The last white locate pulse: the pixel number `pixel` and Unix time `at`. `null` until the first one. A virtual airport's pulse is only shown on the Map page. |
 | `display.on` | Whether the screen is showing; `false` after `/display/off` (then `screen` is `null`) |
 | `display.screen` | What the Micro shows. `badge` is the flight category, with a `*` after one that's estimated from the visibility and ceiling (`VFR*`). `virtual` is true for a virtual airport, whose code is in a dashed box. `page` is 1 or 2 for an airport, 0 for "Data Unavailable" or a message (then `airport` is `null`). Icons: `wind`, `visibility`, `pressure`, `temp`, `dewpoint`, `date`. For the first 5 seconds after the Chart starts, the splash: a message with `splash: true` and the title `MetarMap2` (the Micro draws the logo under it). With `display_screen.shows` `visualizer`: a message whose title is the visualizer's short name, with `visualizer_icon` its icon name (as `visualizer.icon`), drawn under the title. |
+
+### `GET /api/icon/<name>`
+
+A visualizer's icon, for a client that draws it itself (the Copilot fetches the ones it doesn't have). No
+authentication. `<name>` is an icon name as in `/api/status`'s `visualizer.icon`, e.g. `/api/icon/hourglass`. The
+answer is `application/octet-stream`, exactly 400 bytes: a 20x20 alpha mask, row by row from the top left, one byte a
+pixel from `0` (clear) to `255` (solid), to be drawn in whatever color the client likes. Rainbow's is three plain arcs,
+in one color like the rest (a mask has no colors); Chase's dots fade, as on the web.
+
+| Header | Value |
+|---|---|
+| `ETag` | `"<iconRev>"`: the icon's `iconRev` from `/api/status`, in quotes (8 hex digits) |
+| `Cache-Control` | `public, max-age=86400` |
+| `X-Icon-Size` | `20` (pixels a side) |
+
+The masks are part of the Chart's code (drawn ahead of time; the Chart draws nothing when asked), so an icon changes
+only with an update, and `iconRev` with it. Send `If-None-Match` with the ETag you have to get a `304` with no body when
+it is still current. A query such as `?v=7cb23636` is ignored. Errors are JSON, `{"error": "<sentence>", "reason":
+"<code>"}`:
+
+| Status | Meaning |
+|---|---|
+| 400 | Not an icon name (`"reason": "invalid"`): a name is lowercase letters, digits and `_`, starting with a letter |
+| 404 | No icon by that name (`"reason": "unknown"`) |
+
+```sh
+curl -s http://metarmap.local/api/icon/hourglass | xxd | head -3
+curl -sI -H 'If-None-Match: "3e3d702c"' http://metarmap.local/api/icon/hourglass   # 304 while it is current
+```
 
 ### `GET /api/metar/<code>`
 

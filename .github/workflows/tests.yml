@@ -21,6 +21,9 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Install rsvg-convert
+        # tests/test_icon_masks.py checks web/icon_masks.py against a fresh render of the icons, and skips without it
+        run: sudo apt-get update && sudo apt-get install -y librsvg2-bin
       - name: Install dependencies
         run: pip install -e ".[dev]"
       - name: Lint

@@ -1,6 +1,7 @@
 """
 The JSON API: /api/status (used by the Home Assistant integration), /api/live (polled by the Map page) and
-/api/traffic (the Map page's live traffic), /api/advisories (the G-AIRMET and SIGMET areas) and /api/tfrs (TFRs).
+/api/traffic (the Map page's live traffic), /api/advisories (the G-AIRMET and SIGMET areas), /api/tfrs (TFRs) and
+/api/icon/<name> (a visualizer icon as a mask, for the Copilot).
 See API.md; the field names are part of the API.
 """
 
@@ -19,7 +20,8 @@ from metarmap.atis_spoken import for_airport, lines as atis_lines
 from metarmap.speech import SpeechError, configured
 from metarmap.spoken import spoken
 from metarmap.visualizers import advisories as advisories_vis, tfr as tfr_vis, wind_direction
-from metarmap.web import views
+from metarmap.visualizers.visualizer import ID as ICON_NAME  # icon names look like visualizer ids
+from metarmap.web import icons, views
 
 if TYPE_CHECKING:  # app.py imports the web, so only for the type checker
     from metarmap.app import App
@@ -84,6 +86,7 @@ def status(services: "App", ip):
             "name": active_vis.name,
             "shortName": active_vis.short_name,
             "icon": active_vis.icon,
+            "iconRev": icons.mask_rev(active_vis.icon),  # its mask's ETag at /api/icon/<icon>
             "exclusive": active_vis.exclusive,
             "description": active_vis.description,
             "legend": services.renderer.legend(),
@@ -95,6 +98,7 @@ def status(services: "App", ip):
                 "name": v.name,
                 "shortName": v.short_name,
                 "icon": v.icon,
+                "iconRev": icons.mask_rev(v.icon),
                 "exclusive": v.exclusive,
                 "skipped": v.id in cfg.visualizer.auto_rotate.skip,  # left out of auto-rotate
             }
@@ -238,6 +242,7 @@ def live(services: "App", now=None):
             "name": active_vis.name,
             "shortName": active_vis.short_name,
             "icon": active_vis.icon,
+            "iconRev": icons.mask_rev(active_vis.icon),
             "exclusive": active_vis.exclusive,
             "areas": active_vis.areas,
             "autoRotate": auto_rotate(services),
@@ -484,6 +489,32 @@ def as_atis_overview(services: "App"):
         return as_error(e)
 
 
+def icon_mask(name):
+    """
+    A visualizer icon as a 20x20 alpha mask (icons.mask): 400 bytes, row by row, 0 clear to 255 solid, drawn ahead
+    of time (the Pi draws nothing). It changes only with the Chart's code, so a client may keep it: its ETag is the
+    mask's rev (iconRev in /api/status), and a matching If-None-Match is a 304. 404: no such icon; 400: not a name.
+    Errors are JSON, {"error", "reason"}. A query (?v=) is ignored.
+    """
+    if not ICON_NAME.fullmatch(name):
+        bottle.response.status = 400
+        return as_json({"error": "Not an icon name", "reason": "invalid"})
+    data = icons.mask(name)
+    if data is None:
+        bottle.response.status = 404
+        return as_json({"error": f"No icon {name}", "reason": "unknown"})
+    etag = f'"{icons.mask_rev(name)}"'
+    bottle.response.set_header("ETag", etag)
+    bottle.response.set_header("Cache-Control", "public, max-age=86400")
+    bottle.response.set_header("X-Icon-Size", "20")
+    asked = bottle.request.get_header("If-None-Match") or ""
+    if asked.strip() == "*" or etag in (tag.strip().replace("W/", "", 1) for tag in asked.split(",")):
+        bottle.response.status = 304
+        return b""
+    bottle.response.content_type = "application/octet-stream"
+    return data
+
+
 def byte_range(body: bytes) -> bytes:
     """`body`, or the part a Range header asks for (206). Safari (iPhone, iPad) plays an <audio> only from a server
     that answers ranges: it asks for bytes 0-1 first, then the rest. The speech cache keeps the repeats cheap."""
@@ -504,6 +535,8 @@ def byte_range(body: bytes) -> bytes:
 
 def add_routes(app, services: "App", site):
     app.route("/api/status", "GET", lambda: as_json(status(services, site.ip)))
+    # :path, so a name with a / in it is a 400 here rather than some other route's 404
+    app.route("/api/icon/<name:path>", "GET", icon_mask)
     app.route("/api/live", "GET", lambda: as_json(live(services)))
     app.route(
         "/api/advisories", "GET", lambda: as_json(advisories(services) or bottle.abort(404, "No G-AIRMETs or SIGMETs"))
