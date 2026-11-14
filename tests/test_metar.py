@@ -319,24 +319,37 @@ def test_lookup_asks_for_codes_not_looked_up_yet_and_says_if_it_failed(monkeypat
     assert m.lookup([]) is True
 
 
-def test_station_names_can_be_read_while_another_thread_adds_positions(make_config):
+def test_station_names_can_be_read_while_another_thread_looks_up_codes(monkeypatch, make_config):
+    """lookup() (the real writer: the Chart Planner's pasted codes) adds codes while station_names() lists them."""
+
+    def stations(url, **kwargs):
+        codes = url.rsplit("=", 1)[1].split(",")
+        return FakeResponse(json.dumps([{"icaoId": c, "lat": 1.0, "lon": 2.0, "site": "n"} for c in codes]).encode())
+
+    monkeypatch.setattr(metar.requests, "get", stations)
     m = metar.Reports(make_config("KHOU"), clock=CLOCK)
-    stop = threading.Event()
+    errors = []
 
-    def add():
-        i = 0
-        while not stop.is_set() and i < 200000:
-            m.positions[f"K{i}"] = {"lat": 1.0, "lon": 2.0, "name": "n"}
-            i += 1
+    def look_up():
+        for batch in range(300):
+            m.lookup([f"K{batch * 40 + n}" for n in range(40)])
 
-    thread = threading.Thread(target=add)
-    thread.start()
-    try:
-        for _ in range(300):
-            m.station_names()  # "dictionary changed size during iteration" if it iterated the live dict
-    finally:
-        stop.set()
-        thread.join()
+    def read():
+        while writer.is_alive():
+            try:
+                m.station_names()
+            except Exception as e:  # "dictionary changed size during iteration" without the lock
+                errors.append(e)
+                return
+
+    writer = threading.Thread(target=look_up)
+    reader = threading.Thread(target=read)
+    writer.start()
+    reader.start()
+    writer.join()
+    reader.join()
+    assert errors == []
+    assert len(m.station_names()) == 300 * 40  # nothing was lost to the other thread
 
 
 def test_a_failed_metar_fetch_skips_the_lookup(monkeypatch, make_config):
