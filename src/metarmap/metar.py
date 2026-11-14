@@ -5,6 +5,7 @@ Module to handle METAR fetching and processing
 import json
 import logging
 import re
+import threading
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from fractions import Fraction
@@ -389,6 +390,9 @@ class Reports:
         self.lastFetchTime = None
         self.last_fetch_ok = None  # None until the first fetch, then whether the last one worked
         self.positions = {}  # code -> {"lat", "lon", "name"} from STATION_URL, or None if it doesn't know the code
+        # _look_up adds codes from several threads (the fetch, the Chart Planner's lookup) while station_names() lists
+        # them: a lock, because copying a dict another thread is adding to is not safe even as one expression
+        self._positions_lock = threading.Lock()
         self.locate_failed = False  # whether the last position lookup failed (e.g. a 502); locate() tries again
         self.apply_mocks()  # mocks show before the first fetch, and without a network
         if fetch:
@@ -459,8 +463,9 @@ class Reports:
                 }
             except (KeyError, TypeError, ValueError, AttributeError):
                 continue
-        for code in codes:
-            self.positions[code] = found.get(code)  # None: not a station it knows
+        with self._positions_lock:
+            for code in codes:
+                self.positions[code] = found.get(code)  # None: not a station it knows
         return True
 
     def name_for(self, code, timeout=10):
@@ -479,8 +484,9 @@ class Reports:
 
     def station_names(self):
         """The names looked up so far, as {code: name}."""
-        # a copy of the items: another thread (the Chart Planner's lookup) may add codes while this one iterates
-        return {code: known["name"] for code, known in list(self.positions.items()) if known and known.get("name")}
+        with self._positions_lock:  # another thread (the Chart Planner's lookup) may be adding codes
+            known_now = list(self.positions.items())
+        return {code: known["name"] for code, known in known_now if known and known.get("name")}
 
     def position(self, code):
         """Where an airport is, as (lat, lon): from its METAR, else from the station lookup; None if unknown."""
