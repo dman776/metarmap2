@@ -342,6 +342,29 @@ def test_the_grid_is_small_and_plain_json():
     import json
 
     grid = projection.chart_grid(chart_by_name("US Wall Planning"), BOARD_MM)
-    text = json.dumps(grid, allow_nan=False)
+    text = json.dumps(grid, allow_nan=False)  # raises on a NaN or an infinity
     assert len(text) < 12_000
-    assert all(round(v, 5) == v for row in grid["lat"] + grid["lon"] for v in row)
+    assert len(grid["lat"]) == grid["rows"] and all(len(row) == grid["cols"] for row in grid["lat"] + grid["lon"])
+
+
+@pytest.mark.parametrize("name", ["Houston", "Western Aleutian Islands", "Seattle", "US Wall Planning"])
+def test_every_grid_value_is_the_exact_inverse_at_its_fraction(name):
+    # the page interpolates between these values, so each one has to be unproject() at its fraction of the map area
+    chart = chart_by_name(name)
+    grid = projection.chart_grid(chart, BOARD_MM)
+    width, height = board_size(chart, BOARD_MM)
+    left, top, map_width, map_height = projection._map_area(
+        chart, width, height
+    )  # exact: the JSON's `usable` is rounded
+    for j in range(grid["rows"]):
+        for i in range(grid["cols"]):
+            x, y = left + map_width * i / (grid["cols"] - 1), top + map_height * j / (grid["rows"] - 1)
+            lat, lon = projection.unproject(chart, x, y, BOARD_MM)
+            assert grid["lat"][j][i] == pytest.approx(lat, abs=5.1e-6), (j, i)  # the grid is rounded to 5 decimals
+            assert grid["lon"][j][i] == pytest.approx(lon, abs=5.1e-6), (j, i)
+
+
+@pytest.mark.parametrize("x, y", [(float("nan"), 10), (10, float("nan")), (float("inf"), 10), (10, float("-inf"))])
+def test_unproject_refuses_a_position_that_is_not_a_number(x, y):
+    with pytest.raises(ValueError, match="finite"):
+        projection.unproject(chart_by_name("Houston"), x, y, BOARD_MM)

@@ -495,7 +495,8 @@
     const TILE_BIG = 300;       // tiles above which the size note shows, and a sectional stays at zoom 9
     const TILE_KB = 46;
     const IN_FLIGHT = 6;
-    const REFRESH_MS = 700;
+    const REFRESH_MS = 700, REFRESH_BIG_MS = 2000;  // how often the picture is made again while tiles arrive (a big load: less often)
+    const ROWS_PER_TICK = 16, SORT_PIXELS = 131072;  // the work between two breaths of the page while the area is prepared
     const AREA_COLOR = [20, 33, 45];  // the map area's fill (#14212d): what shows where a tile is missing
     const KEY_SHOW = 'metarmap.planner.sectional';
     const KEY_OPACITY = 'metarmap.planner.sectionalOpacity';
@@ -507,6 +508,7 @@
         run: 0,        // each load has a number; cancelling makes the one in flight stale
         active: null,  // the running load's state
         image: null,
+        urls: [],      // the object URLs of the picture's last versions (revoked when a newer one is shown, or the image goes)
     };
 
     function store(key, value) {
@@ -543,6 +545,18 @@
         return true;
     }
 
+    // The Western Aleutian Islands chart crosses the 180th meridian: the server's grid has longitudes up to 180 and then
+    // from -180 (its bounds.east is already past 180). Add 360 to the negative ones, once, so the longitudes run on and
+    // the interpolation between two columns does not sweep round the world. A copy: the result itself stays as it came.
+    function unwrapGrid(c) {
+        if (!(c.bounds && c.bounds.east > 180)) return c;
+        const lon = c.grid.lon.map(function (row) { return row.map(function (v) { return v < 0 ? v + 360 : v; }); });
+        return {kind: c.kind, usable: c.usable, bounds: c.bounds, grid: {cols: c.grid.cols, rows: c.grid.rows, lat: c.grid.lat, lon: lon}};
+    }
+
+    // a tile column from an unwrapped x (it can pass 2^z beyond the 180th meridian) and the one the tile service has
+    function wrapTile(tx, n) { return ((tx % n) + n) % n; }
+
     // the distinct tiles the area touches at zoom z, found on a coarse sample of the output (a tile is 256 px: a step of
     // 8 px of the output cannot skip one, apart from a sliver at a corner)
     function tilesFor(c, z, outW, outH) {
@@ -552,7 +566,7 @@
             for (let x = 0; x <= outW; x += stepX) {
                 const at = gridAt(c.grid, x / outW, y / outH);
                 const tx = Math.floor(mercX(at.lon, z) / 256), ty = Math.floor(mercY(at.lat, z) / 256);
-                if (tx < 0 || ty < 0 || tx >= n || ty >= n) continue;
+                if (ty < 0 || ty >= n || tx < -n || tx >= 2 * n) continue;  // tx is unwrapped: past n it is across the 180th meridian
                 const key = tx + ',' + ty;
                 if (!seen[key]) { seen[key] = true; list.push([tx, ty]); }
             }
@@ -607,6 +621,7 @@
     function removeImage() {
         if (sect.image && sect.image.parentNode) sect.image.parentNode.removeChild(sect.image);
         sect.image = null;
+        revokeUrls();
         setCredit(false);
     }
 
@@ -616,8 +631,10 @@
         sect.active = null;
         if (a) {
             a.loading.forEach(function (img) { img.onload = img.onerror = null; img.src = ''; });
-            a.canvas = a.out = a.order = a.starts = null;
+            a.canvas = a.out = a.order = a.starts = a.prep = null;
             if (a.timer) clearTimeout(a.timer);
+            if (a.prepTimer) clearTimeout(a.prepTimer);
+            a.timer = a.prepTimer = null;
         }
     }
 
@@ -646,14 +663,14 @@
             setNote(c ? 'The sectional chart is not available for this plan.' : '');
             return;
         }
-        sect.chart = c;
-        sect.plan = planSectional(c);
+        sect.chart = unwrapGrid(c);
+        sect.plan = planSectional(sect.chart);
         enableSectional(true);
         const n = sect.plan.count;
         if (n > TILE_BIG) {
             const rounded = Math.round(n / 10) * 10;
             setNote((c.kind === 'wall' ? 'The whole US' : 'This chart') + ' is about ' + rounded.toLocaleString('en-US') + ' tiles, about '
-                + Math.round(rounded * TILE_KB / 1000) + ' MB; they load as you watch and your browser keeps them for an hour.');
+                + Math.round(rounded * TILE_KB / 1000) + ' MB; they load as you watch, and your browser keeps the ones it loads for an hour.');
         }
         if (sect.box.checked) startSectional();
     }
@@ -664,47 +681,79 @@
         const c = sect.chart, plan = sect.plan;
         if (!c || !plan || !sectionalHolder) return;
         const run = sect.run;
-        const a = {c: c, plan: plan, loading: [], done: 0, failed: 0, total: 0, queue: [], dirty: false, last: 0, timer: null, broken: false};
+        const a = {c: c, plan: plan, loading: [], done: 0, failed: 0, total: 0, queue: [], dirty: false, last: 0, timer: null,
+                   prepTimer: null, prep: null, encoding: false, again: false, finished: false};
         sect.active = a;
         try {
             a.canvas = document.createElement('canvas');
             a.canvas.width = plan.outW;
             a.canvas.height = plan.outH;
             a.ctx = a.canvas.getContext('2d');
+            // the area's colour where no tile is painted: on the canvas (it is encoded as it is, and JPEG has no alpha) and in
+            // the pixel array the tiles are written into (a native typed-array fill, not a JS loop and not a read-back)
+            a.ctx.fillStyle = 'rgb(' + AREA_COLOR.join(',') + ')';
+            a.ctx.fillRect(0, 0, plan.outW, plan.outH);
             a.out = a.ctx.createImageData(plan.outW, plan.outH);
+            const little = new Uint8Array(new Uint32Array([1]).buffer)[0] === 1;
+            new Uint32Array(a.out.data.buffer).fill(little
+                ? ((255 << 24) | (AREA_COLOR[2] << 16) | (AREA_COLOR[1] << 8) | AREA_COLOR[0]) >>> 0
+                : ((AREA_COLOR[0] << 24) | (AREA_COLOR[1] << 16) | (AREA_COLOR[2] << 8) | 255) >>> 0);
         } catch (e) {
             sectionalFail('The chart could not be drawn: this browser would not make the canvas.');
             return;
         }
-        const d = a.out.data;
-        for (let k = 0; k < d.length; k += 4) { d[k] = AREA_COLOR[0]; d[k + 1] = AREA_COLOR[1]; d[k + 2] = AREA_COLOR[2]; d[k + 3] = 255; }
+        // Each output pixel's tile, then the pixels grouped by tile (a counting sort), so a tile is filled when it arrives.
+        // That is a few million steps: done ROWS_PER_TICK rows (and SORT_PIXELS pixels) at a time, with the page free
+        // in between, and given up at once when the run is cancelled (unticked, a new plan).
+        a.prep = {y: 0, ids: {}, tiles: [], key: new Int32Array(plan.outW * plan.outH), p: 0, fill: null};
+        setStatus('', 'Preparing the chart…');
+        a.prepTimer = setTimeout(function () { prepareRows(run, a); }, 0);
+    }
 
-        // each output pixel's tile, then the pixels grouped by tile (a counting sort), so a tile is filled when it arrives
-        const z = plan.z, n = Math.pow(2, z), W = plan.outW, H = plan.outH;
-        const ids = {}, tiles = [];
-        const key = new Int32Array(W * H);
-        for (let y = 0; y < H; y++) {
+    function prepareRows(run, a) {
+        a.prepTimer = null;
+        if (run !== sect.run || sect.active !== a || !a.prep) return;
+        const g = a.prep, z = a.plan.z, n = Math.pow(2, z), W = a.plan.outW, H = a.plan.outH, grid = a.c.grid;
+        const end = Math.min(H, g.y + ROWS_PER_TICK);
+        for (; g.y < end; g.y++) {
             for (let x = 0; x < W; x++) {
-                const at = gridAt(c.grid, (x + 0.5) / W, (y + 0.5) / H);
+                const at = gridAt(grid, (x + 0.5) / W, (g.y + 0.5) / H);
                 const tx = Math.floor(mercX(at.lon, z) / 256), ty = Math.floor(mercY(at.lat, z) / 256);
                 let k = -1;
-                if (tx >= 0 && ty >= 0 && tx < n && ty < n) {
+                if (ty >= 0 && ty < n && tx >= -n && tx < 2 * n) {  // tx is unwrapped: past n it is across the 180th meridian
                     const name = tx + ',' + ty;
-                    k = ids[name];
-                    if (k === undefined) { k = tiles.length; ids[name] = k; tiles.push({x: tx, y: ty, count: 0}); }
-                    tiles[k].count += 1;
+                    k = g.ids[name];
+                    if (k === undefined) { k = g.tiles.length; g.ids[name] = k; g.tiles.push({x: tx, y: ty, count: 0}); }
+                    g.tiles[k].count += 1;
                 }
-                key[y * W + x] = k;
+                g.key[g.y * W + x] = k;
             }
         }
-        a.tiles = tiles;
-        a.starts = new Uint32Array(tiles.length + 1);
-        tiles.forEach(function (t, k) { a.starts[k + 1] = a.starts[k] + t.count; });
-        const fill = a.starts.slice(0, tiles.length);
-        a.order = new Uint32Array(a.starts[tiles.length]);
-        for (let p = 0; p < key.length; p++) if (key[p] >= 0) a.order[fill[key[p]]++] = p;
-        a.total = tiles.length;
-        a.queue = tiles.map(function (t, k) { return k; });
+        if (g.y < H) {
+            a.prepTimer = setTimeout(function () { prepareRows(run, a); }, 0);
+            return;
+        }
+        a.tiles = g.tiles;
+        a.starts = new Uint32Array(g.tiles.length + 1);
+        g.tiles.forEach(function (t, k) { a.starts[k + 1] = a.starts[k] + t.count; });
+        g.fill = a.starts.slice(0, g.tiles.length);
+        a.order = new Uint32Array(a.starts[g.tiles.length]);
+        prepareSort(run, a);
+    }
+
+    function prepareSort(run, a) {
+        a.prepTimer = null;
+        if (run !== sect.run || sect.active !== a || !a.prep) return;
+        const g = a.prep, key = g.key, order = a.order, fill = g.fill;
+        const end = Math.min(key.length, g.p + SORT_PIXELS);
+        for (; g.p < end; g.p++) if (key[g.p] >= 0) order[fill[key[g.p]]++] = g.p;
+        if (g.p < key.length) {
+            a.prepTimer = setTimeout(function () { prepareSort(run, a); }, 0);
+            return;
+        }
+        a.prep = null;  // the per-pixel tile numbers are not needed any more
+        a.total = a.tiles.length;
+        a.queue = a.tiles.map(function (t, k) { return k; });
         setStatus('', 'Loading chart tiles: 0 of ' + a.total);
         sectionalPump(run);
     }
@@ -749,7 +798,8 @@
         img.onload = function () { settle(true); };
         img.onerror = function () { settle(false); };
         img.crossOrigin = 'anonymous';
-        img.src = TILE_URL.replace('{z}', a.plan.z).replace('{y}', t.y).replace('{x}', t.x);
+        // t.x is unwrapped (past 2^z across the 180th meridian); the service has it between 0 and 2^z - 1
+        img.src = TILE_URL.replace('{z}', a.plan.z).replace('{y}', t.y).replace('{x}', wrapTile(t.x, Math.pow(2, a.plan.z)));
     }
 
     // decode one tile into a 256 px canvas and write the output pixels that fall on it (bilinear within the tile)
@@ -763,8 +813,13 @@
         const src = tctx.getImageData(0, 0, size, size).data;  // throws on a tainted canvas
         const z = a.plan.z, W = a.plan.outW, H = a.plan.outH, scale = size / 256, out = a.out.data, max = size - 1;
         const x0 = t.x * 256, y0 = t.y * 256;
+        let bx0 = W, by0 = H, bx1 = -1, by1 = -1;  // the box of output pixels this tile writes
         for (let q = a.starts[k]; q < a.starts[k + 1]; q++) {
             const p = a.order[q], px = p % W, py = (p - px) / W;
+            if (px < bx0) bx0 = px;
+            if (px > bx1) bx1 = px;
+            if (py < by0) by0 = py;
+            if (py > by1) by1 = py;
             const at = gridAt(a.c.grid, (px + 0.5) / W, (py + 0.5) / H);
             const u = Math.min(Math.max((mercX(at.lon, z) - x0) * scale - 0.5, 0), max);
             const v = Math.min(Math.max((mercY(at.lat, z) - y0) * scale - 0.5, 0), max);
@@ -772,34 +827,37 @@
             const fu = u - iu, fv = v - iv;
             const s0 = (iv * size + iu) * 4, s1 = s0 + size * 4;
             const o = p * 4;
-            for (let ch = 0; ch < 3; ch++) {
-                out[o + ch] = (src[s0 + ch] * (1 - fu) + src[s0 + 4 + ch] * fu) * (1 - fv) + (src[s1 + ch] * (1 - fu) + src[s1 + 4 + ch] * fu) * fv;
+            // bilinear with the alpha as part of each sample's weight (premultiplied): the colour of a transparent pixel
+            // (usually black) must not darken the edge where the chart meets a blank part of its tile
+            const w0 = src[s0 + 3] * (1 - fu) * (1 - fv), w1 = src[s0 + 7] * fu * (1 - fv);
+            const w2 = src[s1 + 3] * (1 - fu) * fv, w3 = src[s1 + 7] * fu * fv;
+            const sum = w0 + w1 + w2 + w3;  // 0 to 255
+            if (sum <= 0) {
+                for (let ch = 0; ch < 3; ch++) out[o + ch] = AREA_COLOR[ch];
+                continue;
             }
-            // a transparent tile pixel shows the area's colour
-            const alpha = src[s0 + 3] / 255;
-            if (alpha < 1) for (let ch = 0; ch < 3; ch++) out[o + ch] = out[o + ch] * alpha + AREA_COLOR[ch] * (1 - alpha);
+            const cover = sum / 255;  // how much of this output pixel the tile covers
+            for (let ch = 0; ch < 3; ch++) {
+                const colour = (src[s0 + ch] * w0 + src[s0 + 4 + ch] * w1 + src[s1 + ch] * w2 + src[s1 + 4 + ch] * w3) / sum;
+                out[o + ch] = colour * cover + AREA_COLOR[ch] * (1 - cover);
+            }
         }
+        // only the box this tile touched goes back on the canvas (a whole-canvas put is several megabytes every time)
+        if (bx1 >= bx0) a.ctx.putImageData(a.out, 0, 0, bx0, by0, bx1 - bx0 + 1, by1 - by0 + 1);
         a.dirty = true;
     }
 
     function refreshSoon(run, a) {
         if (a.timer || !a.dirty) return;
-        const wait = Math.max(0, REFRESH_MS - (Date.now() - a.last));
+        const every = a.total > TILE_BIG ? REFRESH_BIG_MS : REFRESH_MS;
+        const wait = Math.max(0, every - (Date.now() - a.last));
         a.timer = setTimeout(function () { a.timer = null; if (run === sect.run && sect.active === a) showCanvas(a); }, wait);
     }
 
-    function showCanvas(a) {
-        if (!a.dirty && sect.image) return;
-        a.dirty = false;
-        a.last = Date.now();
-        let url;
-        try {
-            a.ctx.putImageData(a.out, 0, 0);
-            url = a.canvas.toDataURL('image/jpeg', 0.85);
-        } catch (e) {
-            sectionalFail('The chart could not be read.');
-            return;
-        }
+    // The picture is made from the canvas as a blob (an object URL), not a data URL: encoding a data URL held the page
+    // for over 100 ms at a time on a slow device, and the page then had to decode a 0.5 MB string every time. Only the
+    // last two URLs are kept; an older one is revoked once the image has been given a newer one.
+    function setImageUrl(url) {
         if (!sect.image) {
             const u = sect.chart.usable;
             sect.image = svg('image', {x: u.x, y: u.y, width: u.w, height: u.h, preserveAspectRatio: 'none', 'class': 'pm-sectional'});
@@ -811,16 +869,66 @@
         sect.image.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', url);  // Safari 12 reads only this one
     }
 
+    function keepUrl(url) {
+        sect.urls.push(url);
+        while (sect.urls.length > 2) URL.revokeObjectURL(sect.urls.shift());
+    }
+
+    function revokeUrls() {
+        sect.urls.forEach(function (u) { try { URL.revokeObjectURL(u); } catch (e) { /* nothing to free */ } });
+        sect.urls = [];
+    }
+
+    function showCanvas(a) {
+        if (a.encoding) { a.again = a.again || a.dirty; return; }  // one encode at a time; the next refresh picks the rest up
+        if (!a.dirty && sect.image) return;
+        a.dirty = false;
+        a.last = Date.now();
+        const run = sect.run;
+        try {
+            if (a.canvas.toBlob && window.URL && URL.createObjectURL) {
+                a.encoding = true;
+                a.canvas.toBlob(function (blob) {
+                    a.encoding = false;
+                    if (run !== sect.run || sect.active !== a) return;  // cancelled meanwhile: no URL was made, nothing to free
+                    if (!blob) { sectionalFail('The chart could not be read.'); return; }
+                    const url = URL.createObjectURL(blob);
+                    setImageUrl(url);
+                    keepUrl(url);
+                    if (a.again) { a.again = false; showCanvas(a); }
+                    settleSectional(a);
+                }, 'image/jpeg', 0.85);
+                return;
+            }
+            const data = a.canvas.toDataURL('image/jpeg', 0.85);  // no toBlob (an old browser)
+            setImageUrl(data);
+        } catch (e) {
+            a.encoding = false;
+            sectionalFail('The chart could not be read.');
+        }
+    }
+
     function sectionalDone(run) {
         const a = sect.active;
         if (!a || run !== sect.run) return;
         if (a.timer) { clearTimeout(a.timer); a.timer = null; }
+        a.finished = true;
         showCanvas(a);
-        if (sect.active !== a) return;  // showCanvas found the canvas unreadable
+        settleSectional(a);
+    }
+
+    // the final status and the memory, once the last picture is made (a picture may still be being encoded)
+    function settleSectional(a) {
+        if (sect.active !== a || !a.finished || a.encoding || a.again) return;
         a.dirty = false;
-        setStatus(a.failed
-            ? plural(a.failed, 'chart tile') + ' could not be loaded.'
-            : 'The chart is loaded.', '');
+        let text = 'The chart is loaded.';
+        if (a.failed && a.failed >= a.total) {
+            text = 'No chart tiles could be loaded: the FAA chart service could not be reached.';
+        } else if (a.failed) {
+            text = a.failed + ' of ' + a.total + (a.failed === 1 ? ' tile has' : ' tiles have')
+                + " no chart (sea or outside the FAA's coverage) or could not be loaded.";
+        }
+        setStatus(text, '');
         a.canvas = a.out = a.order = a.starts = null;  // the picture is in the page now; let the memory go
     }
 

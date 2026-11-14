@@ -121,8 +121,11 @@ and, after it, the cut list, joins, shopping list and power advice. It only plan
 Tick **Show the sectional chart** above the map to see the real FAA sectional (or, for the US Wall Planning chart, the
 US chart) under the plan, lined up with the board; the **Opacity** slider fades it (10 to 100%). It is off by default
 and never prints; your choice is remembered in this browser. The tiles come from the FAA over the internet as you watch
-(a sectional is about 100 tiles, about 5 MB; the whole US about 1,050, about 47 MB, which the page tells you before you
-tick the box), and unticking the box stops the loading.
+(a sectional is about 30 to 180 tiles, about 1 to 8 MB, Houston about 110 tiles, about 5 MB; the whole US about 1,090,
+about 50 MB, which the page tells you before you tick the box), six at a time, and unticking the box stops the loading. The
+page keeps working while it prepares and draws the picture. Your browser keeps the tiles it loaded for an hour. A tile
+the FAA has no chart for (over the sea, or outside its coverage) or that cannot be loaded leaves its area blank, and a
+note counts them ("12 of 1,090 tiles have no chart (sea or outside the FAA's coverage) or could not be loaded").
 
 ![Plan a new chart: the form, here choosing 100 recommended airports](docs/images/config_planner.png)
 

@@ -280,6 +280,9 @@ def unproject(chart, x_mm, y_mm, width_mm, height_mm=None):
     longitude is in -180 to 180, so a point on the Western Aleutians chart past 180 degrees comes back as a negative
     longitude (a caller drawing that chart unwraps it, as contains() and project() do).
     """
+    for name, value in (("x_mm", x_mm), ("y_mm", y_mm)):
+        if not math.isfinite(value):  # a NaN would come back as a NaN position, silently
+            raise ValueError(f"{name} must be a finite number, not {value!r}")
     width, height = board_size(chart, width_mm, height_mm)
     left, top, map_width, map_height = _map_area(chart, width, height)
     fx, fy = (x_mm - left) / map_width, (y_mm - top) / map_height

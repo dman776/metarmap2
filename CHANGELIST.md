@@ -4,9 +4,14 @@
   draws the real FAA VFR Sectional (the US Wall Planning chart gets it too, from the same tiles the Web map uses
   zoomed out across the US) under the plan, lined up with the board, with an **Opacity** slider (10 to 100%, starts at
   60%). It is off by default, the box and the opacity are remembered in this browser, and it never prints. The tiles load
-  as you watch ("Loading chart tiles: 12 of 35", six at a time, and unticking the box stops it); a tile that cannot be
-  loaded leaves its area blank and a note counts them. A sectional takes about 100 tiles (about 5 MB); the whole US takes
-  about 1,050 (about 47 MB), which the page says next to the box before you tick it. A plan again redraws it.
+  as you watch ("Loading chart tiles: 12 of 35", six at a time, and unticking the box stops it) and the page stays
+  usable while the picture is prepared and drawn; your browser keeps the tiles it loaded for an hour. A tile the FAA
+  has no chart for (the sea, outside its coverage) or that cannot be loaded leaves its area blank and a note counts
+  them ("12 of 1,090 tiles have no chart (sea or outside the FAA's coverage) or could not be loaded"; "the FAA chart
+  service could not be reached" when none loaded). The Western Aleutian Islands chart, which crosses the 180th
+  meridian, loads the tiles it covers (about 45) and no others. A sectional takes from about 30 to about 180 tiles (about 1 to 8 MB; Houston is about 110 tiles, about 5 MB); the whole
+  US takes about 1,090 (about 50 MB), and the page says so next to the box before you tick it (it says nothing for a
+  sectional). If the browser cannot read the picture back, a note says the chart could not be read. A plan again redraws it.
 - **Plan a new chart: the airport download sends several requests at a time and shows its progress.** It now sends 3
   requests at a time instead of one (still within aviationweather.gov's limit of 100 a minute), so one slow answer no
   longer holds up the rest. How much faster that is depends on how often the weather service times out: one test of a
