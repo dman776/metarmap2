@@ -421,7 +421,7 @@ def test_a_code_twice_is_refused_with_the_code_and_where(config):
     with pytest.raises(ValueError) as error:
         config.apply_plan([airport("KHOU"), airport("KIAH"), airport(""), airport("khou")], 3, 1)
     message = str(error.value)
-    assert "KHOU" in message and "LED 1" in message and "virtual airport 1" in message
+    assert "KHOU" in message and "pixel 1" in message and "virtual airport 1" in message
 
 
 def test_undo_renames_the_summary_with_the_backup(config, tmp_path):

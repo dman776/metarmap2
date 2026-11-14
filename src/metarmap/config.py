@@ -252,7 +252,7 @@ class Config:
             code = parse_code(value)
             if code and airport.skip:
                 raise ValueError(
-                    f"LED {index + 1} is a Hidden Pixel: turn Hidden Pixel off before giving it the airport {code}"
+                    f"pixel {index + 1} is a Hidden Pixel: turn Hidden Pixel off before giving it the airport {code}"
                 )
             if code != airport.code:
                 airport.code = code
@@ -267,20 +267,20 @@ class Config:
         elif key == "display":
             show = parse_value(value, bool, "display")
             if show and airport.skip:
-                raise ValueError(f"LED {index + 1} is a Hidden Pixel: it has no airport to show on the OLED")
+                raise ValueError(f"pixel {index + 1} is a Hidden Pixel: it has no airport to show on the OLED")
             self._set(airport, "display", show)
         elif key == "skip":
             hide = parse_value(value, bool, "skip")
             if hide and not airport.skip:
                 if airport.code:
                     raise ValueError(
-                        f"LED {index + 1} has the airport {airport.code}: remove the airport first "
+                        f"pixel {index + 1} has the airport {airport.code}: remove the airport first "
                         "(clear its code), then turn Hidden Pixel on"
                     )
                 if self.is_virtual(index):
                     raise ValueError(
-                        f"virtual airport {index - self._data.led.count + 1} has no LED: "
-                        "Hidden Pixel is for an LED on the strip"
+                        f"virtual airport {index - self._data.led.count + 1} has no pixel: "
+                        "Hidden Pixel is for a pixel on the strip"
                     )
                 self._set(airport, "display", False)
             self._set(airport, "skip", hide)
@@ -388,9 +388,9 @@ class Config:
             clean.skip = bool(airport.skip)
             if clean.skip and (clean.code or clean.display or index >= led_count):
                 raise ValueError(
-                    f"{'LED' if index < led_count else 'virtual airport'} "
+                    f"{'pixel' if index < led_count else 'virtual airport'} "
                     f"{index + 1 if index < led_count else index - led_count + 1} is a Hidden Pixel: it has no airport "
-                    "and is an LED on the strip"
+                    "and is a pixel on the strip"
                 )
             new.append(clean)
         if len(new) != led_count + virtual_count:
@@ -622,24 +622,43 @@ class Config:
 
 
 def _twice(airports, led_count):
-    """The refusal for a code in the list twice: which code, and where (LED numbers, then virtual airports)."""
+    """The refusal for a code in the list twice: which code, and where (pixel numbers, then virtual airports)."""
     where = {}
     for index, airport in enumerate(airports):
         if airport.code:
-            place = f"LED {index + 1}" if index < led_count else f"virtual airport {index - led_count + 1}"
+            place = f"pixel {index + 1}" if index < led_count else f"virtual airport {index - led_count + 1}"
             where.setdefault(airport.code, []).append(place)
     code, places = next((c, p) for c, p in where.items() if len(p) > 1)
     return f"the airport code {code} is in the list twice ({' and '.join(places)})"
 
 
+def _skip_flag(value):
+    """
+    A Hidden Pixel flag as a real bool. A hand-edited config.json can have "false", 1, null...: a real bool stays, the
+    string "true" (any case) and the number 1 are True, anything else ("false", 0, null, "yes please") is False.
+    """
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() == "true"
+    if isinstance(value, (int, float)):
+        return value == 1
+    return False
+
+
 def tidy_hidden(airports, led_count):
     """
     Keeps the Hidden Pixels (Airport.skip) what they are: an LED on the strip with no airport. A hand-edited
-    config.json can have one with an airport code, or past the strip (a virtual airport has no LED); the flag goes and
-    the row stays as it was. Changes the list in place; returns how many flags it cleared.
+    config.json can have a flag that is not a true/false (it becomes one, with a warning), a Hidden Pixel with an
+    airport code, or one past the strip (a virtual airport has no LED); the flag goes and the row stays as it was.
+    Changes the list in place; returns how many flags it cleared.
     """
     cleared = 0
     for index, airport in enumerate(airports):
+        flag = _skip_flag(airport.skip)
+        if flag is not airport.skip:
+            log.warning(f"pixel {index + 1}: skip is {airport.skip!r} in config.json, read as {flag}")
+            airport.skip = flag
         if not airport.skip:
             continue
         if airport.code or index >= led_count:
@@ -651,6 +670,7 @@ def tidy_hidden(airports, led_count):
             )
         elif airport.display:
             airport.display = False  # it has no airport to show on the OLED
+            log.warning(f"pixel {index + 1} is a Hidden Pixel: its OLED flag is cleared (it has no airport to show)")
     return cleared
 
 

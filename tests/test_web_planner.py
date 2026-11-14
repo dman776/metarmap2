@@ -436,6 +436,20 @@ def test_allow_skips_reaches_the_plan(make):
     assert all(a["code"] == "" and a["display"] is False for a in snippet if a["skip"])
 
 
+@pytest.mark.parametrize("value", ["true", "false", 1, 0, "garbage", [True]])
+def test_allow_skips_must_be_true_or_false(make, value):
+    """The text "true" would be read as a switch by some forms and "false" is also text: only a real boolean is one."""
+    client = make()
+    status, body = post(client, allow_skips=value)
+    assert status == 400 and json.loads(body)["reason"] == "invalid" and "allow_skips" in json.loads(body)["error"]
+
+
+def test_a_null_allow_skips_is_the_default_off(make):
+    client = make()
+    job = run(client, allow_skips=None)
+    assert job["params"]["allow_skips"] is False and job["result"]["skips_allowed"] is False
+
+
 def test_the_start_corner_and_power_settings_reach_the_sheet(make):
     client = make()
     sheet = run(client, start_corner="tr", brightness=1.0, ma_white_5v=30)["result"]["sheet"]
@@ -1227,7 +1241,7 @@ def test_source_planner_js_sends_and_restores_allow_skips_and_draws_hidden_pixel
     js = make()("/static/planner.js")[1]
     assert "allow_skips: fields.skips.checked" in js  # sent with the plan request
     assert "fields.skips.checked = !!p.allow_skips" in js  # and put back after a reload
-    assert "LED ' + p.number + ': hidden pixel, bridges a gap" in js  # the popup
+    assert "Pixel ' + p.number + ': hidden pixel, bridges a gap" in js  # the popup
     assert "'Hidden pixels'" in js and "shop.skipped" in js  # the shopping list
     assert "Skipped pixels need Chart support" not in js
     assert "s.hidden" in js  # the Apply confirmation

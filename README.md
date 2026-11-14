@@ -103,7 +103,7 @@ Settings save as you change them.
 
 ![Config, Visualizers: the default visualizer, auto-rotate and which visualizers take part](docs/images/config_visualizers.png)
 
-![Config, Airports: the airport at each pixel, in the order the pixels are wired](docs/images/config_airports.png)
+![Config, Airports: the airport at each pixel, in the order the pixels are wired, with the Hidden pixel switch (pixels 3 and 7 are hidden)](docs/images/config_airports.png)
 
 ![Config, Web map: the Map page's background, chart and starting view, and the live traffic settings](docs/images/config_virtual_map.png)
 
@@ -243,7 +243,7 @@ On **Config > Airports**:
    wire has to be cut, and its number stays in the strip. The row goes quiet (a **hidden pixel** badge) and its code,
    name and Micro boxes are locked. A row that still has an airport cannot be hidden (remove the airport first), and a
    hidden row cannot take a code (switch Hidden pixel off first); the page shows the Chart's sentence under the row.
-   The spare pixels at the end of the last string are plain blank rows: leave Hidden pixel off. Rainbow and Chase
+   Locate ignores hidden pixels; the startup sweep and the test pattern still light them. The spare pixels at the end of the last string are plain blank rows: leave Hidden pixel off. Rainbow and Chase
    leave hidden pixels dark.
 
 Changes save right away. To check the wiring order:

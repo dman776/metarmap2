@@ -6,6 +6,7 @@ plan's hidden pixels, and that the live API does not list them.
 
 import json
 import logging
+import threading
 from types import SimpleNamespace
 
 import pytest
@@ -14,7 +15,7 @@ from test_planner_apply_web import make as apply_make  # noqa: F401  (a fixture:
 
 from metarmap.clock import FakeClock
 from metarmap.config import MAX_LEDS, Config, tidy_hidden
-from metarmap.leds.strip import FakeStrip
+from metarmap.leds.strip import FakeStrip, SkipUnchangedShow
 from metarmap.models import Report
 from metarmap.planner import apply as plan_apply
 from metarmap.renderer import Renderer
@@ -93,14 +94,14 @@ def test_the_switch_turns_on_and_off_and_publishes_only_a_change(tmp_path):
 def test_the_switch_is_refused_for_an_led_with_an_airport(tmp_path):
     config = make_config(tmp_path, [Airport(code="KHOU"), Airport()])
     seen = keys_of(config)
-    with pytest.raises(ValueError, match=r"LED 1 has the airport KHOU: remove the airport first"):
+    with pytest.raises(ValueError, match=r"pixel 1 has the airport KHOU: remove the airport first"):
         config.set_airport(0, "skip", "true")
     assert not config.airports[0].skip and seen == []
 
 
 def test_the_switch_is_refused_for_a_virtual_airport(tmp_path):
     config = make_config(tmp_path, [Airport(code="KHOU"), Airport(), Airport()], led_count=2, virtual=1)
-    with pytest.raises(ValueError, match=r"virtual airport 1 has no LED"):
+    with pytest.raises(ValueError, match=r"virtual airport 1 has no pixel"):
         config.set_airport(2, "skip", "true")
     assert not config.airports[2].skip
 
@@ -116,7 +117,7 @@ def test_turning_it_on_takes_the_oled_flag_off(tmp_path):
 def test_a_code_on_a_hidden_pixel_is_refused_until_the_switch_is_off(tmp_path):
     config = make_config(tmp_path, [hidden(), Airport(code="KHOU")])
     with pytest.raises(
-        ValueError, match=r"LED 1 is a Hidden Pixel: turn Hidden Pixel off before giving it the airport KIAH"
+        ValueError, match=r"pixel 1 is a Hidden Pixel: turn Hidden Pixel off before giving it the airport KIAH"
     ):
         config.set_airport(0, "code", "kiah")
     assert config.airports[0].code == "" and config.airports[0].skip
@@ -190,7 +191,51 @@ def test_hand_edited_flags_are_tidied(tmp_path, caplog):
         ("", False, False),  # past the strip: there is no LED to hide
     ]
     assert "is not a Hidden Pixel any more" in caplog.text
+    assert "OLED flag is cleared" in caplog.text  # the dropped flag is said, not silent
     assert tidy_hidden(config.airports, 3) == 0  # and it stays tidy
+
+
+ODD_FLAGS = [
+    (True, True),  # the real thing: left alone, no warning
+    ("true", True),
+    ("TRUE", True),
+    (" True ", True),
+    (1, True),
+    (1.0, True),
+    (False, False),
+    ("false", False),  # someone typing "false" to un-hide a pixel must not hide it
+    ("False", False),
+    (0, False),
+    (None, False),
+    ("", False),
+    ("yes please", False),
+    (2, False),
+    ([], False),
+    ({}, False),
+]
+
+
+@pytest.mark.parametrize("raw, hidden_after", ODD_FLAGS, ids=repr)
+def test_a_skip_that_is_not_a_true_or_false_is_read_as_one(tmp_path, caplog, raw, hidden_after):
+    path = tmp_path / "config.json"
+    st = Settings()
+    st.led.count = 2
+    st.airports = [Airport(), Airport()]
+    st.save(path)
+    data = json.loads(path.read_text())
+    data["airports"][0]["skip"] = raw  # what a hand-edited file can hold
+    path.write_text(json.dumps(data))
+    with caplog.at_level(logging.WARNING):
+        config = Config(str(path))
+    assert config.airports[0].skip is hidden_after  # a real bool, whatever the file said
+    assert ("skip is" in caplog.text) == (raw is not hidden_after)  # a changed value is warned about, once
+    config.write()
+    saved = json.loads(path.read_text())["airports"][0]
+    assert ("skip" in saved) == hidden_after  # only written while true: a null does not come back every time
+    assert saved.get("skip", False) is hidden_after
+    first = path.read_text()
+    config.write()
+    assert path.read_text() == first  # and the file is stable
 
 
 def test_the_airports_page_rows_carry_the_switch():
@@ -244,6 +289,21 @@ def test_undo_gives_the_hidden_pixels_back(tmp_path):
     assert [(a.code, a.skip) for a in config.airports] == [("KHOU", False), ("", True), ("KIAH", False)]
 
 
+def test_undo_tidies_a_backup_whose_hidden_pixel_has_an_airport(tmp_path, caplog):
+    config = make_config(tmp_path, [Airport(code="KHOU"), hidden(), Airport(code="KIAH")])
+    config.apply_plan([Airport(code="KIAH"), Airport(code="KHOU"), Airport(), Airport()], 3, 1, summary={})
+    backup = config.plan_backups()[0]["path"]
+    with open(backup) as f:
+        saved = json.load(f)
+    saved["airports"][1]["code"] = "KDKR"  # a backup edited by hand: the Hidden Pixel got an airport
+    with open(backup, "w") as f:
+        json.dump(saved, f)
+    with caplog.at_level(logging.WARNING):
+        config.restore_plan_backup()
+    assert [(a.code, a.skip) for a in config.airports] == [("KHOU", False), ("KDKR", False), ("KIAH", False)]
+    assert "airport 2 is not a Hidden Pixel any more: it has the airport KDKR" in caplog.text
+
+
 # ---- what a plan makes of its hidden pixels (planner.apply) ------------------------------------------------------
 
 
@@ -275,7 +335,7 @@ def test_a_planned_hidden_pixel_becomes_a_hidden_pixel_row():
     s = out.summary
     assert s["hidden"] == 1 and s["blank_leds"] == 3 and s["moved"] == 1  # KIAH is on LED 3 now
     assert s["blank_leds"] + s["hidden"] + 2 == out.led_count  # every LED is an airport, hidden or blank
-    assert "LED 2 is a hidden pixel" in s["wiring_note"] and "LED 3 is KIAH" in s["wiring_note"]
+    assert "Pixel 2 is a hidden pixel" in s["wiring_note"] and "pixel 3 is KIAH" in s["wiring_note"]
 
 
 def test_a_skipped_pixel_after_the_last_airport_is_a_plain_blank():
@@ -288,10 +348,10 @@ def test_a_skipped_pixel_after_the_last_airport_is_a_plain_blank():
 def test_the_wiring_note_counts_hidden_pixels_in_the_led_numbers():
     pixels = [pixel("KAUS"), pixel(skipped=True), pixel(skipped=True), pixel("KHOU")]
     note = plan_apply.wiring_note(pixels, 50)
-    assert "LED 1 is KAUS, LED 4 is KHOU, 50 pixels in all." in note
-    assert "LED 2 and LED 3 are hidden pixels" in note
+    assert "pixel 1 is KAUS, pixel 4 is KHOU, 50 pixels in all." in note
+    assert "Pixel 2 and pixel 3 are hidden pixels" in note
     one = plan_apply.wiring_note([pixel("KAUS"), pixel(skipped=True), pixel("KHOU")], 50)
-    assert "LED 2 is a hidden pixel: wire it into the string" in one and "LED 3 is KHOU" in one
+    assert "Pixel 2 is a hidden pixel: wire it into the string" in one and "pixel 3 is KHOU" in one
 
 
 def test_a_plan_without_hidden_pixels_replaces_the_ones_the_chart_has():
@@ -370,12 +430,13 @@ def ticks(monkeypatch):
     return t
 
 
-def renderer_for(airports, visualizer, leds=None):
-    """A Renderer on a FakeStrip, with `airports` on the strip, running `visualizer`; its shows are recorded."""
+def renderer_for(airports, visualizer, leds=None, strip=None):
+    """A Renderer on a FakeStrip (or `strip`), with `airports` on the strip, running `visualizer`; its shows are
+    recorded."""
     settings = Settings()
     settings.airports = [Airport(code=a.code, skip=a.skip) for a in airports]  # a copy: a test may change a flag
     settings.led.count = len(airports)
-    strip = FakeStrip(leds or len(airports))
+    strip = strip if strip is not None else FakeStrip(leds or len(airports))
     shows = []
     show = strip.show
     strip.show = lambda: (shows.append(list(strip)), show())
@@ -436,6 +497,23 @@ def test_switching_visualizer_keeps_the_mask_right(ticks):
     assert r._hidden == (3,)
 
 
+def test_leaving_a_strip_look_swaps_the_animations_and_the_mask_together(ticks):
+    """A web thread that switches visualizer waits for the frame in progress (the lock): a frame never draws the old
+    animations with the new, empty mask, which would light a Hidden Pixel for a frame."""
+    r, strip, shows = renderer_for(AIRPORTS, RAINBOW)
+    old = r._animations
+    assert r._hidden == (1, 3)
+    with r._lock:  # the render loop is in the middle of a frame
+        switcher = threading.Thread(target=lambda: setattr(r, "visualizer", "flight_category"), daemon=True)
+        switcher.start()
+        switcher.join(0.3)
+        assert switcher.is_alive()  # it waits for the frame...
+        assert r._animations is old and r._hidden == (1, 3)  # ...and nothing is half swapped
+    switcher.join(5)
+    assert not switcher.is_alive()
+    assert r._animations is not old and r._hidden == ()
+
+
 def test_a_hidden_pixel_beyond_the_strip_is_ignored(ticks):
     r, strip, shows = renderer_for(AIRPORTS, CHASE, leds=3)  # a strip shorter than led.count: no IndexError
     r.render()
@@ -443,13 +521,61 @@ def test_a_hidden_pixel_beyond_the_strip_is_ignored(ticks):
     assert all(frame[1] == OFF for frame in shows)
 
 
-def test_a_mask_does_not_stop_the_strip_skipping_unchanged_frames(ticks):
-    """The mask runs before show(), so the strip sees the final colors: a still frame stays a still frame."""
-    r, strip, shows = renderer_for(AIRPORTS, RAINBOW)
-    r.draw_frame()
-    first = list(strip)
-    r._darken_hidden()
-    assert list(strip) == first  # darkening an already dark pixel changes nothing
+class SendingStrip(SkipUnchangedShow, FakeStrip):
+    """
+    A FakeStrip that sends through SkipUnchangedShow like the strip on a Pi: its `shows` counts the frames really
+    sent, the render loop's own show() calls (recorded by renderer_for) the frames it drew.
+    """
+
+    @property
+    def _post_brightness_buffer(self):  # what the LED library hands to the strip (the colors are never scaled here)
+        return bytearray(v for color in self for v in _rgb(color))
+
+
+def _rgb(color):
+    return (color >> 16 & 255, color >> 8 & 255, color & 255) if isinstance(color, int) else tuple(color[:3])
+
+
+def sent_and_drawn(ticks, visualizer, airports):
+    """(frames really sent, frames drawn) when `visualizer` runs one render() on a strip that skips unchanged frames."""
+    strip = SendingStrip(len(airports))
+    strip._monotonic = lambda: ticks.ms / 1000  # the same clock as the animations
+    r, strip, drawn = renderer_for(airports, visualizer, strip=strip)
+    r.render()
+    return strip.shows, len(drawn)
+
+
+PLAIN = [Airport(code=a.code) for a in AIRPORTS]  # the same strip with plain blanks: nothing is hidden
+
+
+@pytest.mark.parametrize("vis", [RAINBOW, CHASE], ids=["rainbow", "chase"])
+def test_a_mask_sends_no_more_frames_than_the_same_strip_without_one(ticks, vis):
+    """The mask runs before show(), so the strip sees the final colors: it must not make a still frame look new."""
+    masked, drawn = sent_and_drawn(ticks, vis, AIRPORTS)
+    plain, _ = sent_and_drawn(ticks, vis, PLAIN)
+    assert drawn > 10 and masked <= plain
+
+
+def test_a_masked_chase_still_skips_the_frames_that_did_not_change(ticks):
+    # two Hidden Pixels side by side: the chase is dark for two steps in a row, so the second frame is the same
+    side_by_side = [Airport(code="KHOU"), hidden(), hidden(), Airport(code="KDKR"), Airport(code="KIAH")]
+    sent, drawn = sent_and_drawn(ticks, CHASE, side_by_side)
+    assert 0 < sent < drawn  # frames were drawn that the strip did not send again
+
+
+def test_a_still_masked_frame_is_sent_once(ticks):
+    """The mask must write the same thing every frame: a frame the animations did not change stays a skipped frame."""
+    strip = SendingStrip(len(AIRPORTS))
+    strip._monotonic = lambda: ticks.ms / 1000
+    r, strip, drawn = renderer_for(AIRPORTS, RAINBOW, strip=strip)
+    r.draw_frame()  # one rainbow frame with the Hidden Pixels dark, sent
+    sent = strip.shows
+    for _ in range(4):
+        ticks.sleep(0.2)  # past the strip's settling time, inside its once-a-second resend
+        with r._lock:
+            r._darken_hidden()  # the animations are not due: what the loop does with the frame it did not change
+            strip.show()
+    assert strip.shows == sent
 
 
 def test_locate_ignores_a_hidden_pixel(ticks):
@@ -512,7 +638,7 @@ def test_a_plan_with_a_hidden_pixel_applies_and_stays_out_of_the_api(plan_client
         p["number"] = n + 1
     status, preview = get(client, PREVIEW)
     assert status == 200 and preview["summary"]["hidden"] == 1
-    assert "LED 2 is a hidden pixel" in preview["summary"]["wiring_note"]
+    assert "Pixel 2 is a hidden pixel" in preview["summary"]["wiring_note"]
     status, done = post(client, APPLY, {"token": preview["token"]})
     assert status == 200, done
     airports = client.services.config.airports
@@ -531,7 +657,9 @@ def test_the_airports_page_shows_the_switch_state(plan_client):
     assert rows[1]["skip"] is True and rows[0]["skip"] is False
 
 
-def test_the_strip_and_the_virtual_airports_stay_inside_the_limit_with_hidden_pixels():
-    airports = [Airport(code=f"K{i:03d}") for i in range(MAX_LEDS - 1)] + [Airport()]
-    assert len(airports) == MAX_LEDS  # a full Chart: a Hidden Pixel is one of the 1000, like any LED
-    assert tidy_hidden(airports, MAX_LEDS) == 0
+def test_a_hidden_pixel_is_one_of_the_1000_and_cannot_be_a_virtual_airport():
+    airports = [Airport(code=f"K{i:03d}") for i in range(MAX_LEDS - 1)] + [hidden()]
+    assert len(airports) == MAX_LEDS  # a full Chart: the last pixel is a Hidden Pixel, one of the 1000 like any pixel
+    assert tidy_hidden(airports, MAX_LEDS) == 0 and airports[-1].skip is True
+    airports.append(hidden())  # one more, past the strip: a virtual airport has no pixel to hide
+    assert tidy_hidden(airports, MAX_LEDS) == 1 and airports[-1].skip is False and airports[MAX_LEDS - 1].skip is True

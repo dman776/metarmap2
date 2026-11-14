@@ -513,7 +513,7 @@
     function popupFor(p) {
         const box = el('div', {'class': 'pl-pop'});
         if (p.skipped) {
-            box.appendChild(el('div', {'class': 'pop-head'}, 'LED ' + p.number + ': hidden pixel, bridges a gap'));
+            box.appendChild(el('div', {'class': 'pop-head'}, 'Pixel ' + p.number + ': hidden pixel, bridges a gap'));
             box.appendChild(el('div', {'class': 'pl-pop-row'}, 'No airport. String ' + p.string + ', position ' + p.position + '.'));
             return box;
         }
@@ -566,7 +566,7 @@
                 html: pin
             });
             L.marker(at(p), {
-                icon: icon, title: p.skipped ? 'LED ' + p.number + ': hidden pixel' : p.code + ', pixel ' + p.number,
+                icon: icon, title: p.skipped ? 'Pixel ' + p.number + ': hidden pixel' : p.code + ', pixel ' + p.number,
                 keyboard: placed.length <= 60  // a thousand tab stops would trap a keyboard user
             }).bindPopup(popupFor(p), {className: 'led-popup pl-popup', maxWidth: 300}).addTo(planLayer);
         });
@@ -682,7 +682,7 @@
 
         px.forEach(function (p) {
             const g = svg('g', {'class': 'pm-pixel' + (p.skipped ? ' skipped' : '')});
-            g.appendChild(svg('title', null, p.skipped ? 'LED ' + p.number + ': hidden pixel, bridges a gap'
+            g.appendChild(svg('title', null, p.skipped ? 'Pixel ' + p.number + ': hidden pixel, bridges a gap'
                 : 'Pixel ' + p.number + ': ' + p.code + ' (string ' + p.string + ', position ' + p.position + ')'
                     + (p.moved_mm ? ', moved ' + len(p.moved_mm) : '')));
             g.appendChild(svg('circle', {cx: p.x, cy: p.y, r: rad, 'class': 'pm-dot'}));
@@ -754,7 +754,7 @@
             [mark('slack'), 'Slack: a lot of wire to hide'],
             [mark('extension'), 'Needs an extension (the length is on it)'],
             [mark('join'), 'Free join between strings: use a join cable'],
-            [ring(''), 'Pixel, with its LED number and airport'],
+            [ring(''), 'Pixel, with its number and airport'],
             [ring('hollow'), 'Hidden pixel: wired, shows nothing, bridges a gap'],
             [mark('moved'), 'Moved from the airport\'s true place'],
         ].forEach(function (pair) {

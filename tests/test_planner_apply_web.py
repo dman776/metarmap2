@@ -164,7 +164,7 @@ def test_the_preview_says_what_would_change(make):
     s = body["summary"]
     assert s["kept"] + s["moved"] == 50 and s["added"] == [] and s["over_limit"] is False
     assert s["led_count"] == {"from": 50, "to": 50} and s["airports_total"] == 50
-    assert "LED 1 is" in s["wiring_note"]
+    assert "pixel 1 is" in s["wiring_note"]
     assert backups(client) == [] and codes(client) == plan_codes_before(client)  # a preview changes nothing
 
 
@@ -441,7 +441,7 @@ def test_the_wiring_note_names_the_led_numbers_of_the_plan(make):
     note = get(client, PREVIEW)[1]["summary"]["wiring_note"]
     pixels = job["result"]["sheet"]["pixels"]
     last = max(i for i, p in enumerate(pixels) if p["code"])
-    assert f"LED {last + 1} is {pixels[last]['code']}" in note
+    assert f"pixel {last + 1} is {pixels[last]['code']}" in note
 
 
 # ---- a write that fails after the backup was made ------------------------------------------------------------

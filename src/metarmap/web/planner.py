@@ -952,7 +952,6 @@ def page(services: "App", site):
         height_note=first["note"],
         current=current,
         brightness=config.data.led.brightness.normal,
-        skips_note="Needs Chart support, which comes in a later change. Until then the plan has no hidden pixels.",
     )
 
 

@@ -179,20 +179,22 @@ def wiring_note(pixels, led_count):
     """
     coded = [(number, norm(p.get("code"))) for number, p in enumerate(pixels) if norm(p.get("code"))]
     if not coded:
-        return "The plan has no airports: every LED would be left blank."
+        return "The plan has no airports: every pixel would be left blank."
     (first, first_code), (last, last_code) = coded[0], coded[-1]
     hidden = [n + 1 for n in hidden_numbers(pixels)]
     hidden_note = ""
     if hidden:
-        which = ", ".join(f"LED {n}" for n in hidden[:-1]) + (" and " if len(hidden) > 1 else "") + f"LED {hidden[-1]}"
+        names = [f"pixel {n}" for n in hidden]
+        which = ", ".join(names[:-1]) + (" and " if len(names) > 1 else "") + names[-1]
+        which = which[0].upper() + which[1:]  # it starts a sentence
         hidden_note = (
             f" {which} {'is a hidden pixel' if len(hidden) == 1 else 'are hidden pixels'}: wire "
             f"{'it' if len(hidden) == 1 else 'them'} into the string, but "
             f"{'it shows' if len(hidden) == 1 else 'they show'} no airport."
         )
     return (
-        f"The strip must be wired in this order: LED {first + 1} is {first_code}, LED {last + 1} is {last_code}, "
-        f"{led_count} pixels in all.{hidden_note} Apply only when your pixels are connected like this, or the LEDs "
+        f"The strip must be wired in this order: pixel {first + 1} is {first_code}, pixel {last + 1} is {last_code}, "
+        f"{led_count} pixels in all.{hidden_note} Apply only when your pixels are connected like this, or the pixels "
         "will light for the wrong airports."
     )
 

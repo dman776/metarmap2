@@ -125,19 +125,23 @@ class Renderer:
             # the virtual airports (after led.count) have no LED; their looks are for the web map. A strip still
             # longer than led.count (a NeoPixel strip until the restart) keeps its extra LEDs dark
             animations = [animation_for(look, pixel) for look, pixel in zip(looks[: settings.led.count], self._pix)]
-        if strip_look is None or not lit:
-            for i in range(lit, len(self._pixels)):  # nothing draws them now: dark, not stuck on their last color
-                self._pixels[i] = colors_lib.color(colors_lib.OFF)
-        self._looks, self._strip_look, self._animations = looks, strip_look, animations
         # a whole-strip look (Rainbow, Chase) is one animation over every LED, so it would light the Hidden Pixels too;
         # a look per airport already draws "off" for an LED with no airport
-        self._hidden = (
+        hidden = (
             tuple(i for i, a in enumerate(settings.airports[:lit]) if a.skip and not a.code and i < len(self._pixels))
             if strip_look is not None
             else ()
         )
-        self._started = self._clock.time()  # the steps of a stepping visualizer count from here (step())
-        self._look_dicts = None  # led_states()'s cache
+        # the animations and the Hidden Pixels they must leave dark change together, between two frames: a frame that
+        # drew the old animations with the new (empty) mask would light a Hidden Pixel for one frame when a web thread
+        # leaves Rainbow or Chase (the lock is reentrant: resize() calls this inside it)
+        with self._lock:
+            if strip_look is None or not lit:
+                for i in range(lit, len(self._pixels)):  # nothing draws them now: dark, not stuck on their last color
+                    self._pixels[i] = colors_lib.color(colors_lib.OFF)
+            self._looks, self._strip_look, self._animations, self._hidden = looks, strip_look, animations, hidden
+            self._started = self._clock.time()  # the steps of a stepping visualizer count from here (step())
+            self._look_dicts = None  # led_states()'s cache
 
     @property
     def looks(self):
