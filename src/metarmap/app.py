@@ -29,6 +29,7 @@ from metarmap.forecast import Forecasts
 from metarmap.tfr import Tfrs
 from metarmap.clock import Clock
 from metarmap.config import Config
+from metarmap.delays import DELAYS_MINUTES, Delays
 from metarmap.display import STARTUP_LOCATE_DELAY, Display
 from metarmap.leds.strip import open_strip
 from metarmap.metar import Reports
@@ -67,6 +68,7 @@ class App:
     atis: Optional[Atis] = None  # the digital ATIS from atis.info, for the spoken ATIS (speech.atis)
     forecasts: Optional[Forecasts] = None  # TAFs, for the forecast visualizers (fetched in the background)
     discovery: Optional[Discovery] = None  # announces the map on the network (zeroconf), for the Copilot's map list
+    delays: Optional[Delays] = None  # the FAA airport status, for FAA Delays (fetched in the background)
 
 
 # ---- building ------------------------------------------------------------------------------------------------
@@ -86,8 +88,16 @@ def build(config_file=CONFIG_FILE, strip=None, screen=None, clock: Clock = None,
     tfrs = Tfrs(nearby=lambda: config.data.tfr.nearby_nm)
     # the station lookup (where airports without a report are, and the names) is done in the background below
     forecasts = Forecasts()
+    delays = Delays()
     metars = Reports(
-        config, fetch=fetch, clock=clock, advisories=advisories, tfrs=tfrs, locate_now=False, forecasts=forecasts
+        config,
+        fetch=fetch,
+        clock=clock,
+        advisories=advisories,
+        tfrs=tfrs,
+        locate_now=False,
+        forecasts=forecasts,
+        delays=delays,
     )
 
     if strip is None:
@@ -126,6 +136,7 @@ def build(config_file=CONFIG_FILE, strip=None, screen=None, clock: Clock = None,
         atis,
         forecasts,
         Discovery(config, address=my_ip),
+        delays,
     )
     fill_names(app)
     schedule_jobs(app)
@@ -135,6 +146,7 @@ def build(config_file=CONFIG_FILE, strip=None, screen=None, clock: Clock = None,
         # they come (the first TFR list has a few dozen details to fetch)
         fetch_advisories_soon(app)
         fetch_tfrs(app)
+        fetch_delays(app)
         fetch_forecasts(app)
         locate_soon(app)
         atis.available()  # with spoken ATIS on, which airports have one (in the background): the pages' ATIS buttons
@@ -156,6 +168,7 @@ def schedule_jobs(app: App):
     s.every(CHECK_HOURS).hours.do(check_releases, app)
     if app.discovery is not None:
         s.every(DISCOVERY_MINUTES).minutes.do(app.discovery.refresh)  # a new address, or no network at first
+    s.every(DELAYS_MINUTES).minutes.do(fetch_delays, app)  # ground stops come and go faster than the METARs
     schedule_rotation(app)
     # a visualizer picked by hand (or the previous/next buttons) gets the full auto-rotate delay before the next change
     app.renderer.subscribe(lambda: schedule_rotation(app))
@@ -313,6 +326,7 @@ def refetch_metars(app: App):
 def update_data(app: App):
     fetch_advisories(app)
     fetch_tfrs(app)
+    fetch_delays(app)
     fetch_forecasts(app)
     with app.renderer.dimmed():
         app.metars.fetch()  # adds the G-AIRMET hazards to each report
@@ -367,6 +381,15 @@ def fetch_tfrs(app: App):
         app.tfrs.fetch_soon(then=lambda: show_areas(app))
 
 
+def fetch_delays(app: App):
+    """
+    Fetches the FAA airport status in the background; the LEDs show it when it's done, if it changed (it's fetched
+    every few minutes, and usually hasn't).
+    """
+    if app.delays is not None:
+        app.delays.fetch_soon(then=lambda: show_areas(app))
+
+
 def fetch_forecasts(app: App, force=False):
     """The TAFs in the background (not more often than they change); the LEDs show them when they come."""
     if app.forecasts is not None:
@@ -375,7 +398,9 @@ def fetch_forecasts(app: App, force=False):
 
 
 def show_areas(app: App):
-    """The reports again, with the advisory and TFR areas each airport is in (or near), on the LEDs."""
+    """
+    The reports again, with the advisory and TFR areas each airport is in (or near) and its FAA status, on the LEDs.
+    """
     app.metars.apply_mocks()  # adds them to each report
     app.renderer.update_data(app.metars)
 

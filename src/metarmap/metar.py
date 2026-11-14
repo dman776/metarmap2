@@ -345,6 +345,37 @@ def with_tfrs(data, tfrs):
     return result
 
 
+def faa_id(code, known):
+    """
+    The FAA's id for an airport (KSAN -> SAN, PHNL -> HNL), as the FAA's airport status names it. known: what the
+    station lookup found for the code (Reports.positions: its "faa"), None if it doesn't know the code, or missing if
+    it hasn't been looked up. Without the lookup's id: a K code without its K (lower 48), a 3-character code as it is
+    (52F); None for any other (PHNL, TJSJ, CYYZ before the lookup, or a station abroad).
+    """
+    if known and known.get("faa"):
+        return known["faa"]
+    code = (code or "").upper()
+    if len(code) == 4 and code.startswith("K"):
+        return code[1:]
+    return code if len(code) == 3 else None
+
+
+def with_delays(data, delays, known):
+    """
+    The METARs, each with faa_status: its worst FAA status now (metarmap.delays.Delays.status), or None before the
+    first FAA status or when the airport has no FAA id (faa_id). known: code -> what the station lookup found.
+    Airports with no report stay None.
+    """
+    result = {}
+    for code, m in data.items():
+        if m is None:
+            result[code] = m
+            continue
+        faa = faa_id(code, known.get(code))
+        result[code] = replace(m, faa_status=delays.status(faa) if faa else None)
+    return result
+
+
 def with_forecast(data, forecasts, include_temporary=True):
     """
     The METARs, each with forecast: its TAF's flight category 3, 6 and 12 hours ahead (forecast.Forecasts.forecast), and
@@ -368,11 +399,20 @@ class Reports:
     """
 
     def __init__(
-        self, cfg, fetch=False, clock: Clock = None, advisories=None, tfrs=None, locate_now=True, forecasts=None
+        self,
+        cfg,
+        fetch=False,
+        clock: Clock = None,
+        advisories=None,
+        tfrs=None,
+        locate_now=True,
+        forecasts=None,
+        delays=None,
     ):
         """
         advisories: metarmap.advisories.Advisories, whose hazards are added to each report
-        (with_advisories); None for none. tfrs: metarmap.tfr.Tfrs, the same for TFRs (with_tfrs).
+        (with_advisories); None for none. tfrs: metarmap.tfr.Tfrs, the same for TFRs (with_tfrs). delays:
+        metarmap.delays.Delays, the same for the FAA airport status (with_delays).
         locate_now: whether the fetch at startup also looks up where airports are (locate); False leaves that to the
         caller, to do in the background (the lookup can take 20 s, and the LEDs don't need it).
         """
@@ -380,6 +420,7 @@ class Reports:
         self._config = cfg
         self.advisories = advisories
         self.tfrs = tfrs
+        self.delays = delays
         self.forecasts = forecasts
         self._clock = clock or Clock()
         self._is_fetching = False
@@ -389,7 +430,9 @@ class Reports:
         self._real = {}  # the fetched reports
         self.lastFetchTime = None
         self.last_fetch_ok = None  # None until the first fetch, then whether the last one worked
-        self.positions = {}  # code -> {"lat", "lon", "name"} from STATION_URL, or None if it doesn't know the code
+        # code -> {"lat", "lon", "name", "faa"} from STATION_URL, or None if it doesn't know the code; "faa" is its
+        # FAA id (KSAN: SAN, PHNL: HNL), "" for a station without one
+        self.positions = {}
         # _look_up adds codes from several threads (the fetch, the Chart Planner's lookup) while station_names() lists
         # them: a lock, because copying a dict another thread is adding to is not safe even as one expression
         self._positions_lock = threading.Lock()
@@ -460,6 +503,7 @@ class Reports:
                     "lat": float(station["lat"]),
                     "lon": float(station["lon"]),
                     "name": str(station.get("site") or "").strip(),
+                    "faa": str(station.get("faaId") or "").strip().upper(),
                 }
             except (KeyError, TypeError, ValueError, AttributeError):
                 continue
@@ -525,6 +569,10 @@ class Reports:
             data = with_advisories(data, self.advisories)
         if self.tfrs is not None:
             data = with_tfrs(data, self.tfrs)
+        if self.delays is not None:
+            with self._positions_lock:  # copied once: the Chart Planner's lookup may be adding codes
+                known = dict(self.positions)
+            data = with_delays(data, self.delays, known)
         if self.forecasts is not None:
             data = with_forecast(data, self.forecasts, self._include_temporary())
         self.data = data

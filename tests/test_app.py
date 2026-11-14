@@ -111,6 +111,7 @@ def test_jobs(make_app):
         "watch_display": 1,
         "check_releases": 1,
         "refresh": 1,  # the announcement on the network, checked against the address
+        "fetch_delays": 1,  # the FAA airport status, every few minutes
     }
     assert {job.at_time.strftime("%H:%M") for job in app.scheduler.get_jobs("suntimes")} == {
         app.sun.times[name].strftime("%H:%M") for name in ("dawn", "sunrise", "sunset", "dusk")

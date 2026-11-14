@@ -18,6 +18,7 @@ from metarmap.visualizers import (
     ceiling,
     chase,
     density_altitude,
+    faa_delays,
     flightcategory,
     precipitation,
     pressure,
@@ -235,6 +236,12 @@ def sample_reports():
         for inside, upcoming in ((True, False), (False, False), (True, True))
     ]
     reports += [metar(tfrs=[]), metar(tfrs=None)]
+    reports += [
+        metar(faa_status={"kind": kind, "minutes": minutes})
+        for kind, minutes in (("closed", None), ("ground_stop", None), ("normal", None), ("odd", None))
+    ]
+    reports += [metar(faa_status={"kind": "delay", "minutes": m}) for m in (None, 15, 30, 59, 60, 240)]
+    reports += [metar(faa_status=None)]
     reports += [metar(airmets=[hazard]) for hazard in advisories.COLORS]
     reports += [metar(airmets=list(h)) for h in (("IFR", "ICE"), ("IFR", "ICE", "LLWS"), ("TURB-LO", "TURB-HI"), ())]
     reports += [metar(airmets=None), *(metar(airmets=[], sigmets=[s]) for s in advisories.SIGMET_COLORS)]
@@ -275,6 +282,9 @@ def test_every_look_names_its_legend_entries(v, missing_blink, lightning, breath
         (wind_direction, {"wind_dir": "270", "wind_speed": 4}, ("West",)),
         (tfr, {"tfrs": [{"type": "VIP", "inside": False, "upcoming": False}]}, (tfr.COLORS["VIP"][1], "nearby")),
         (tfr, {"tfrs": [{"type": "VIP", "inside": True, "upcoming": True}]}, (tfr.COLORS["VIP"][1], "upcoming")),
+        (faa_delays, {"faa_status": {"kind": "ground_stop", "minutes": None}}, ("Ground stop",)),
+        (faa_delays, {"faa_status": {"kind": "delay", "minutes": 45}}, ("Delay 30-59 min",)),
+        (faa_delays, {"faa_status": None}, ("missing",)),
         (advisories, {"airmets": ["IFR", "ICE"]}, ("mixed", advisories.COLORS["IFR"][1], advisories.COLORS["ICE"][1])),
         (advisories, {"airmets": [], "sigmets": ["CONV"]}, (advisories.SIGMET_COLORS["CONV"][1],)),
     ],
@@ -1041,6 +1051,7 @@ def test_the_patterns_are_last():
         "Dewpoint Spread",
         "Advisories",
         "TFR",
+        "FAA Delays",
         "Flight Category Forecast",
         "Precipitation Forecast",
         "Rainbow",
@@ -1048,3 +1059,62 @@ def test_the_patterns_are_last():
     ]
     patterns = [visualizer.strip_look(v, Settings()) is not None for v in ALL]
     assert patterns == sorted(patterns), "a whole-strip visualizer comes before a weather one"
+
+
+# ---- FAA Delays ---------------------------------------------------------------------------------------------------
+
+
+def faa(kind, minutes=None):
+    return metar(faa_status={"kind": kind, "minutes": minutes})
+
+
+@pytest.mark.parametrize(
+    "report, expected",
+    [
+        (faa("closed"), Look.solid(C[colors_lib.MAGENTA])),
+        (faa("ground_stop"), Look.blink(C[colors_lib.RED], period=1.0, background=style.dim(C[colors_lib.RED]))),
+        (faa("delay", None), Look.solid(C[colors_lib.YELLOW])),  # minutes it couldn't read: the shortest band
+        (faa("delay", 15), Look.solid(C[colors_lib.YELLOW])),
+        (faa("delay", 29), Look.solid(C[colors_lib.YELLOW])),
+        (faa("delay", 30), Look.solid(C[colors_lib.ORANGE])),
+        (faa("delay", 59), Look.solid(C[colors_lib.ORANGE])),
+        (faa("delay", 60), Look.solid(C[colors_lib.RED])),
+        (faa("delay", 138), Look.solid(C[colors_lib.RED])),
+        (faa("normal"), Look.solid(C[colors_lib.GRAY])),
+        (metar(faa_status=None), Look.blink(C[colors_lib.RED], period=2)),  # no status yet, or not an FAA airport
+        (faa("something new"), Look.blink(C[colors_lib.RED], period=2)),
+        (None, OFF),
+    ],
+)
+def test_faa_delays_colors(settings, report, expected):
+    assert faa_delays.look(report, settings) == expected
+
+
+def test_faa_delays_legend(settings):
+    items = visualizer.legend(faa_delays.VISUALIZER, settings)
+    labels = [i["label"] for i in items]
+    assert labels[:6] == [
+        "Closed",
+        "Ground stop",
+        "Delay under 30 min",
+        "Delay 30-59 min",
+        "Delay of an hour or more",
+        "No delay",
+    ]
+    stop = items[1]
+    assert stop["effect"] == "alternate" and stop["period"] == 1.0
+    assert stop["colors"] == [colors_lib.to_css(C[colors_lib.RED]), colors_lib.to_css(style.dim(C[colors_lib.RED]))]
+    assert items[0]["colors"] == [colors_lib.to_css(C[colors_lib.MAGENTA])]
+
+
+def test_faa_delays_is_registered_after_tfr():
+    ids = [v.id for v in visualizers.ALL]
+    assert ids.index("faa_delays") == ids.index("tfr") + 1
+    v = visualizers.BY_ID["faa_delays"]
+    assert (v.name, v.short_name, v.icon, v.exclusive, v.areas) == (
+        "FAA Delays",
+        "FAA Delays",
+        "hourglass",
+        False,
+        None,
+    )

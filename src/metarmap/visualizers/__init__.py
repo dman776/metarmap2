@@ -8,6 +8,7 @@ from metarmap.visualizers import (
     ceiling,
     chase,
     density_altitude,
+    faa_delays,
     flightcategory,
     flightcategory_forecast,
     precipitation,
@@ -42,6 +43,7 @@ WEATHER = tuple(
         spread,
         advisories,
         tfr,
+        faa_delays,
         flightcategory_forecast,
         precipitation_forecast,
     )
