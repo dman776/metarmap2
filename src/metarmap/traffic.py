@@ -7,9 +7,8 @@ geo.map.traffic_seconds. A view is snapped to a grid cell (cover()), so pages lo
 one fetch. Every fetch waits at least MIN_GAP seconds after the last one, so the map never asks adsb.fi more than once
 a second, however many pages are open or where they look, and only one place not fetched before starts per
 geo.map.traffic_seconds, so a script that keeps changing its view can't keep the Pi fetching. A view wider than
-MAX_VIEW_NM gets no aircraft (a whole country holds thousands, too many for a Pi to parse), unless it takes in every
-airport: then it's the circle around the airports, which is also the answer without a view. A failed fetch waits
-longer each time.
+MAX_VIEW_NM, what one adsb.fi circle can hold, gets no aircraft (a whole country holds thousands, too many for a Pi
+to parse). Without a view it's the circle around the airports. A failed fetch waits longer each time.
 
 adsb.fi's open data is free for personal, non-commercial use, at most one request a second, and the map must credit
 it (the Map page does). https://github.com/adsbfi/opendata
@@ -36,8 +35,8 @@ MAX_BACKOFF = 300  # seconds: the longest wait after failed fetches
 RATE_LIMITED = 60  # seconds: the least wait after adsb.fi answers 429 (too many requests)
 EARTH_NM = 3440.065
 GRID_DEG = 0.25  # a view is snapped to this grid, so pages looking at about the same place share a fetch
-RADII = (40, 75, 110, 150)  # NM: the circles asked about for a view (a few sizes, so their answers can be shared)
-MAX_VIEW_NM = 135  # the widest view (its radius) that gets aircraft: a RADII circle always covers it, snapping included
+RADII = (40, 75, 110, 150, 200, 250)  # NM: the circles asked about for a view (a few sizes, so answers can be shared)
+MAX_VIEW_NM = MAX_RADIUS_NM  # the widest view (its radius) that gets aircraft: what one adsb.fi circle covers
 MIN_GAP = 1.1  # seconds between any two requests to adsb.fi (its limit is one a second)
 KEEP_SECONDS = 120  # a place nobody has asked about for this long is forgotten
 MAX_PLACES = 4
@@ -70,14 +69,18 @@ def area(points):
 def cover(lat, lon, nm):
     """
     The circle ((lat, lon), radius in NM) to ask adsb.fi about for a view of radius nm around (lat, lon): the center
-    snapped to a GRID_DEG grid and the radius to RADII, so nearby views get the same circle. None when the view is
-    wider than MAX_VIEW_NM.
+    snapped to a GRID_DEG grid and the radius to RADII, so nearby views get the same circle. A view too wide to snap
+    and still be covered (within about 11 NM of the limit) gets its own exact circle. None when the view is wider
+    than MAX_VIEW_NM.
     """
     if nm > MAX_VIEW_NM:
         return None
     snapped = (round(round(lat / GRID_DEG) * GRID_DEG, 4), round(round(lon / GRID_DEG) * GRID_DEG, 4))
     need = nm + distance_nm((lat, lon), snapped)
-    return snapped, next(r for r in RADII if need <= r)
+    radius = next((r for r in RADII if need <= r), None)
+    if radius is None:
+        return (round(lat, 4), round(lon, 4)), math.ceil(nm)
+    return snapped, radius
 
 
 # what the Map page draws, from the ADS-B emitter category (DO-260B): its shape and size
@@ -273,10 +276,6 @@ class Traffic:
             circle, wide = area(self._points()), False
         else:
             circle = cover(*view)
-            if circle is None:  # too wide, unless it takes in every airport (the Chart's own view, say)
-                home = list(self._points())
-                if home and all(distance_nm(view[:2], p) <= view[2] for p in home):
-                    circle = area(home)
             wide = circle is None
         if wide:
             return None, True

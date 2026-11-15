@@ -358,11 +358,17 @@ def test_nearby_views_get_the_same_circle():
 
 
 @pytest.mark.parametrize("lat", [0, 25, 47, 60, 70])
-def test_the_widest_view_is_always_covered(lat):
+def test_a_view_up_to_the_limit_is_always_covered(lat):
     for lon in (-123.9, -95.13, -74.02, 0.07):
         for dlat in (0, 0.05, 0.1, 0.124):
-            _, radius = traffic.cover(lat + dlat, lon + dlat, traffic.MAX_VIEW_NM)
-            assert radius == traffic.RADII[-1]
+            for nm in (100, 238, 245, traffic.MAX_VIEW_NM):
+                (clat, clon), radius = traffic.cover(lat + dlat, lon + dlat, nm)
+                assert radius <= traffic.MAX_RADIUS_NM  # what adsb.fi gives
+                assert traffic.distance_nm((lat + dlat, lon + dlat), (clat, clon)) + nm <= radius + 0.01
+
+
+def test_the_widest_views_get_their_own_circle():
+    assert traffic.cover(40.0, -100.0, 249.5) == ((40.0, -100.0), 250)
 
 
 def test_a_view_wider_than_the_limit_has_no_circle():
@@ -464,24 +470,18 @@ def test_the_json_of_a_view_too_wide():
     assert state["too_wide"] and state["aircraft"] == []
 
 
-def test_a_view_that_takes_in_every_airport_gets_their_circle():
+def test_a_view_that_takes_in_every_airport_is_still_too_wide_past_the_limit():
     adsb = FakeAdsbFi()
     t, _, _ = make(get=adsb)
-    state = t.snapshot((30.4761, -95.3414, 400))  # wider than a view may be, with all of HOUSTON in it
-    assert not state["too_wide"] and state["radius"] == traffic.area(HOUSTON)[1]
-    assert adsb.urls == [f"https://opendata.adsb.fi/api/v3/lat/30.4761/lon/-95.3414/dist/{state['radius']}"]
-    assert t.snapshot()["fetched"] == state["fetched"]  # the same place as without a view: no second fetch
-    assert len(adsb.urls) == 1
+    state = t.snapshot((30.4761, -95.3414, 400))  # all of HOUSTON is in it, but it is wider than one adsb.fi circle
+    assert state["too_wide"] and state["aircraft"] == [] and adsb.urls == []
 
 
-def test_a_wide_view_elsewhere_is_still_too_wide():
-    t, _, _ = make()
-    assert t.snapshot((45.0, -110.0, 400))["too_wide"]
-
-
-def test_a_wide_view_with_no_airport_positions_is_too_wide():
-    t, _, _ = make(points=[])
-    assert t.snapshot((30.4761, -95.3414, 400))["too_wide"]
+def test_a_view_up_to_250_nm_is_shown():
+    adsb = FakeAdsbFi()
+    t, _, _ = make(get=adsb)
+    state = t.snapshot((30.4761, -95.3414, 245))
+    assert not state["too_wide"] and state["radius"] <= 250 and len(adsb.urls) == 1
 
 
 def test_every_place_says_when_adsb_fi_told_one_to_wait():

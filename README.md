@@ -89,9 +89,8 @@ wrote it, the line being read lit:
 
 Tick **Live traffic** to see the aircraft in the map's view from [adsb.fi](https://adsb.fi/), each icon sized and
 colored by the class of aircraft (light, small, large, heavy, helicopter...). It follows the map: pan to New York and you
-see New York's traffic. Zoom out past about 135 NM from the center to a corner (a state or two) and it asks you to zoom
-in, unless the view takes in all your airports (then you see the traffic around them, as before): a whole country
-holds thousands of aircraft, too many for a Pi Zero to fetch and draw.
+see New York's traffic. Zoom out past 250 NM from the center to a corner (the most one adsb.fi request covers) and it
+asks you to zoom in: a whole country holds thousands of aircraft, too many for a Pi Zero to fetch and draw.
 
 ![Live traffic on the Map page over radar, with a key to the aircraft classes](docs/images/map_live_traffic.jpg)
 

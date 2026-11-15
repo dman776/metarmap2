@@ -471,12 +471,12 @@ Query (all three together, or none):
 | Parameter | Description |
 |---|---|
 | `lat`, `lon` | The center of the view, in degrees |
-| `nm` | The radius of the view in nautical miles, from its center to a corner. Over 135 the answer has `too_wide: true` and no aircraft, unless the view takes in every airport: then it's the circle around the airports, as with no query |
+| `nm` | The radius of the view in nautical miles, from its center to a corner. Over 250 (the most one adsb.fi circle covers) the answer has `too_wide: true` and no aircraft \|
 
 A 400 for a missing or non-numeric value, a `lat` outside -90 to 90, a `lon` outside -180 to 180 (the Map page wraps it), and an `nm` that is 0 or less, or too large to be a number.
 
 The Chart asks adsb.fi only when this is requested and what it has for that place is older than
-`geo.map.traffic_seconds`. A view is snapped to a 0.25° grid and a circle of 40, 75, 110 or 150 NM that covers it, so
+`geo.map.traffic_seconds`. A view is snapped to a 0.25° grid and a circle of 40, 75, 110, 150, 200 or 250 NM that covers it (a view too close to 250 NM to snap gets its own exact circle), so
 pages looking at about the same place share one fetch. Any two fetches are at least 1.1 s apart (adsb.fi allows one a
 second), however many pages are open, and only one place that has not been fetched before starts per `interval`, so a
 page looking somewhere new may get `fetched: null` first and has the aircraft on a later poll. Places nobody asks about
@@ -495,7 +495,7 @@ free for personal, non-commercial use, and must be credited.
   "radius": 216,
   "source": { "name": "adsb.fi", "url": "https://adsb.fi/" },
   "too_wide": false,
-  "max_view": 135,
+  "max_view": 250,
   "aircraft": [
     {
       "hex": "a0822c", "flight": "UCA4878", "reg": "N13161", "type": "E45X", "desc": "EMBRAER ERJ-145XR",
@@ -513,7 +513,7 @@ free for personal, non-commercial use, and must be credited.
 | `interval` | Seconds between fetches: `geo.map.traffic_seconds`, kept between 2 and 60 |
 | `error` | Why the last fetch failed (e.g. `couldn't reach adsb.fi: …`, `no airport positions yet`), else `null` |
 | `center`, `radius` | The circle the aircraft are from: for a view, the snapped circle above; with no query, around every airport plus 25 NM, at most 250 NM (adsb.fi's limit). `null` before the first fetch worked |
-| `too_wide`, `max_view` | `true` when the view's `nm` is over `max_view` (135): no aircraft, and nothing fetched |
+| `too_wide`, `max_view` | `true` when the view's `nm` is over `max_view` (250): no aircraft, and nothing fetched |
 | `aircraft[]` | Aircraft with a position no older than 60 s. Ones on the ground only with `geo.map.traffic_ground` |
 | `aircraft[].alt` | Barometric altitude in feet (the GPS one if there's none); `null` on the ground |
 | `aircraft[].gs`, `track`, `vrate` | Ground speed (kt), track (degrees true) and vertical rate (ft/min); `null` when not sent |
