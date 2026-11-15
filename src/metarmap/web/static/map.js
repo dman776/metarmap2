@@ -1115,6 +1115,8 @@
     let followed = null;  // {hex, points, trail}
     let lastAircraft = [];  // what the map last answered, drawn again (only what's in view) when the map moves
     let trafficRedo = false;  // the map moved while a request was in flight: ask again at once
+    let trafficMax = 250;  // the widest view (NM, center to corner) that gets aircraft: the Chart says (max_view)
+    let trafficWide = false;  // the view is wider than that: nothing is shown, and nothing is asked
     let trafficLoading = false;  // the last answer had nothing yet for this place (the Chart spaces its fetches): ask soon
     let moveTimer = null;
 
@@ -1311,15 +1313,35 @@
         }
     }
 
+    const LOADING_TEXT = 'Live traffic: loading aircraft…';
+
+    function tooWideText(nm, max) {
+        return 'Live traffic: zoom in to see aircraft (this view is ' + nm + ' NM from its center to a corner; up to ' + max + ' NM is shown)';
+    }
+
+    // the note follows the zoom at once: "zoom in" past the limit, "loading" as soon as the view is within it
+    function trafficHint() {
+        if (!viewSet) return;
+        const wide = trafficView().nm > trafficMax;
+        if (wide) {
+            trafficNote.textContent = tooWideText(trafficView().nm, trafficMax);
+            syncAircraft([]);
+        } else if (trafficWide) {
+            trafficNote.textContent = LOADING_TEXT;
+        }
+        trafficNote.hidden = false;
+        trafficWide = wide;
+    }
+
     function trafficStatus(t) {
         const count = t.aircraft.length;
         let text;
         if (t.too_wide) {
-            text = 'Live traffic: zoom in to see aircraft (the view can be at most ' + t.max_view + ' NM from its center to a corner)';
+            text = tooWideText(trafficView().nm, t.max_view);
         } else if (t.error) {
             text = 'Live traffic: ' + t.error + (t.fetched ? ' · last update ' + clock(new Date((t.fetched + serverSkew) * 1000)) : '');
         } else if (t.fetched === null) {
-            text = 'Live traffic: loading…';
+            text = LOADING_TEXT;
         } else {
             text = count + ' aircraft near this view · every ' + t.interval + ' s';
         }
@@ -1359,6 +1381,8 @@
                 syncAircraft(t.aircraft);
                 trafficStatus(t);
                 trafficLoading = t.fetched === null && !t.error && !t.too_wide;
+                trafficMax = t.max_view || trafficMax;
+                trafficWide = !!t.too_wide;
             } catch (err) {
                 console.error('[map] traffic failed', err);
                 trafficLoading = false;
@@ -1377,9 +1401,10 @@
     // (not while following an aircraft: the map is moved every glide tick, and it isn't looking anywhere new)
     map.on('moveend', function () {
         if (!trafficOn || followed) return;
+        trafficHint();
         clearTimeout(moveTimer);
         moveTimer = setTimeout(function () {
-            if (!trafficOn) return;
+            if (!trafficOn || trafficWide) return;  // nothing is asked while the view is too wide
             syncAircraft(lastAircraft);
             if (trafficAsking) {
                 trafficRedo = true;
@@ -1400,7 +1425,7 @@
         trafficTimer = glideTimer = null;
         if (on) {
             map.attributionControl.addAttribution(TRAFFIC_CREDIT);
-            trafficNote.textContent = 'Live traffic: loading…';
+            trafficNote.textContent = LOADING_TEXT;
             trafficNote.hidden = false;
             glideTimer = setInterval(moveAircraft, GLIDE_MS);
             pollTraffic();
