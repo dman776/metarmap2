@@ -471,15 +471,18 @@ Query (all three together, or none):
 | Parameter | Description |
 |---|---|
 | `lat`, `lon` | The center of the view, in degrees |
-| `nm` | The radius of the view in nautical miles, from its center to a corner. Over 135 the answer has `too_wide: true` and no aircraft. A 400 for a missing, non-numeric or out-of-range value |
+| `nm` | The radius of the view in nautical miles, from its center to a corner. Over 135 the answer has `too_wide: true` and no aircraft, unless the view takes in every airport: then it's the circle around the airports, as with no query |
+
+A 400 for a missing or non-numeric value, a `lat` outside -90 to 90, a `lon` outside -180 to 180 (the Map page wraps it), and an `nm` that is 0 or less, or too large to be a number.
 
 The Chart asks adsb.fi only when this is requested and what it has for that place is older than
 `geo.map.traffic_seconds`. A view is snapped to a 0.25° grid and a circle of 40, 75, 110 or 150 NM that covers it, so
 pages looking at about the same place share one fetch. Any two fetches are at least 1.1 s apart (adsb.fi allows one a
-second), however many pages are open, so a page looking somewhere new may get `fetched: null` first and has the aircraft
-on its next poll. Places nobody asks about for 2 minutes are forgotten (at most 12 are kept). Nothing is fetched while
+second), however many pages are open, and only one place that has not been fetched before starts per `interval`, so a
+page looking somewhere new may get `fetched: null` first and has the aircraft on a later poll. Places nobody asks about
+for 2 minutes are forgotten (at most 4 are kept). Nothing is fetched while
 no page asks. A failed fetch waits longer each time (twice the interval, doubling, at most 5 minutes; at least a minute
-after adsb.fi answers 429, for every place), and keeps the aircraft from the last fetch that worked. adsb.fi's data is
+after adsb.fi answers 429, for every place: each one's `error` says so), and keeps the aircraft from the last fetch that worked. adsb.fi's data is
 free for personal, non-commercial use, and must be credited.
 
 ```json
@@ -491,6 +494,8 @@ free for personal, non-commercial use, and must be credited.
   "center": [30.41495, -93.75705],
   "radius": 216,
   "source": { "name": "adsb.fi", "url": "https://adsb.fi/" },
+  "too_wide": false,
+  "max_view": 135,
   "aircraft": [
     {
       "hex": "a0822c", "flight": "UCA4878", "reg": "N13161", "type": "E45X", "desc": "EMBRAER ERJ-145XR",

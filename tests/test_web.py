@@ -296,6 +296,18 @@ def test_api_traffic_is_gzipped_when_asked(client):
     assert json.loads(gzip.decompress(client.raw))["too_wide"] is False
 
 
+def test_api_traffic_is_plain_without_the_header(client):
+    client.services.traffic = Traffic(
+        lambda: client.services.config.data.geo.map,
+        lambda: [],
+        get=lambda url, **kwargs: SimpleNamespace(
+            status_code=200, raise_for_status=lambda: None, json=lambda: {"ac": []}
+        ),
+    )
+    status, body = client("/api/traffic?lat=40&lon=-74&nm=60")
+    assert status == 200 and "Content-Encoding" not in client.headers and json.loads(body)["too_wide"] is False
+
+
 def test_api_advisories(client):
     def get(url, **kwargs):
         if "gairmet" in url:

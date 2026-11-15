@@ -5,9 +5,11 @@ Fetched only while someone is looking: each Map page that has live traffic ticke
 (center and radius), and the map asks adsb.fi again only when what it has for that place is older than
 geo.map.traffic_seconds. A view is snapped to a grid cell (cover()), so pages looking at about the same place share
 one fetch. Every fetch waits at least MIN_GAP seconds after the last one, so the map never asks adsb.fi more than once
-a second, however many pages are open or where they look. A view wider than MAX_VIEW_NM gets no aircraft (a whole
-country holds thousands, too many for a Pi to parse). Without a view it's the circle around the airports. A failed
-fetch waits longer each time.
+a second, however many pages are open or where they look, and only one place not fetched before starts per
+geo.map.traffic_seconds, so a script that keeps changing its view can't keep the Pi fetching. A view wider than
+MAX_VIEW_NM gets no aircraft (a whole country holds thousands, too many for a Pi to parse), unless it takes in every
+airport: then it's the circle around the airports, which is also the answer without a view. A failed fetch waits
+longer each time.
 
 adsb.fi's open data is free for personal, non-commercial use, at most one request a second, and the map must credit
 it (the Map page does). https://github.com/adsbfi/opendata
@@ -38,7 +40,8 @@ RADII = (40, 75, 110, 150)  # NM: the circles asked about for a view (a few size
 MAX_VIEW_NM = 135  # the widest view (its radius) that gets aircraft: a RADII circle always covers it, snapping included
 MIN_GAP = 1.1  # seconds between any two requests to adsb.fi (its limit is one a second)
 KEEP_SECONDS = 120  # a place nobody has asked about for this long is forgotten
-MAX_PLACES = 12
+MAX_PLACES = 4
+TOO_MANY = "adsb.fi says too many requests"
 COMPACT = (",", ":")
 
 
@@ -237,6 +240,7 @@ class Traffic:
         self._lock = threading.Lock()
         self._places = {}  # circle (None: no airport positions yet) -> Place
         self._last_request = None  # when adsb.fi was last asked
+        self._last_new = None  # when a place with nothing fetched yet last started its first fetch
         self._blocked_until = 0  # no requests before this (after adsb.fi answers 429)
 
     def interval(self):
@@ -248,6 +252,7 @@ class Traffic:
             (place.tried is None or now - place.tried >= max(self.interval(), place.backoff))
             and now >= self._blocked_until
             and (self._last_request is None or now - self._last_request >= MIN_GAP)
+            and (place.tried is not None or self._last_new is None or now - self._last_new >= self.interval())
         )
 
     def snapshot(self, view=None):
@@ -268,6 +273,10 @@ class Traffic:
             circle, wide = area(self._points()), False
         else:
             circle = cover(*view)
+            if circle is None:  # too wide, unless it takes in every airport (the Chart's own view, say)
+                home = list(self._points())
+                if home and all(distance_nm(view[:2], p) <= view[2] for p in home):
+                    circle = area(home)
             wide = circle is None
         if wide:
             return None, True
@@ -293,11 +302,14 @@ class Traffic:
 
     def fetch(self, place, circle):
         """Asks adsb.fi about circle. Never raises: a failure is kept as the place's error."""
+        first = place.tried is None
         now = place.tried = self._clock()
         if circle is None:
             self._failed(place, "no airport positions yet")
             return
         self._last_request = now
+        if first:
+            self._last_new = now
         (lat, lon), radius = circle
         try:
             response = self._get(
@@ -305,7 +317,7 @@ class Traffic:
             )
             if response.status_code == 429:
                 self._blocked_until = now + RATE_LIMITED
-                self._failed(place, "adsb.fi says too many requests", at_least=RATE_LIMITED)
+                self._failed(place, TOO_MANY, at_least=RATE_LIMITED)
                 return
             response.raise_for_status()
             aircraft = parse(response.json(), now)
@@ -342,6 +354,8 @@ class Traffic:
             shown = self._shown(place, ground)
             circle = place.circle if place else None
             fetched, error = (place.fetched, place.error) if place else (None, None)
+        if place and error is None and self._clock() < self._blocked_until:
+            error = TOO_MANY  # adsb.fi said so to another place: nobody asks until it's over
         state = {
             "now": self._clock(),
             "interval": self.interval(),

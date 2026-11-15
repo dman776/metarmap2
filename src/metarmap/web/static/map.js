@@ -1240,7 +1240,8 @@
     function trafficView() {
         const bounds = map.getBounds(), center = bounds.getCenter();
         const meters = Math.max(map.distance(center, bounds.getNorthEast()), map.distance(center, bounds.getSouthWest()));
-        return {lat: center.lat, lon: center.lng, nm: Math.ceil(meters / 1852)};
+        // wrapped: dragged past the dateline the map's longitude goes beyond 180, which the Chart refuses
+        return {lat: center.lat, lon: map.wrapLatLng(center).lng, nm: Math.max(1, Math.ceil(meters / 1852))};
     }
 
     function syncAircraft(list) {
@@ -1360,6 +1361,7 @@
                 trafficLoading = t.fetched === null && !t.error && !t.too_wide;
             } catch (err) {
                 console.error('[map] traffic failed', err);
+                trafficLoading = false;
                 trafficNote.textContent = 'Live traffic: the map can\'t be reached';
                 trafficNote.hidden = !trafficOn;
             } finally {
@@ -1372,8 +1374,9 @@
     }
 
     // moved or zoomed: draw what we have for the new view, then ask for it (the Chart shares what it fetched for nearby views)
+    // (not while following an aircraft: the map is moved every glide tick, and it isn't looking anywhere new)
     map.on('moveend', function () {
-        if (!trafficOn) return;
+        if (!trafficOn || followed) return;
         clearTimeout(moveTimer);
         moveTimer = setTimeout(function () {
             if (!trafficOn) return;

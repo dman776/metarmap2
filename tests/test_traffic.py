@@ -388,7 +388,7 @@ def test_pages_looking_at_the_same_place_share_a_fetch():
 def test_a_view_too_wide_gets_no_aircraft_and_no_fetch():
     adsb = FakeAdsbFi()
     t, _, _ = make(get=adsb)
-    state = t.snapshot((39.0, -98.0, 1000))
+    state = t.snapshot((45.0, -110.0, 400))
     assert state["too_wide"] and state["aircraft"] == [] and state["max_view"] == traffic.MAX_VIEW_NM
     assert adsb.urls == []
 
@@ -400,8 +400,21 @@ def test_adsb_fi_is_asked_at_most_once_a_second_wherever_pages_look():
     state = t.snapshot((29.98, -95.34, 60))  # another place, right after
     assert len(adsb.urls) == 1 and state["fetched"] is None  # it's loading: its page asks again
     clock.t += traffic.MIN_GAP
+    t.snapshot(NYC)  # a place that has been fetched before is only held back by the gap, which has passed
+    assert len(adsb.urls) == 1  # (it isn't due yet)
+    clock.t += 5
     assert t.snapshot((29.98, -95.34, 60))["fetched"] == clock.t
     assert len(adsb.urls) == 2
+
+
+def test_only_one_new_place_starts_per_interval():
+    adsb = FakeAdsbFi()
+    t, _, clock = make(get=adsb, seconds=5)
+    for i in range(6):  # a script that keeps changing its view
+        t.snapshot((30.0 + i, -95.0, 40))
+        clock.t += 2
+    assert len(adsb.urls) == 2  # at t=0 and t=6: not one every 1.1 s
+    assert len(t._places) == 4  # and the rest are forgotten
 
 
 def test_too_many_requests_stops_every_place():
@@ -447,5 +460,44 @@ def test_the_json_is_the_snapshot_serialized_once_per_fetch(monkeypatch):
 
 
 def test_the_json_of_a_view_too_wide():
-    state = json.loads(make()[0].snapshot_json((39.0, -98.0, 1000)))
+    state = json.loads(make()[0].snapshot_json((45.0, -110.0, 400)))
     assert state["too_wide"] and state["aircraft"] == []
+
+
+def test_a_view_that_takes_in_every_airport_gets_their_circle():
+    adsb = FakeAdsbFi()
+    t, _, _ = make(get=adsb)
+    state = t.snapshot((30.4761, -95.3414, 400))  # wider than a view may be, with all of HOUSTON in it
+    assert not state["too_wide"] and state["radius"] == traffic.area(HOUSTON)[1]
+    assert adsb.urls == [f"https://opendata.adsb.fi/api/v3/lat/30.4761/lon/-95.3414/dist/{state['radius']}"]
+    assert t.snapshot()["fetched"] == state["fetched"]  # the same place as without a view: no second fetch
+    assert len(adsb.urls) == 1
+
+
+def test_a_wide_view_elsewhere_is_still_too_wide():
+    t, _, _ = make()
+    assert t.snapshot((45.0, -110.0, 400))["too_wide"]
+
+
+def test_a_wide_view_with_no_airport_positions_is_too_wide():
+    t, _, _ = make(points=[])
+    assert t.snapshot((30.4761, -95.3414, 400))["too_wide"]
+
+
+def test_every_place_says_when_adsb_fi_told_one_to_wait():
+    adsb = FakeAdsbFi(FakeResponse(status=429), FakeResponse())
+    t, _, clock = make(get=adsb, seconds=2)
+    t.snapshot(NYC)
+    clock.t += 10
+    other = t.snapshot((29.98, -95.34, 60))  # never fetched, and nobody is asking until the wait is over
+    assert other["error"] == traffic.TOO_MANY and other["fetched"] is None and len(adsb.urls) == 1
+    clock.t += traffic.RATE_LIMITED
+    assert t.snapshot((29.98, -95.34, 60))["error"] is None
+
+
+def test_one_place_failing_doesnt_slow_the_others():
+    adsb = FakeAdsbFi(requests.exceptions.ConnectionError("down"), FakeResponse())
+    t, _, clock = make(get=adsb, seconds=2)
+    t.snapshot(NYC)
+    clock.t += 6  # past the new-place wait
+    assert t.snapshot((29.98, -95.34, 60))["error"] is None
