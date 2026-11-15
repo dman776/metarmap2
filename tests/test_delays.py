@@ -107,6 +107,8 @@ def test_todays_closures_count_without_their_partial_words():
         "minutes": None,
         "from": epoch("2026-05-27 18:26"),
         "until": epoch("2027-05-28 16:00"),
+        "reason": "!LAX 05/277 LAX AD AP CLSD CTC ATLANTIC AVIATION 310-258-9884 OR "
+        "SIGNATURE AVIATION 310-410-9605 2605271826-2705281600",
     }
     assert delays.worst(airports["SUA"], NOW)["kind"] == CLOSED  # 16:00-22:30 today
     assert delays.worst(airports["SUA"], epoch("2026-11-14 23:00"))["kind"] == NORMAL  # reopened
@@ -196,13 +198,17 @@ def test_a_closure_without_an_update_time_or_reopen():
 
 def test_ground_delay_programs_by_their_average():
     airports, _ = parse(feed(GROUND_DELAYS))
-    assert airports["EWR"] == [{"kind": DELAY, "minutes": 138, "from": None, "until": FOREVER}]
+    assert airports["EWR"] == [
+        {"kind": DELAY, "minutes": 138, "from": None, "until": FOREVER, "reason": "low ceilings"}
+    ]
     assert airports["SFO"][0]["minutes"] == 45
 
 
 def test_ground_stops():
     airports, _ = parse(feed(GROUND_STOPS))
-    assert airports == {"LGA": [{"kind": GROUND_STOP, "minutes": None, "from": None, "until": FOREVER}]}
+    assert airports == {
+        "LGA": [{"kind": GROUND_STOP, "minutes": None, "from": None, "until": FOREVER, "reason": "thunderstorms"}]
+    }
 
 
 def test_arrival_and_departure_delays_by_the_worst_middle_of_their_range():
@@ -265,8 +271,14 @@ def test_the_worst_status_wins():
             ARRIVAL_DEPARTURE.replace("ORD", "SFO"),
         )
     )
-    assert delays.worst(airports["EWR"], NOW) == {"kind": GROUND_STOP, "minutes": None}  # over its 138-minute GDP
-    assert delays.worst(airports["SFO"], NOW) == {"kind": CLOSED, "minutes": None}
+    ewr = delays.worst(airports["EWR"], NOW)  # the ground stop is over its 138-minute GDP
+    assert (ewr["kind"], ewr["reason"], ewr["until"]) == (GROUND_STOP, "thunderstorms", None)
+    sfo = delays.worst(airports["SFO"], NOW)
+    assert (sfo["kind"], sfo["reason"], sfo["until"]) == (
+        CLOSED,
+        "AD AP CLSD 2611140000-2611200000",
+        epoch("2026-11-20 00:00"),
+    )
     assert delays.worst([], NOW) == {"kind": NORMAL, "minutes": None}
     two = [{"kind": DELAY, "minutes": 20, "from": None, "until": FOREVER}, {**airports["EWR"][0]}]
     assert delays.worst(two, NOW)["minutes"] == 138  # the longer delay
@@ -329,8 +341,8 @@ def test_fetch_and_status():
     assert d.fetch() is True
     url, kwargs = get.calls[0]
     assert url == delays.STATUS_URL and kwargs["headers"]["User-Agent"].startswith("metarmap2/")
-    assert d.status("EWR") == {"kind": DELAY, "minutes": 138}
-    assert d.status("lga") == {"kind": GROUND_STOP, "minutes": None}
+    assert d.status("EWR") == {"kind": DELAY, "minutes": 138, "reason": "low ceilings", "until": None}
+    assert d.status("lga") == {"kind": GROUND_STOP, "minutes": None, "reason": "thunderstorms", "until": None}
     assert d.status("IAH") == {"kind": NORMAL, "minutes": None}
     assert d.fetched == NOW and d.error is None
 
@@ -407,9 +419,24 @@ def test_with_delays():
     known = {"PHNL": {"faa": "HNL"}, "CYYZ": {"faa": ""}}
     shown = with_delays(data, d, known)
     assert shown["PHNL"].faa_status["kind"] == GROUND_STOP
-    assert shown["KEWR"].faa_status == {"kind": DELAY, "minutes": 138}
+    assert shown["KEWR"].faa_status == {"kind": DELAY, "minutes": 138, "reason": "low ceilings", "until": None}
     assert shown["KIAH"].faa_status["kind"] == NORMAL
     assert shown["CYYZ"].faa_status == {"kind": NORMAL, "minutes": None}  # no FAA id: not in the FAA's status
     before = with_delays(data, Delays(get=Get(), clock=lambda: NOW), known)
     assert before["CYYZ"].faa_status is None and before["KEWR"].faa_status is None  # nothing fetched yet
     assert shown["KXXX"] is None  # no report stays None
+
+
+# ---- saying it in a sentence ------------------------------------------------------------------------------------
+
+
+def test_describe():
+    until = epoch("2026-11-14 22:30")
+    assert delays.describe({"kind": CLOSED, "minutes": None, "until": until}) == "Closed by the FAA until 14 Nov 22:30Z"
+    assert delays.describe({"kind": CLOSED, "minutes": None, "until": FOREVER}) == "Closed by the FAA"
+    assert delays.describe({"kind": GROUND_STOP, "minutes": None}) == "FAA ground stop"
+    assert delays.describe({"kind": DELAY, "minutes": 45}) == "FAA delay of about 45 min"
+    assert delays.describe({"kind": DELAY, "minutes": 138}) == "FAA delay of about 2 h 18 min"
+    assert delays.describe({"kind": DELAY, "minutes": None}) == "FAA delay"
+    assert delays.describe({"kind": NORMAL, "minutes": None}) == ""
+    assert delays.describe(None) == ""

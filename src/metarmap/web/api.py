@@ -8,6 +8,7 @@ See API.md; the field names are part of the API.
 import gzip
 import json
 import time
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
 
 import bottle
@@ -15,6 +16,7 @@ import bottle
 from metarmap.discovery import map_name
 from metarmap import __version__
 from metarmap.decode import decode, summary
+from metarmap.delays import CLOSED, FOREVER, NORMAL, describe
 from metarmap.models import Report
 from metarmap.atis import AtisError
 from metarmap.atis_spoken import for_airport, lines as atis_lines
@@ -288,6 +290,27 @@ def metar(services: "App", code):
         "obsTime": m.obs_time.isoformat() if m and m.obs_time else None,
         "decoded": decode(m),
         "summary": summary(m),
+        "faa": faa_status(m),
+    }
+
+
+def faa_status(m):
+    """
+    What the FAA says about a report's airport, for the Map page's popup: {"kind", "text", "reason", "minutes",
+    "until"} (see /api/metar), or None when it's normal, not listed, or not known yet.
+    """
+    status = m.faa_status if m else None
+    if not status or status["kind"] == NORMAL:
+        return None
+    until = status.get("until")
+    return {
+        "kind": status["kind"],
+        "text": describe(status),
+        "reason": status.get("reason", ""),
+        "minutes": status["minutes"],
+        "until": datetime.fromtimestamp(until, timezone.utc).isoformat()
+        if status["kind"] == CLOSED and until not in (None, FOREVER)
+        else None,
     }
 
 

@@ -397,6 +397,8 @@ body.map-full-open { overflow: hidden; }
 .pop-metar { padding: 6px 8px; border-left: 3px solid var(--accent); border-radius: 8px; background: var(--accent-soft); color: var(--text); overflow-wrap: anywhere; }
 .pop-summary { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 3px; }
 .pop-summary li.age { color: var(--muted); list-style: none; margin-left: -16px; }
+.pop-summary li.faa { font-weight: 600; }
+.pop-summary li.faa-reason { color: var(--muted); list-style: none; margin-left: -16px; font-size: 12px; overflow-wrap: anywhere; }
 .pop-decoded { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 12px; margin: 0; font: 12px/1.45 var(--sans); }
 .pop-decoded { overflow-y: auto; -webkit-overflow-scrolling: touch; padding-right: 2px; }  /* map.js caps its height to the map */
 .pop-decoded dt { color: var(--muted); max-width: 96px; overflow-wrap: break-word; word-wrap: break-word; }  /* a long label wraps; the values keep the room */

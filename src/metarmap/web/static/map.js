@@ -502,6 +502,10 @@
                     if (cls) li.className = cls;
                     ul.appendChild(li);
                 };
+                if (metar.faa) {  // what the FAA says comes first: a closed airport is the news
+                    item(metar.faa.text, 'faa ' + metar.faa.kind);
+                    if (metar.faa.reason) item((metar.faa.kind === 'closed' ? 'NOTAM: ' : 'Reason: ') + metar.faa.reason, 'faa-reason');
+                }
                 metar.summary.forEach(function (line) { item(line); });
                 if (metar.obsTime) item('Reported ' + age(metar.obsTime), 'age');
                 panels.summary.appendChild(ul);
