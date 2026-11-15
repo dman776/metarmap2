@@ -5,6 +5,7 @@ The JSON API: /api/status (used by the Home Assistant integration), /api/live (p
 See API.md; the field names are part of the API.
 """
 
+import gzip
 import json
 import time
 from typing import TYPE_CHECKING, Optional
@@ -358,10 +359,26 @@ def spoken_reports(services: "App"):
     return {a.code: spoken_report(services, a.code) for a in services.config.airports if a.code}
 
 
-def traffic(services: "App"):
-    """Live traffic around the airports (see metarmap.traffic); None for a map without it."""
+def traffic_view(query):
+    """
+    The view a page sends, (lat, lon, radius in NM), from ?lat=&lon=&nm=; None when it sends none (the airports'
+    circle then). A 400 for a partial or impossible one.
+    """
+    if not any(key in query for key in ("lat", "lon", "nm")):
+        return None
+    try:
+        lat, lon, nm = float(query["lat"]), float(query["lon"]), float(query["nm"])
+    except (KeyError, ValueError):
+        bottle.abort(400, "lat, lon and nm are all needed, as numbers")
+    if not (-90 <= lat <= 90 and -180 <= lon <= 180 and 0 < nm < float("inf")):
+        bottle.abort(400, "lat, lon or nm is out of range")
+    return lat, lon, nm
+
+
+def traffic(services: "App", view=None):
+    """Live traffic around the view, or the airports (see metarmap.traffic), as JSON text; None for a map without it."""
     found = services.traffic
-    return found.snapshot() if found is not None else None
+    return found.snapshot_json(view) if found is not None else None
 
 
 def advisories(services: "App"):
@@ -387,6 +404,16 @@ def tfrs(services: "App"):
 def as_json(data):
     bottle.response.content_type = "application/json"
     return json.dumps(data)
+
+
+def as_json_text(text):
+    """JSON that's already text, gzipped when the browser takes it (a busy circle is 85 KB, about 20 KB gzipped)."""
+    bottle.response.content_type = "application/json"
+    bottle.response.set_header("Vary", "Accept-Encoding")
+    if "gzip" in bottle.request.headers.get("Accept-Encoding", ""):
+        bottle.response.set_header("Content-Encoding", "gzip")
+        return gzip.compress(text.encode(), 1)  # level 1: 12 ms on a Pi Zero for the biggest answer, 57 ms at 6
+    return text
 
 
 def as_text(text, code):
@@ -542,7 +569,13 @@ def add_routes(app, services: "App", site):
         "/api/advisories", "GET", lambda: as_json(advisories(services) or bottle.abort(404, "No G-AIRMETs or SIGMETs"))
     )
     app.route("/api/tfrs", "GET", lambda: as_json(tfrs(services) or bottle.abort(404, "No TFRs")))
-    app.route("/api/traffic", "GET", lambda: as_json(traffic(services) or bottle.abort(404, "No live traffic")))
+    app.route(
+        "/api/traffic",
+        "GET",
+        lambda: as_json_text(
+            traffic(services, traffic_view(bottle.request.query)) or bottle.abort(404, "No live traffic")
+        ),
+    )
     app.route("/api/speak", "GET", lambda: as_json(spoken_reports(services)))
     # .audio before the text route: <code> would take "KHOU.audio" too
     app.route("/api/speak/<code>.audio", "GET", lambda code: as_audio(services, code.upper()))

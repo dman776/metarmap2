@@ -90,7 +90,7 @@
     }
 
     let switcher;
-    let trafficToggle, trafficNote;  // the live traffic checkbox and its status (see "live traffic" below)
+    let trafficToggle, trafficState, trafficNote;  // the live traffic checkbox, its label's status and the note below it (see "live traffic" below)
     const BgControl = L.Control.extend({
         options: {position: 'topright'},
         onAdd: function () {
@@ -111,8 +111,9 @@
             radarInfo.querySelector('time').textContent = clock(new Date());
             radarInfo.hidden = true;
             const toggle = L.DomUtil.create('label', 'map-toggle', box);
-            toggle.innerHTML = '<input type="checkbox"> Live traffic';
+            toggle.innerHTML = '<input type="checkbox"> <span>Live traffic<span class="traffic-state"></span></span>';
             trafficToggle = toggle.querySelector('input');
+            trafficState = toggle.querySelector('.traffic-state');
             trafficNote = L.DomUtil.create('div', 'map-note', box);
             trafficNote.hidden = true;
             L.DomEvent.disableClickPropagation(box);
@@ -1113,6 +1114,13 @@
     let trafficInterval = 5;
     let serverSkew = 0;  // this browser's clock minus the map's
     let followed = null;  // {hex, points, trail}
+    let lastAircraft = [];  // what the map last answered, drawn again (only what's in view) when the map moves
+    let trafficMoved = false;  // the next request is because the map moved: say "loading…" if it takes a moment
+    let trafficRedo = false;  // the map moved while a request was in flight: ask again at once
+    let trafficMax = 250;  // the widest view (NM, center to corner) that gets aircraft: the Chart says (max_view)
+    let trafficWide = false;  // the view is wider than that: nothing is shown, and nothing is asked
+    let trafficLoading = false;  // the last answer had nothing yet for this place (the Chart spaces its fetches): ask soon
+    let moveTimer = null;
 
     function serverNow() {
         return Date.now() / 1000 - serverSkew;
@@ -1232,8 +1240,22 @@
         }
     }
 
+    // the view the map asks traffic for: its center and the radius (NM) of the circle around its corners
+    function trafficView() {
+        const bounds = map.getBounds(), center = bounds.getCenter();
+        const meters = Math.max(map.distance(center, bounds.getNorthEast()), map.distance(center, bounds.getSouthWest()));
+        // wrapped: dragged past the dateline the map's longitude goes beyond 180, which the Chart refuses
+        return {lat: center.lat, lon: map.wrapLatLng(center).lng, nm: Math.max(1, Math.ceil(meters / 1852))};
+    }
+
     function syncAircraft(list) {
+        lastAircraft = list;
         const seen = {};
+        // the answer is a circle around the view: draw only what's in it (and the one being followed)
+        const inView = viewSet ? map.getBounds().pad(0.25) : null;
+        list = list.filter(function (a) {
+            return !inView || inView.contains([a.lat, a.lon]) || (followed && followed.hex === a.hex);
+        });
         list.forEach(function (a) {
             seen[a.hex] = true;
             let entry = aircraft[a.hex];
@@ -1293,18 +1315,44 @@
         }
     }
 
+    const ZOOM_IN = 'zoom in…';
+    const LOADING = 'loading…';
+
+    // the checkbox's label says what is going on while no aircraft are shown ("Live traffic, zoom in…"); the note
+    // below it has the count, the key and errors
+    function trafficLabel(state, note) {
+        trafficState.textContent = state ? ', ' + state : '';
+        trafficNote.textContent = note || '';
+        trafficNote.hidden = !note;
+    }
+
+    // the label follows the zoom at once: "zoom in" past the limit, "loading" as soon as the view is within it
+    function trafficHint() {
+        if (!viewSet) return;
+        const wide = trafficView().nm > trafficMax;
+        if (wide) {
+            trafficLabel(ZOOM_IN);
+            syncAircraft([]);
+        } else if (trafficWide) {
+            trafficLabel(LOADING);
+        }
+        trafficWide = wide;
+    }
+
     function trafficStatus(t) {
+        if (t.too_wide) return trafficLabel(ZOOM_IN);
+        if (t.fetched === null && !t.error) {  // nothing for this place yet: the label says so, the rest stays
+            trafficState.textContent = ', ' + LOADING;
+            return;
+        }
         const count = t.aircraft.length;
         let text;
         if (t.error) {
             text = 'Live traffic: ' + t.error + (t.fetched ? ' · last update ' + clock(new Date((t.fetched + serverSkew) * 1000)) : '');
-        } else if (t.fetched === null) {
-            text = 'Live traffic: loading…';
         } else {
-            text = count + ' aircraft within ' + t.radius + ' NM · every ' + t.interval + ' s';
+            text = count + ' aircraft near this view · every ' + t.interval + ' s';
         }
-        trafficNote.textContent = text;
-        trafficNote.hidden = false;
+        trafficLabel('', text);
         // a key to the colors: the kinds on the map now, smallest first
         const present = {};
         t.aircraft.forEach(function (a) { present[kindOf(a)] = true; });
@@ -1322,27 +1370,66 @@
         if (trafficAsking) return;  // the one in flight schedules the next
         trafficTimer = null;
         if (!trafficOn) return;
+        if (!viewSet) {  // the first /api/live answer gives the map its view, and traffic is about the view
+            trafficTimer = setTimeout(pollTraffic, 500);
+            return;
+        }
         if (!document.hidden) {
             trafficAsking = true;
+            let busy = null;
+            if (trafficMoved) {
+                trafficMoved = false;
+                // after a moment only: the Chart answers in a few ms for a place it already has, and that shouldn't flicker.
+                // The count below stays; the answer puts the label back
+                busy = setTimeout(function () { trafficState.textContent = ', ' + LOADING; }, 100);
+            }
             try {
-                const res = await fetch('/api/traffic', {cache: 'no-store'});
+                const v = trafficView();
+                const res = await fetch('/api/traffic?lat=' + v.lat.toFixed(4) + '&lon=' + v.lon.toFixed(4) + '&nm=' + v.nm, {cache: 'no-store'});
                 if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
                 const t = await res.json();
                 if (!trafficOn) return;  // ticked off while it loaded (finally still clears trafficAsking)
                 serverSkew = Date.now() / 1000 - t.now;
                 trafficInterval = Math.max(1, t.interval || trafficInterval);
-                syncAircraft(t.aircraft);
+                // a place with nothing fetched yet answers with no aircraft: keep the ones on the map until it has some
+                if (t.fetched !== null || t.error || t.too_wide) syncAircraft(t.aircraft);
                 trafficStatus(t);
+                trafficLoading = t.fetched === null && !t.error && !t.too_wide;
+                trafficMax = t.max_view || trafficMax;
+                trafficWide = !!t.too_wide;
             } catch (err) {
                 console.error('[map] traffic failed', err);
-                trafficNote.textContent = 'Live traffic: the map can\'t be reached';
-                trafficNote.hidden = !trafficOn;
+                trafficLoading = false;
+                if (trafficOn) trafficLabel('', 'Live traffic: the map can\'t be reached');
             } finally {
+                clearTimeout(busy);
                 trafficAsking = false;
             }
         }
-        if (trafficOn && !trafficTimer) trafficTimer = setTimeout(pollTraffic, trafficInterval * 1000);
+        const wait = trafficRedo ? 0 : trafficLoading ? 1200 : trafficInterval * 1000;
+        trafficRedo = false;
+        if (trafficOn && !trafficTimer) trafficTimer = setTimeout(pollTraffic, wait);
     }
+
+    // moved or zoomed: draw what we have for the new view, then ask for it (the Chart shares what it fetched for nearby views)
+    // (not while following an aircraft: the map is moved every glide tick, and it isn't looking anywhere new)
+    map.on('moveend', function () {
+        if (!trafficOn || followed) return;
+        trafficHint();
+        clearTimeout(moveTimer);
+        moveTimer = setTimeout(function () {
+            if (!trafficOn || trafficWide) return;  // nothing is asked while the view is too wide
+            trafficMoved = true;
+            syncAircraft(lastAircraft);
+            if (trafficAsking) {
+                trafficRedo = true;
+            } else {
+                clearTimeout(trafficTimer);
+                trafficTimer = null;
+                pollTraffic();
+            }
+        }, 300);
+    });
 
     function showTraffic(on) {
         trafficOn = on;
@@ -1353,13 +1440,12 @@
         trafficTimer = glideTimer = null;
         if (on) {
             map.attributionControl.addAttribution(TRAFFIC_CREDIT);
-            trafficNote.textContent = 'Live traffic: loading…';
-            trafficNote.hidden = false;
+            trafficLabel(LOADING);
             glideTimer = setInterval(moveAircraft, GLIDE_MS);
             pollTraffic();
         } else {
             map.attributionControl.removeAttribution(TRAFFIC_CREDIT);
-            trafficNote.hidden = true;
+            trafficLabel('');
             unfollow();
             syncAircraft([]);
         }
