@@ -4,6 +4,8 @@ Tests for live traffic (metarmap.traffic): the area asked about, reading adsb.fi
 
 from types import SimpleNamespace
 
+import json
+
 import pytest
 import requests
 
@@ -287,7 +289,7 @@ def test_backoff_has_a_limit():
     for _ in range(20):
         t.snapshot()
         clock.t += traffic.MAX_BACKOFF
-    assert t._backoff == traffic.MAX_BACKOFF
+    assert next(iter(t._places.values())).backoff == traffic.MAX_BACKOFF
 
 
 def test_too_many_requests_waits_at_least_a_minute():
@@ -338,3 +340,112 @@ def test_sends_its_own_user_agent():
 
     make(get=get)[0].snapshot()
     assert seen.headers["User-Agent"].startswith("metarmap2/")
+
+
+# ---- following the map's view -----------------------------------------------------------------------------------
+
+NYC = (40.7128, -74.0060, 60)  # lat, lon, radius in NM of what a page shows
+
+
+def test_cover_snaps_to_a_grid_and_a_few_radii():
+    (lat, lon), radius = traffic.cover(40.7128, -74.0060, 60)
+    assert (lat, lon) == (40.75, -74.0) and radius in traffic.RADII
+    assert traffic.distance_nm((40.7128, -74.0060), (lat, lon)) + 60 <= radius
+
+
+def test_nearby_views_get_the_same_circle():
+    assert traffic.cover(40.71, -74.01, 60) == traffic.cover(40.74, -73.98, 58)
+
+
+@pytest.mark.parametrize("lat", [0, 25, 47, 60, 70])
+def test_the_widest_view_is_always_covered(lat):
+    for lon in (-123.9, -95.13, -74.02, 0.07):
+        for dlat in (0, 0.05, 0.1, 0.124):
+            _, radius = traffic.cover(lat + dlat, lon + dlat, traffic.MAX_VIEW_NM)
+            assert radius == traffic.RADII[-1]
+
+
+def test_a_view_wider_than_the_limit_has_no_circle():
+    assert traffic.cover(40.0, -100.0, traffic.MAX_VIEW_NM + 1) is None
+
+
+def test_a_view_is_fetched_around_itself():
+    adsb = FakeAdsbFi()
+    t, _, _ = make(get=adsb)
+    state = t.snapshot(NYC)
+    assert adsb.urls == [f"https://opendata.adsb.fi/api/v3/lat/40.7500/lon/-74.0000/dist/{state['radius']}"]
+    assert state["center"] == [40.75, -74.0] and not state["too_wide"] and len(state["aircraft"]) == 1
+
+
+def test_pages_looking_at_the_same_place_share_a_fetch():
+    adsb = FakeAdsbFi()
+    t, _, _ = make(get=adsb)
+    t.snapshot(NYC)
+    t.snapshot((40.74, -73.98, 58))
+    assert len(adsb.urls) == 1
+
+
+def test_a_view_too_wide_gets_no_aircraft_and_no_fetch():
+    adsb = FakeAdsbFi()
+    t, _, _ = make(get=adsb)
+    state = t.snapshot((39.0, -98.0, 1000))
+    assert state["too_wide"] and state["aircraft"] == [] and state["max_view"] == traffic.MAX_VIEW_NM
+    assert adsb.urls == []
+
+
+def test_adsb_fi_is_asked_at_most_once_a_second_wherever_pages_look():
+    adsb = FakeAdsbFi()
+    t, _, clock = make(get=adsb)
+    t.snapshot(NYC)
+    state = t.snapshot((29.98, -95.34, 60))  # another place, right after
+    assert len(adsb.urls) == 1 and state["fetched"] is None  # it's loading: its page asks again
+    clock.t += traffic.MIN_GAP
+    assert t.snapshot((29.98, -95.34, 60))["fetched"] == clock.t
+    assert len(adsb.urls) == 2
+
+
+def test_too_many_requests_stops_every_place():
+    adsb = FakeAdsbFi(FakeResponse(status=429), FakeResponse())
+    t, _, clock = make(get=adsb, seconds=2)
+    t.snapshot(NYC)
+    clock.t += 30
+    t.snapshot((29.98, -95.34, 60))
+    assert len(adsb.urls) == 1
+    clock.t += traffic.RATE_LIMITED
+    assert t.snapshot((29.98, -95.34, 60))["error"] is None
+
+
+def test_places_nobody_asks_about_are_forgotten():
+    t, _, clock = make()
+    t.snapshot(NYC)
+    clock.t += traffic.KEEP_SECONDS + 1
+    t.snapshot((29.98, -95.34, 60))
+    assert len(t._places) == 1
+
+
+def test_only_so_many_places_are_kept():
+    t, _, clock = make()
+    for i in range(traffic.MAX_PLACES + 5):
+        clock.t += 2
+        t.snapshot((30.0 + i, -95.0, 40))
+    assert len(t._places) == traffic.MAX_PLACES
+
+
+def test_the_json_is_the_snapshot_serialized_once_per_fetch(monkeypatch):
+    t, settings, clock = make()
+    text = t.snapshot_json(NYC)
+    assert json.loads(text) == t.snapshot(NYC)
+    assert " " not in text.split('"aircraft"')[0]  # compact
+    dumps = []
+    real = json.dumps
+    monkeypatch.setattr(traffic.json, "dumps", lambda *a, **k: dumps.append(1) or real(*a, **k))
+    t.snapshot_json(NYC)
+    t.snapshot_json(NYC)
+    assert len(dumps) == 2  # the head each time, the aircraft not at all
+    settings.traffic_ground = True
+    assert len(json.loads(t.snapshot_json(NYC))["aircraft"]) == 2
+
+
+def test_the_json_of_a_view_too_wide():
+    state = json.loads(make()[0].snapshot_json((39.0, -98.0, 1000)))
+    assert state["too_wide"] and state["aircraft"] == []

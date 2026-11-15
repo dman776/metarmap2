@@ -1,14 +1,19 @@
 """
-Live traffic for the Map page: the aircraft adsb.fi sees around the map's airports.
+Live traffic for the Map page: the aircraft adsb.fi sees around what the page is looking at.
 
-Fetched only while someone is looking: each Map page that has live traffic ticked asks /api/traffic, and the map asks
-adsb.fi again only when what it has is older than geo.map.traffic_seconds. One fetch serves every open page, so the
-map never asks adsb.fi more often than that, however many pages are open. A failed fetch waits longer each time.
+Fetched only while someone is looking: each Map page that has live traffic ticked asks /api/traffic with its view
+(center and radius), and the map asks adsb.fi again only when what it has for that place is older than
+geo.map.traffic_seconds. A view is snapped to a grid cell (cover()), so pages looking at about the same place share
+one fetch. Every fetch waits at least MIN_GAP seconds after the last one, so the map never asks adsb.fi more than once
+a second, however many pages are open or where they look. A view wider than MAX_VIEW_NM gets no aircraft (a whole
+country holds thousands, too many for a Pi to parse). Without a view it's the circle around the airports. A failed
+fetch waits longer each time.
 
 adsb.fi's open data is free for personal, non-commercial use, at most one request a second, and the map must credit
 it (the Map page does). https://github.com/adsbfi/opendata
 """
 
+import json
 import logging
 import math
 import threading
@@ -28,6 +33,13 @@ STALE_SECONDS = 60  # an aircraft whose position is older than this is left out
 MAX_BACKOFF = 300  # seconds: the longest wait after failed fetches
 RATE_LIMITED = 60  # seconds: the least wait after adsb.fi answers 429 (too many requests)
 EARTH_NM = 3440.065
+GRID_DEG = 0.25  # a view is snapped to this grid, so pages looking at about the same place share a fetch
+RADII = (40, 75, 110, 150)  # NM: the circles asked about for a view (a few sizes, so their answers can be shared)
+MAX_VIEW_NM = 135  # the widest view (its radius) that gets aircraft: a RADII circle always covers it, snapping included
+MIN_GAP = 1.1  # seconds between any two requests to adsb.fi (its limit is one a second)
+KEEP_SECONDS = 120  # a place nobody has asked about for this long is forgotten
+MAX_PLACES = 12
+COMPACT = (",", ":")
 
 
 def distance_nm(a, b):
@@ -50,6 +62,19 @@ def area(points):
     center = ((min(lats) + max(lats)) / 2, (min(lons) + max(lons)) / 2)
     radius = max(distance_nm(center, p) for p in points) + MARGIN_NM
     return center, min(MAX_RADIUS_NM, math.ceil(radius))
+
+
+def cover(lat, lon, nm):
+    """
+    The circle ((lat, lon), radius in NM) to ask adsb.fi about for a view of radius nm around (lat, lon): the center
+    snapped to a GRID_DEG grid and the radius to RADII, so nearby views get the same circle. None when the view is
+    wider than MAX_VIEW_NM.
+    """
+    if nm > MAX_VIEW_NM:
+        return None
+    snapped = (round(round(lat / GRID_DEG) * GRID_DEG, 4), round(round(lon / GRID_DEG) * GRID_DEG, 4))
+    need = nm + distance_nm((lat, lon), snapped)
+    return snapped, next(r for r in RADII if need <= r)
 
 
 # what the Map page draws, from the ADS-B emitter category (DO-260B): its shape and size
@@ -182,6 +207,20 @@ def parse(data, fetched):
     return aircraft
 
 
+class Place:
+    """What's known about one circle: its aircraft, when they were fetched, and how its fetches are going."""
+
+    def __init__(self):
+        self.aircraft = []
+        self.text = {}  # show ground traffic? -> the aircraft as JSON, made once per fetch
+        self.circle = None  # the circle the aircraft are from
+        self.fetched = None  # when the last fetch that worked was
+        self.tried = None  # when the last fetch started
+        self.backoff = 0  # seconds to wait after failed fetches (0 after one that worked)
+        self.error = None
+        self.asked = 0  # when a page last asked for it
+
+
 class Traffic:
     """
     settings: returns geo.map now (traffic_seconds, traffic_ground), so a change on the Config page applies at once.
@@ -196,67 +235,114 @@ class Traffic:
         self._clock = clock
         self._fetching = threading.Lock()  # one fetch at a time; other pages get what's there meanwhile
         self._lock = threading.Lock()
-        self._aircraft = []
-        self._area = None
-        self._fetched = None  # when the last fetch that worked was
-        self._tried = None  # when the last fetch started
-        self._backoff = 0  # seconds to wait after failed fetches (0 after one that worked)
-        self._error = None
+        self._places = {}  # circle (None: no airport positions yet) -> Place
+        self._last_request = None  # when adsb.fi was last asked
+        self._blocked_until = 0  # no requests before this (after adsb.fi answers 429)
 
     def interval(self):
         """geo.map.traffic_seconds (within TRAFFIC_SECONDS: its Rule checks it, also in a hand-edited config.json)."""
         return float(self._settings().traffic_seconds)
 
-    def due(self, now):
-        return self._tried is None or now - self._tried >= max(self.interval(), self._backoff)
+    def due(self, place, now):
+        return (
+            (place.tried is None or now - place.tried >= max(self.interval(), place.backoff))
+            and now >= self._blocked_until
+            and (self._last_request is None or now - self._last_request >= MIN_GAP)
+        )
 
-    def snapshot(self):
-        """The aircraft for /api/traffic, fetching first if what's there is old (see the module's notes)."""
-        if self.due(self._clock()) and self._fetching.acquire(blocking=False):
+    def snapshot(self, view=None):
+        """
+        The aircraft for /api/traffic, fetching first if what's there is old (see the module's notes). view: (lat, lon,
+        radius in NM) of what the page shows; without it, the circle around the airports.
+        """
+        return self.state(*self._refresh(view))
+
+    def snapshot_json(self, view=None):
+        """snapshot() as JSON text: the aircraft are serialized once per fetch, not once per page that asks."""
+        place, wide = self._refresh(view)
+        head = json.dumps(self.state(place, wide, aircraft=False), separators=COMPACT)
+        return head[:-1] + ',"aircraft":' + self._aircraft_json(place) + "}"
+
+    def _refresh(self, view):
+        if view is None:
+            circle, wide = area(self._points()), False
+        else:
+            circle = cover(*view)
+            wide = circle is None
+        if wide:
+            return None, True
+        now = self._clock()
+        with self._lock:
+            place = self._places.setdefault(circle, Place())
+            place.asked = now
+            self._forget(now)
+        if self.due(place, now) and self._fetching.acquire(blocking=False):
             try:
-                if self.due(self._clock()):  # another page may have fetched while this one waited
-                    self.fetch()
+                if self.due(place, self._clock()):  # another page may have fetched while this one waited
+                    self.fetch(place, circle)
             finally:
                 self._fetching.release()
-        return self.state()
+        return place, False
 
-    def fetch(self):
-        """Asks adsb.fi about the area around the airports. Never raises: a failure is kept as state()["error"]."""
-        now = self._tried = self._clock()
-        circle = area(self._points())
+    def _forget(self, now):
+        """Drops the places nobody asks about any more (with self._lock)."""
+        for circle in [c for c, p in self._places.items() if now - p.asked > KEEP_SECONDS]:
+            del self._places[circle]
+        while len(self._places) > MAX_PLACES:
+            del self._places[min(self._places, key=lambda c: self._places[c].asked)]
+
+    def fetch(self, place, circle):
+        """Asks adsb.fi about circle. Never raises: a failure is kept as the place's error."""
+        now = place.tried = self._clock()
         if circle is None:
-            self._failed("no airport positions yet")
+            self._failed(place, "no airport positions yet")
             return
+        self._last_request = now
         (lat, lon), radius = circle
         try:
             response = self._get(
                 API_URL.format(lat=lat, lon=lon, dist=radius), timeout=TIMEOUT, headers={"User-Agent": USER_AGENT}
             )
             if response.status_code == 429:
-                self._failed("adsb.fi says too many requests", at_least=RATE_LIMITED)
+                self._blocked_until = now + RATE_LIMITED
+                self._failed(place, "adsb.fi says too many requests", at_least=RATE_LIMITED)
                 return
             response.raise_for_status()
             aircraft = parse(response.json(), now)
         except (requests.exceptions.RequestException, ValueError) as e:
-            self._failed(f"couldn't reach adsb.fi: {e}")
+            self._failed(place, f"couldn't reach adsb.fi: {e}")
             return
         with self._lock:
-            self._aircraft, self._area, self._fetched = aircraft, circle, now
-            self._backoff, self._error = 0, None
+            place.aircraft, place.text, place.circle, place.fetched = aircraft, {}, circle, now
+            place.backoff, place.error = 0, None
 
-    def _failed(self, error, at_least=0):
-        if self._error != error:  # once, not every few seconds
+    def _failed(self, place, error, at_least=0):
+        if place.error != error:  # once, not every few seconds
             log.warning(f"live traffic: {error}")
         with self._lock:
-            self._error = error
-            self._backoff = min(MAX_BACKOFF, max(at_least, 2 * self.interval(), 2 * self._backoff))
+            place.error = error
+            place.backoff = min(MAX_BACKOFF, max(at_least, 2 * self.interval(), 2 * place.backoff))
 
-    def state(self):
+    def _aircraft_json(self, place):
         ground = bool(self._settings().traffic_ground)
         with self._lock:
-            aircraft = [a for a in self._aircraft if ground or not a["ground"]]
-            circle, fetched, error = self._area, self._fetched, self._error
-        return {
+            text = place.text.get(ground) if place else "[]"
+            if text is None:
+                text = place.text[ground] = json.dumps(self._shown(place, ground), separators=COMPACT)
+        return text
+
+    @staticmethod
+    def _shown(place, ground):
+        return [a for a in place.aircraft if ground or not a["ground"]] if place else []
+
+    def state(self, place, wide=False, aircraft=True):
+        """What /api/traffic answers for place (None for a view too wide, see MAX_VIEW_NM)."""
+        ground = bool(self._settings().traffic_ground)
+        with self._lock:
+            shown = self._shown(place, ground)
+            circle = place.circle if place else None
+            fetched, error = (place.fetched, place.error) if place else (None, None)
+        state = {
             "now": self._clock(),
             "interval": self.interval(),
             "fetched": fetched,
@@ -264,5 +350,9 @@ class Traffic:
             "center": list(circle[0]) if circle else None,
             "radius": circle[1] if circle else None,
             "source": {"name": "adsb.fi", "url": "https://adsb.fi/"},
-            "aircraft": aircraft,
+            "too_wide": wide,
+            "max_view": MAX_VIEW_NM,
         }
+        if aircraft:
+            state["aircraft"] = shown
+        return state

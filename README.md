@@ -52,7 +52,7 @@ Written from the ground up with a web UI, an API and a Home Assistant integratio
   remarks included (exact temperature, hourly precipitation, peak wind, wind shifts...), and what the JSON feed leaves
   out (runway visual range, CAVOK, the trend, runway state, a special or corrected report...).
   The map can go fullscreen, and follows the visualizer as it changes. Tick **Live traffic** to see the aircraft
-  around your airports; click one for its details and the map follows it. Update and restart the Chart from the Home
+  in the map's view (pan and zoom to look at any city); click one for its details and the map follows it. Update and restart the Chart from the Home
   page. **MetarMap2 Cockpit**, at `/remote`, is a remote control for a tablet in kiosk mode.
 - **API and Home Assistant**: everything in the web UI also works over HTTP (see [API.md](API.md)); the
   [metarmap2_ha](https://github.com/dman776/metarmap2_ha) integration adds the map to Home Assistant.
@@ -87,8 +87,10 @@ wrote it, the line being read lit:
 
 ### Live traffic
 
-Tick **Live traffic** to see the aircraft around your airports from [adsb.fi](https://adsb.fi/), each icon sized and
-colored by the class of aircraft (light, small, large, heavy, helicopter...).
+Tick **Live traffic** to see the aircraft in the map's view from [adsb.fi](https://adsb.fi/), each icon sized and
+colored by the class of aircraft (light, small, large, heavy, helicopter...). It follows the map: pan to New York and you
+see New York's traffic. Zoom out past about 135 NM from the center to a corner (a state or two) and it asks you to zoom
+in: a whole country holds thousands of aircraft, too many for a Pi Zero to fetch and draw.
 
 ![Live traffic on the Map page over radar, with a key to the aircraft classes](docs/images/map_live_traffic.jpg)
 

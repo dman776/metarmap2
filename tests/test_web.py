@@ -4,6 +4,7 @@ and the view data behind the pages.
 """
 
 import base64
+import gzip
 import io
 import json
 import os
@@ -249,6 +250,50 @@ def test_api_traffic(client):
 
 def test_api_traffic_without_it(services):
     assert api.traffic(services) is None
+
+
+def test_api_traffic_follows_the_view(client):
+    urls = []
+
+    def get(url, **kwargs):
+        urls.append(url)
+        return SimpleNamespace(status_code=200, raise_for_status=lambda: None, json=lambda: {"ac": []})
+
+    client.services.traffic = Traffic(lambda: client.services.config.data.geo.map, lambda: [], get=get)
+    traffic = client.json("/api/traffic?lat=40.7128&lon=-74.006&nm=60")
+    assert traffic["center"] == [40.75, -74.0] and traffic["too_wide"] is False
+    assert client.json("/api/traffic?lat=39&lon=-98&nm=1000")["too_wide"] is True
+    assert len(urls) == 1
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "lat=40",
+        "lat=40&lon=-74",
+        "lat=x&lon=-74&nm=60",
+        "lat=95&lon=-74&nm=60",
+        "lat=40&lon=-74&nm=0",
+        "lat=40&lon=-74&nm=nan",
+    ],
+)
+def test_api_traffic_refuses_a_bad_view(client, query):
+    client.services.traffic = Traffic(lambda: client.services.config.data.geo.map, lambda: [])
+    status, _ = client(f"/api/traffic?{query}")
+    assert status == 400
+
+
+def test_api_traffic_is_gzipped_when_asked(client):
+    client.services.traffic = Traffic(
+        lambda: client.services.config.data.geo.map,
+        lambda: [],
+        get=lambda url, **kwargs: SimpleNamespace(
+            status_code=200, raise_for_status=lambda: None, json=lambda: {"ac": []}
+        ),
+    )
+    status, _ = client("/api/traffic?lat=40&lon=-74&nm=60", headers={"Accept-Encoding": "gzip"})
+    assert status == 200 and client.headers["Content-Encoding"] == "gzip"
+    assert json.loads(gzip.decompress(client.raw))["too_wide"] is False
 
 
 def test_api_advisories(client):

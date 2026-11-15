@@ -462,13 +462,25 @@ below 18,000 ft, are included. TFRs without an outline (some long-running securi
 
 ### `GET /api/traffic`
 
-The aircraft around the Chart's airports, from [adsb.fi](https://adsb.fi/)'s open data. The Map page asks for it while its
-**Live traffic** box is ticked. No authentication.
+The aircraft around what the Map page is looking at (or, with no query, around the Chart's airports), from
+[adsb.fi](https://adsb.fi/)'s open data. The Map page asks for it while its **Live traffic** box is ticked, and again
+when the map is moved or zoomed. No authentication. The answer is gzipped when the request has `Accept-Encoding: gzip`.
 
-The Chart asks adsb.fi only when this is requested and what it has is older than `geo.map.traffic_seconds`, so any number
-of open pages share one fetch. Nothing is fetched while no page asks. A failed fetch waits longer each time (twice the
-interval, doubling, at most 5 minutes; at least a minute after adsb.fi answers 429), and keeps the aircraft from the
-last fetch that worked. adsb.fi's data is free for personal, non-commercial use, and must be credited.
+Query (all three together, or none):
+
+| Parameter | Description |
+|---|---|
+| `lat`, `lon` | The center of the view, in degrees |
+| `nm` | The radius of the view in nautical miles, from its center to a corner. Over 135 the answer has `too_wide: true` and no aircraft. A 400 for a missing, non-numeric or out-of-range value |
+
+The Chart asks adsb.fi only when this is requested and what it has for that place is older than
+`geo.map.traffic_seconds`. A view is snapped to a 0.25° grid and a circle of 40, 75, 110 or 150 NM that covers it, so
+pages looking at about the same place share one fetch. Any two fetches are at least 1.1 s apart (adsb.fi allows one a
+second), however many pages are open, so a page looking somewhere new may get `fetched: null` first and has the aircraft
+on its next poll. Places nobody asks about for 2 minutes are forgotten (at most 12 are kept). Nothing is fetched while
+no page asks. A failed fetch waits longer each time (twice the interval, doubling, at most 5 minutes; at least a minute
+after adsb.fi answers 429, for every place), and keeps the aircraft from the last fetch that worked. adsb.fi's data is
+free for personal, non-commercial use, and must be credited.
 
 ```json
 {
@@ -495,7 +507,8 @@ last fetch that worked. adsb.fi's data is free for personal, non-commercial use,
 | `now`, `fetched` | Unix times on the Chart's clock: now, and the last fetch that worked (`null` before the first) |
 | `interval` | Seconds between fetches: `geo.map.traffic_seconds`, kept between 2 and 60 |
 | `error` | Why the last fetch failed (e.g. `couldn't reach adsb.fi: …`, `no airport positions yet`), else `null` |
-| `center`, `radius` | The circle asked about: around every airport plus 25 NM, at most 250 NM (adsb.fi's limit) |
+| `center`, `radius` | The circle the aircraft are from: for a view, the snapped circle above; with no query, around every airport plus 25 NM, at most 250 NM (adsb.fi's limit). `null` before the first fetch worked |
+| `too_wide`, `max_view` | `true` when the view's `nm` is over `max_view` (135): no aircraft, and nothing fetched |
 | `aircraft[]` | Aircraft with a position no older than 60 s. Ones on the ground only with `geo.map.traffic_ground` |
 | `aircraft[].alt` | Barometric altitude in feet (the GPS one if there's none); `null` on the ground |
 | `aircraft[].gs`, `track`, `vrate` | Ground speed (kt), track (degrees true) and vertical rate (ft/min); `null` when not sent |
