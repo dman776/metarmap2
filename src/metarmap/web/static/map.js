@@ -148,13 +148,13 @@
     });
 
     // a visualizer's icon (/api/live's visualizer.icon) from the page's sprite (metarmap.web.icons); null without one
-    function visIcon(name) {
+    function visIcon(name, size) {
         if (!name || !document.getElementById('vi-' + name)) return null;
         const NS = 'http://www.w3.org/2000/svg';
         const svg = document.createElementNS(NS, 'svg');
         svg.setAttribute('class', 'vi');
-        svg.setAttribute('width', '14');
-        svg.setAttribute('height', '14');
+        svg.setAttribute('width', String(size || 14));
+        svg.setAttribute('height', String(size || 14));
         svg.setAttribute('aria-hidden', 'true');
         const use = document.createElementNS(NS, 'use');
         use.setAttribute('href', '#vi-' + name);
@@ -238,6 +238,140 @@
         }
     }
 
+    // ---- the visualizer's pick list: the name between the arrows opens it (the page's and the fullscreen map's) ----
+    // every visualizer comes from the page (#vis-choices); /api/live keeps the active one and the skipped ones current
+    const visChoices = [];
+    (function () {
+        const rows = document.querySelectorAll('#vis-choices li');
+        for (let i = 0; i < rows.length; i++) {
+            visChoices.push({id: rows[i].dataset.id, name: rows[i].dataset.name, icon: rows[i].dataset.icon,
+                             skipped: rows[i].dataset.skipped === 'true'});
+        }
+    })();
+    let activeVisId = visName ? visName.dataset.id : null;
+    const openMenus = [];  // {box, button, menu, close}
+
+    function syncPickers(vis) {
+        activeVisId = vis.id;
+        const skip = vis.autoRotate && vis.autoRotate.skip;
+        if (skip) {
+            for (let i = 0; i < visChoices.length; i++) visChoices[i].skipped = skip.indexOf(visChoices[i].id) >= 0;
+        }
+        for (let i = 0; i < openMenus.length; i++) if (!openMenus[i].menu.hidden) openMenus[i].fill();
+    }
+
+    function closeMenus(except) {
+        for (let i = 0; i < openMenus.length; i++) if (openMenus[i] !== except) openMenus[i].close(false);
+    }
+    // a tap outside any open list closes it; capture, as the map's own controls stop their clicks
+    function outside(e) {
+        for (let i = 0; i < openMenus.length; i++) {
+            if (!openMenus[i].menu.hidden && !openMenus[i].box.contains(e.target)) openMenus[i].close(false);
+        }
+    }
+    document.addEventListener('click', outside, true);
+    document.addEventListener('touchstart', outside, true);
+
+    // `box`: the element the list opens under (position: relative); `button`: the visualizer's name
+    function makeVisMenu(box, button) {
+        const menu = document.createElement('div');
+        menu.className = 'vis-menu';
+        menu.setAttribute('role', 'menu');
+        menu.setAttribute('aria-label', 'Visualizers');
+        menu.hidden = true;
+        box.appendChild(menu);
+        if (window.L) {
+            L.DomEvent.disableClickPropagation(menu);
+            L.DomEvent.disableScrollPropagation(menu);
+        }
+        const api = {box: box, button: button, menu: menu};
+
+        function items() { return menu.querySelectorAll('button.vis-opt'); }
+        api.fill = function () {
+            menu.textContent = '';
+            for (let i = 0; i < visChoices.length; i++) {
+                const v = visChoices[i];
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'vis-opt' + (v.skipped ? ' skipped' : '') + (v.id === activeVisId ? ' on' : '');
+                b.setAttribute('role', 'menuitemradio');
+                b.setAttribute('aria-checked', v.id === activeVisId ? 'true' : 'false');
+                b.dataset.id = v.id;
+                const icon = visIcon(v.icon, 20);
+                if (icon) b.appendChild(icon);
+                const name = document.createElement('span');
+                name.className = 'nm';
+                name.textContent = v.name;
+                b.appendChild(name);
+                if (v.skipped) {
+                    const tag = document.createElement('span');
+                    tag.className = 'tag';
+                    tag.textContent = 'skipped';
+                    b.appendChild(tag);
+                }
+                if (v.id === activeVisId) {
+                    const tick = document.createElement('span');
+                    tick.className = 'tick';
+                    tick.setAttribute('aria-hidden', 'true');
+                    tick.textContent = '\u2713';
+                    b.appendChild(tick);
+                }
+                b.addEventListener('click', function () { pick(v.id); });
+                menu.appendChild(b);
+            }
+        };
+        api.open = function () {
+            closeMenus(api);
+            api.fill();
+            menu.hidden = false;
+            button.setAttribute('aria-expanded', 'true');
+            // fit what is left of the window under the button; scrolls when it is taller
+            const room = (window.innerHeight || document.documentElement.clientHeight) - box.getBoundingClientRect().bottom - 16;
+            menu.style.maxHeight = Math.max(176, room) + 'px';
+            const on = menu.querySelector('.vis-opt.on') || menu.querySelector('.vis-opt');
+            if (on) {
+                on.focus();
+                if (on.scrollIntoView) menu.scrollTop = Math.max(0, on.offsetTop - 44);
+            }
+        };
+        api.close = function (refocus) {
+            if (menu.hidden) return;
+            menu.hidden = true;
+            button.setAttribute('aria-expanded', 'false');
+            if (refocus) button.focus();
+        };
+        function pick(id) {
+            api.close(true);
+            if (id === activeVisId) return;
+            callVisualizer(id, button);
+        }
+        button.addEventListener('click', function () {
+            if (menu.hidden) api.open(); else api.close(true);
+        });
+        button.addEventListener('keydown', function (e) {
+            if (e.key === 'ArrowDown' || e.key === 'Down') {
+                e.preventDefault();
+                if (menu.hidden) api.open();
+            } else if (e.key === 'Escape' || e.key === 'Esc') {
+                api.close(true);
+            }
+        });
+        menu.addEventListener('keydown', function (e) {
+            const list = items();
+            let at = -1;
+            for (let i = 0; i < list.length; i++) if (list[i] === document.activeElement) at = i;
+            const key = e.key;
+            if (key === 'ArrowDown' || key === 'Down') { e.preventDefault(); list[(at + 1) % list.length].focus(); }
+            else if (key === 'ArrowUp' || key === 'Up') { e.preventDefault(); list[(at + list.length - 1) % list.length].focus(); }
+            else if (key === 'Home') { e.preventDefault(); list[0].focus(); }
+            else if (key === 'End') { e.preventDefault(); list[list.length - 1].focus(); }
+            else if (key === 'Escape' || key === 'Esc') { e.preventDefault(); e.stopPropagation(); api.close(true); }
+            else if (key === 'Tab') api.close(false);
+        });
+        openMenus.push(api);
+        return api;
+    }
+
     // ---- fullscreen: the browser's fullscreen, or the whole window where there's none (iPhone) ---------------
     const mapEl = document.getElementById('map');
     const canFullscreen = !!(mapEl.requestFullscreen || mapEl.webkitRequestFullscreen);
@@ -254,6 +388,7 @@
         fullButton.setAttribute('aria-label', full ? 'Exit fullscreen' : 'Fullscreen');
         fullButton.title = full ? 'Exit fullscreen (Esc)' : 'Fullscreen';
         document.body.classList.toggle('map-full-open', mapEl.classList.contains('map-full'));
+        closeMenus(null);
         map.invalidateSize();
     }
     function toggleFullscreen() {
@@ -276,7 +411,10 @@
     document.addEventListener('fullscreenchange', fullscreenChanged);
     document.addEventListener('webkitfullscreenchange', fullscreenChanged);
     document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape' && mapEl.classList.contains('map-full')) toggleFullscreen();
+        if (e.key === 'Escape' && mapEl.classList.contains('map-full')) {
+            for (let i = 0; i < openMenus.length; i++) if (!openMenus[i].menu.hidden) return;  // closes the list first
+            toggleFullscreen();
+        }
     });
     const FullscreenControl = L.Control.extend({
         options: {position: 'topleft'},
@@ -304,19 +442,23 @@
         next: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>'
     };
     let fullVisName = null;
-    async function stepVisualizer(direction, button) {
+    // `which`: 'previous', 'next' or a visualizer's id
+    async function callVisualizer(which, button) {
         button.disabled = true;
         try {
-            const res = await fetch('/visualizer/' + direction, {credentials: 'same-origin'});
+            const res = await fetch('/visualizer/' + which, {credentials: 'same-origin'});
             if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
             // show the new one now, rather than at the next poll
-            followVisualizer((await (await fetch('/api/live', {cache: 'no-store'})).json()).visualizer);
+            const vis = (await (await fetch('/api/live', {cache: 'no-store'})).json()).visualizer;
+            syncPickers(vis);
+            followVisualizer(vis);
         } catch (err) {
-            console.error('[map] visualizer ' + direction + ' failed', err);
+            console.error('[map] visualizer ' + which + ' failed', err);
         } finally {
             button.disabled = false;
         }
     }
+    function stepVisualizer(direction, button) { return callVisualizer(direction, button); }
     const VisualizerControl = L.Control.extend({
         options: {position: 'topright'},
         onAdd: function () {
@@ -332,8 +474,10 @@
             };
             button('previous');
             const label = L.DomUtil.create('div', 'map-vis-name', box);
-            label.innerHTML = '<span class="lbl">Visualizer</span><b></b>';
+            label.innerHTML = '<button class="vis-pick" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Choose a visualizer"><span class="lbl">Visualizer</span><b></b>' +
+                '<svg class="caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>';
             fullVisName = label.querySelector('b');
+            makeVisMenu(box, label.querySelector('.vis-pick'));
             fullVisName.textContent = visName ? visName.querySelector('b').textContent : '';
             button('next');
             L.DomEvent.disableClickPropagation(box);
@@ -341,6 +485,8 @@
         }
     });
     new VisualizerControl().addTo(map);
+    const pageSwitch = document.querySelector('.vis-switch');
+    if (visName && pageSwitch) makeVisMenu(pageSwitch, visName.querySelector('.vis-pick'));
 
     // ---- OLED window -------------------------------------------------------------------------
     const ICONS = {
@@ -1470,6 +1616,7 @@
             speechOn = !!live.speech;
             syncLeds(live.leds);
             strip = live.strip;
+            syncPickers(live.visualizer);
             followVisualizer(live.visualizer);
             filterLegend(legendBox && legendBox.querySelector('.legend'), live.visualizer, shownVisualizer);
             markStep(legendBox, live.visualizer.step);

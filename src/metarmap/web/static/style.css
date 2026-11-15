@@ -288,16 +288,35 @@ body.map-full-open { overflow: hidden; }
 .live-map:-webkit-full-screen .map-vis { display: flex; }
 .live-map.map-full .map-vis { display: flex; }
 .map-vis .btn.icon { width: 44px; min-height: 44px; }
-.map-vis-name { min-width: 140px; text-align: center; display: flex; flex-direction: column; }
+.map-vis-name { min-width: 150px; text-align: center; display: flex; flex-direction: column; }
 .map-vis-name .lbl { font-size: 10px; }
 .map-vis-name b { font-size: 15px; }
 .map-fullscreen { display: flex !important; align-items: center; justify-content: center; }
 .map-fullscreen .exit, .map-fullscreen[aria-pressed="true"] .enter { display: none; }
 .map-fullscreen[aria-pressed="true"] .exit { display: block; }
 .tiles-dark { filter: invert(1) hue-rotate(180deg) brightness(.85) contrast(.9) saturate(.6); }
-.vis-switch { display: flex; align-items: center; gap: 8px; }
+.vis-switch { display: flex; align-items: center; gap: 8px; position: relative; }
 .vis-name { min-width: 170px; text-align: center; display: flex; flex-direction: column; }
 .vis-name b { font-size: 16px; }
+/* the name is a button that opens the list of every visualizer (map.js); the page's and the fullscreen map's share it */
+.vis-pick { display: block; width: 100%; min-height: 44px; padding: 2px 22px 2px 10px; position: relative; border: 1px solid transparent; border-radius: 10px; background: transparent; color: inherit; font: inherit; text-align: center; cursor: pointer; -webkit-appearance: none; appearance: none; }
+.vis-pick:hover, .vis-pick[aria-expanded="true"] { border-color: var(--control); background: var(--sunken); }
+.vis-pick:focus-visible { outline: 2px solid #ffd27d; outline-offset: 2px; }
+.vis-pick .lbl, .vis-pick b { display: block; }
+.vis-pick .caret { position: absolute; right: 8px; top: 50%; margin-top: -6px; color: var(--muted); }
+.vis-pick[aria-expanded="true"] .caret { -webkit-transform: rotate(180deg); transform: rotate(180deg); }
+.vis-menu { position: absolute; z-index: 2000; top: 100%; right: 0; margin-top: 6px; min-width: 250px; max-width: calc(100vw - 24px); overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 4px; border-radius: 12px; background: var(--surface); border: 1px solid var(--control); box-shadow: 0 10px 28px rgba(0, 0, 0, .45); text-align: left; font-family: var(--sans); color: var(--text); }
+.vis-menu[hidden] { display: none; }
+.vis-opt { display: -webkit-box; display: -ms-flexbox; display: flex; -webkit-box-align: center; -ms-flex-align: center; align-items: center; width: 100%; min-height: 44px; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; color: var(--text-2); font: 500 14px var(--sans); text-align: left; cursor: pointer; }
+.vis-opt .vi { flex: none; margin-right: 10px; }
+.vis-opt .nm { flex: 1 1 auto; }
+.vis-opt:hover, .vis-opt:focus { background: var(--surface-2); color: var(--text); outline: none; }
+.vis-opt:focus-visible { box-shadow: inset 0 0 0 2px #ffd27d; }
+.vis-opt.on { color: var(--accent); font-weight: 700; }
+.vis-opt .tick { flex: none; margin-left: 10px; }
+.vis-opt.skipped { opacity: .6; }
+.vis-opt.skipped .vi { opacity: .6; }
+.vis-opt .tag { flex: none; margin-left: 8px; padding: 1px 6px; border-radius: 6px; border: 1px solid var(--control); color: var(--muted); font: 600 10px var(--sans); text-transform: uppercase; letter-spacing: .04em; }
 
 .mled { position: relative; }
 .mled-dot { --c: #fff; position: absolute; left: -6px; top: -6px; width: 12px; height: 12px; padding: 0; border: 0; border-radius: 50%; cursor: pointer;

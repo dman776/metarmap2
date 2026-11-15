@@ -1058,6 +1058,19 @@ def test_map_legend_follows_the_visualizer(services):
     assert '<symbol id="vi-plane"' in c("/map", auth=False)[1]  # map.js draws the legend title's icon from it
 
 
+def test_map_visualizer_name_opens_a_pick_list(services):
+    """The Map page's visualizer name is a button, and the page lists every visualizer (skipped ones marked)."""
+    services.config.data.visualizer.auto_rotate.skip = ["wind"]
+    c = Client(create_app(services, ip=""))
+    body = c("/map", auth=False)[1]
+    assert 'class="vis-pick" type="button" aria-haspopup="true" aria-expanded="false"' in body
+    assert 'data-id="flight_category"' in body  # the active one, for the control
+    for v in services.renderer.visualizers:  # Rainbow and Chase too
+        skipped = "true" if v.id == "wind" else "false"
+        assert f'<li data-id="{v.id}" data-name="{v.name}" data-icon="{v.icon}" data-skipped="{skipped}"></li>' in body
+    assert body.count("<li data-id=") == len(services.renderer.visualizers)
+
+
 def test_icons_draw_every_visualizer_icon():
     assert set(icons.SHAPES) == set(ICONS)
     sprite = icons.sprite()
