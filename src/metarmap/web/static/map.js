@@ -276,7 +276,7 @@
     function makeVisMenu(box, button) {
         const menu = document.createElement('div');
         menu.className = 'vis-menu';
-        menu.setAttribute('role', 'menu');
+        menu.setAttribute('role', 'listbox');
         menu.setAttribute('aria-label', 'Visualizers');
         menu.hidden = true;
         box.appendChild(menu);
@@ -294,10 +294,10 @@
                 const b = document.createElement('button');
                 b.type = 'button';
                 b.className = 'vis-opt' + (v.skipped ? ' skipped' : '') + (v.id === activeVisId ? ' on' : '');
-                b.setAttribute('role', 'menuitemradio');
-                b.setAttribute('aria-checked', v.id === activeVisId ? 'true' : 'false');
+                b.setAttribute('role', 'option');
+                b.setAttribute('aria-selected', v.id === activeVisId ? 'true' : 'false');
                 b.dataset.id = v.id;
-                const icon = visIcon(v.icon, 20);
+                const icon = visIcon(v.icon, 26);
                 if (icon) b.appendChild(icon);
                 const name = document.createElement('span');
                 name.className = 'nm';
@@ -308,13 +308,6 @@
                     tag.className = 'tag';
                     tag.textContent = 'skipped';
                     b.appendChild(tag);
-                }
-                if (v.id === activeVisId) {
-                    const tick = document.createElement('span');
-                    tick.className = 'tick';
-                    tick.setAttribute('aria-hidden', 'true');
-                    tick.textContent = '\u2713';
-                    b.appendChild(tick);
                 }
                 b.addEventListener('click', function () { pick(v.id); });
                 menu.appendChild(b);
@@ -328,10 +321,14 @@
             // fit what is left of the window under the button; scrolls when it is taller
             const room = (window.innerHeight || document.documentElement.clientHeight) - box.getBoundingClientRect().bottom - 16;
             menu.style.maxHeight = Math.max(176, room) + 'px';
+            // never wider than the window: slide it back right when its left edge would be cut off
+            menu.style.right = '0px';
+            const left = menu.getBoundingClientRect().left;
+            if (left < 8) menu.style.right = (left - 8) + 'px';
             const on = menu.querySelector('.vis-opt.on') || menu.querySelector('.vis-opt');
             if (on) {
                 on.focus();
-                if (on.scrollIntoView) menu.scrollTop = Math.max(0, on.offsetTop - 44);
+                menu.scrollTop = Math.max(0, on.offsetTop - 44);
             }
         };
         api.close = function (refocus) {
@@ -361,10 +358,17 @@
             let at = -1;
             for (let i = 0; i < list.length; i++) if (list[i] === document.activeElement) at = i;
             const key = e.key;
-            if (key === 'ArrowDown' || key === 'Down') { e.preventDefault(); list[(at + 1) % list.length].focus(); }
-            else if (key === 'ArrowUp' || key === 'Up') { e.preventDefault(); list[(at + list.length - 1) % list.length].focus(); }
-            else if (key === 'Home') { e.preventDefault(); list[0].focus(); }
-            else if (key === 'End') { e.preventDefault(); list[list.length - 1].focus(); }
+            // columns in a row: the tiles that share the first one's top
+            let cols = 0;
+            while (cols < list.length && list[cols].offsetTop === list[0].offsetTop) cols++;
+            cols = Math.max(1, cols);
+            function go(i) { e.preventDefault(); list[Math.max(0, Math.min(list.length - 1, i))].focus(); }
+            if (key === 'ArrowRight' || key === 'Right') go(at + 1 >= list.length ? 0 : at + 1);
+            else if (key === 'ArrowLeft' || key === 'Left') go(at <= 0 ? list.length - 1 : at - 1);
+            else if (key === 'ArrowDown' || key === 'Down') go(at < 0 ? 0 : (at + cols < list.length ? at + cols : at));
+            else if (key === 'ArrowUp' || key === 'Up') go(at < 0 ? 0 : (at - cols >= 0 ? at - cols : at));
+            else if (key === 'Home') go(0);
+            else if (key === 'End') go(list.length - 1);
             else if (key === 'Escape' || key === 'Esc') { e.preventDefault(); e.stopPropagation(); api.close(true); }
             else if (key === 'Tab') api.close(false);
         });
