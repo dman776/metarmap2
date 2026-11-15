@@ -22,12 +22,7 @@
 
 <div id="map" class="live-map" role="region" aria-label="Map of airport pixels"></div>
 
-<!-- every visualizer, for the pick lists under the visualizer's name (map.js builds them from this) -->
-<ul id="vis-choices" hidden>
-    % for v in visualizers:
-    <li data-id="{{v['id']}}" data-name="{{v['name']}}" data-icon="{{v['icon']}}" data-skipped="{{'true' if v['skipped'] else 'false'}}"></li>
-    % end
-</ul>
+%include("vis_choices.tpl", visualizers=visualizers, active=active)
 
 <div id="legend-source" hidden>
     %include("legend.tpl", legend=active['legend'], filtered=active['filtered'], step=active['step'])

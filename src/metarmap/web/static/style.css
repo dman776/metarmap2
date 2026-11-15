@@ -287,6 +287,9 @@ body.map-full-open { overflow: hidden; }
 .live-map:fullscreen .map-vis { display: flex; }
 .live-map:-webkit-full-screen .map-vis { display: flex; }
 .live-map.map-full .map-vis { display: flex; }
+/* the Cockpit's Map tab has no page header selector, so the map's own is always there */
+.r-map .map-vis { display: -webkit-box; display: -ms-flexbox; display: flex; }
+.live-map.vis-open .leaflet-top.leaflet-right { z-index: 1100; }
 .map-vis .btn.icon { width: 44px; min-height: 44px; }
 .map-vis-name { min-width: 150px; text-align: center; display: flex; flex-direction: column; }
 .map-vis-name .lbl { font-size: 10px; }

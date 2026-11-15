@@ -200,7 +200,9 @@
 
     // ---- the visualizer: the map follows it when it changes (the buttons, auto-rotate, Home Assistant) ---------
     const visName = document.querySelector('.vis-name');
-    let shownVisualizer = visName ? +visName.dataset.active : null;
+    // the Cockpit has no page header selector: the active visualizer comes from the choices list the page renders
+    const choicesEl = document.getElementById('vis-choices');
+    let shownVisualizer = visName ? +visName.dataset.active : (choicesEl ? +choicesEl.dataset.active : null);
     let legendWanted = null;
 
     async function followVisualizer(vis) {
@@ -248,7 +250,7 @@
                              skipped: rows[i].dataset.skipped === 'true'});
         }
     })();
-    let activeVisId = visName ? visName.dataset.id : null;
+    let activeVisId = visName ? visName.dataset.id : (choicesEl ? choicesEl.dataset.activeId : null);
     const openMenus = [];  // {box, button, menu, close}
 
     function syncPickers(vis) {
@@ -319,12 +321,22 @@
             menu.hidden = false;
             button.setAttribute('aria-expanded', 'true');
             // fit what is left of the window under the button; scrolls when it is taller
-            const room = (window.innerHeight || document.documentElement.clientHeight) - box.getBoundingClientRect().bottom - 16;
+            // the map clips what sticks out of it (the Cockpit's map panel is smaller than the window), so fit inside it
+            const mapBox = mapEl.getBoundingClientRect();
+            const bottom = Math.min(window.innerHeight || document.documentElement.clientHeight, mapEl.contains(box) ? mapBox.bottom : 1e5);
+            const room = bottom - box.getBoundingClientRect().bottom - 16;
             menu.style.maxHeight = Math.max(176, room) + 'px';
-            // never wider than the window: slide it back right when its left edge would be cut off
+            // never wider than the window (or the map, which clips it): slide it back in from either side
+            const inMap = mapEl.contains(box);
+            const edge = inMap ? Math.max(8, mapBox.left + 8) : 8;
+            const limit = inMap ? Math.min(mapBox.right - 8, window.innerWidth - 8) : (document.documentElement.clientWidth || window.innerWidth) - 8;
+            menu.style.maxWidth = Math.max(160, limit - edge) + 'px';
             menu.style.right = '0px';
-            const left = menu.getBoundingClientRect().left;
-            if (left < 8) menu.style.right = (left - 8) + 'px';
+            const at = menu.getBoundingClientRect();
+            if (at.left < edge) menu.style.right = (at.left - edge) + 'px';
+            else if (at.right > limit) menu.style.right = (at.right - limit) + 'px';
+            // the map's other corners' controls (the Micro, the legend) would draw over a list that reaches them
+            if (inMap) mapEl.classList.add('vis-open');
             const on = menu.querySelector('.vis-opt.on') || menu.querySelector('.vis-opt');
             if (on) {
                 on.focus();
@@ -334,6 +346,7 @@
         api.close = function (refocus) {
             if (menu.hidden) return;
             menu.hidden = true;
+            if (mapEl.contains(box)) mapEl.classList.remove('vis-open');
             button.setAttribute('aria-expanded', 'false');
             if (refocus) button.focus();
         };
@@ -482,7 +495,7 @@
                 '<svg class="caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>';
             fullVisName = label.querySelector('b');
             makeVisMenu(box, label.querySelector('.vis-pick'));
-            fullVisName.textContent = visName ? visName.querySelector('b').textContent : '';
+            fullVisName.textContent = visName ? visName.querySelector('b').textContent : (choicesEl ? choicesEl.dataset.activeName : '');
             button('next');
             L.DomEvent.disableClickPropagation(box);
             return box;

@@ -2045,6 +2045,13 @@ def test_remote_page(client):
     assert 'class="r-modes"' not in body  # no speech: Locate is all Info does
     assert 'id="station-search"' in body  # more than 12 airports
     assert 'id="r-paused" hidden' in body  # Flight Category isn't exclusive
+    # the Map tab's visualizer picker: the same list of every visualizer as the Map page, and the active one
+    choices = body.split('<ul id="vis-choices"')[1].split("</ul>")[0]
+    assert choices.count("<li ") == len(app.renderer.visualizers)  # Rainbow and Chase too
+    assert 'data-id="rainbow"' in choices and 'data-id="chase"' in choices
+    assert 'data-active-id="flight_category" data-active-name="Flight Category"' in choices
+    map_choices = client("/map", auth=False)[1].split('<ul id="vis-choices"')[1].split("</ul>")[0]
+    assert map_choices == choices
 
 
 def test_remote_controls_need_no_login(client):
