@@ -51,7 +51,9 @@ Written from the ground up with a web UI, an API and a Home Assistant integratio
   Click an airport on the map for its weather in plain English, its raw METAR, or the METAR decoded line by line,
   remarks included (exact temperature, hourly precipitation, peak wind, wind shifts...), and what the JSON feed leaves
   out (runway visual range, CAVOK, the trend, runway state, a special or corrected report...).
-  The map can go fullscreen, and follows the visualizer as it changes. Tap the visualizer's name between the arrows (also in fullscreen, and always on the Cockpit's Map tab) to pick any visualizer from a grid of icons; the ones left out of auto-rotate say "skipped". Tick **Live traffic** to see the aircraft
+  The map can go fullscreen, and follows the visualizer as it changes. Tap or click the visualizer's name between the
+  arrows (also in fullscreen, and always on the Cockpit's Map tab) to pick any visualizer from a grid of icons; the
+  ones you've skipped from auto-rotate say "skipped". Tick **Live traffic** to see the aircraft
   in the map's view (pan and zoom to look at any city); click one for its details and the map follows it. Update and restart the Chart from the Home
   page. **MetarMap2 Cockpit**, at `/remote`, is a remote control for a tablet in kiosk mode.
 - **API and Home Assistant**: everything in the web UI also works over HTTP (see [API.md](API.md)); the
@@ -66,6 +68,11 @@ Written from the ground up with a web UI, an API and a Home Assistant integratio
 The Map page mirrors the Chart, with a copy of the Micro, over an FAA chart, satellite imagery or live radar.
 
 ![The Map page's Wind visualizer over the FAA sectional chart, with the legend and the Micro's copy](docs/images/map_sectional.jpg)
+
+Tap or click the visualizer's name to pick any visualizer from a grid of icons (the one in use is highlighted, the
+ones you've skipped from auto-rotate say "skipped"):
+
+![The Map page with the visualizer picker open: a grid of icon tiles, the active one highlighted and some marked skipped](docs/images/map_visualizer_picker.jpg)
 
 The Wind Direction visualizer, with wind barbs, over the radar background:
 
@@ -149,6 +156,9 @@ small **skip** badge shows, and a message says "skipped". Hold it again to put i
 plain tap still picks it, skipped or not. Rainbow and Chase are always left out of auto-rotate, so they can't be
 skipped, and the last visualizer auto-rotate still shows can't be skipped either. It's the same list as Config >
 Visualizers > *Visualizers in auto-rotate*, kept on the Chart.
+
+The Cockpit's **Map** tab has the visualizer name between arrows in the map itself; tap the name to pick any visualizer from a grid of icons, as on the Map page
+(on the Cockpit it is a tap, on the Map page a tap or a click).
 
 ![The Cockpit's Visualizer tab](docs/images/remote_visualizer.png)
 
