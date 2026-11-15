@@ -183,6 +183,7 @@ def parse(xml_text, unknown=None):
     """
     The feed's airports, {faa id: [{"kind", "minutes", "from", "until"}]}, and its Update_Time (epoch seconds, or None):
     ({...}, updated). "from" and "until" (epoch seconds; None and FOREVER when not given) are only set for closures.
+    "reason" is the feed's own text for it (a closure's NOTAM, a ground stop's "thunderstorms"), "" if it has none.
     Partial closures and ids that aren't airport ids are left out. unknown: a set that gets the names of the delay types
     it doesn't know. Raises ValueError for text that isn't the feed's XML.
     """
@@ -208,9 +209,9 @@ def parse(xml_text, unknown=None):
             if not AIRPORT_ID.fullmatch(code):
                 log.debug(f"FAA status: {code!r} isn't an airport id; left out")
                 continue
-            entry = {"kind": kind, "minutes": None, "from": None, "until": FOREVER}
+            reason = text(element, "Reason")
+            entry = {"kind": kind, "minutes": None, "from": None, "until": FOREVER, "reason": reason}
             if kind == CLOSED:
-                reason = text(element, "Reason")
                 if is_partial(reason):
                     continue
                 dates = notam_range(reason)
@@ -226,17 +227,46 @@ def parse(xml_text, unknown=None):
 
 
 def worst(entries, now):
-    """The worst of an airport's entries in effect at `now`: {"kind", "minutes"}; NORMAL if none are."""
+    """
+    The worst of an airport's entries in effect at `now`: {"kind", "minutes", "reason", "until"} ("until": epoch
+    seconds, FOREVER if not known, None for what isn't a closure); {"kind": NORMAL, "minutes": None} if none are.
+    """
     best = {"kind": NORMAL, "minutes": None}
     for entry in entries or ():
         if entry["kind"] == CLOSED:
             starts = entry["from"] if entry["from"] is not None else now
             if not starts <= now < entry["until"]:
                 continue
-        candidate = {"kind": entry["kind"], "minutes": entry["minutes"]}
+        candidate = {
+            "kind": entry["kind"],
+            "minutes": entry["minutes"],
+            "reason": entry.get("reason", ""),
+            "until": entry["until"] if entry["kind"] == CLOSED else None,
+        }
         if (RANK[candidate["kind"]], candidate["minutes"] or 0) > (RANK[best["kind"]], best["minutes"] or 0):
             best = candidate
     return best
+
+
+def describe(status):
+    """
+    What an airport's status says in a sentence ("Closed by the FAA until 14 Nov 22:30Z", "FAA ground stop", "FAA delay
+    of about 2 h 18 min"); "" for no status or a normal one.
+    """
+    kind = (status or {}).get("kind")
+    if kind == CLOSED:
+        until = status.get("until")
+        if until is None or until == FOREVER:
+            return "Closed by the FAA"
+        return "Closed by the FAA until " + datetime.fromtimestamp(until, timezone.utc).strftime("%d %b %H:%MZ")
+    if kind == GROUND_STOP:
+        return "FAA ground stop"
+    if kind == DELAY:
+        mins = status.get("minutes")
+        if mins is None:
+            return "FAA delay"
+        return f"FAA delay of about {mins // 60} h {mins % 60} min" if mins >= 60 else f"FAA delay of about {mins} min"
+    return ""
 
 
 class Delays:

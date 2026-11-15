@@ -1015,6 +1015,29 @@ def test_metar(services):
     assert api.metar(services, "KXXX") is None  # not on the map
 
 
+def test_metar_faa_status(services):
+    """The popup says what the FAA lists for the airport: its sentence and its own text, only when it isn't normal."""
+    until = datetime(2026, 11, 14, 22, 30, tzinfo=timezone.utc)
+    m = services.metars.data["KHOU"]
+    assert api.metar(services, "KHOU")["faa"] is None  # no status yet
+    closed = {"kind": "closed", "minutes": None, "reason": "!HOU 11/159 AD AP CLSD", "until": until.timestamp()}
+    services.metars.data["KHOU"] = replace(m, faa_status=closed)
+    assert api.metar(services, "KHOU")["faa"] == {
+        "kind": "closed",
+        "text": "Closed by the FAA until 14 Nov 22:30Z",
+        "reason": "!HOU 11/159 AD AP CLSD",
+        "minutes": None,
+        "until": until.isoformat(),
+    }
+    stop = {"kind": "ground_stop", "minutes": None, "reason": "", "until": None}
+    services.metars.data["KHOU"] = replace(m, faa_status=stop)
+    assert api.metar(services, "KHOU")["faa"]["text"] == "FAA ground stop"
+    assert api.metar(services, "KHOU")["faa"]["until"] is None
+    services.metars.data["KHOU"] = replace(m, faa_status={"kind": "normal", "minutes": None})
+    assert api.metar(services, "KHOU")["faa"] is None
+    assert api.metar(services, "KDKR")["faa"] is None  # not reporting
+
+
 def test_metar_summary(services):
     services.metars.data["KHOU"] = replace(
         services.metars.data["KHOU"], sky_conditions=(SkyLayer("BKN", 2500),), weather="-RA"
