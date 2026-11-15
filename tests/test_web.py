@@ -1058,6 +1058,19 @@ def test_map_legend_follows_the_visualizer(services):
     assert '<symbol id="vi-plane"' in c("/map", auth=False)[1]  # map.js draws the legend title's icon from it
 
 
+def test_map_visualizer_name_opens_a_pick_list(services):
+    """The Map page's visualizer name is a button, and the page lists every visualizer (skipped ones marked)."""
+    services.config.data.visualizer.auto_rotate.skip = ["wind"]
+    c = Client(create_app(services, ip=""))
+    body = c("/map", auth=False)[1]
+    assert 'class="vis-pick" type="button" aria-haspopup="true" aria-expanded="false"' in body
+    assert 'data-id="flight_category"' in body  # the active one, for the control
+    for v in services.renderer.visualizers:  # Rainbow and Chase too
+        skipped = "true" if v.id == "wind" else "false"
+        assert f'<li data-id="{v.id}" data-name="{v.name}" data-icon="{v.icon}" data-skipped="{skipped}"></li>' in body
+    assert body.count("<li data-id=") == len(services.renderer.visualizers)
+
+
 def test_icons_draw_every_visualizer_icon():
     assert set(icons.SHAPES) == set(ICONS)
     sprite = icons.sprite()
@@ -2032,6 +2045,13 @@ def test_remote_page(client):
     assert 'class="r-modes"' not in body  # no speech: Locate is all Info does
     assert 'id="station-search"' in body  # more than 12 airports
     assert 'id="r-paused" hidden' in body  # Flight Category isn't exclusive
+    # the Map tab's visualizer picker: the same list of every visualizer as the Map page, and the active one
+    choices = body.split('<ul id="vis-choices"')[1].split("</ul>")[0]
+    assert choices.count("<li ") == len(app.renderer.visualizers)  # Rainbow and Chase too
+    assert 'data-id="rainbow"' in choices and 'data-id="chase"' in choices
+    assert 'data-active-id="flight_category" data-active-name="Flight Category"' in choices
+    map_choices = client("/map", auth=False)[1].split('<ul id="vis-choices"')[1].split("</ul>")[0]
+    assert map_choices == choices
 
 
 def test_remote_controls_need_no_login(client):

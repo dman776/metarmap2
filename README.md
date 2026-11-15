@@ -51,7 +51,7 @@ Written from the ground up with a web UI, an API and a Home Assistant integratio
   Click an airport on the map for its weather in plain English, its raw METAR, or the METAR decoded line by line,
   remarks included (exact temperature, hourly precipitation, peak wind, wind shifts...), and what the JSON feed leaves
   out (runway visual range, CAVOK, the trend, runway state, a special or corrected report...).
-  The map can go fullscreen, and follows the visualizer as it changes. Tick **Live traffic** to see the aircraft
+  The map can go fullscreen, and follows the visualizer as it changes. Tap the visualizer's name between the arrows (also in fullscreen, and always on the Cockpit's Map tab) to pick any visualizer from a grid of icons; the ones left out of auto-rotate say "skipped". Tick **Live traffic** to see the aircraft
   in the map's view (pan and zoom to look at any city); click one for its details and the map follows it. Update and restart the Chart from the Home
   page. **MetarMap2 Cockpit**, at `/remote`, is a remote control for a tablet in kiosk mode.
 - **API and Home Assistant**: everything in the web UI also works over HTTP (see [API.md](API.md)); the

@@ -71,6 +71,7 @@ def map_page(services: "App", site):
         "map.tpl",
         settings=settings,
         active=views.visualizer(services.renderer),
+        visualizers=views.visualizer_choices(services.renderer),
         brightness=services.renderer.pixels().brightness,
     )
 

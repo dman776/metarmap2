@@ -80,6 +80,7 @@
     <!-- the Map page's map; remote.js loads map.js the first time the tab opens (Leaflet can't lay out a hidden map) -->
     <section class="r-panel r-map" id="r-map" role="tabpanel" aria-labelledby="tab-map" hidden>
         <div id="map" class="live-map" role="region" aria-label="Map of airport pixels" data-script="/static/map.js?v={{assets}}"></div>
+        %include("vis_choices.tpl", visualizers=visualizers, active=active)
         <div id="legend-source" hidden>
             %include("legend.tpl", legend=active['legend'], filtered=active['filtered'], step=active['step'])
         </div>
