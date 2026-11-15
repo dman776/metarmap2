@@ -90,7 +90,7 @@
     }
 
     let switcher;
-    let trafficToggle, trafficNote;  // the live traffic checkbox and its status (see "live traffic" below)
+    let trafficToggle, trafficState, trafficNote;  // the live traffic checkbox, its label's status and the note below it (see "live traffic" below)
     const BgControl = L.Control.extend({
         options: {position: 'topright'},
         onAdd: function () {
@@ -111,8 +111,9 @@
             radarInfo.querySelector('time').textContent = clock(new Date());
             radarInfo.hidden = true;
             const toggle = L.DomUtil.create('label', 'map-toggle', box);
-            toggle.innerHTML = '<input type="checkbox"> Live traffic';
+            toggle.innerHTML = '<input type="checkbox"> <span>Live traffic<span class="traffic-state"></span></span>';
             trafficToggle = toggle.querySelector('input');
+            trafficState = toggle.querySelector('.traffic-state');
             trafficNote = L.DomUtil.create('div', 'map-note', box);
             trafficNote.hidden = true;
             L.DomEvent.disableClickPropagation(box);
@@ -1313,40 +1314,41 @@
         }
     }
 
-    const LOADING_TEXT = 'Live traffic: loading aircraft…';
+    const ZOOM_IN = 'zoom in…';
+    const LOADING = 'loading…';
 
-    function tooWideText(nm, max) {
-        return 'Live traffic: zoom in to see aircraft (this view is ' + nm + ' NM from its center to a corner; up to ' + max + ' NM is shown)';
+    // the checkbox's label says what is going on while no aircraft are shown ("Live traffic, zoom in…"); the note
+    // below it has the count, the key and errors
+    function trafficLabel(state, note) {
+        trafficState.textContent = state ? ', ' + state : '';
+        trafficNote.textContent = note || '';
+        trafficNote.hidden = !note;
     }
 
-    // the note follows the zoom at once: "zoom in" past the limit, "loading" as soon as the view is within it
+    // the label follows the zoom at once: "zoom in" past the limit, "loading" as soon as the view is within it
     function trafficHint() {
         if (!viewSet) return;
         const wide = trafficView().nm > trafficMax;
         if (wide) {
-            trafficNote.textContent = tooWideText(trafficView().nm, trafficMax);
+            trafficLabel(ZOOM_IN);
             syncAircraft([]);
         } else if (trafficWide) {
-            trafficNote.textContent = LOADING_TEXT;
+            trafficLabel(LOADING);
         }
-        trafficNote.hidden = false;
         trafficWide = wide;
     }
 
     function trafficStatus(t) {
+        if (t.too_wide) return trafficLabel(ZOOM_IN);
+        if (t.fetched === null && !t.error) return trafficLabel(LOADING);
         const count = t.aircraft.length;
         let text;
-        if (t.too_wide) {
-            text = tooWideText(trafficView().nm, t.max_view);
-        } else if (t.error) {
+        if (t.error) {
             text = 'Live traffic: ' + t.error + (t.fetched ? ' · last update ' + clock(new Date((t.fetched + serverSkew) * 1000)) : '');
-        } else if (t.fetched === null) {
-            text = LOADING_TEXT;
         } else {
             text = count + ' aircraft near this view · every ' + t.interval + ' s';
         }
-        trafficNote.textContent = text;
-        trafficNote.hidden = false;
+        trafficLabel('', text);
         // a key to the colors: the kinds on the map now, smallest first
         const present = {};
         t.aircraft.forEach(function (a) { present[kindOf(a)] = true; });
@@ -1386,8 +1388,7 @@
             } catch (err) {
                 console.error('[map] traffic failed', err);
                 trafficLoading = false;
-                trafficNote.textContent = 'Live traffic: the map can\'t be reached';
-                trafficNote.hidden = !trafficOn;
+                if (trafficOn) trafficLabel('', 'Live traffic: the map can\'t be reached');
             } finally {
                 trafficAsking = false;
             }
@@ -1425,13 +1426,12 @@
         trafficTimer = glideTimer = null;
         if (on) {
             map.attributionControl.addAttribution(TRAFFIC_CREDIT);
-            trafficNote.textContent = LOADING_TEXT;
-            trafficNote.hidden = false;
+            trafficLabel(LOADING);
             glideTimer = setInterval(moveAircraft, GLIDE_MS);
             pollTraffic();
         } else {
             map.attributionControl.removeAttribution(TRAFFIC_CREDIT);
-            trafficNote.hidden = true;
+            trafficLabel('');
             unfollow();
             syncAircraft([]);
         }
