@@ -1115,6 +1115,7 @@
     let followed = null;  // {hex, points, trail}
     let lastAircraft = [];  // what the map last answered, drawn again (only what's in view) when the map moves
     let trafficRedo = false;  // the map moved while a request was in flight: ask again at once
+    let trafficLoading = false;  // the last answer had nothing yet for this place (the Chart spaces its fetches): ask soon
     let moveTimer = null;
 
     function serverNow() {
@@ -1356,6 +1357,7 @@
                 trafficInterval = Math.max(1, t.interval || trafficInterval);
                 syncAircraft(t.aircraft);
                 trafficStatus(t);
+                trafficLoading = t.fetched === null && !t.error && !t.too_wide;
             } catch (err) {
                 console.error('[map] traffic failed', err);
                 trafficNote.textContent = 'Live traffic: the map can\'t be reached';
@@ -1364,7 +1366,7 @@
                 trafficAsking = false;
             }
         }
-        const wait = trafficRedo ? 0 : trafficInterval * 1000;
+        const wait = trafficRedo ? 0 : trafficLoading ? 1200 : trafficInterval * 1000;
         trafficRedo = false;
         if (trafficOn && !trafficTimer) trafficTimer = setTimeout(pollTraffic, wait);
     }
