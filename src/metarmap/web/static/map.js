@@ -1115,6 +1115,7 @@
     let serverSkew = 0;  // this browser's clock minus the map's
     let followed = null;  // {hex, points, trail}
     let lastAircraft = [];  // what the map last answered, drawn again (only what's in view) when the map moves
+    let trafficMoved = false;  // the next request is because the map moved: say "loading…" if it takes a moment
     let trafficRedo = false;  // the map moved while a request was in flight: ask again at once
     let trafficMax = 250;  // the widest view (NM, center to corner) that gets aircraft: the Chart says (max_view)
     let trafficWide = false;  // the view is wider than that: nothing is shown, and nothing is asked
@@ -1372,6 +1373,13 @@
         }
         if (!document.hidden) {
             trafficAsking = true;
+            let busy = null;
+            if (trafficMoved) {
+                trafficMoved = false;
+                // after a moment only: the Chart answers in a few ms for a place it already has, and that shouldn't flicker.
+                // The count below stays; the answer puts the label back
+                busy = setTimeout(function () { trafficState.textContent = ', ' + LOADING; }, 100);
+            }
             try {
                 const v = trafficView();
                 const res = await fetch('/api/traffic?lat=' + v.lat.toFixed(4) + '&lon=' + v.lon.toFixed(4) + '&nm=' + v.nm, {cache: 'no-store'});
@@ -1390,6 +1398,7 @@
                 trafficLoading = false;
                 if (trafficOn) trafficLabel('', 'Live traffic: the map can\'t be reached');
             } finally {
+                clearTimeout(busy);
                 trafficAsking = false;
             }
         }
@@ -1406,6 +1415,7 @@
         clearTimeout(moveTimer);
         moveTimer = setTimeout(function () {
             if (!trafficOn || trafficWide) return;  // nothing is asked while the view is too wide
+            trafficMoved = true;
             syncAircraft(lastAircraft);
             if (trafficAsking) {
                 trafficRedo = true;
