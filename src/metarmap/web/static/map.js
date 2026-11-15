@@ -1341,7 +1341,10 @@
 
     function trafficStatus(t) {
         if (t.too_wide) return trafficLabel(ZOOM_IN);
-        if (t.fetched === null && !t.error) return trafficLabel(LOADING);
+        if (t.fetched === null && !t.error) {  // nothing for this place yet: the label says so, the rest stays
+            trafficState.textContent = ', ' + LOADING;
+            return;
+        }
         const count = t.aircraft.length;
         let text;
         if (t.error) {
@@ -1388,7 +1391,8 @@
                 if (!trafficOn) return;  // ticked off while it loaded (finally still clears trafficAsking)
                 serverSkew = Date.now() / 1000 - t.now;
                 trafficInterval = Math.max(1, t.interval || trafficInterval);
-                syncAircraft(t.aircraft);
+                // a place with nothing fetched yet answers with no aircraft: keep the ones on the map until it has some
+                if (t.fetched !== null || t.error || t.too_wide) syncAircraft(t.aircraft);
                 trafficStatus(t);
                 trafficLoading = t.fetched === null && !t.error && !t.too_wide;
                 trafficMax = t.max_view || trafficMax;
