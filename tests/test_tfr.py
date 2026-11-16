@@ -15,7 +15,7 @@ from metarmap.metar import with_tfrs
 from metarmap.models import Look, Report
 from metarmap.settings import Settings
 from metarmap.tfr import FOREVER, Tfrs
-from metarmap.visualizers import style
+from metarmap.visualizers import style, visualizer
 from metarmap.visualizers import tfr as vis
 
 HOUSTON = (29.98, -95.34)  # KIAH
@@ -391,3 +391,9 @@ def test_legend(settings):
 def test_every_type_has_a_color():
     assert set(vis.COLORS) == set(tfr.TYPES)
     assert vis.css("VIP") == colors_lib.to_css(color(colors_lib.RED))
+
+
+def test_the_breath_survives_missing_data_blink_off(settings):
+    settings.visualizer.missing_data_blink = False
+    report = Report(raw="...", latitude=29.98, longitude=-95.34, tfrs=None)
+    assert visualizer.look(vis.VISUALIZER, report, settings) == style.waiting()

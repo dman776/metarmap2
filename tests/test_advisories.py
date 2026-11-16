@@ -13,7 +13,7 @@ from metarmap.metar import with_advisories
 from metarmap.models import Look, Report
 from metarmap.settings import Settings
 from metarmap.visualizers import advisories as vis
-from metarmap.visualizers import style
+from metarmap.visualizers import style, visualizer
 
 HOUSTON = (29.98, -95.34)  # KIAH
 NOW = 1000.0
@@ -438,3 +438,27 @@ def test_once_both_feeds_loaded_a_later_failure_is_not_waiting():
     found.fetch()
     found.fetch()  # fails: the old areas stay
     assert found.waiting() is False and found.failed() is False
+
+
+def test_a_fetch_under_way_is_not_overlapped_by_the_next_try():
+    found, asked, _ = make(airmets=[gairmet("IFR", *HOUSTON)], sigmets=[])
+    found._fetching.acquire()  # a slow one is still waiting on aviationweather.gov
+    try:
+        assert found.fetch() is False
+    finally:
+        found._fetching.release()
+    assert asked == []  # it didn't even ask
+    assert found.fetch() is True  # and once it's over, the next try goes ahead
+
+
+def test_sigmets_alone_are_enough_and_without_either_an_airport_waits(settings):
+    place = {"latitude": 29.98, "longitude": -95.34}
+    assert vis.look(Report(raw="...", sigmets=["CONV"], **place), settings) == severe(colors_lib.RED)
+    assert vis.look(Report(raw="...", **place), settings) == style.waiting()  # G-AIRMETs not loaded, no SIGMET
+
+
+def test_the_breath_survives_missing_data_blink_off(settings):
+    settings.visualizer.missing_data_blink = False
+    report = Report(raw="...", latitude=29.98, longitude=-95.34)
+    assert visualizer.look(vis.VISUALIZER, report, settings) == style.waiting()
+    assert visualizer.look(vis.VISUALIZER, Report(raw="..."), settings).effect == "off"  # no position: off, not red

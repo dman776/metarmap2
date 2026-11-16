@@ -42,7 +42,7 @@ def legend(settings):
         *style.band_legend(DELAY_BANDS, settings),
         legend_item(NORMAL_LABEL, "Dim white", style.named(NONE)),
         style.waiting_legend("Waiting for the FAA status"),
-        style.missing_legend("", label="No FAA status for this airport"),
+        style.missing_legend("", label="An FAA status the Chart can't read"),
         style.no_report_legend(),
     ]
 

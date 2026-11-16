@@ -46,6 +46,7 @@ log = logging.getLogger(__name__)
 CONFIG_FILE = "config.json"
 METAR_MINUTES = 10  # how often METARs are fetched
 RETRY_SECONDS = 60  # after a failed fetch or lookup (e.g. aviationweather.gov answering 502), how soon to try again
+_retrying = set()  # the feeds retry_feeds() has said it is trying again, so it says so once
 _retry_lock = threading.Lock()  # retry_soon() runs on the scheduler's thread and the startup lookup's
 WATCHDOG_SECONDS = 15  # how often the OLED loop is checked
 
@@ -438,16 +439,20 @@ def retry_feeds(app: App):
     """
     waiting = feeds_waiting(app)
     if not waiting:
+        _retrying.clear()
         return schedule.CancelJob
-    if "advisories" in waiting and app.advisories.failed():
-        log.info("G-AIRMETs and SIGMETs: trying again")
-        fetch_advisories_soon(app)
-    if "TFR" in waiting and app.tfrs.error is not None:
-        log.info("TFRs: trying again")
-        fetch_tfrs(app)
-    if "FAA status" in waiting and app.delays.error is not None:
-        log.info("FAA status: trying again")
-        fetch_delays(app)
+    for name, failed, fetch in (
+        ("advisories", "advisories" in waiting and app.advisories.failed(), fetch_advisories_soon),
+        ("TFR", "TFR" in waiting and app.tfrs.error is not None, fetch_tfrs),
+        ("FAA status", "FAA status" in waiting and app.delays.error is not None, fetch_delays),
+    ):
+        if failed:
+            # said once per feed, not every minute for as long as the network is down
+            (log.debug if name in _retrying else log.info)(
+                f"{name}: trying again every {RETRY_SECONDS} s until it loads"
+            )
+            _retrying.add(name)
+            fetch(app)
 
 
 def retry_soon(app: App):

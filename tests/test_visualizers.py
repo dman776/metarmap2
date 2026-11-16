@@ -1150,3 +1150,11 @@ def test_waiting_is_not_hidden_by_the_missing_data_blink_setting(settings):
     settings.visualizer.missing_data_blink = False
     assert visualizer.look(faa_delays.VISUALIZER, metar(faa_status=None), settings) == style.waiting()
     assert visualizer.look(faa_delays.VISUALIZER, metar(faa_status={"kind": "bogus"}), settings).effect == "off"
+
+
+@pytest.mark.parametrize(
+    "latitude, longitude", [(None, -95.0), (29.0, None), ("north", -95.0), (float("nan"), -95.0), (29.0, float("inf"))]
+)
+def test_no_usable_position(latitude, longitude):
+    assert style.has_position(metar(latitude=latitude, longitude=longitude)) is False
+    assert style.has_position(metar(latitude="29.98", longitude=-95.34)) is True

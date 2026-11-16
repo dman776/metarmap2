@@ -63,10 +63,9 @@ def missing() -> Look:
 def has_position(metar: Report) -> bool:
     """Whether the airport's latitude and longitude are known (what a feed's areas are matched against)."""
     try:
-        float(metar.latitude), float(metar.longitude)
+        return math.isfinite(float(metar.latitude)) and math.isfinite(float(metar.longitude))
     except (TypeError, ValueError):
         return False
-    return True
 
 
 def waiting() -> Look:

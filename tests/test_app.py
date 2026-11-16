@@ -844,3 +844,36 @@ def test_a_feed_that_loaded_once_is_not_asked_again_by_the_retry(feeds):
     app.advisories._waiting = False
     app.delays.fetched = 1000.0
     assert app_module.retry_feeds(app) is schedule.CancelJob and asked == []
+
+
+def test_the_retry_is_scheduled_with_the_startup_fetches_only(make_app, monkeypatch, tmp_path):
+    from metarmap.leds.strip import FakeStrip
+    from metarmap.oled.screen import FakeScreen
+    from metarmap.settings import Settings
+
+    for name in ("fetch_advisories_soon", "fetch_tfrs", "fetch_delays", "fetch_forecasts", "locate_soon"):
+        monkeypatch.setattr(app_module, name, lambda app: None)
+    monkeypatch.setattr(app_module, "schedule_fetch", lambda app: None)
+    config = Settings.load(REPO / "config.json")
+    config.save(tmp_path / "config.json")
+    for fetch, expected in ((True, 1), (False, 0)):
+        app = app_module.build(
+            str(tmp_path / "config.json"), strip=FakeStrip(config.led.count), screen=FakeScreen(), fetch=fetch
+        )
+        assert jobs(app)["retry_feeds"] == expected
+
+
+def test_a_retry_says_so_once_per_feed(feeds, caplog):
+    import logging
+
+    app, asked = feeds
+    app.advisories._failed = True
+    with caplog.at_level(logging.INFO, logger=app_module.log.name):
+        for _ in range(3):
+            app_module.retry_feeds(app)
+    said = [r for r in caplog.records if "trying again" in r.getMessage()]
+    assert len(said) == 1 and asked == ["fetch_advisories_soon"] * 3  # asked every time, said once
+    app.advisories._waiting = app.advisories._failed = False
+    app.tfrs.fetched = app.delays.fetched = 1000.0
+    assert app_module.retry_feeds(app) is schedule.CancelJob
+    assert app_module._retrying == set()  # said again next time it's needed
