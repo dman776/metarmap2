@@ -16,6 +16,17 @@ from metarmap.visualizers import flightcategory
 REPO = Path(__file__).parent.parent
 
 
+def wait_for_fetches():
+    """Joins the METAR fetches app.py runs in the background (start_fetch), including one a fetch starts at its end."""
+    while True:
+        running = [t for t in threading.enumerate() if t.name == "metars" and t is not threading.current_thread()]
+        if not running:
+            return
+        for thread in running:
+            thread.join(5)
+            assert not thread.is_alive()
+
+
 def jobs(app):
     """The scheduled jobs, by function name."""
     return Counter(job.job_func.func.__name__ for job in app.scheduler.jobs)
@@ -444,9 +455,174 @@ def test_update_data_fetches_and_redraws(make_app, monkeypatch):
 
     monkeypatch.setattr(app.metars, "fetch", fetch)
     normal = app.renderer.pixels().brightness
-    app_module.update_data(app)
+    app_module.update_data(app).join(5)
     assert app.renderer.looks[0].colors[0] == flightcategory.COLORS["VFR"]
     assert brightness == [normal / 2] and app.renderer.pixels().brightness == normal  # dimmed while fetching
+
+
+@pytest.fixture
+def slow_fetch(make_app, monkeypatch):
+    """
+    A map whose METAR fetch waits for release.set(): (app, release, fetched, entered). entered is set once a fetch has
+    begun (inside the lock, past fetch_reports' clearing of refetch_due).
+    """
+    app = make_app()
+    code = app.config.airports[0].code
+    release, fetched, entered = threading.Event(), [], threading.Event()
+
+    def fetch():
+        entered.set()
+        release.wait(5)
+        app.metars.data = {code: Report(flight_category="VFR")}
+        app.metars.last_fetch_ok = True
+        fetched.append(True)
+        return True
+
+    monkeypatch.setattr(app.metars, "fetch", fetch)
+    yield app, release, fetched, entered
+    release.set()
+
+
+def test_the_main_loop_doesnt_wait_for_the_fetch(slow_fetch):
+    """aviationweather.gov has taken 20 s: the job only starts the fetch, so the LEDs keep going meanwhile."""
+    app, release, fetched, entered = slow_fetch
+    job = app.scheduler.get_jobs("fetch")[0]
+    job.next_run = datetime.now() - timedelta(seconds=1)
+    app.scheduler.run_pending()  # the main loop's call: back at once
+    assert fetched == [] and app.fetching.locked()
+    (thread,) = [t for t in threading.enumerate() if t.name == "metars"]
+    release.set()
+    thread.join(5)
+    assert fetched == [True] and not app.fetching.locked()
+    assert app.renderer.looks[0].colors[0] == flightcategory.COLORS["VFR"]  # the new data is on the LEDs
+
+
+def test_a_fetch_due_while_the_last_one_runs_is_skipped(slow_fetch, caplog):
+    app, release, fetched, entered = slow_fetch
+    first = app_module.update_data(app)
+    with caplog.at_level("INFO", logger="metarmap.app"):
+        assert app_module.update_data(app) is None  # still fetching: not a second one at the same time
+    assert "regular METAR fetch skipped" in caplog.text  # said in the log, not only at debug
+    release.set()
+    first.join(5)
+    assert fetched == [True]
+    app_module.update_data(app).join(5)  # the next one runs again
+    assert fetched == [True, True]
+
+
+def test_a_failed_fetch_thread_doesnt_stop_the_next(make_app, monkeypatch, caplog):
+    """An error in the fetch's thread is logged, and the next regular fetch still runs."""
+    app = make_app()
+
+    def broken(metars):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(app.metars, "fetch", lambda: True)
+    monkeypatch.setattr(app.renderer, "update_data", broken)
+    app_module.update_data(app).join(5)
+    assert not app.fetching.locked()
+    assert "METAR fetch failed: boom" in caplog.text
+    assert app_module.update_data(app) is not None  # not skipped as if one were still running
+
+
+def test_a_retry_waits_for_the_regular_fetch(slow_fetch, monkeypatch):
+    """The retry job doesn't fetch on the main loop while the regular fetch is under way in the background."""
+    app, release, fetched, entered = slow_fetch
+    app.metars.last_fetch_ok = False
+    thread = app_module.update_data(app)
+    assert app_module.retry_fetch(app) is None and fetched == []  # left for next time, not a CancelJob
+    release.set()
+    thread.join(5)
+
+
+def test_a_failing_retry_doesnt_stop_the_leds(slow_fetch):
+    """The retry job (every RETRY_SECONDS while aviationweather.gov fails) fetches in the background too."""
+    app, release, fetched, entered = slow_fetch
+    app.metars.last_fetch_ok = False
+    app_module.retry_soon(app)
+    (retry,) = app.scheduler.get_jobs("retry")
+    retry.next_run = datetime.now() - timedelta(seconds=1)
+    app.scheduler.run_pending()  # the main loop's call: back while the fetch is still waiting
+    assert fetched == [] and app.fetching.locked()
+    release.set()
+    wait_for_fetches()
+    assert fetched == [True] and not app.fetching.locked()
+    assert app.scheduler.get_jobs("retry") == []  # it worked: no more retries
+    assert app.renderer.looks[0].colors[0] == flightcategory.COLORS["VFR"]
+
+
+def test_a_new_airport_during_a_fetch_gets_its_metar_after_it(slow_fetch):
+    """The fetch under way may have asked for the old airports: the airport change's fetch comes right after it."""
+    app, release, fetched, entered = slow_fetch
+    app_module.update_data(app)
+    assert entered.wait(5)  # the fetch under way has asked for the airports
+    assert app_module.refetch_soon(app) is None  # not at the same time...
+    release.set()
+    wait_for_fetches()
+    assert fetched == [True, True]  # ...but after it
+    assert not app.refetch_due.is_set() and not app.fetching.locked()
+
+
+class WaitingLock:
+    """app.fetching, saying (`waiting`) when someone waits for it: GET /fetch, not the background fetches."""
+
+    def __init__(self, lock, waiting):
+        self._lock, self._waiting = lock, waiting
+
+    def acquire(self, blocking=True, timeout=-1):
+        if blocking:
+            self._waiting.set()
+        return self._lock.acquire(blocking, timeout)
+
+    def release(self):
+        self._lock.release()
+
+    def locked(self):
+        return self._lock.locked()
+
+
+def test_fetch_by_hand_waits_for_a_fetch_under_way(slow_fetch, monkeypatch):
+    """GET /fetch runs its fetch after the one under way, never over it (two dims at once can leave the LEDs dim)."""
+    app, release, fetched, entered = slow_fetch
+    slow, began = app.metars.fetch, []
+    monkeypatch.setattr(app.metars, "fetch", lambda: began.append(True) or slow())
+    waiting = threading.Event()
+    app.fetching = WaitingLock(app.fetching, waiting)
+    app_module.update_data(app)
+    assert entered.wait(5)
+    done = []
+    by_hand = threading.Thread(target=lambda: done.append(app_module.refetch_metars(app)))
+    by_hand.start()
+    assert waiting.wait(5)  # GET /fetch is waiting for the lock the fetch under way holds...
+    assert len(began) == 1 and done == []  # ...not fetching alongside it
+    release.set()
+    by_hand.join(5)
+    wait_for_fetches()
+    assert done == [True] and fetched == [True, True]
+
+
+def test_fetch_by_hand_gives_up_on_a_stuck_fetch(make_app, monkeypatch):
+    app = make_app()
+    monkeypatch.setattr(app_module, "FETCH_WAIT_SECONDS", 0.01)
+    monkeypatch.setattr(app.metars, "fetch", lambda: pytest.fail("fetched over the fetch under way"))
+    with app.fetching:  # a fetch under way
+        assert app_module.refetch_metars(app) is False
+
+
+def test_new_data_keeps_the_forecast_step(make_app, monkeypatch):
+    """The regular fetch landing mid-forecast doesn't take Flight Category Forecast back to Now."""
+    from metarmap.clock import FakeClock
+
+    app = make_app(**{"visualizer.active": "flight_category_forecast"})
+    clock = FakeClock()
+    monkeypatch.setattr(app.renderer, "_clock", clock)
+    app.renderer.refresh()  # counted from the fake clock's now
+    seconds = app.renderer._vis.steps(app.config.data)["seconds"]
+    clock.advance(seconds * 1.5)
+    assert app.renderer.step()["index"] == 1
+    monkeypatch.setattr(app.metars, "fetch", lambda: True)
+    app_module.update_data(app).join(5)
+    assert app.renderer.step()["index"] == 1  # still +3h
 
 
 def test_load_suntimes_replaces_the_brightness_jobs(make_app):
@@ -619,14 +795,15 @@ def test_a_failed_fetch_is_retried_every_minute_until_it_works(make_app, monkeyp
 
     monkeypatch.setattr(app.metars, "fetch", fetch)
 
-    app_module.update_data(app)  # e.g. aviationweather.gov answers 502
+    app_module.update_data(app).join(5)  # e.g. aviationweather.gov answers 502
     (retry,) = app.scheduler.get_jobs("retry")
     assert retry.interval == app_module.RETRY_SECONDS and retry.unit == "seconds"
-    app_module.update_data(app)  # failing again doesn't add a second retry
+    app_module.update_data(app).join(5)  # failing again doesn't add a second retry
     assert len(app.scheduler.get_jobs("retry")) == 1
 
     retry.next_run = datetime.now() - timedelta(seconds=1)  # only the retry is due
     app.scheduler.run_pending()  # it works this time, so it stops
+    wait_for_fetches()  # (in the background)
     assert app.scheduler.get_jobs("retry") == []
     assert jobs(app)["update_data"] == 1  # the regular fetch is still there
 
@@ -718,11 +895,12 @@ def test_a_failed_position_lookup_is_retried_on_its_own(make_app, monkeypatch):
     monkeypatch.setattr(app.metars, "fetch", fetch)
     monkeypatch.setattr(app.metars, "locate", locate)
 
-    app_module.update_data(app)
+    app_module.update_data(app).join(5)
     (retry,) = app.scheduler.get_jobs("retry")
     for _ in range(2):
         retry.next_run = datetime.now() - timedelta(seconds=1)
         app.scheduler.run_pending()
+        wait_for_fetches()
     assert calls == ["fetch", "locate", "locate"]
     assert app.scheduler.get_jobs("retry") == []
 
@@ -733,7 +911,7 @@ def test_names_are_filled_after_a_fetch(make_app, monkeypatch):
     first.name = ""
     monkeypatch.setattr(app.metars, "fetch", lambda: True)
     monkeypatch.setattr(app.metars, "station_names", lambda: {first.code: "Somewhere Muni"})
-    app_module.update_data(app)
+    app_module.update_data(app).join(5)
     assert app.config.airports[0].name == "Somewhere Muni"
 
 

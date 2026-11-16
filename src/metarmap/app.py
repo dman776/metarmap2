@@ -14,7 +14,7 @@ import subprocess
 import sys
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Optional
 
@@ -49,6 +49,7 @@ RETRY_SECONDS = 60  # after a failed fetch or lookup (e.g. aviationweather.gov a
 _retrying = set()  # the feeds retry_feeds() has said it is trying again, so it says so once
 _retry_lock = threading.Lock()  # retry_soon() runs on the scheduler's thread and the startup lookup's
 WATCHDOG_SECONDS = 15  # how often the OLED loop is checked
+FETCH_WAIT_SECONDS = 20  # GET /fetch waits at most this long for a fetch under way to finish (else 503)
 
 
 @dataclass
@@ -70,6 +71,10 @@ class App:
     forecasts: Optional[Forecasts] = None  # TAFs, for the forecast visualizers (fetched in the background)
     discovery: Optional[Discovery] = None  # announces the map on the network (zeroconf), for the Copilot's map list
     delays: Optional[Delays] = None  # the FAA airport status, for FAA Delays (fetched in the background)
+    # held while a METAR fetch runs (start_fetch): one at a time, so they don't fade the LEDs over each other
+    fetching: threading.Lock = field(default_factory=threading.Lock)
+    # set when an airport code changed: its METAR is fetched now, or right after the fetch under way (refetch_soon)
+    refetch_due: threading.Event = field(default_factory=threading.Event)
 
 
 # ---- building ------------------------------------------------------------------------------------------------
@@ -312,32 +317,103 @@ def airport_codes_changed(app: App):
     """
     unnamed = {a.code for a in app.config.airports if a.code and not a.name}
     app.config.fill_names({code: app.metars.name_for(code) for code in unnamed})
-    threading.Thread(target=refetch_metars, args=(app,), name="fetch", daemon=True).start()
+    refetch_soon(app)
     fetch_forecasts(app)  # fetches only if the airports differ from the last TAF fetch's
 
 
-def refetch_metars(app: App):
-    """Only the METARs (an airport changed), not the advisories and TFRs that update_data() also fetches."""
-    with app.renderer.dimmed():
-        app.metars.fetch()
-    app.renderer.update_data(app.metars)
+def refetch_soon(app: App) -> Optional[threading.Thread]:
+    """
+    An airport changed: only the METARs (not the advisories and TFRs that update_data() also fetches), in the
+    background; right after the fetch under way if there is one, which may have asked for the old airports.
+    """
+    app.refetch_due.set()  # first: a fetch letting go of the lock now still sees it (_run_fetch)
+    return start_fetch(
+        app, fetch_metars_only, "METAR fetch", busy="an airport changed: its METAR comes after the fetch under way"
+    )
+
+
+def refetch_metars(app: App) -> bool:
+    """
+    GET /fetch: the METARs now, back when they're in (the web thread waits, not the LEDs). A fetch under way is
+    waited for first, up to FETCH_WAIT_SECONDS. Returns False if it was still running then (nothing fetched).
+    """
+    if not app.fetching.acquire(timeout=FETCH_WAIT_SECONDS):
+        log.warning(f"fetch by hand: a METAR fetch has been under way for over {FETCH_WAIT_SECONDS} s; not fetching")
+        return False
+    _run_fetch(app, fetch_metars_only, "METAR fetch")
+    return True
+
+
+def fetch_metars_only(app: App):
+    fetch_reports(app)
+    app.renderer.update_data(app.metars)  # a forecast goes on at the step it's on
     fill_names(app)
+
+
+# ---- fetching METARs in the background ----------------------------------------------------------------------
+
+
+def start_fetch(app: App, job, what, busy) -> Optional[threading.Thread]:
+    """
+    Runs job(app) in a thread holding app.fetching, so the LEDs keep going while aviationweather.gov answers (it has
+    taken 20 s), and one at a time: two at once would fade the LEDs over each other and could leave them half dim.
+    Returns the thread (tests join it), or None with `busy` logged when a fetch is under way: this one is skipped.
+    """
+    if not app.fetching.acquire(blocking=False):
+        log.info(busy)  # at most every RETRY_SECONDS (a retry), so no flood
+        return None
+    thread = threading.Thread(target=_run_fetch, args=(app, job, what), name="metars", daemon=True)
+    try:
+        thread.start()
+    except Exception:
+        app.fetching.release()  # no thread to let go of it
+        raise
+    return thread
+
+
+def _run_fetch(app: App, job, what):
+    """job(app), app.fetching already held; lets go of it however the job ends. Then the METAR of a new airport."""
+    try:
+        job(app)
+        if needs_retry(app):
+            retry_soon(app)
+        else:
+            stop_retrying(app)  # at once, not at the retry's next turn (the Home page counts down to it)
+    except Exception as e:
+        log.exception(f"{what} failed: {e}")  # the next regular fetch or retry tries again
+    finally:
+        app.fetching.release()
+    if app.refetch_due.is_set():  # an airport changed while this ran, and its fetch was put off
+        refetch_soon(app)
+
+
+def fetch_reports(app: App):
+    """The METARs (with the G-AIRMET hazards). Only in a fetch holding app.fetching. Returns whether they came."""
+    app.refetch_due.clear()  # this fetch asks for the airports as they are now
+    with app.renderer.dimmed():  # off the main loop: the LEDs dim (led.dim_on_refresh) but keep animating
+        return app.metars.fetch()
 
 
 # ---- scheduled jobs ------------------------------------------------------------------------------------------
 
 
-def update_data(app: App):
-    fetch_advisories(app)
+def update_data(app: App) -> Optional[threading.Thread]:
+    """
+    The regular fetch, every METAR_MINUTES, all in the background. Returns the thread fetching the advisories and
+    METARs, or None if the last fetch is still under way: this one is skipped.
+    """
     fetch_tfrs(app)
     fetch_delays(app)
     fetch_forecasts(app)
-    with app.renderer.dimmed():
-        app.metars.fetch()  # adds the G-AIRMET hazards to each report
-    app.renderer.update_data(app.metars)
-    fill_names(app)
-    if needs_retry(app):
-        retry_soon(app)
+    return start_fetch(
+        app, fetch_all, "METAR fetch", busy="regular METAR fetch skipped: the last one is still under way"
+    )
+
+
+def fetch_all(app: App):
+    """update_data()'s thread: the advisories, then the METARs (they pick up the advisories), then the LEDs."""
+    fetch_advisories(app)
+    fetch_metars_only(app)
 
 
 def fetch_advisories(app: App):
@@ -464,18 +540,26 @@ def retry_soon(app: App):
             app.scheduler.every(RETRY_SECONDS).seconds.do(retry_fetch, app).tag("retry")
 
 
+def stop_retrying(app: App):
+    with _retry_lock:
+        app.scheduler.clear("retry")
+
+
 def retry_fetch(app: App):
-    """Redoes what failed: the fetch (which also does the lookup), or only the lookup."""
+    """The retry job: redoes what failed in the background, so a failing aviationweather.gov doesn't stop the LEDs."""
+    if not needs_retry(app):
+        return schedule.CancelJob
+    start_fetch(app, redo_failed, "METAR retry", busy="METAR retry skipped: a fetch is under way")
+
+
+def redo_failed(app: App):
+    """The fetch (which also does the lookup), or only the lookup."""
     if app.metars.last_fetch_ok is False:
-        with app.renderer.dimmed():
-            fetched = app.metars.fetch()
-        if fetched:
+        if fetch_reports(app):
             app.renderer.update_data(app.metars)
     elif app.metars.locate_failed:
         app.metars.locate()
     fill_names(app)
-    if not needs_retry(app):
-        return schedule.CancelJob
 
 
 def load_suntimes(app: App):

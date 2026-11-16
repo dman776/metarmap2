@@ -292,7 +292,7 @@ Changes save right away. To check the wiring order:
 - the pixel brightness for day, dawn and dusk, and night
 - optional **Quiet hours** with local start/end times (0% pixel brightness during the interval);
   Home shows one quiet-hours row and mutes sun events that fall within the window
-- whether the pixels fade down for a moment while new METARs download (**Dim while updating**, on by default)
+- whether the pixels fade down while new METARs download (**Dim while updating**, on by default); they keep moving, and a forecast keeps its step
 
 Every setting takes effect right away; none needs a restart.
 

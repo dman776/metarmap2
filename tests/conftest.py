@@ -1,5 +1,6 @@
 """Shared test setup."""
 
+import threading
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -66,6 +67,10 @@ def make_app(tmp_path):
         app.display.stop(clear=False)
         if app.display._thread.ident is not None:
             app.display._thread.join(5)
+    for _ in range(3):  # and a METAR fetch still under way (app.start_fetch), or the one it starts at its end
+        for thread in threading.enumerate():
+            if thread.name == "metars":
+                thread.join(5)
 
 
 @pytest.fixture(autouse=True)

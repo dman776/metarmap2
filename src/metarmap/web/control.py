@@ -201,7 +201,9 @@ def add_routes(app, services: "App", site, auth, updates=None, installs=None):
     def fetch():
         from metarmap.app import refetch_metars, schedule_fetch  # here: app.py imports the web
 
-        refetch_metars(services)  # as the map does when an airport changes: dimmed, then the LEDs and the names
+        # back when they're in (after a fetch under way, if it ends soon enough): then the LEDs and the names
+        if not refetch_metars(services):
+            bottle.abort(503, "A METAR fetch is already running; try again in a moment")
         schedule_fetch(services)  # the next regular fetch a whole interval from now
         return pages.index(services, site)
 
