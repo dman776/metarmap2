@@ -614,6 +614,109 @@ def test_step_counts_from_when_the_leds_were_built(config, clock):
     assert r.step()["index"] == 2
 
 
+def forecast_data():
+    """Reports whose forecast changes category at each step, so every LED steps (a cycle look)."""
+    return {code: Report(flight_category="VFR", forecast=("MVFR", "IFR", "LIFR")) for code in ("KHOU", "KIAH", "KGLS")}
+
+
+def test_new_data_keeps_the_forecast_step(config, clock):
+    """A fetch landing mid-forecast doesn't take it back to Now: the step count and the LEDs' frames go on."""
+    fcf = visualizer_module.BY_ID["flight_category_forecast"]
+    r, strip = make(config, clock, data=forecast_data(), visualizers=[FLIGHT, fcf])
+    r.visualizer = 1
+    seconds = fcf.steps(config.data)["seconds"]
+    clock.advance(seconds * 2.5)  # in the middle of +6h
+    assert r.step()["index"] == 2
+
+    r.update_data(SimpleNamespace(data=forecast_data()))
+    assert r.step()["index"] == 2  # still +6h, not Now
+    draw_frame(r)
+    assert strip[0] == flightcategory.COLORS["IFR"]  # and the LED shows the +6h category at once
+    assert r.looks[0].colors[0] == flightcategory.COLORS["VFR"]  # the look itself (the web map's) still starts at Now
+
+
+def test_another_visualizer_starts_at_now(config, clock):
+    """Only new data keeps the step: picking a visualizer (or a settings change) starts it over."""
+    fcf = visualizer_module.BY_ID["flight_category_forecast"]
+    r, strip = make(config, clock, data=forecast_data(), visualizers=[FLIGHT, fcf])
+    r.visualizer = 1
+    clock.advance(fcf.steps(config.data)["seconds"] * 2.5)
+    r.refresh()
+    assert r.step()["index"] == 0
+    draw_frame(r)
+    assert strip[0] == flightcategory.COLORS["VFR"]
+
+
+def test_the_wall_clock_going_back_doesnt_stop_the_steps(config, clock):
+    """NTP setting a Pi's clock back must not hold a forecast at Now: steps are counted on the monotonic clock."""
+    fcf = visualizer_module.BY_ID["flight_category_forecast"]
+    r, _ = make(config, clock, data=forecast_data(), visualizers=[FLIGHT, fcf])
+    r.visualizer = 1
+    seconds = fcf.steps(config.data)["seconds"]
+    clock.advance(seconds * 1.5)
+    clock.set_wall_clock(NOON - timedelta(hours=1))
+    assert r.step()["index"] == 1
+    r.update_data(SimpleNamespace(data=forecast_data()))
+    clock.advance(seconds)
+    assert r.step()["index"] == 2
+
+
+def test_new_data_during_a_visualizer_change_doesnt_bring_the_old_one_back(config, clock, monkeypatch):
+    """
+    A fetch's rebuild that read the old visualizer, and a visualizer change that comes in while it builds: the
+    change's looks stay (the rebuild started last wins), with the new data.
+    """
+    r, _ = make(config, clock)
+    looks = visualizer.looks
+    changed = []
+
+    def looks_then_change(vis, *args):
+        built = looks(vis, *args)
+        if not changed:  # the fetch's rebuild has read Flight Category; now the web picks Wind
+            changed.append(True)
+            r.visualizer = 1
+        return built
+
+    monkeypatch.setattr(visualizer, "looks", looks_then_change)
+    new = {**DATA, "KHOU": metar("MVFR", wind=30)}
+    r.update_data(SimpleNamespace(data=new))
+    assert r.visualizer[1] is WIND
+    assert r.looks == looks(WIND, CODES, new, config.data)
+
+
+def test_a_failed_newer_rebuild_leaves_the_older_one_in(config, clock, monkeypatch):
+    """A rebuild that started later but failed doesn't throw away the new data of the one it overtook."""
+    r, _ = make(config, clock)
+    looks = visualizer.looks
+    calls = []
+
+    def looks_then_fail(vis, *args):
+        calls.append(vis)
+        if len(calls) == 2:  # the newer rebuild, started while the first was building
+            raise RuntimeError("bad data")
+        built = looks(vis, *args)
+        if len(calls) == 1:
+            with pytest.raises(RuntimeError):
+                r.refresh()
+        return built
+
+    monkeypatch.setattr(visualizer, "looks", looks_then_fail)
+    new = {**DATA, "KHOU": metar("MVFR")}
+    r.update_data(SimpleNamespace(data=new))
+    assert r.looks[0] == Look.solid(flightcategory.COLORS["MVFR"])
+
+
+def test_at_time_leaves_other_looks_alone():
+    from metarmap.renderer import at_time
+
+    solid = Look.solid((1, 2, 3))
+    assert at_time(solid, 100) is solid
+    cycle = Look.cycle([(1, 0, 0), (2, 0, 0), (3, 0, 0)], step=0.5)
+    assert at_time(cycle, 0) is cycle
+    assert at_time(cycle, 1.2).colors == ((3, 0, 0), (1, 0, 0), (2, 0, 0))  # 2 frames in
+    assert at_time(cycle, 1.6).colors == cycle.colors  # a whole loop
+
+
 def test_a_whole_strip_look_ticks_at_full_speed(config, clock):
     """Rainbow steps every 0.1 s: a slower tick makes the steps uneven, which shows as stutter."""
     from metarmap import renderer

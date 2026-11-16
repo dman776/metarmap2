@@ -731,6 +731,21 @@ def test_fetch(client, monkeypatch):
     assert (job.next_run - datetime.now()).total_seconds() >= 595  # a whole 10 minutes from the fetch by hand
 
 
+def test_fetch_while_a_fetch_is_stuck_is_a_503(client, monkeypatch):
+    """GET /fetch waits FETCH_WAIT_SECONDS for a fetch under way, then says so instead of answering as if it worked."""
+    from metarmap import app as app_module
+
+    app = client.services
+    monkeypatch.setattr(app_module, "FETCH_WAIT_SECONDS", 0.01)
+    monkeypatch.setattr(app.metars, "fetch", lambda: pytest.fail("fetched alongside the fetch under way"))
+    (job,) = app.scheduler.get_jobs("fetch")
+    due = job.next_run
+    with app.fetching:  # a fetch under way
+        status, body = client("/fetch")
+    assert status == 503 and "A METAR fetch is already running" in body
+    assert app.scheduler.get_jobs("fetch")[0].next_run == due  # the regular fetch stays where it was
+
+
 def test_live_says_when_the_next_fetch_is(client):
     f = client.json("/api/live")["fetch"]
     assert f["seconds"] == 600 and f["next"] > time.time() + 590

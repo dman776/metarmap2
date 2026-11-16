@@ -2,9 +2,15 @@
 (function () {
     'use strict';
 
+    // an error's message is bottle's <pre> text (e.g. /fetch's 503 "A METAR fetch is already running"), and its status
     async function call(url) {
         const res = await fetch(url, {credentials: 'same-origin'});
-        if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+        if (!res.ok) {
+            const pre = /<pre>([\s\S]*?)<\/pre>/i.exec(await res.text());
+            const err = new Error(pre ? pre[1].replace(/&#039;|&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&') : res.status + ' ' + res.statusText);
+            err.status = res.status;
+            throw err;
+        }
         return res.text();
     }
 
@@ -37,7 +43,8 @@
             }
         } catch (err) {
             // restart drops the connection before it answers
-            if (btn.dataset.then !== 'none') showOutput('Error', String(err));
+            // busy for now (503: a METAR fetch already running), not broken
+            if (btn.dataset.then !== 'none') showOutput(err.status === 503 ? 'Busy' : 'Error', err.status ? err.message : String(err));
         } finally {
             busy(btn, false);
         }

@@ -6,6 +6,7 @@ import logging
 import threading
 import time
 from contextlib import contextmanager
+from dataclasses import replace
 
 import metarmap.lib.colors as colors_lib
 from metarmap.clock import Clock
@@ -49,6 +50,17 @@ FADE_STEPS = 12  # at most; about 20 a second
 FADE_MIN_STEP = 0.0011
 
 
+def at_time(look, seconds):
+    """
+    `look` as it is `seconds` in: a cycle (a forecast's frames) starts at the frame it's on by then, the others as
+    they are. So new data keeps a forecast's step (Renderer.update_data()).
+    """
+    if look.effect != "cycle" or not look.colors or not look.step or seconds <= 0:
+        return look
+    n = int(seconds / look.step) % len(look.colors)
+    return replace(look, colors=look.colors[n:] + look.colors[:n])
+
+
 def frame_due(animations, window=0):
     """
     When to draw the next frame of `animations`, in the LED library's monotonic_ms: the last time any of them that
@@ -89,6 +101,12 @@ class Renderer:
         self._config = config
         self._sun = sun
         self._clock = clock or Clock()
+        # when (Clock.monotonic: the wall clock can jump back) the steps of a stepping visualizer started, and for
+        # which visualizer; set by _rebuild()
+        self._started, self._started_for = self._clock.monotonic(), None
+        # numbers the rebuilds in the order they start, and the one whose looks are in: an older one never replaces a
+        # newer one's (one that fails leaves the older one's in)
+        self._generation = self._installed = 0
         self._visualizers: list = visualizers
         self._vis = visualizers[0]
         self.active_visualizer: int = 0
@@ -114,19 +132,35 @@ class Renderer:
 
     # ---- looks -> animations ------------------------------------------------------------------------------------
 
-    def _rebuild(self):
+    def _rebuild(self, keep_step=False):
+        """
+        New looks and animations from the data, settings and visualizer. keep_step (new data only): a stepping
+        visualizer (Flight Category Forecast) goes on at the step it's on instead of starting again at Now.
+        """
+        # web threads (a visualizer picked, a setting changed) and the fetch's thread can rebuild at the same time
+        with self._lock:
+            self._generation += 1
+            generation = self._generation
+        vis = self._vis
         data = self._metars.data
         settings = self._config.data
-        strip_look = visualizer.strip_look(self._vis, settings)
+        strip_look = visualizer.strip_look(vis, settings)
         lit = settings.led.count
+        # the steps of a stepping visualizer count from here; new data keeps the count (step(), at_time())
+        keep = keep_step and vis.steps is not None and self._started_for is vis
+        started = self._started if keep else self._clock.monotonic()
         if strip_look is not None:
             # with no LEDs (virtual airports only) a strip left open on a Pi has nothing to animate
             looks, animations = [], [animation_for(strip_look, self._pixels)] if lit else []
         else:
-            looks = visualizer.looks(self._vis, [a.code for a in settings.airports], data, settings)
+            looks = visualizer.looks(vis, [a.code for a in settings.airports], data, settings)
             # the virtual airports (after led.count) have no LED; their looks are for the web map. A strip still
             # longer than led.count (a NeoPixel strip until the restart) keeps its extra LEDs dark
-            animations = [animation_for(look, pixel) for look, pixel in zip(looks[: settings.led.count], self._pix)]
+            elapsed = max(0.0, self._clock.monotonic() - started)
+            animations = [
+                animation_for(at_time(look, elapsed), pixel)
+                for look, pixel in zip(looks[: settings.led.count], self._pix)
+            ]
         # a whole-strip look (Rainbow, Chase) is one animation over every LED, so it would light the Hidden Pixels too;
         # a look per airport already draws "off" for an LED with no airport
         hidden = (
@@ -138,11 +172,17 @@ class Renderer:
         # drew the old animations with the new (empty) mask would light a Hidden Pixel for one frame when a web thread
         # leaves Rainbow or Chase (the lock is reentrant: resize() calls this inside it)
         with self._lock:
+            if self._installed > generation:
+                # a rebuild started after this one (another visualizer, or newer data) is already in: it read
+                # everything this one did, or newer. Else a fetch landing during a visualizer change could put back
+                # the old visualizer's looks
+                return
             if strip_look is None or not lit:
                 for i in range(lit, len(self._pixels)):  # nothing draws them now: dark, not stuck on their last color
                     self._pixels[i] = colors_lib.color(colors_lib.OFF)
             self._looks, self._strip_look, self._animations, self._hidden = looks, strip_look, animations, hidden
-            self._started = self._clock.time()  # the steps of a stepping visualizer count from here (step())
+            self._started, self._started_for = started, vis  # the steps count from here (step())
+            self._installed = generation
             self._look_dicts = None  # led_states()'s cache
             self.revision += 1
 
@@ -172,7 +212,7 @@ class Renderer:
             return None
         steps = self._vis.steps(self._config.data)
         seconds = steps["seconds"]
-        elapsed = max(0.0, self._clock.time() - self._started)
+        elapsed = max(0.0, self._clock.monotonic() - self._started)
         index = int((elapsed % (len(steps["labels"]) * seconds)) // seconds)
         return {"labels": steps["labels"], "index": index, "prefix": steps.get("prefix", "")}
 
@@ -318,9 +358,10 @@ class Renderer:
         return min(at, latest)
 
     def update_data(self, metars):
+        """New data (a fetch): the same visualizer, so a forecast goes on at the step it's on (not back to Now)."""
         log.info("updating data in the renderer")
         self._metars = metars
-        self._rebuild()
+        self._rebuild(keep_step=True)
 
     def stop(self):
         """Freezes the animations, e.g. while a locate() pulse or a startup sequence has the strip."""
