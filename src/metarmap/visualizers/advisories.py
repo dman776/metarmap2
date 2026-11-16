@@ -104,7 +104,8 @@ def legend(settings):
             key=MIXED,
         ),
         legend_item("No advisory below 18,000 ft", "Dim white", style.named(NONE), key=NO_ADVISORY),
-        style.missing_legend("", label="No G-AIRMETs yet, or the airport's position isn't known"),
+        style.waiting_legend("Waiting for the G-AIRMETs and SIGMETs"),
+        style.missing_legend("", label="The airport's position isn't known"),
         style.no_report_legend(),
     ]
 
@@ -116,8 +117,8 @@ def look(metar: Optional[Report], settings) -> Look:
     if sigmets:  # the most serious one
         return sigmet_look(color(sigmets[0], "SIGMET")).tagged(SIGMET_COLORS[sigmets[0]][1])
     hazards = metar.airmets
-    if hazards is None:
-        return style.missing()
+    if hazards is None:  # no G-AIRMET list yet (the first fetch hasn't worked), or nowhere to look the airport up
+        return style.waiting() if style.has_position(metar) else style.missing()
     colors, labels = colors_for(hazards), labels_for(hazards)
     if not colors:
         return Look.solid(style.named(NONE)).tagged(NO_ADVISORY)
@@ -133,7 +134,8 @@ VISUALIZER = Visualizer(
     name="Advisories",
     description="Display the advisory over each airport, below 18,000 ft. G-AIRMETs in steady colors: IFR orange, "
     "mountain obscuration magenta, turbulence yellow, wind shear red, strong surface wind blue, icing "
-    "cyan; two at once alternate, none is dim white. A SIGMET takes over, blinking in its hazard's color.",
+    "cyan; two at once alternate, none is dim white. A SIGMET takes over, blinking in its hazard's color. "
+    "Slowly breathing dim white until the first G-AIRMETs arrive.",
     short_name="Advisories",
     icon="warning",
     legend=legend,

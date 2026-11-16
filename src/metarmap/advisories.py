@@ -189,6 +189,7 @@ class Advisories:
         self._get = get or requests.get
         self._clock = clock
         self._lock = threading.Lock()
+        self._fetching = threading.Lock()  # one fetch at a time: a slow one isn't overlapped by the next try
         self._feeds = {
             "airmet": Feed("G-AIRMET", AIRMET_URL, parse_airmets),
             "sigmet": Feed("SIGMET", SIGMET_URL, parse_sigmets),
@@ -197,9 +198,14 @@ class Advisories:
     def fetch(self):
         """
         Fetches the G-AIRMETs and SIGMETs. Returns True if either worked; a feed that fails keeps its old areas (until
-        they expire).
+        they expire). False without asking when a fetch is already under way.
         """
-        return [self._fetch(feed) for feed in self._feeds.values()].count(True) > 0
+        if not self._fetching.acquire(blocking=False):
+            return False
+        try:
+            return [self._fetch(feed) for feed in self._feeds.values()].count(True) > 0
+        finally:
+            self._fetching.release()
 
     def _fetch(self, feed):
         try:
@@ -217,6 +223,16 @@ class Advisories:
         with self._lock:
             feed.areas, feed.fetched, feed.error = areas, self._clock(), None
         return True
+
+    def waiting(self):
+        """Whether either feed has never loaded: until it does, the airports have nothing to show (a dim breath)."""
+        with self._lock:
+            return any(feed.areas is None for feed in self._feeds.values())
+
+    def failed(self):
+        """Whether a feed that has never loaded failed its last try (so asking again is worth it, not waiting)."""
+        with self._lock:
+            return any(feed.areas is None and feed.error is not None for feed in self._feeds.values())
 
     def areas(self, kind):
         """The "airmet" or "sigmet" areas in effect now; None before that feed's first fetch that worked."""

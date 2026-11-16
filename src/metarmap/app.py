@@ -16,7 +16,7 @@ import threading
 import time
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 import schedule
 
@@ -46,6 +46,7 @@ log = logging.getLogger(__name__)
 CONFIG_FILE = "config.json"
 METAR_MINUTES = 10  # how often METARs are fetched
 RETRY_SECONDS = 60  # after a failed fetch or lookup (e.g. aviationweather.gov answering 502), how soon to try again
+_retrying = set()  # the feeds retry_feeds() has said it is trying again, so it says so once
 _retry_lock = threading.Lock()  # retry_soon() runs on the scheduler's thread and the startup lookup's
 WATCHDOG_SECONDS = 15  # how often the OLED loop is checked
 
@@ -149,6 +150,9 @@ def build(config_file=CONFIG_FILE, strip=None, screen=None, clock: Clock = None,
         fetch_delays(app)
         fetch_forecasts(app)
         locate_soon(app)
+        app.scheduler.every(RETRY_SECONDS).seconds.do(retry_feeds, app).tag(
+            "retry_feeds"
+        )  # ends itself once all loaded
         atis.available()  # with spoken ATIS on, which airports have one (in the background): the pages' ATIS buttons
     return app
 
@@ -415,6 +419,40 @@ def fill_names(app: App):
 def needs_retry(app: App):
     """Whether the METAR fetch, or the lookup of where airports without a report are, failed."""
     return app.metars.last_fetch_ok is False or app.metars.locate_failed
+
+
+def feeds_waiting(app: App) -> List[str]:
+    """The advisories, TFR and FAA status feeds that have never loaded: their airports breathe dimly until they do."""
+    feeds = (
+        ("advisories", app.advisories is not None and app.advisories.waiting()),
+        ("TFR", app.tfrs is not None and app.tfrs.fetched is None),
+        ("FAA status", app.delays is not None and app.delays.fetched is None),
+    )
+    return [name for name, waiting in feeds if waiting]
+
+
+def retry_feeds(app: App):
+    """
+    Every RETRY_SECONDS until the advisories, TFRs and FAA status have each loaded once: asks again the ones whose
+    last try failed (one still under way is left to finish), instead of leaving their airports breathing dimly until
+    the next regular fetch, up to METAR_MINUTES away. Each fetch is in the background, so the LEDs don't wait for it.
+    """
+    waiting = feeds_waiting(app)
+    if not waiting:
+        _retrying.clear()
+        return schedule.CancelJob
+    for name, failed, fetch in (
+        ("advisories", "advisories" in waiting and app.advisories.failed(), fetch_advisories_soon),
+        ("TFR", "TFR" in waiting and app.tfrs.error is not None, fetch_tfrs),
+        ("FAA status", "FAA status" in waiting and app.delays.error is not None, fetch_delays),
+    ):
+        if failed:
+            # said once per feed, not every minute for as long as the network is down
+            (log.debug if name in _retrying else log.info)(
+                f"{name}: trying again every {RETRY_SECONDS} s until it loads"
+            )
+            _retrying.add(name)
+            fetch(app)
 
 
 def retry_soon(app: App):

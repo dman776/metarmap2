@@ -284,7 +284,7 @@ def test_every_look_names_its_legend_entries(v, missing_blink, lightning, breath
         (tfr, {"tfrs": [{"type": "VIP", "inside": True, "upcoming": True}]}, (tfr.COLORS["VIP"][1], "upcoming")),
         (faa_delays, {"faa_status": {"kind": "ground_stop", "minutes": None}}, ("Ground stop",)),
         (faa_delays, {"faa_status": {"kind": "delay", "minutes": 45}}, ("Delay 30-59 min",)),
-        (faa_delays, {"faa_status": None}, ("missing",)),
+        (faa_delays, {"faa_status": None}, ("waiting",)),
         (advisories, {"airmets": ["IFR", "ICE"]}, ("mixed", advisories.COLORS["IFR"][1], advisories.COLORS["ICE"][1])),
         (advisories, {"airmets": [], "sigmets": ["CONV"]}, (advisories.SIGMET_COLORS["CONV"][1],)),
     ],
@@ -1098,7 +1098,7 @@ def faa(kind, minutes=None):
         (faa("delay", 60), Look.solid(C[colors_lib.RED])),
         (faa("delay", 138), Look.solid(C[colors_lib.RED])),
         (faa("normal"), Look.solid(C[colors_lib.GRAY])),
-        (metar(faa_status=None), Look.blink(C[colors_lib.RED], period=2)),  # no FAA status fetched yet
+        (metar(faa_status=None), style.waiting()),  # no FAA status fetched yet: breathing, not red
         (faa("something new"), Look.blink(C[colors_lib.RED], period=2)),
         (None, OFF),
     ],
@@ -1135,3 +1135,26 @@ def test_faa_delays_is_registered_after_tfr():
         False,
         None,
     )
+
+
+def test_faa_delays_waits_for_the_first_status_breathing_dimly(settings):
+    assert faa_delays.look(metar(faa_status=None), settings) == style.waiting()
+    assert faa_delays.look(metar(faa_status={"kind": "bogus"}), settings) == style.missing()  # a status it can't read
+    items = {item["key"]: item for item in faa_delays.legend(settings)}
+    assert items[style.WAITING]["effect"] == "pulse" and items[style.WAITING]["label"] == "Waiting for the FAA status"
+    assert items[style.MISSING]["effect"] == "blink"
+
+
+def test_waiting_is_not_hidden_by_the_missing_data_blink_setting(settings):
+    """visualizer.missing_data_blink turns the red off; a feed that hasn't loaded yet still breathes."""
+    settings.visualizer.missing_data_blink = False
+    assert visualizer.look(faa_delays.VISUALIZER, metar(faa_status=None), settings) == style.waiting()
+    assert visualizer.look(faa_delays.VISUALIZER, metar(faa_status={"kind": "bogus"}), settings).effect == "off"
+
+
+@pytest.mark.parametrize(
+    "latitude, longitude", [(None, -95.0), (29.0, None), ("north", -95.0), (float("nan"), -95.0), (29.0, float("inf"))]
+)
+def test_no_usable_position(latitude, longitude):
+    assert style.has_position(metar(latitude=latitude, longitude=longitude)) is False
+    assert style.has_position(metar(latitude="29.98", longitude=-95.34)) is True
