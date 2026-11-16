@@ -92,6 +92,8 @@ class Renderer:
         self._visualizers: list = visualizers
         self._vis = visualizers[0]
         self.active_visualizer: int = 0
+        # counts the rebuilds of the looks: what's made from led_states() (the web's leds[]) is kept until it changes
+        self.revision = 0
         self._looks = []  # one Look per airport, in LED order
         self._strip_look = None  # set instead when one look drives the whole strip
         self._hidden = ()  # the Hidden Pixels a whole-strip look must leave dark (see _darken_hidden)
@@ -142,6 +144,7 @@ class Renderer:
             self._looks, self._strip_look, self._animations, self._hidden = looks, strip_look, animations, hidden
             self._started = self._clock.time()  # the steps of a stepping visualizer count from here (step())
             self._look_dicts = None  # led_states()'s cache
+            self.revision += 1
 
     @property
     def looks(self):
@@ -188,12 +191,16 @@ class Renderer:
         """
         # converted once per rebuild, not at every poll of every open page: a stepping look has ~140 colors per LED
         # (Flight Category Forecast), which pegged a Pi's CPU
-        if self._look_dicts is None:
-            self._look_dicts = (
-                [look.to_dict() for look in self._looks],
-                self._strip_look.to_dict() if self._strip_look is not None else None,
-            )
-        looks, strip = self._look_dicts
+        # (the revision is kept with them: a rebuild racing this call can't leave old dicts under the new revision)
+        cached = self._look_dicts
+        if cached is None or cached[0] != self.revision:
+            with self._lock:  # the looks and the revision change together, under this lock
+                cached = self._look_dicts = (
+                    self.revision,
+                    [look.to_dict() for look in self._looks],
+                    self._strip_look.to_dict() if self._strip_look is not None else None,
+                )
+        _, looks, strip = cached
         leds = dict(enumerate(looks))
         if self._strip_look is not None:
             settings = self._config.data

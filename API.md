@@ -19,7 +19,7 @@ curl -u metar:map http://metarmap.local/config
 
 ### `GET /api/status`
 
-Returns a read-only snapshot of the Chart's state as `application/json`. No authentication.
+Returns a read-only snapshot of the Chart's state as `application/json`. No authentication. The JSON is compact (no spaces after `:` and `,`; the examples below are spaced for reading), and the answer is gzipped (level 1) when the request has `Accept-Encoding: gzip`; a client that doesn't ask gets plain JSON. Home Assistant's HTTP client asks by default and decodes it transparently; the Copilot doesn't ask, so it gets plain compact JSON. These answers (`/api/status`, `/api/live` and `/api/traffic`) carry `Vary: Accept-Encoding`.
 
 ```json
 {
@@ -159,7 +159,7 @@ Returns a read-only snapshot of the Chart's state as `application/json`. No auth
 
 ### `GET /api/live`
 
-What the physical map is doing right now. The Map page polls it every second. No authentication.
+What the physical map is doing right now. The Map page polls it every second. No authentication. Like `/api/status`, the JSON is compact and the answer is gzipped (level 1) when the request has `Accept-Encoding: gzip`, with `Vary: Accept-Encoding`; a client that doesn't ask gets plain JSON.
 
 ```json
 {
@@ -211,6 +211,12 @@ What the physical map is doing right now. The Map page polls it every second. No
 | `locate` | The last white locate pulse: the pixel number `pixel` and Unix time `at`. `null` until the first one. A virtual airport's pulse is only shown on the Map page. |
 | `display.on` | Whether the screen is showing; `false` after `/display/off` (then `screen` is `null`) |
 | `display.screen` | What the Micro shows. `badge` is the flight category, with a `*` after one that's estimated from the visibility and ceiling (`VFR*`). `virtual` is true for a virtual airport, whose code is in a dashed box. `page` is 1 or 2 for an airport, 0 for "Data Unavailable" or a message (then `airport` is `null`). Icons: `wind`, `visibility`, `pressure`, `temp`, `dewpoint`, `date`. For the first 5 seconds after the Chart starts, the splash: a message with `splash: true` and the title `MetarMap2` (the Micro draws the logo under it). With `display_screen.shows` `visualizer`: a message whose title is the visualizer's short name, with `visualizer_icon` its icon name (as `visualizer.icon`), drawn under the title. |
+
+### `GET /api/version`
+
+Just the software version, `{"version": "26.11.16"}`, for a page that only needs to know whether the Chart was updated
+(the Cockpit polls it to reload itself after an update). No authentication. The answer has `Cache-Control: no-store`.
+`/api/status` still has `version` too.
 
 ### `GET /api/icon/<name>`
 

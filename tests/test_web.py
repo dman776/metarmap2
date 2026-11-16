@@ -816,6 +816,177 @@ def test_live(services):
     assert api.live(services)["display"] == {"enabled": False, "on": False, "screen": None}
 
 
+# ---- cheap payloads: compact JSON, gzip when asked, leds[] made once per change, /api/version ----------------------
+
+
+@pytest.mark.parametrize("path", ["/api/live", "/api/status"])
+def test_big_answers_are_gzipped_when_asked(client, path):
+    status, plain = client(path, auth=False)
+    assert status == 200 and "Content-Encoding" not in client.headers
+    assert client.headers["Vary"] == "Accept-Encoding" and client.headers["Content-Type"] == "application/json"
+    assert plain == json.dumps(json.loads(plain), separators=(",", ":"), ensure_ascii=True)  # compact separators
+    status, _ = client(path, auth=False, headers={"Accept-Encoding": "gzip, deflate"})
+    assert (
+        status == 200 and client.headers["Content-Encoding"] == "gzip" and client.headers["Vary"] == "Accept-Encoding"
+    )
+    assert client.headers["Content-Type"] == "application/json"
+    assert len(client.raw) < len(plain)
+    assert int(client.headers["Content-Length"]) == len(client.raw)  # the gzipped size, not the plain one
+    packed = json.loads(gzip.decompress(client.raw))
+    assert set(packed) == set(json.loads(plain))  # same fields (live's now and status's times differ)
+
+
+def test_live_and_status_decode_to_the_same_data_as_before(client):
+    live = json.loads(api.live_json(client.services, api.LiveLeds(client.services)))
+    again = api.live(client.services, now=live["now"])
+    assert live == json.loads(json.dumps(again))
+    assert list(live) == list(again)  # the same order, leds[] where it was
+    assert json.loads(api.dumps(api.status(client.services, "10.0.0.2"))) == json.loads(
+        json.dumps(api.status(client.services, "10.0.0.2"))
+    )
+
+
+def test_plain_json_has_no_spaces_but_the_data_is_the_same():
+    data = {"a": [1, 2, {"b": "x, y: z"}], "c": None}
+    assert api.dumps(data) == '{"a":[1,2,{"b":"x, y: z"}],"c":null}'
+    assert json.loads(api.dumps(data)) == data
+
+
+def test_live_leds_are_made_once_until_something_changes(services):
+    cache = api.LiveLeds(services)
+    first = cache.text()
+    assert cache.text() == first and cache.builds == 1  # a poll with no change reuses the text
+    assert json.loads(first) == json.loads(json.dumps(api.live(services)["leds"]))
+    assert api.live_json(services, cache).count(first) == 1 and cache.builds == 1
+
+
+def test_live_leds_follow_a_new_report(services):
+    cache = api.LiveLeds(services)
+    cache.text()
+    services.metars.data["KIAH"] = metar("LIFR")
+    services.renderer.update_data(services.metars)
+    after = json.loads(cache.text())
+    assert cache.builds == 2 and after[1]["flightCategory"] == "LIFR"
+
+
+def test_live_leds_follow_a_report_that_changes_without_a_rebuild(services):
+    cache = api.LiveLeds(services)
+    cache.text()
+    services.metars.data["KIAH"] = metar("MVFR", raw="METAR NEW")  # the renderer isn't told (yet)
+    assert json.loads(cache.text())[1]["raw"] == "METAR NEW" and cache.builds == 2
+
+
+def test_live_leds_follow_a_visualizer_and_an_airport_name(services):
+    cache = api.LiveLeds(services)
+    before = json.loads(cache.text())[0]["look"]
+    services.renderer.visualizer = "rainbow"
+    assert json.loads(cache.text())[0]["look"] != before
+    assert cache.builds == 2
+    services.config.airports[0].name = "Renamed"
+    assert json.loads(cache.text())[0]["name"] == "Renamed" and cache.builds == 3
+
+
+def test_live_leds_follow_the_atis_list_and_the_led_count(services):
+    cache = api.LiveLeds(services)
+    cache.text()
+    services.atis = SimpleNamespace(available=lambda: {"KHOU"})
+    services.speech = SimpleNamespace(health=lambda: (True, ""))
+    services.config.data.speech.enabled = True
+    services.config.data.speech.wyoming_host = "10.0.0.9"
+    assert json.loads(cache.text())[0]["atis"] is True and cache.builds == 2
+    services.config.data.led.count = 3
+    assert json.loads(cache.text())[2]["virtual"] is True and cache.builds == 3
+
+
+def test_live_leds_cache_is_safe_across_threads(services):
+    cache = api.LiveLeds(services)
+    seen = []
+    threads = [threading.Thread(target=lambda: seen.append(cache.text())) for _ in range(8)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert len(set(seen)) == 1 and cache.builds == 1
+
+
+def test_the_renderer_counts_its_rebuilds(services):
+    before = services.renderer.revision
+    services.renderer.refresh()
+    assert services.renderer.revision > before
+
+
+def test_api_version(client):
+    status, body = client("/api/version", auth=False)
+    assert status == 200 and json.loads(body) == {"version": __version__}
+    assert client.headers["Content-Type"] == "application/json" and client.headers["Cache-Control"] == "no-store"
+    assert len(body) < 40
+
+
+def test_the_cockpit_polls_the_version_endpoint(client):
+    js = pathlib.Path(api.__file__).parent.joinpath("static", "remote.js").read_text()
+    assert "fetch('/api/version'" in js
+
+
+def test_the_cockpit_falls_back_to_status_when_there_is_no_version_endpoint(client):
+    """An older release (installed with the release picker) answers /api/version with a 404: a downgrade must reload."""
+    js = pathlib.Path(api.__file__).parent.joinpath("static", "remote.js").read_text()
+    poll = js[js.index("async function pollVersion") :]
+    poll = poll[: poll.index("\n    }\n")]
+    assert poll.index("fetch('/api/version'") < poll.index("if (!res.ok) res = await fetch('/api/status'")
+    assert poll.index("if (!res.ok)") < poll.index(".version !== page.dataset.version")
+
+
+def test_live_leds_follow_a_position_given_to_a_report_without_one(services):
+    cache = api.LiveLeds(services)
+    services.metars.data["KIAH"] = metar("IFR", latitude=None, longitude=None)  # a mock Report: no lat/lon
+    first = json.loads(cache.text())
+    assert first[1]["lat"] is None and cache.builds == 1
+    services.metars.position = lambda code: (29.98, -95.34) if code == "KIAH" else None
+    after = json.loads(cache.text())
+    assert (after[1]["lat"], after[1]["lon"]) == (29.98, -95.34) and cache.builds == 2
+
+
+def test_live_leds_follow_a_hidden_pixel_inserted_or_removed(services):
+    cache = api.LiveLeds(services)
+    assert [led["pixel"] for led in json.loads(cache.text())] == [0, 2, 3]
+    services.config.airports.insert(0, Airport())  # no rebuild told: the key itself sees the shift
+    assert [led["pixel"] for led in json.loads(cache.text())] == [1, 3, 4] and cache.builds == 2
+    del services.config.airports[0]  # and out again
+    assert [led["pixel"] for led in json.loads(cache.text())] == [0, 2, 3] and cache.builds == 3
+
+
+def test_live_leds_follow_a_strip_look_with_virtual_airports(services):
+    services.config.data.led.count = 3
+    services.renderer.visualizer = "rainbow"
+    cache = api.LiveLeds(services)
+    first = json.loads(cache.text())
+    assert first[2]["virtual"] is True and first[2]["look"]["effect"] == "rainbow"
+    services.config.data.led.count = 4  # KDKR is on the strip now: no longer in the strip's look
+    after = json.loads(cache.text())
+    assert after[2]["virtual"] is False and cache.builds == 2
+    services.config.airports.append(Airport(code="KSGR"))  # a virtual one joins in
+    last = json.loads(cache.text())
+    assert last[3]["code"] == "KSGR" and last[3]["virtual"] is True and cache.builds == 3
+    assert last[3]["look"]["effect"] == "rainbow"
+
+
+def test_the_looks_never_stay_under_a_newer_revision(services):
+    r = services.renderer
+    r.led_states()
+    r._look_dicts = (r.revision - 1, ["stale"], None)  # what a rebuild racing the fill would have left
+    looks, _ = r.led_states()
+    assert looks[0] != "stale" and r._look_dicts[0] == r.revision
+
+
+def test_live_json_splices_even_when_the_placeholder_text_is_in_the_data(services):
+    services.config.data.visualizer.auto_rotate.skip = ["__leds__"]
+    cache = api.LiveLeds(services)
+    live = json.loads(api.live_json(services, cache))
+    assert live["visualizer"]["autoRotate"]["skip"] == ["__leds__"]
+    assert [led["code"] for led in live["leds"]] == ["KHOU", "KIAH", "KDKR"]
+    assert api.LEDS_PLACEHOLDER != "__leds__" and len(api.LEDS_PLACEHOLDER) > 32
+
+
 # ---- visualizer icons as masks (/api/icon/<name>, iconRev) ------------------------------------------------------
 
 # what /api/status said about each visualizer before iconRev: none of these may go or change name

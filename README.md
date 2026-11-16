@@ -433,6 +433,7 @@ home automation can use them. See **[API.md](API.md)** for every endpoint.
 
 ```sh
 curl http://metarmap.local/api/status                            # current state (JSON)
+curl http://metarmap.local/api/version                           # just the software version (JSON)
 curl http://metarmap.local/brightness/0.25                       # set the pixels' brightness
 curl http://metarmap.local/visualizer/next                       # next visualizer
 curl -u metar:map http://metarmap.local/config/edit/lightning.animation/false
