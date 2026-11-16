@@ -48,6 +48,7 @@ STRIP_COLORS = {
     colors.CYAN: (255, 0, 255),
     colors.OFF: (0, 0, 0),
     colors.GRAY: (50, 50, 50),
+    colors.DIM_WHITE: (38, 38, 38),
     colors.YELLOW: (255, 255, 0),
     colors.WHITE: (255, 255, 255),
     colors.PURPLE: (0, 148, 211),

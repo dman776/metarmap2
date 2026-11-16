@@ -40,7 +40,7 @@ SIGMET_COLORS = {
     "SS": (colors_lib.ORANGE, "SIGMET: volcanic ash, dust or sand storm"),
 }
 COLOR_NAMES = {colors_lib.RED: "Red", colors_lib.CYAN: "Cyan", colors_lib.YELLOW: "Yellow", colors_lib.ORANGE: "Orange"}
-NONE = colors_lib.GRAY
+NONE = colors_lib.DIM_WHITE
 MIXED, NO_ADVISORY = "mixed", "no_advisory"  # legend entries' keys; the others' are their labels
 
 

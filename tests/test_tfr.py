@@ -624,7 +624,7 @@ def color(name):
 @pytest.mark.parametrize(
     "tfrs, expected",
     [
-        ([], Look.solid(color(colors_lib.GRAY))),
+        ([], Look.solid(color(colors_lib.DIM_WHITE))),
         ([{"type": "VIP", "upcoming": False, "inside": True}], Look.solid(color(colors_lib.RED))),
         ([{"type": "HAZARDS", "upcoming": False, "inside": False}], Look.solid(style.dim(color(colors_lib.ORANGE)))),
         (

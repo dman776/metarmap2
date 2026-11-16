@@ -12,6 +12,7 @@ GREEN = "GREEN"
 BLUE = "BLUE"
 LIGHT_BLUE = "LIGHT BLUE"
 GRAY = "GRAY"
+DIM_WHITE = "DIM WHITE"
 YELLOW = "YELLOW"
 WHITE = "WHITE"
 MAGENTA = "MAGENTA"
@@ -33,6 +34,7 @@ PALETTE = {
     CYAN: (0, 255, 255),
     OFF: (0, 0, 0),
     GRAY: (50, 50, 50),
+    DIM_WHITE: (38, 38, 38),  # 15%: an airport with nothing to show in Advisories, TFR and FAA Delays
     YELLOW: (255, 255, 0),
     WHITE: (255, 255, 255),
     PURPLE: (148, 0, 211),

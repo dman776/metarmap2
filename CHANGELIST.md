@@ -1,5 +1,7 @@
 ### Unreleased
 
+- **A dimmer "nothing here" in Advisories, TFR and FAA Delays.** An airport with no advisory, no TFR nearby or no FAA delay now lights a dimmer white on the strip (15% instead of about 20%), so the airports that do have something stand out more. The legends still say "Dim white", and the web map looks the same (it brightens very dim colors so they stay visible). The slow breathing while a feed's first data is loading, and the dim white of Wind, Wind gusts and Wind direction, are unchanged.
+
 - **Cheaper TFR checks on large charts.** Working out which airports are inside or near a TFR now skips TFRs that are far away and remembers each airport's distances until the TFR list changes, which lowers the CPU use of the Chart's update cycle. Nothing about what the TFR visualizer shows has changed.
 
 - **Lighter `/api/live` and `/api/status`, and a new `/api/version`.** All the Chart's JSON answers are now compact (no spaces after separators; same fields, same order), and `/api/live` and `/api/status` are gzipped when the client asks for it (`Accept-Encoding: gzip`), which makes them much smaller to send; these answers carry `Vary: Accept-Encoding`. Home Assistant asks for gzip by default and decodes it on its own, so the integration needs no change. The Copilot doesn't ask, so it still gets plain (compact) JSON. The new `GET /api/version` returns just `{"version": "..."}` (no login, never cached), and the Cockpit uses it to notice an update instead of reading all of `/api/status`. See [API.md](API.md#get-apiversion).
