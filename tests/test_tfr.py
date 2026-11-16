@@ -366,7 +366,18 @@ def test_look(settings, tfrs, expected):
 
 def test_look_without_data(settings):
     assert vis.look(None, settings) == style.no_report()
-    assert vis.look(Report(raw="...", tfrs=None), settings) == style.missing()
+    assert vis.look(Report(raw="...", tfrs=None), settings) == style.missing()  # no position: a problem
+
+
+def test_an_airport_waits_for_the_first_tfr_list_breathing_dimly(settings):
+    assert vis.look(Report(raw="...", latitude=29.98, longitude=-95.34, tfrs=None), settings) == style.waiting()
+    assert vis.look(Report(raw="...", latitude=29.98, longitude=-95.34, tfrs=[]), settings) != style.waiting()
+
+
+def test_the_legend_tells_waiting_from_an_unknown_position(settings):
+    items = {item["key"]: item for item in vis.legend(settings)}
+    assert items[style.WAITING]["effect"] == "pulse" and items[style.WAITING]["label"] == "Waiting for the TFR list"
+    assert items[style.MISSING]["effect"] == "blink" and "position" in items[style.MISSING]["label"]
 
 
 def test_legend(settings):

@@ -68,7 +68,8 @@ def legend(settings):
             key=UPCOMING,
         ),
         legend_item(f"No TFR within {reach:g} NM" if reach else "No TFR", "Dim white", style.named(NONE), key=NO_TFR),
-        style.missing_legend("", label="No TFR list yet, or the airport's position isn't known"),
+        style.waiting_legend("Waiting for the TFR list"),
+        style.missing_legend("", label="The airport's position isn't known"),
         style.no_report_legend(),
     ]
 
@@ -77,8 +78,8 @@ def look(metar: Optional[Report], settings) -> Look:
     if not metar:
         return style.no_report()
     tfrs = metar.tfrs
-    if tfrs is None:
-        return style.missing()
+    if tfrs is None:  # no TFR list yet, or nowhere to look the airport up
+        return style.waiting() if style.has_position(metar) else style.missing()
     if not tfrs:
         return Look.solid(style.named(NONE)).tagged(NO_TFR)
     first = tfrs[0]  # the most important: in effect before upcoming, inside before nearby, then by type

@@ -7,6 +7,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+import schedule
 
 from metarmap import app as app_module, visualizers
 from metarmap.models import Report
@@ -777,3 +778,69 @@ def test_pingable(monkeypatch):
     assert app_module.pingable("8.8.8.8") is True
     assert app_module.pingable("10.255.255.1") is False
     assert asked[0] == ["ping", "-c", "1", "8.8.8.8"]
+
+
+# ---- advisories, TFRs and FAA status: tried again until each has loaded once -----------------------------------------
+
+
+class Feed:
+    """What retry_feeds() asks of a feed: advisories (waiting, failed), TFRs and delays (fetched, error)."""
+
+    def __init__(self, fetched=None, error=None, waiting=True, failed=False):
+        self.fetched, self.error, self._waiting, self._failed = fetched, error, waiting, failed
+
+    def waiting(self):
+        return self._waiting
+
+    def failed(self):
+        return self._failed
+
+
+@pytest.fixture
+def feeds(make_app, monkeypatch):
+    """A map whose three feeds can be set to loaded, failed or still on their way; (app, what was asked again)."""
+    app = make_app()
+    app.advisories, app.tfrs, app.delays = Feed(), Feed(), Feed()
+    asked = []
+    for name in ("fetch_advisories_soon", "fetch_tfrs", "fetch_delays"):
+        monkeypatch.setattr(app_module, name, lambda app, name=name: asked.append(name))
+    return app, asked
+
+
+def test_feeds_waiting_are_the_ones_never_loaded(feeds):
+    app, _ = feeds
+    assert app_module.feeds_waiting(app) == ["advisories", "TFR", "FAA status"]
+    app.tfrs.fetched = 1000.0
+    app.advisories._waiting = False
+    assert app_module.feeds_waiting(app) == ["FAA status"]
+
+
+def test_a_map_without_a_feed_doesnt_wait_for_it(feeds):
+    app, _ = feeds
+    app.advisories = app.tfrs = app.delays = None
+    assert app_module.feeds_waiting(app) == []
+    assert app_module.retry_feeds(app) is not None  # CancelJob: there is nothing to wait for
+
+
+def test_only_feeds_whose_try_failed_are_asked_again(feeds):
+    app, asked = feeds
+    app.advisories._failed = True
+    app.delays.error = "couldn't get the FAA airport status: down"
+    app_module.retry_feeds(app)  # the TFR list is still on its way: left to finish
+    assert asked == ["fetch_advisories_soon", "fetch_delays"]
+
+
+def test_the_retry_ends_once_every_feed_has_loaded(feeds):
+    app, asked = feeds
+    app.advisories._waiting = False
+    app.tfrs.fetched = app.delays.fetched = 1000.0
+    assert app_module.retry_feeds(app) is schedule.CancelJob
+    assert asked == []
+
+
+def test_a_feed_that_loaded_once_is_not_asked_again_by_the_retry(feeds):
+    app, asked = feeds
+    app.tfrs.fetched, app.tfrs.error = 1000.0, "couldn't get the TFR list"  # a later failure keeps the old list
+    app.advisories._waiting = False
+    app.delays.fetched = 1000.0
+    assert app_module.retry_feeds(app) is schedule.CancelJob and asked == []

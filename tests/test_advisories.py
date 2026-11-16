@@ -371,9 +371,21 @@ def test_look(settings, airmets, sigmets, expected):
 
 def test_look_without_data(settings):
     assert vis.look(None, settings) == style.no_report()
+    # no position: nowhere to look the airport up, a problem
     assert vis.look(Report(raw="...", airmets=None, sigmets=None), settings) == style.missing()
     assert vis.look(Report(raw="...", airmets=None, sigmets=[]), settings) == style.missing()
     assert vis.look(Report(raw="..."), settings) == style.missing()
+
+
+def test_an_airport_waits_for_the_first_g_airmets_breathing_dimly(settings):
+    """With a position but no G-AIRMET list yet it's waiting, not the red of a problem."""
+    waiting = vis.look(Report(raw="...", latitude=29.98, longitude=-95.34), settings)
+    assert waiting == style.waiting() and waiting != style.missing()
+    assert waiting.legend == (style.WAITING,)
+    assert vis.look(Report(raw="...", latitude="29.98", longitude="-95.34"), settings) == style.waiting()
+    # a SIGMET is enough, and no position stays red whatever the feeds did
+    assert vis.look(Report(raw="...", latitude=1.0, longitude=2.0, sigmets=["TS"]), settings) != style.waiting()
+    assert vis.look(Report(raw="...", latitude="north", longitude="west"), settings) == style.missing()
 
 
 def test_legend(settings):
@@ -399,3 +411,30 @@ def test_every_hazard_has_a_color():
     assert set(vis.COLORS) == set(advisories.AIRMETS)
     assert set(vis.SIGMET_COLORS) == set(advisories.SIGMETS)
     assert vis.css("IFR").startswith("#") and vis.css("CONV", "SIGMET") == colors_lib.to_css(color(colors_lib.RED))
+
+
+def test_the_legend_tells_waiting_from_an_unknown_position(settings):
+    items = {item["key"]: item for item in vis.legend(settings)}
+    waiting, missing = items[style.WAITING], items[style.MISSING]
+    assert waiting["effect"] == "pulse" and waiting["period"] == style.WAITING_PERIOD
+    assert waiting["low"] == style.WAITING_LOW and waiting["label"] == "Waiting for the G-AIRMETs and SIGMETs"
+    assert missing["effect"] == "blink" and "position" in missing["label"]
+
+
+def test_a_feed_that_never_loaded_is_waiting_and_failed_when_its_try_failed():
+    found, _, _ = make(
+        airmets=[requests.exceptions.Timeout("slow")], sigmets=[FakeResponse([sigmet("CONV", *HOUSTON)])]
+    )
+    assert found.waiting() is True and found.failed() is False  # nothing tried yet
+    found.fetch()  # the SIGMETs came; the G-AIRMETs didn't
+    assert found.waiting() is True and found.failed() is True
+
+
+def test_once_both_feeds_loaded_a_later_failure_is_not_waiting():
+    found, _, _ = make(
+        airmets=[FakeResponse([gairmet("IFR", *HOUSTON)]), requests.exceptions.Timeout("slow")],
+        sigmets=[FakeResponse([]), requests.exceptions.Timeout("slow")],
+    )
+    found.fetch()
+    found.fetch()  # fails: the old areas stay
+    assert found.waiting() is False and found.failed() is False

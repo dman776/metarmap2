@@ -218,6 +218,16 @@ class Advisories:
             feed.areas, feed.fetched, feed.error = areas, self._clock(), None
         return True
 
+    def waiting(self):
+        """Whether either feed has never loaded: until it does, the airports have nothing to show (a dim breath)."""
+        with self._lock:
+            return any(feed.areas is None for feed in self._feeds.values())
+
+    def failed(self):
+        """Whether a feed that has never loaded failed its last try (so asking again is worth it, not waiting)."""
+        with self._lock:
+            return any(feed.areas is None and feed.error is not None for feed in self._feeds.values())
+
     def areas(self, kind):
         """The "airmet" or "sigmet" areas in effect now; None before that feed's first fetch that worked."""
         with self._lock:

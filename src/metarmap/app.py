@@ -16,7 +16,7 @@ import threading
 import time
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 import schedule
 
@@ -149,6 +149,9 @@ def build(config_file=CONFIG_FILE, strip=None, screen=None, clock: Clock = None,
         fetch_delays(app)
         fetch_forecasts(app)
         locate_soon(app)
+        app.scheduler.every(RETRY_SECONDS).seconds.do(retry_feeds, app).tag(
+            "retry_feeds"
+        )  # ends itself once all loaded
         atis.available()  # with spoken ATIS on, which airports have one (in the background): the pages' ATIS buttons
     return app
 
@@ -415,6 +418,36 @@ def fill_names(app: App):
 def needs_retry(app: App):
     """Whether the METAR fetch, or the lookup of where airports without a report are, failed."""
     return app.metars.last_fetch_ok is False or app.metars.locate_failed
+
+
+def feeds_waiting(app: App) -> List[str]:
+    """The advisories, TFR and FAA status feeds that have never loaded: their airports breathe dimly until they do."""
+    feeds = (
+        ("advisories", app.advisories is not None and app.advisories.waiting()),
+        ("TFR", app.tfrs is not None and app.tfrs.fetched is None),
+        ("FAA status", app.delays is not None and app.delays.fetched is None),
+    )
+    return [name for name, waiting in feeds if waiting]
+
+
+def retry_feeds(app: App):
+    """
+    Every RETRY_SECONDS until the advisories, TFRs and FAA status have each loaded once: asks again the ones whose
+    last try failed (one still under way is left to finish), instead of leaving their airports breathing dimly until
+    the next regular fetch, up to METAR_MINUTES away. Each fetch is in the background, so the LEDs don't wait for it.
+    """
+    waiting = feeds_waiting(app)
+    if not waiting:
+        return schedule.CancelJob
+    if "advisories" in waiting and app.advisories.failed():
+        log.info("G-AIRMETs and SIGMETs: trying again")
+        fetch_advisories_soon(app)
+    if "TFR" in waiting and app.tfrs.error is not None:
+        log.info("TFRs: trying again")
+        fetch_tfrs(app)
+    if "FAA status" in waiting and app.delays.error is not None:
+        log.info("FAA status: trying again")
+        fetch_delays(app)
 
 
 def retry_soon(app: App):

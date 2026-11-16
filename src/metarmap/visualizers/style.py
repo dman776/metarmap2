@@ -29,6 +29,7 @@ LIGHT, MODERATE, HEAVY, VICINITY = "-", "", "+", "VC"
 # the keys of the legend entries every visualizer shares (Look.tagged, legend_item(key=...))
 NO_REPORT = "no_report"
 MISSING = "missing"
+WAITING = "waiting"
 LIGHTNING_KEY = "lightning"
 INTENSITY_KEYS = {LIGHT: "light", HEAVY: "heavy", VICINITY: "vicinity"}  # moderate is the kind's own entry
 
@@ -37,6 +38,9 @@ LIGHT_LOW = 0.3  # a breath's dimmest point
 HEAVY_PERIOD = 1.0  # seconds per blink
 DIM = 0.3  # brightness of "in the vicinity", and of a heavy blink's dim half
 MISSING_PERIOD = 2.0
+WAITING_PERIOD = LIGHT_PERIOD  # a feed that hasn't loaded yet: a slow breath
+WAITING_LOW = 0.2  # its dimmest point (never dark)
+WAITING_BRIGHTNESS = 0.35  # of white, at its brightest: dim
 
 
 def named(name):
@@ -54,6 +58,39 @@ def no_report() -> Look:
 def missing() -> Look:
     """The airport reported, but not the value this visualizer shows. Off with visualizer.missing_data_blink off."""
     return Look.blink(named(colors_lib.RED), period=MISSING_PERIOD).tagged(MISSING)
+
+
+def has_position(metar: Report) -> bool:
+    """Whether the airport's latitude and longitude are known (what a feed's areas are matched against)."""
+    try:
+        float(metar.latitude), float(metar.longitude)
+    except (TypeError, ValueError):
+        return False
+    return True
+
+
+def waiting() -> Look:
+    """
+    A feed (G-AIRMETs, TFRs, FAA status) hasn't loaded yet, so there's nothing to show for the airport: a slow breath of
+    dim white, not the red of missing(), which is a problem. Shown until the feed's first answer.
+    """
+    return Look.pulse(waiting_color(), period=WAITING_PERIOD, low=WAITING_LOW).tagged(WAITING)
+
+
+def waiting_color():
+    return dim(named(colors_lib.WHITE), WAITING_BRIGHTNESS)
+
+
+def waiting_legend(label) -> dict:
+    return legend_item(
+        label,
+        "Slow breathing, dim white",
+        waiting_color(),
+        effect="pulse",
+        period=WAITING_PERIOD,
+        low=WAITING_LOW,
+        key=WAITING,
+    )
 
 
 def is_missing_legend(item) -> bool:

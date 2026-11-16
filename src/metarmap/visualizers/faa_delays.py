@@ -41,7 +41,8 @@ def legend(settings):
         ),
         *style.band_legend(DELAY_BANDS, settings),
         legend_item(NORMAL_LABEL, "Dim white", style.named(NONE)),
-        style.missing_legend("", label="No FAA status yet"),
+        style.waiting_legend("Waiting for the FAA status"),
+        style.missing_legend("", label="No FAA status for this airport"),
         style.no_report_legend(),
     ]
 
@@ -50,8 +51,8 @@ def look(metar: Optional[Report], settings) -> Look:
     if not metar:
         return style.no_report()
     status = metar.faa_status
-    if not status:
-        return style.missing()
+    if not status:  # the FAA's first status hasn't come yet
+        return style.waiting()
     kind = status.get("kind")
     if kind == CLOSED:
         return Look.solid(style.named(CLOSED_COLOR)).tagged(CLOSED_LABEL)
