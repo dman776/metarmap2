@@ -7,7 +7,9 @@ See API.md; the field names are part of the API.
 
 import gzip
 import json
+import threading
 import time
+import uuid
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
 
@@ -192,10 +194,8 @@ def fetch_schedule(services: "App"):
     return next_fetch(services)
 
 
-def live(services: "App", now=None):
-    """
-    What the physical map is doing right now: every LED's effect, the OLED screen and the last locate pulse.
-    """
+def live_leds(services: "App", led_looks, barbs):
+    """Every airport's entry in /api/live's leds[]: report, position and look (`led_looks`: Renderer.led_states())."""
 
     def num(v):
         try:
@@ -203,13 +203,6 @@ def live(services: "App", now=None):
         except (TypeError, ValueError):
             return None
 
-    renderer = services.renderer
-    led_looks, strip = renderer.led_states()
-    speaks = services.speech is not None and configured(services.config.data.speech)
-    speech_ok, speech_error = services.speech.health() if speaks else (None, "")
-    active_num, active_vis = renderer.visualizer
-    display = services.display if services.config.data.display_screen.enabled else None
-    barbs = active_vis.barbs
     with_atis = atis_airports(services)
     leds = []
     for s in views.stations(
@@ -236,6 +229,22 @@ def live(services: "App", now=None):
                 "atis": s["code"] in with_atis,  # a spoken ATIS can be asked for (/api/atis/<code>.audio)
             }
         )
+    return leds
+
+
+def live(services: "App", now=None, leds=None):
+    """
+    What the physical map is doing right now: every LED's effect, the OLED screen and the last locate pulse.
+    leds: the leds[] entries when they're already made (see LiveLeds); else they're built here.
+    """
+    renderer = services.renderer
+    led_looks, strip = renderer.led_states()
+    speaks = services.speech is not None and configured(services.config.data.speech)
+    speech_ok, speech_error = services.speech.health() if speaks else (None, "")
+    active_num, active_vis = renderer.visualizer
+    display = services.display if services.config.data.display_screen.enabled else None
+    if leds is None:
+        leds = live_leds(services, led_looks, active_vis.barbs)
     return {
         "now": now if now is not None else time.time(),
         "brightness": renderer.pixels().brightness,
@@ -273,6 +282,71 @@ def live(services: "App", now=None):
         "speechOk": speech_ok,
         "speechError": speech_error,
     }
+
+
+class LiveLeds:
+    """
+    /api/live's leds[] as JSON text, made once and kept until something it shows changes: the renderer rebuilt its
+    looks (Renderer.revision: a new visualizer, new data, a config change), or an input the looks don't cover did (an
+    airport's name or report, a position, led.count, the wind barbs, which airports have an ATIS). Most polls then
+    reuse the text instead of building and dumping ~330 bytes of dicts per pixel. Thread safe: pages and the Copilot
+    poll from several threads.
+    """
+
+    def __init__(self, services: "App"):
+        self._services = services
+        self._lock = threading.Lock()
+        self._key = None
+        self._text = ""
+        self.builds = 0  # how many times it was made (for the tests)
+
+    def _inputs(self, barbs):
+        services = self._services
+        data = services.metars.data
+        position = services.metars.position
+        cfg = services.config
+        return (
+            services.renderer.revision,
+            cfg.data.led.count,
+            bool(barbs),
+            frozenset(atis_airports(services)),
+            # the Reports themselves (kept here, so the same object means no new report); a position only when the
+            # airport has no report to place it
+            tuple(self._airport(a, pixel, data, position) for pixel, a in enumerate(cfg.airports) if a.code),
+        )
+
+    @staticmethod
+    def _airport(a, pixel, data, position):
+        # as views.stations places it: position() only when there's no report or it has no lat/lon. The pixel is in
+        # the key: a Hidden Pixel (no code) inserted or removed before an airport moves it
+        m = data.get(a.code)
+        placed = bool(m and m.latitude and m.longitude)
+        return (pixel, a.code, a.name, m, None if placed else position(a.code))
+
+    def text(self):
+        """The leds[] JSON text now."""
+        renderer = self._services.renderer
+        barbs = renderer.visualizer[1].barbs
+        with self._lock:
+            key = self._inputs(barbs)  # read before the build: a change during it is seen at the next poll
+            if self._key != key:
+                led_looks, _ = renderer.led_states()
+                self._text = dumps(live_leds(self._services, led_looks, barbs))
+                self._key = key
+                self.builds += 1
+            return self._text
+
+
+LEDS_PLACEHOLDER = "leds-" + uuid.uuid4().hex  # unguessable: no airport or setting can spell it
+
+
+def live_json(services: "App", cache: LiveLeds):
+    """/api/live as compact JSON text, with leds[] from `cache`."""
+    body = dumps(live(services, leds=LEDS_PLACEHOLDER))
+    marker = f'"{LEDS_PLACEHOLDER}"'
+    if body.count(marker) != 1:
+        raise RuntimeError("/api/live's leds placeholder is not in the body exactly once")
+    return body.replace(marker, cache.text(), 1)
 
 
 def metar(services: "App", code):
@@ -424,13 +498,24 @@ def tfrs(services: "App"):
     return state
 
 
+def dumps(data):
+    """JSON without the spaces after , and : (a fifth smaller; the same data)."""
+    return json.dumps(data, separators=(",", ":"))
+
+
 def as_json(data):
     bottle.response.content_type = "application/json"
-    return json.dumps(data)
+    return dumps(data)
+
+
+def version():
+    """The map's version, {"version"}: what the Cockpit polls to see an update (a few bytes, /api/status is 90 KB)."""
+    bottle.response.set_header("Cache-Control", "no-store")
+    return as_json({"version": __version__})
 
 
 def as_json_text(text):
-    """JSON that's already text, gzipped when the browser takes it (a busy circle is 85 KB, about 20 KB gzipped)."""
+    """JSON that's already text, gzipped when the client asks (a busy circle is 85 KB, about 20 KB gzipped)."""
     bottle.response.content_type = "application/json"
     bottle.response.set_header("Vary", "Accept-Encoding")
     if "gzip" in bottle.request.headers.get("Accept-Encoding", ""):
@@ -584,10 +669,12 @@ def byte_range(body: bytes) -> bytes:
 
 
 def add_routes(app, services: "App", site):
-    app.route("/api/status", "GET", lambda: as_json(status(services, site.ip)))
+    leds = LiveLeds(services)
+    app.route("/api/status", "GET", lambda: as_json_text(dumps(status(services, site.ip))))
+    app.route("/api/version", "GET", version)
     # :path, so a name with a / in it is a 400 here rather than some other route's 404
     app.route("/api/icon/<name:path>", "GET", icon_mask)
-    app.route("/api/live", "GET", lambda: as_json(live(services)))
+    app.route("/api/live", "GET", lambda: as_json_text(live_json(services, leds)))
     app.route(
         "/api/advisories", "GET", lambda: as_json(advisories(services) or bottle.abort(404, "No G-AIRMETs or SIGMETs"))
     )

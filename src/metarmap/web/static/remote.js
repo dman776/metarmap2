@@ -437,7 +437,9 @@
     // a map that came back with another version (updated and restarted) gets this page again: new templates
     async function pollVersion() {
         try {
-            const res = await fetch('/api/status', {cache: 'no-store'});
+            let res = await fetch('/api/version', {cache: 'no-store'});
+            // an older release (the release picker installed one) has no /api/version: its /api/status has the version
+            if (!res.ok) res = await fetch('/api/status', {cache: 'no-store'});
             if (res.ok && (await res.json()).version !== page.dataset.version) window.location.reload();
         } catch (err) { /* poll() shows that the map can't be reached */ }
     }
