@@ -22,7 +22,7 @@ DELAY_BANDS = (
 )
 CLOSED_COLOR = colors_lib.MAGENTA
 STOP_COLOR = colors_lib.RED
-NONE = colors_lib.GRAY
+NONE = colors_lib.DIM_WHITE
 STOP_PERIOD = style.HEAVY_PERIOD  # a ground stop blinks like heavy weather: bright and dim, never dark
 CLOSED_LABEL, STOP_LABEL, NORMAL_LABEL = "Closed", "Ground stop", "No delay, or not an FAA airport"
 

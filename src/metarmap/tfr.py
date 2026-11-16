@@ -19,6 +19,7 @@ import math
 import threading
 import time
 import xml.etree.ElementTree as ET
+from collections import OrderedDict
 from datetime import datetime, timezone
 
 import requests
@@ -36,6 +37,8 @@ DETAIL_SPACING = 0.5  # seconds between detail downloads, to be gentle with tfr.
 MAX_FLOOR_FT = 18000
 SOON_SECONDS = 24 * 3600  # a TFR starting within this counts as upcoming
 FOREVER = float("inf")
+MAX_PLACES = 2000  # places whose distances at() keeps (the airports; more than any map has)
+SLACK_NM = 1e-6  # the bounding box only rules an area out when it's farther than the nearby distance by more than this
 
 # type (as the FAA's list names it) -> what it's called; in order of how much it matters, which picks the color when
 # an airport has several
@@ -138,6 +141,33 @@ def distance_nm(lat, lon, polygon):
     return best
 
 
+def box(polygon):
+    """The polygon's (south, north, west, east) in degrees, as given (no wrapping, like distance_nm); None if empty."""
+    if not polygon:
+        return None
+    lats, lons = [lat for lat, _ in polygon], [lon for _, lon in polygon]
+    return min(lats), max(lats), min(lons), max(lons)
+
+
+def nearest_nm(lat, lon, scale, bounds):
+    """
+    The least distance_nm(lat, lon, polygon) can be for a polygon within bounds (box()), measured the same flat way
+    (60 NM a degree of latitude, times scale, cos(lat), for longitude): the edges never leave the box.
+    """
+    south, north, west, east = bounds
+    return math.hypot(max(0.0, west - lon, lon - east) * 60 * scale, max(0.0, south - lat, lat - north) * 60)
+
+
+def real(value):
+    """Whether value is an ordinary finite number (a place at() can remember); an int too big for a float isn't."""
+    if not isinstance(value, (int, float)):
+        return False
+    try:
+        return math.isfinite(value)
+    except OverflowError:
+        return False
+
+
 class Tfrs:
     """
     nearby: returns the TFR nearby distance in NM now (a setting, so a change applies at once).
@@ -153,6 +183,8 @@ class Tfrs:
         self._fetching = threading.Lock()
         self._tfrs = None  # notam id -> {"notam", "type", "description", "areas"}; None until the first list
         self._details = {}  # notam id -> its areas (parsed details are kept: TFRs don't change, they're replaced)
+        self._known_lock = threading.Lock()
+        self._known = None  # what at() has worked out for one list and nearby distance; see _known_for
         self.fetched = None
         self.error = None
 
@@ -240,23 +272,31 @@ class Tfrs:
             tfrs = self._tfrs
         if tfrs is None:
             return None
-        now = self._clock()
-        found = []
+        return [
+            {
+                "notam": tfr["notam"],
+                "type": tfr["type"],
+                "description": tfr["description"],
+                "upcoming": upcoming,
+                **area,
+            }
+            for _, tfr, area, upcoming in self._in_view(tfrs, self._clock())
+        ]
+
+    @staticmethod
+    def _in_view(tfrs, now):
+        """
+        The areas areas() lists, as (index, tfr, area, upcoming); index counts every area of the list, in or out of
+        view, so it stays the same for an area as the clock moves on.
+        """
+        index = -1
         for tfr in tfrs.values():
             for area in tfr["areas"]:
+                index += 1
                 starts = area["from"] if area["from"] is not None else now
                 if area["until"] <= now or starts > now + SOON_SECONDS or area["floor"] >= MAX_FLOOR_FT:
                     continue
-                found.append(
-                    {
-                        "notam": tfr["notam"],
-                        "type": tfr["type"],
-                        "description": tfr["description"],
-                        "upcoming": starts > now,
-                        **area,
-                    }
-                )
-        return found
+                yield index, tfr, area, starts > now
 
     def nearby_nm(self):
         try:
@@ -269,23 +309,61 @@ class Tfrs:
         The TFRs at a place, most important first (in effect before upcoming, inside before nearby, then by type):
         [{"type", "upcoming", "inside"}], one per type and state; None before the first list. "inside" False: within
         the nearby distance.
+
+        Each area's distance from a place is worked out once per list and nearby distance (the airports are asked
+        again after every fetch, with nothing changed), and not at all when its bounding box is already too far.
         """
-        areas = self.areas()
-        if areas is None:
+        with self._lock:
+            tfrs = self._tfrs
+        if tfrs is None:
             return None
         reach = self.nearby_nm()
+        now = self._clock()
+        place = (lat, lon) if real(lat) and real(lon) else None  # anything else goes the long way, as it always did
         found = {}
-        for area in areas:
-            distance = distance_nm(lat, lon, area["coords"])
-            if distance > reach:
-                continue
-            key = (area["type"], area["upcoming"])
-            found[key] = found.get(key, False) or distance == 0
+        with self._known_lock:  # the main thread and the tfr-fetch thread both ask
+            boxes, places = self._known_for(tfrs, reach)
+            known = None
+            if place is not None:
+                known = places.get(place)
+                if known is None:
+                    known = places[place] = [None] * len(boxes)  # None: not worked out yet
+                    while len(places) > MAX_PLACES:
+                        places.popitem(last=False)
+                else:
+                    places.move_to_end(place)
+                scale = abs(math.cos(math.radians(lat)))
+            for index, tfr, area, upcoming in self._in_view(tfrs, now):
+                if known is None:
+                    distance = distance_nm(lat, lon, area["coords"])
+                else:
+                    distance = known[index]
+                    if distance is None:
+                        bounds = boxes[index]
+                        if bounds is not None and nearest_nm(lat, lon, scale, bounds) > reach + SLACK_NM:
+                            distance = FOREVER  # too far: all that matters is that it's beyond reach
+                        else:
+                            distance = distance_nm(lat, lon, area["coords"])
+                        known[index] = distance
+                if distance > reach:
+                    continue
+                key = (tfr["type"], upcoming)
+                found[key] = found.get(key, False) or distance == 0
         order = list(TYPES)
         return sorted(
             ({"type": t, "upcoming": upcoming, "inside": found[(t, upcoming)]} for t, upcoming in found),
             key=lambda f: (f["upcoming"], not f["inside"], order.index(f["type"])),
         )
+
+    def _known_for(self, tfrs, reach):
+        """
+        For one list and nearby distance (a new one of either starts afresh): each area's bounding box, by index, and
+        {place: each area's distance, by index}, newest place last. Call with _known_lock held.
+        """
+        if self._known is None or self._known[0] is not tfrs or self._known[1] != reach:
+            boxes = [box(area["coords"]) for tfr in tfrs.values() for area in tfr["areas"]]
+            self._known = (tfrs, reach, boxes, OrderedDict())
+        return self._known[2], self._known[3]
 
     def state(self):
         """For /api/tfrs: the areas (for the Map page), and when the list was fetched."""

@@ -1097,7 +1097,7 @@ def faa(kind, minutes=None):
         (faa("delay", 59), Look.solid(C[colors_lib.ORANGE])),
         (faa("delay", 60), Look.solid(C[colors_lib.RED])),
         (faa("delay", 138), Look.solid(C[colors_lib.RED])),
-        (faa("normal"), Look.solid(C[colors_lib.GRAY])),
+        (faa("normal"), Look.solid(C[colors_lib.DIM_WHITE])),
         (metar(faa_status=None), style.waiting()),  # no FAA status fetched yet: breathing, not red
         (faa("something new"), Look.blink(C[colors_lib.RED], period=2)),
         (None, OFF),

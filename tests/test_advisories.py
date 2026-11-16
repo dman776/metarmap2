@@ -343,7 +343,7 @@ def severe(name):
 @pytest.mark.parametrize(
     "airmets, sigmets, expected",
     [
-        ([], [], Look.solid(color(colors_lib.GRAY))),
+        ([], [], Look.solid(color(colors_lib.DIM_WHITE))),
         (["IFR"], [], Look.solid(color(colors_lib.ORANGE))),
         (["ICE"], None, Look.solid(color(colors_lib.CYAN))),  # the SIGMETs didn't come: the AIRMETs still show
         (["TURB-LO", "TURB-HI"], [], Look.solid(color(colors_lib.YELLOW))),  # one color for both turbulences

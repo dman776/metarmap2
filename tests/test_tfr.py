@@ -3,6 +3,9 @@ Tests for TFRs (metarmap.tfr): reading the FAA's detail XML, what's in effect or
 near one, fetching, and the TFR visualizer.
 """
 
+import math
+import random
+import threading
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
@@ -14,7 +17,7 @@ from metarmap.lib import colors as colors_lib
 from metarmap.metar import with_tfrs
 from metarmap.models import Look, Report
 from metarmap.settings import Settings
-from metarmap.tfr import FOREVER, Tfrs
+from metarmap.tfr import FOREVER, Tfrs, distance_nm
 from metarmap.visualizers import style, visualizer
 from metarmap.visualizers import tfr as vis
 
@@ -329,6 +332,283 @@ def test_with_tfrs():
     assert result["KDKR"] is None  # no report: stays None
 
 
+# ---- at() works each distance out once, and skips the far areas -----------------------------------------------
+
+
+def brute_force_at(found, lat, lon):
+    """at() as it was before the bounding boxes and the memory: every area's distance, every time."""
+    areas = found.areas()
+    if areas is None:
+        return None
+    reach = found.nearby_nm()
+    seen = {}
+    for area in areas:
+        distance = distance_nm(lat, lon, area["coords"])
+        if distance > reach:
+            continue
+        key = (area["type"], area["upcoming"])
+        seen[key] = seen.get(key, False) or distance == 0
+    order = list(tfr.TYPES)
+    return sorted(
+        ({"type": t, "upcoming": upcoming, "inside": seen[(t, upcoming)]} for t, upcoming in seen),
+        key=lambda f: (f["upcoming"], not f["inside"], order.index(f["type"])),
+    )
+
+
+def outline(coords):
+    """Avx points for [(lat, lon), ...]."""
+    return "".join(
+        f"<Avx><geoLat>{abs(la):.8f}{'N' if la >= 0 else 'S'}</geoLat>"
+        f"<geoLong>{abs(lo):012.8f}{'E' if lo >= 0 else 'W'}</geoLong></Avx>"
+        for la, lo in coords
+    )
+
+
+SHAPES = {
+    "square": [(29.9, -95.4), (29.9, -95.2), (30.1, -95.2), (30.1, -95.4)],
+    "concave": [
+        (32.5, -97.5),
+        (32.5, -96.5),
+        (33.5, -96.5),
+        (33.5, -96.9),
+        (32.8, -96.9),
+        (32.8, -97.1),
+        (33.5, -97.1),
+        (33.5, -97.5),
+    ],  # a U, open to the north
+    "sliver": [(31.0, -94.0), (31.001, -93.0), (31.0, -92.0)],
+    "star": [
+        (
+            35.0 + 0.4 * (1 if k % 2 == 0 else 0.3) * math.sin(k * math.pi / 6),
+            -90.0 + 0.4 * (1 if k % 2 == 0 else 0.3) * math.cos(k * math.pi / 6),
+        )
+        for k in range(12)
+    ],
+    "date line": [(51.5, 179.6), (51.5, -179.6), (52.0, -179.6), (52.0, 179.6)],  # an Aleutian area, as given
+    "far north": [(71.2, -156.9), (71.2, -156.5), (71.4, -156.5), (71.4, -156.9)],  # Utqiagvik
+}
+
+
+def shapes_tfrs(nearby=10, shapes=SHAPES, clock=None):
+    """Tfrs with one TFR per shape, types in turn, the third in each three upcoming."""
+    kinds = list(tfr.TYPES)
+    listed, details = [], {}
+    for n, coords in enumerate(shapes.values()):
+        notam = f"6/{n}"
+        listed.append(item(notam, kinds[n % len(kinds)]))
+        start = "2026-11-02T20:00:00" if n % 3 == 2 else "2026-11-02T10:00:00"
+        details[notam] = detail_xml(area_xml(name=notam, points=outline(coords), start=start, end=None))
+    setting = SimpleNamespace(nearby=nearby)
+    clock = clock or SimpleNamespace(t=NOW)
+    found = Tfrs(nearby=lambda: setting.nearby, get=FakeFaa(listed, details), clock=lambda: clock.t, sleep=lambda s: 0)
+    found.fetch()
+    return found, setting, clock
+
+
+def around(coords, step=0.1, margin=0.6):
+    """A grid of places around each corner of the polygon: over it, along its edges and past the nearby distance."""
+    count = round(margin / step)
+    return sorted(
+        {
+            (round(lat + i * step, 6), round(lon + j * step, 6))
+            for lat, lon in coords
+            for i in range(-count, count + 1)
+            for j in range(-count, count + 1)
+        }
+    )
+
+
+@pytest.fixture
+def counted(monkeypatch):
+    """Counts at()'s calls to distance_nm."""
+    calls = []
+
+    def counting(lat, lon, polygon):
+        calls.append((lat, lon))
+        return distance_nm(lat, lon, polygon)
+
+    monkeypatch.setattr(tfr, "distance_nm", counting)
+    return calls
+
+
+@pytest.mark.parametrize("nearby", [0, 10, 25, 1000])
+def test_at_is_what_working_out_every_area_every_time_gives(nearby):
+    found, _, _ = shapes_tfrs(nearby)
+    expected = {p: brute_force_at(found, *p) for coords in SHAPES.values() for p in around(coords)}
+    assert {p: found.at(*p) for p in expected} == expected
+    assert {p: found.at(*p) for p in expected} == expected  # again, from memory
+
+
+def test_at_matches_on_many_random_polygons_and_places():
+    rng = random.Random(7)
+    shapes = {}
+    for n in range(60):
+        lat, lon, radius, sides = rng.uniform(25, 48), rng.uniform(-124, -68), rng.uniform(0.02, 1), rng.randint(5, 30)
+        shapes[n] = [
+            (
+                lat + radius * rng.uniform(0.3, 1) * math.sin(2 * math.pi * k / sides),
+                lon + radius * rng.uniform(0.3, 1) * math.cos(2 * math.pi * k / sides),
+            )
+            for k in range(sides)
+        ]
+    found, setting, _ = shapes_tfrs(15, shapes)
+    places = [(rng.uniform(25, 48), rng.uniform(-124, -68)) for _ in range(100)]
+    places += [(la + rng.uniform(-0.5, 0.5), lo + rng.uniform(-0.5, 0.5)) for c in shapes.values() for la, lo in c[:2]]
+    for nearby in (15, 3, 40):
+        setting.nearby = nearby
+        expected = {p: brute_force_at(found, *p) for p in places}
+        assert {p: found.at(*p) for p in places} == expected, nearby
+        assert {p: found.at(*p) for p in places} == expected, nearby  # again, from memory
+
+
+def test_the_bounding_box_is_never_farther_than_the_polygon():
+    rng = random.Random(3)
+    for coords in list(SHAPES.values()):
+        bounds = tfr.box(coords)
+        for _ in range(500):
+            lat, lon = rng.uniform(-80, 80), rng.uniform(-180, 180)
+            if rng.random() < 0.8:  # mostly close by
+                lat, lon = coords[0][0] + rng.uniform(-2, 2), coords[0][1] + rng.uniform(-2, 2)
+            scale = abs(math.cos(math.radians(lat)))
+            assert tfr.nearest_nm(lat, lon, scale, bounds) <= distance_nm(lat, lon, coords) + 1e-9
+
+
+@pytest.mark.parametrize("nearby", [0.5, 5, 10, 12.345])
+def test_an_area_right_at_the_nearby_distance_still_counts(nearby):
+    found, _, _ = shapes_tfrs(nearby, {"square": SHAPES["square"]})
+    (area,) = found.areas()
+    south, north, west, east = tfr.box(area["coords"])
+    scale = math.cos(math.radians(north))
+    places = []
+    for nudge in (-1e-9, 0, 1e-9):  # just inside, at and just past the nearby distance
+        degrees = nearby / 60 + nudge
+        places += [
+            (north + degrees, (west + east) / 2),  # north of the middle
+            (south - degrees, (west + east) / 2),
+            ((south + north) / 2, east + degrees / scale),  # east, roughly
+            (north + degrees / math.sqrt(2), east + degrees / math.sqrt(2) / scale),  # off the corner
+        ]
+    within = 0
+    for lat, lon in places:
+        expected = brute_force_at(found, lat, lon)
+        assert found.at(lat, lon) == expected, (lat, lon)
+        within += bool(expected)
+    assert within  # some are kept, so the boundary is really tested
+
+
+def test_asking_again_works_nothing_out_again(counted):
+    found, _, _ = shapes_tfrs(10)
+    places = around(SHAPES["square"], step=0.2, margin=1)
+    first = [found.at(*p) for p in places]
+    assert counted  # some were near enough to work out
+    worked_out = len(counted)
+    assert worked_out < len(places) * len(found.areas())  # the far ones were skipped by their boxes
+    assert [found.at(*p) for p in places] == first and len(counted) == worked_out
+
+
+def test_a_new_list_or_nearby_distance_starts_afresh(counted):
+    found, setting, _ = shapes_tfrs(10)
+    near = (SHAPES["square"][2][0] + 0.15, -95.3)  # 9 NM north of the square
+    assert found.at(*near) == [{"type": "VIP", "upcoming": False, "inside": False}]
+    setting.nearby = 5
+    assert found.at(*near) == []  # the square's box rules it out: remembered as beyond 5 NM
+    calls = len(counted)
+    setting.nearby = 10
+    assert found.at(*near) == [{"type": "VIP", "upcoming": False, "inside": False}] and len(counted) > calls
+    calls = len(counted)
+    found.fetch()  # a new list (the same TFRs, but anything could have changed)
+    assert found.at(*near) == [{"type": "VIP", "upcoming": False, "inside": False}] and len(counted) > calls
+    found._get.listed = []
+    found.fetch()
+    assert found.at(*near) == []
+
+
+def test_the_clock_moving_on_needs_no_new_distances(counted):
+    found, _, clock = shapes_tfrs(10)
+    sliver = SHAPES["sliver"][0]  # the third shape: upcoming at NOW, in effect from 20:00
+    assert found.at(*sliver) == [{"type": "SECURITY", "upcoming": True, "inside": True}]
+    calls = len(counted)
+    clock.t = epoch("2026-11-02T21:00:00")
+    assert found.at(*sliver) == [{"type": "SECURITY", "upcoming": False, "inside": True}]
+    clock.t = epoch("2026-11-01T09:00:00")  # the square (from 10:00 on the 2nd) is more than a day away
+    assert found.at(29.98, -95.34) == [] == brute_force_at(found, 29.98, -95.34)
+    clock.t = NOW
+    assert found.at(29.98, -95.34) == [{"type": "VIP", "upcoming": False, "inside": True}]
+    assert len(counted) == calls + 1  # only the square, the first time it was in view at that place
+
+
+def test_only_so_many_places_are_remembered(counted, monkeypatch):
+    monkeypatch.setattr(tfr, "MAX_PLACES", 5)
+    found, _, _ = shapes_tfrs(1000)  # every area is near enough to be worked out
+    places = [(30.0 + n / 10, -95.3) for n in range(20)]
+    for place in places:
+        found.at(*place)
+    calls = len(counted)
+    found.at(*places[-1])
+    assert len(counted) == calls  # remembered
+    found.at(*places[0])
+    assert len(counted) > calls  # forgotten, worked out again
+
+
+@pytest.mark.parametrize("lat, lon", [(float("nan"), -95.3), (30.0, float("inf")), (float("nan"), float("nan"))])
+def test_places_that_arent_numbers_go_the_long_way(counted, lat, lon):
+    found, _, _ = shapes_tfrs(10)
+    for _ in range(3):
+        assert found.at(lat, lon) == brute_force_at(found, lat, lon)
+    assert len(counted) == 3 * len(found.areas())  # every area, every time: nothing remembered
+
+
+def test_odd_input_fails_as_it_did():
+    found, _, _ = shapes_tfrs(10)
+    with pytest.raises(ValueError):  # math.cos(inf)
+        found.at(float("-inf"), -95.3)
+    with pytest.raises(ValueError):
+        brute_force_at(found, float("-inf"), -95.3)
+    with pytest.raises(TypeError):
+        found.at("30", -95.3)
+    with pytest.raises(TypeError):
+        brute_force_at(found, "30", -95.3)
+    empty, _, _ = shapes_tfrs(10, {})
+    assert empty.at("30", -95.3) == [] and empty.at([30], -95.3) == []  # no areas: nothing to work out
+
+
+@pytest.mark.parametrize("lat, lon", [(10**400, -95.3), (30.0, -(10**400))])
+def test_an_int_too_big_for_a_float_fails_as_it_did(lat, lon):
+    found, _, _ = shapes_tfrs(10)
+    with pytest.raises(OverflowError) as new:
+        found.at(lat, lon)
+    with pytest.raises(OverflowError) as old:
+        brute_force_at(found, lat, lon)
+    assert str(new.value) == str(old.value)
+    empty, _, _ = shapes_tfrs(10, {})
+    assert empty.at(lat, lon) == [] == brute_force_at(empty, lat, lon)  # no areas: nothing to work out
+
+
+def test_several_threads_at_once(monkeypatch):
+    monkeypatch.setattr(tfr, "MAX_PLACES", 50)  # some forgetting while they run, too
+    found, _, _ = shapes_tfrs(25)
+    places = [p for coords in SHAPES.values() for p in around(coords, step=0.2)]
+    expected = {p: brute_force_at(found, *p) for p in places}
+    start, problems = threading.Barrier(8), []
+
+    def ask(seed):
+        order = places[:]
+        random.Random(seed).shuffle(order)
+        start.wait()
+        for _ in range(3):
+            for p in order:
+                result = found.at(*p)
+                if result != expected[p]:
+                    problems.append((p, result))
+
+    threads = [threading.Thread(target=ask, args=(n,)) for n in range(8)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(30)
+    assert not any(t.is_alive() for t in threads) and problems == []
+
+
 # ---- the visualizer -------------------------------------------------------------------------------------------
 
 
@@ -344,7 +624,7 @@ def color(name):
 @pytest.mark.parametrize(
     "tfrs, expected",
     [
-        ([], Look.solid(color(colors_lib.GRAY))),
+        ([], Look.solid(color(colors_lib.DIM_WHITE))),
         ([{"type": "VIP", "upcoming": False, "inside": True}], Look.solid(color(colors_lib.RED))),
         ([{"type": "HAZARDS", "upcoming": False, "inside": False}], Look.solid(style.dim(color(colors_lib.ORANGE)))),
         (

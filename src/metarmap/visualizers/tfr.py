@@ -29,7 +29,7 @@ DETAILS = {
     colors_lib.YELLOW: "Yellow",
     colors_lib.CYAN: "Cyan",
 }
-NONE = colors_lib.GRAY
+NONE = colors_lib.DIM_WHITE
 # legend entries' keys, beside each type's (its label): their labels change with tfr.nearby_nm
 NEARBY, UPCOMING, NO_TFR = "nearby", "upcoming", "no_tfr"
 
