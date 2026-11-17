@@ -43,8 +43,21 @@ def create_app(services: "App", ip=None, updates=None, installs=None, planner=No
     api.add_routes(app, services, site)
     control.add_routes(app, services, site, auth, updates, installs)
     planner_page.add_routes(app, services, site, auth, planner)
-    app.route("/static/<filename:path>", "GET", lambda filename: bottle.static_file(filename, root=views.STATIC_DIR))
+    app.route("/static/<filename:path>", "GET", static)
     return app
+
+
+def static(filename):
+    """
+    A /static file. Without ?v= (the icon, the Home Screen icon) it carries Cache-Control: no-cache: keep a copy but ask
+    the Chart before using it, so a changed one is a full answer and an unchanged one a cheap 304. The scripts and
+    styles are linked with ?v=<assets_version> (a changed file is a new address), so they are left to the browser.
+    The header goes on the response static_file returns, which bottle 0.12 and 0.13 both send as it is.
+    """
+    answer = bottle.static_file(filename, root=views.STATIC_DIR)
+    if "v" not in bottle.request.query and "Cache-Control" not in answer.headers:
+        answer.set_header("Cache-Control", "no-cache")
+    return answer
 
 
 class ThreadingServer(socketserver.ThreadingMixIn, WSGIServer):

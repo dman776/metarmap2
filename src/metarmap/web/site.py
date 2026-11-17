@@ -45,6 +45,9 @@ def assets_version():
 def render(site, name, **data):
     """Renders templates/<name> with `data`, plus the version, IP and update state the header and footer show."""
     release = site.releases.state() if site.releases is not None else None
+    # revalidated, so a page reloaded after an update (an iPhone's Home Screen app) is the Chart's current one,
+    # and its ?v= links to the scripts and styles are current too
+    bottle.response.set_header("Cache-Control", "no-cache")
     return bottle.template(
         name,
         template_lookup=[TEMPLATE_DIR],

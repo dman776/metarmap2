@@ -28,7 +28,6 @@
     document.addEventListener('webkitfullscreenchange', fitSoon);
 
     const LIVE_MS = 1000;
-    const STATUS_MS = 60 * 1000;
     const HOLD_MS = 3000;  // after a touch, a control keeps what the user set while the map catches up
     const TAB_KEY = 'metarmap.remote.tab';
     const MODE_KEY = 'metarmap.remote.mode';
@@ -434,22 +433,11 @@
         }
     }
 
-    // a map that came back with another version (updated and restarted) gets this page again: new templates
-    async function pollVersion() {
-        try {
-            let res = await fetch('/api/version', {cache: 'no-store'});
-            // an older release (the release picker installed one) has no /api/version: its /api/status has the version
-            if (!res.ok) res = await fetch('/api/status', {cache: 'no-store'});
-            if (res.ok && (await res.json()).version !== page.dataset.version) window.location.reload();
-        } catch (err) { /* poll() shows that the map can't be reached */ }
-    }
-
     poll();
     // nothing is asked of the map while the tab is hidden; the handler below asks again on its return
     setInterval(function () { if (!document.hidden) poll(); }, LIVE_MS);
-    setInterval(function () { if (!document.hidden) pollVersion(); }, STATUS_MS);
     document.addEventListener('visibilitychange', function () {
-        if (!document.hidden) { poll(); pollVersion(); }
+        if (!document.hidden) poll();
     });
 
     // ---- AWOS and ATIS: an airport's METAR (/api/speak/<code>.audio) or real ATIS (/api/atis/<code>.audio) read
