@@ -335,12 +335,15 @@ def refetch_soon(app: App) -> Optional[threading.Thread]:
 def refetch_metars(app: App) -> bool:
     """
     GET /fetch: the METARs now, back when they're in (the web thread waits, not the LEDs). A fetch under way is
-    waited for first, up to FETCH_WAIT_SECONDS. Returns False if it was still running then (nothing fetched).
+    waited for first, up to FETCH_WAIT_SECONDS. Returns False if it was still running then (nothing fetched). Raises
+    what the fetch raised (logged already, app.fetching let go), for /fetch to answer 500.
     """
     if not app.fetching.acquire(timeout=FETCH_WAIT_SECONDS):
         log.warning(f"fetch by hand: a METAR fetch has been under way for over {FETCH_WAIT_SECONDS} s; not fetching")
         return False
-    _run_fetch(app, fetch_metars_only, "METAR fetch")
+    error = _run_fetch(app, fetch_metars_only, "METAR fetch")
+    if error is not None:
+        raise error
     return True
 
 
@@ -371,8 +374,12 @@ def start_fetch(app: App, job, what, busy) -> Optional[threading.Thread]:
     return thread
 
 
-def _run_fetch(app: App, job, what):
-    """job(app), app.fetching already held; lets go of it however the job ends. Then the METAR of a new airport."""
+def _run_fetch(app: App, job, what) -> Optional[Exception]:
+    """
+    job(app), app.fetching already held; lets go of it however the job ends. Then the METAR of a new airport. Returns
+    what the job raised, logged (a thread's caller doesn't look: the schedule goes on), or None.
+    """
+    error = None
     try:
         job(app)
         if needs_retry(app):
@@ -381,10 +388,12 @@ def _run_fetch(app: App, job, what):
             stop_retrying(app)  # at once, not at the retry's next turn (the Home page counts down to it)
     except Exception as e:
         log.exception(f"{what} failed: {e}")  # the next regular fetch or retry tries again
+        error = e
     finally:
         app.fetching.release()
     if app.refetch_due.is_set():  # an airport changed while this ran, and its fetch was put off
         refetch_soon(app)
+    return error
 
 
 def fetch_reports(app: App):
