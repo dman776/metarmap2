@@ -60,7 +60,8 @@ Written from the ground up with a web UI, an API and a Home Assistant integratio
 - **API and Home Assistant**: everything in the web UI also works over HTTP (see [API.md](API.md)); the
   [metarmap2_ha](https://github.com/dman776/metarmap2_ha) integration adds the map to Home Assistant.
 - **MetarMap2 Copilot** (optional): [metarmap2_remote](https://github.com/dman776/metarmap2_remote) is firmware for
-  a small ESP32-S3 touch display that sits beside the Chart and works like the Cockpit.
+  a small ESP32-S3 touch display that sits beside the Chart and works like the Cockpit, and can switch between Charts on
+  the network.
 
 ## Screenshots
 
