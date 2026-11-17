@@ -445,8 +445,9 @@
     }
 
     poll();
-    setInterval(poll, LIVE_MS);
-    setInterval(pollVersion, STATUS_MS);
+    // nothing is asked of the map while the tab is hidden; the handler below asks again on its return
+    setInterval(function () { if (!document.hidden) poll(); }, LIVE_MS);
+    setInterval(function () { if (!document.hidden) pollVersion(); }, STATUS_MS);
     document.addEventListener('visibilitychange', function () {
         if (!document.hidden) { poll(); pollVersion(); }
     });

@@ -151,6 +151,16 @@ def test_pages(client, path):
     assert status == 200, body
 
 
+@pytest.mark.parametrize("script", ["map.js", "remote.js", "app.js"])
+def test_polling_scripts_pause_while_the_tab_is_hidden(client, script):
+    # the polls are browser code the tests can't run: check that each script looks at document.hidden and
+    # asks again when the tab comes back
+    body = client(f"/static/{script}")[1]
+    body = body if isinstance(body, str) else body.decode()
+    assert "document.hidden" in body
+    assert "visibilitychange" in body
+
+
 def test_config_needs_a_login(client):
     for path in ("/config", "/config/airports", "/config/edit/display_screen.delay/7", "/update/progress"):
         assert client(path, auth=False)[0] == 401

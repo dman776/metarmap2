@@ -477,6 +477,7 @@
         let fetchAt = null;  // when the next fetch comes, in this browser's time (ms)
         let fetchSeconds = 0;
         let timer = null;
+        let fetching = false;
 
         const showRing = function (on) {
             // the attribute: an <svg> has no .hidden property
@@ -497,6 +498,8 @@
         };
         const pollFetch = async function () {
             let due = false;
+            fetching = true;
+            timer = null;
             try {
                 const res = await fetch('/api/live', {cache: 'no-store'});
                 if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
@@ -521,9 +524,16 @@
             } catch (err) {
                 console.error('[home] fetch countdown failed', err);
             }
-            timer = {id: setTimeout(pollFetch, due ? DUE_POLL_MS : POLL_MS), due: due};
+            fetching = false;
+            // none while the tab is hidden: the countdown only looks, and the poll on its return picks up from there
+            if (!document.hidden) timer = {id: setTimeout(pollFetch, due ? DUE_POLL_MS : POLL_MS), due: due};
             tickFetch();
         };
+        document.addEventListener('visibilitychange', function () {
+            if (timer !== null) clearTimeout(timer.id);
+            timer = null;
+            if (!document.hidden && !fetching) pollFetch();  // one in flight re-arms when it ends
+        });
         pollFetch();
         setInterval(tickFetch, 250);
     }
