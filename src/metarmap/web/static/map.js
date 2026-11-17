@@ -1626,7 +1626,12 @@
     });
     try { if (localStorage.getItem(TRAFFIC_KEY) === 'on') showTraffic(true); } catch (e) { /* private mode */ }
 
+    // one chain of polls: none is asked for while the tab is hidden, and the first one on its return is at once
+    let pollTimer = null;
+    let polling = false;
     async function poll() {
+        polling = true;
+        pollTimer = null;
         try {
             const res = await fetch('/api/live', {cache: 'no-store'});
             const live = await res.json();
@@ -1654,9 +1659,18 @@
             console.error('[map] poll failed', err && err.stack || err);
             if (oled) oled.querySelector('.oled-status').textContent = 'offline';
         } finally {
-            setTimeout(poll, POLL_MS);
+            polling = false;
+            if (!document.hidden) pollTimer = setTimeout(poll, POLL_MS);
         }
     }
+    function pollOnReturn() {
+        clearTimeout(pollTimer);
+        pollTimer = null;
+        if (!document.hidden && !polling) poll();  // one in flight re-arms when it ends
+    }
+    document.addEventListener('visibilitychange', pollOnReturn);
+    // Safari may bring a page back from its back/forward cache without a visibilitychange
+    window.addEventListener('pageshow', function (e) { if (e.persisted) pollOnReturn(); });
 
     poll();
     setInterval(animate, FRAME_MS);

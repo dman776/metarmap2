@@ -151,6 +151,27 @@ def test_pages(client, path):
     assert status == 200, body
 
 
+# the exact guards in each polling script: a hidden tab asks nothing, and its return asks at once
+POLL_GUARDS = {
+    "map.js": [
+        "if (!document.hidden) pollTimer = setTimeout(poll, POLL_MS)",
+        "!document.hidden && !polling",
+        "pageshow",
+    ],
+    "remote.js": ["if (!document.hidden) poll();", "if (!document.hidden) pollVersion();"],
+    "app.js": ["if (!document.hidden) timer = {id: setTimeout(pollFetch", "!document.hidden && !fetching", "pageshow"],
+}
+
+
+@pytest.mark.parametrize("script", sorted(POLL_GUARDS))
+def test_polling_scripts_pause_while_the_tab_is_hidden(client, script):
+    # the polls are browser code the tests can't run: check each script's guards (the pages' comments say why)
+    body = client(f"/static/{script}")[1]
+    body = body if isinstance(body, str) else body.decode()
+    for guard in POLL_GUARDS[script]:
+        assert guard in body, guard
+
+
 def test_config_needs_a_login(client):
     for path in ("/config", "/config/airports", "/config/edit/display_screen.delay/7", "/update/progress"):
         assert client(path, auth=False)[0] == 401
