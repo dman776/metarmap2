@@ -356,6 +356,10 @@ The Chart checks GitHub for a new release when it starts and every 6 hours. When
 **Update available** at the top, and the Home page's button reads **Update to v2.9.0** (for example). Click it, then
 use **Restart**. Your `config.json` is kept.
 
+After an update, a page you left open (also the iPhone or iPad Home Screen app, which otherwise keeps showing the old
+pages) reloads by itself when you come back to it, or within 5 minutes if you are looking at it. It checks the Chart's
+version and commit, so a branch install (same version, new code) reloads it too. A page you are typing in waits.
+
 **Config > System > Software** has more:
 - **Check now** asks GitHub straight away.
 - **Update to**: **Releases** (the default) installs only released versions, and never goes back to an older one.

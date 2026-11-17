@@ -158,8 +158,13 @@ POLL_GUARDS = {
         "!document.hidden && !polling",
         "pageshow",
     ],
-    "remote.js": ["if (!document.hidden) poll();", "if (!document.hidden) pollVersion();"],
-    "app.js": ["if (!document.hidden) timer = {id: setTimeout(pollFetch", "!document.hidden && !fetching", "pageshow"],
+    "remote.js": ["if (!document.hidden) poll();"],
+    "app.js": [
+        "if (!document.hidden) timer = {id: setTimeout(pollFetch",
+        "!document.hidden && !fetching",
+        "pageshow",
+        "if (checkingVersion || document.hidden) return;",
+    ],
 }
 
 
@@ -952,24 +957,89 @@ def test_the_renderer_counts_its_rebuilds(services):
 
 
 def test_api_version(client):
+    """Without git info (the test map has no release check) commit is null: a page then compares the version only."""
     status, body = client("/api/version", auth=False)
-    assert status == 200 and json.loads(body) == {"version": __version__}
+    assert status == 200 and json.loads(body) == {"version": __version__, "commit": None}
     assert client.headers["Content-Type"] == "application/json" and client.headers["Cache-Control"] == "no-store"
-    assert len(body) < 40
+    assert len(body) < 60
 
 
-def test_the_cockpit_polls_the_version_endpoint(client):
-    js = pathlib.Path(api.__file__).parent.joinpath("static", "remote.js").read_text()
-    assert "fetch('/api/version'" in js
+def test_api_version_has_the_running_commit(make_app):
+    c = unreleased_client(make_app, described="v2.8.4-3-g1234567")
+    assert c.json("/api/version", auth=False) == {"version": __version__, "commit": SHA[:7]}
+    c.services.display.stop()
 
 
-def test_the_cockpit_falls_back_to_status_when_there_is_no_version_endpoint(client):
-    """An older release (installed with the release picker) answers /api/version with a 404: a downgrade must reload."""
-    js = pathlib.Path(api.__file__).parent.joinpath("static", "remote.js").read_text()
-    poll = js[js.index("async function pollVersion") :]
-    poll = poll[: poll.index("\n    }\n")]
-    assert poll.index("fetch('/api/version'") < poll.index("if (!res.ok) res = await fetch('/api/status'")
-    assert poll.index("if (!res.ok)") < poll.index(".version !== page.dataset.version")
+PAGES = [
+    "/",
+    "/metars",
+    "/map",
+    "/debug",
+    "/config",
+    "/config/airports",
+    "/config/pronunciation",
+    "/config/planner",
+    "/remote",
+]
+
+
+@pytest.mark.parametrize("path", PAGES)
+def test_every_page_carries_its_version_and_loads_the_update_check(client, path):
+    body = client(path)[1]
+    assert f' data-version="{__version__}" data-commit="">' in body  # no git: no commit
+    assert '<script src="/static/app.js?v=' in body
+
+
+@pytest.mark.parametrize("path", PAGES)
+def test_every_page_carries_the_running_commit(make_app, path):
+    c = unreleased_client(make_app, described="v2.8.4-3-g1234567")
+    assert f' data-version="{__version__}" data-commit="{SHA[:7]}">' in c(path)[1]
+    c.services.display.stop()
+
+
+def test_the_pages_and_unversioned_static_files_are_revalidated(client):
+    for path in PAGES + ["/static/favicon.svg", "/static/apple-touch-icon.png"]:
+        client(path)
+        assert client.headers["Cache-Control"] == "no-cache", path
+    # the 304 of a revalidation keeps the header too
+    client("/static/favicon.svg", headers={"If-None-Match": client.headers["Etag"]})
+    assert client.headers["Cache-Control"] == "no-cache"
+
+
+def test_versioned_static_files_are_left_to_the_browser(client):
+    """?v= changes with the file, so app.js and the others cost no request at all while their address is the same."""
+    for name in ("app.js", "style.css", "remote.js"):
+        client(f"/static/{name}?v=1")
+        assert "Cache-Control" not in client.headers, name
+
+
+def test_routes_keep_their_own_cache_control(client):
+    client("/api/version", auth=False)
+    assert client.headers["Cache-Control"] == "no-store"
+    client("/api/icon/hourglass", auth=False)
+    assert client.headers["Cache-Control"] == "public, max-age=86400"
+    client("/api/live", auth=False)
+    assert client.headers.get("Cache-Control") != "no-cache"
+    client("/api/speak/KHOU.audio", auth=False)
+    assert client.headers.get("Cache-Control") != "no-cache"
+
+
+def test_one_update_check_for_every_page(client):
+    """app.js reloads a page whose version or commit differs from /api/version; the Cockpit has no check of its own."""
+    js = client("/static/app.js")[1]
+    js = js if isinstance(js, str) else js.decode()
+    for part in (
+        "fetch('/api/version'",
+        "fetch('/api/status'",
+        "body.commit !== now.commit",
+        "RELOAD_GUARD_MS",
+        "typing()",
+    ):
+        assert part in js, part
+    assert "'visibilitychange', checkVersion" in js and "e.persisted" in js
+    remote = client("/static/remote.js")[1]
+    remote = remote if isinstance(remote, str) else remote.decode()
+    assert "/api/version" not in remote and "dataset.version" not in remote
 
 
 def test_live_leds_follow_a_position_given_to_a_report_without_one(services):
@@ -2228,7 +2298,7 @@ def test_remote_page(client):
     assert "<title>Cockpit · MetarMap2</title>" in body  # MetarMap2 Cockpit (B56)
     assert '<meta name="apple-mobile-web-app-title" content="Cockpit">' in body
     assert '<span class="r-brand-name">Cockpit</span>' in body  # beside the logo
-    assert '<body class="kiosk">' in body and 'class="topbar"' not in body and 'class="foot"' not in body
+    assert '<body class="kiosk" data-version=' in body and 'class="topbar"' not in body and 'class="foot"' not in body
     assert 'name="apple-mobile-web-app-capable" content="yes"' in body
     assert '<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">' in body  # the Home Screen icon
     assert "apple-touch-icon" not in client("/", auth=False)[1]  # the other pages are not Home Screen apps

@@ -214,9 +214,13 @@ What the physical map is doing right now. The Map page polls it every second. No
 
 ### `GET /api/version`
 
-Just the software version, `{"version": "26.11.16"}`, for a page that only needs to know whether the Chart was updated
-(the Cockpit polls it to reload itself after an update). No authentication. The answer has `Cache-Control: no-store`.
-`/api/status` still has `version` too.
+What the Chart runs, `{"version": "26.11.16", "commit": "7df0437"}`, for a page that only needs to know whether the
+Chart was updated (every web page polls it, on returning to the page and every 5 minutes, and reloads when `version` or
+`commit` differs from what it was made with). `commit` is the first 7 characters of the running commit (the code that
+was loaded when the Chart started), or `null` when the Chart has no git information; a branch install keeps its
+`version` while the code changes, so compare both, and compare only `version` when either `commit` is `null`. A
+client that doesn't know `commit` can ignore it (added after the first release of this endpoint). No authentication.
+The answer has `Cache-Control: no-store`. `/api/status` still has `version` too (and `build.commit`).
 
 ### `GET /api/icon/<name>`
 

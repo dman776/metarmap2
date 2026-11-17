@@ -508,10 +508,15 @@ def as_json(data):
     return dumps(data)
 
 
-def version():
-    """The map's version, {"version"}: what the Cockpit polls to see an update (a few bytes, /api/status is 90 KB)."""
+def version(services: "App"):
+    """
+    What the Chart runs, {"version", "commit"}: what every page polls to see an update (a few bytes, /api/status is
+    90 KB). commit is the running code's 7-character commit, null without git; a branch install keeps its version
+    while the code changes, so a page compares both.
+    """
     bottle.response.set_header("Cache-Control", "no-store")
-    return as_json({"version": __version__})
+    build = services.releases.build if services.releases else None
+    return as_json({"version": __version__, "commit": build["commit"] if build else None})
 
 
 def as_json_text(text):
@@ -671,7 +676,7 @@ def byte_range(body: bytes) -> bytes:
 def add_routes(app, services: "App", site):
     leds = LiveLeds(services)
     app.route("/api/status", "GET", lambda: as_json_text(dumps(status(services, site.ip))))
-    app.route("/api/version", "GET", version)
+    app.route("/api/version", "GET", lambda: version(services))
     # :path, so a name with a / in it is a 400 here rather than some other route's 404
     app.route("/api/icon/<name:path>", "GET", icon_mask)
     app.route("/api/live", "GET", lambda: as_json_text(live_json(services, leds)))

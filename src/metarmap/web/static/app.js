@@ -1134,4 +1134,57 @@
             show();
         }
     }
+
+    // ---- a Chart that was updated: every page gets itself again --------------------------------------------------
+    // An iPhone or iPad keeps a Home Screen app alive and resumes it as it was, so it would show the old pages after an
+    // update. The page knows the version and commit it was made with (<body data-version data-commit>, the commit is
+    // empty without git); when /api/version says something else, it reloads, on its return and every few minutes.
+    const VERSION_MS = 5 * 60 * 1000;
+    const VERSION_TIMEOUT_MS = 5000;
+    const RELOAD_GUARD_MS = 60 * 1000;  // a page that still differs after a reload (a cached one) doesn't reload again
+    const RELOAD_KEY = 'metarmap.versionReloadAt';
+    let checkingVersion = false;
+
+    // a field that takes typed text has the focus; a checkbox, range or select keeps it after a click: not those
+    function typing() {
+        const el = document.activeElement;
+        if (!el) return false;
+        if (el.tagName === 'TEXTAREA' || el.isContentEditable) return true;
+        return el.tagName === 'INPUT' && /^(text|search|number|password|email|url|tel|)$/.test(el.getAttribute('type') || '');
+    }
+
+    function reloadedJustNow() {
+        try { return Date.now() - Number(sessionStorage.getItem(RELOAD_KEY) || 0) < RELOAD_GUARD_MS; } catch (err) { return false; }
+    }
+
+    async function checkVersion() {
+        if (checkingVersion || document.hidden) return;
+        checkingVersion = true;
+        // a Chart that answers late (restarting) or a suspended request must not end the checks: both are cut off
+        const ctrl = new AbortController();
+        const timer = setTimeout(function () { ctrl.abort(); }, VERSION_TIMEOUT_MS);
+        try {
+            let res = await fetch('/api/version', {cache: 'no-store', signal: ctrl.signal});
+            // an older release (the release picker installed one) has no /api/version: its /api/status has the version
+            if (!res.ok) res = await fetch('/api/status', {cache: 'no-store', signal: ctrl.signal});
+            if (!res.ok) return;
+            const now = await res.json();
+            const body = document.body.dataset;
+            if (!body.version || !now.version) return;
+            // no commit on either side (no git, or an older release): the version alone
+            const commitDiffers = !!(body.commit && now.commit) && body.commit !== now.commit;
+            if (now.version === body.version && !commitDiffers) return;
+            // not while a field has the focus (unsaved Config edits): the next check tries again
+            if (typing() || reloadedJustNow()) return;
+            try { sessionStorage.setItem(RELOAD_KEY, String(Date.now())); } catch (err) { /* private mode: no guard */ }
+            window.location.reload();
+        } catch (err) { /* offline, or the Chart is restarting: the next check asks again */ } finally {
+            clearTimeout(timer);
+            checkingVersion = false;
+        }
+    }
+
+    document.addEventListener('visibilitychange', checkVersion);  // checkVersion does nothing while hidden
+    window.addEventListener('pageshow', function (e) { if (e.persisted) checkVersion(); });  // back from the bfcache
+    setInterval(checkVersion, VERSION_MS);
 })();
