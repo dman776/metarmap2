@@ -119,13 +119,13 @@ that are below VFR. The METARs page lists every airport's report.
 
 Settings save as you change them.
 
-![Config, Physical display: the Chart pixels (data pin, color order, brightness) and the Micro](docs/images/config_physical_display.png)
+![Config, Physical display: the Chart pixels (data pin, color order, startup sequence, brightness, quiet hours) and the Micro](docs/images/config_physical_display.png)
 
-![Config, Visualizers: the default visualizer, auto-rotate and which visualizers take part](docs/images/config_visualizers.png)
+![Config, Visualizers: the global settings (default visualizer, missing data blink, legend items in use, lightning and its color, auto-rotate), then Flight Category, Forecast and TFR](docs/images/config_visualizers.png)
 
 ![Config, Airports: the airport at each pixel, in the order the pixels are wired, with the Hidden pixel switch (pixels 3 and 7 are hidden)](docs/images/config_airports.png)
 
-![Config, Web map: the Map page's background, chart and starting view, and the live traffic settings](docs/images/config_virtual_map.png)
+![Config, Web map: the Map page's background, chart and starting view, and the live traffic settings](docs/images/config_web_map.png)
 
 #### Plan a new chart
 
@@ -163,7 +163,7 @@ The Cockpit's **Map** tab has the visualizer name between arrows in the map itse
 
 ![The Cockpit's Visualizer tab](docs/images/remote_visualizer.png)
 
-![The Cockpit's Locator tab: an airport's button pulses its pixel on the Chart](docs/images/remote_locator.png)
+![The Cockpit's Info tab: a button for each airport with its flight category's dot, and the search box](docs/images/remote_info.png)
 
 For a dedicated screen instead of a tablet, MetarMap2 Copilot
 ([metarmap2_remote](https://github.com/dman776/metarmap2_remote)) is a companion project: firmware for a 2.8" ESP32-S3
