@@ -334,3 +334,50 @@ def test_the_job_says_how_long_it_has_run(monkeypatch):
     ended = install.progress()["elapsed"]
     now[0] += 500
     assert install.progress()["elapsed"] == ended  # stopped counting when it ended
+
+
+def announced_properties(config, build):
+    d = discovery.Discovery(config, load=lambda: FakeZeroconf, address=lambda: "10.0.0.2", build=lambda: build)
+    d.port = 8080
+    before = len(FakeZeroconf.registered)
+    d.restart()
+    assert d.announcing and len(FakeZeroconf.registered) == before + 1  # it was announced, now
+    return FakeZeroconf.registered[-1][0].properties
+
+
+def build_of(tag, ahead=8, modified=False):
+    return {"tag": tag, "commit": "7df0437", "sha": "7df0437" + "a" * 33, "ahead": ahead, "modified": modified}
+
+
+PLAIN = {"version": discovery.__version__, "path": "/api/status"}
+
+
+def test_announces_the_build_when_the_version_is_the_tag_plus_commits(config):
+    properties = announced_properties(config, build_of(f"v{discovery.__version__}"))
+    assert properties["commit"] == "7df0437" and properties["ahead"] == "8"
+    assert properties["version"] == discovery.__version__ and properties["path"] == "/api/status"
+
+
+def test_ahead_is_zero_on_a_release(config):
+    properties = announced_properties(config, build_of(f"v{discovery.__version__}", ahead=0))
+    assert properties["ahead"] == "0" and properties["commit"] == "7df0437"
+
+
+def test_no_build_info_leaves_the_announcement_as_it_was(config):
+    tag = f"v{discovery.__version__}"
+    assert announced_properties(config, None) == PLAIN  # no git
+    assert announced_properties(config, build_of(tag, modified=True)) == PLAIN  # local changes
+    assert announced_properties(config, build_of(None)) == PLAIN  # no release tag (a build without one)
+    assert announced_properties(config, build_of("v1.0.0")) == PLAIN  # the version was bumped, not yet tagged
+    assert announced_properties(config, build_of(f"v{discovery.__version__}-rc1", ahead=3)) == PLAIN  # pre-release
+
+
+def test_a_build_with_no_tag_is_not_announced_even_when_clean(config):
+    assert announced_properties(config, {"tag": None, "commit": "7df0437", "ahead": 0, "modified": False}) == PLAIN
+
+
+def test_the_app_announces_the_build_it_loaded(make_app):
+    app = make_app()
+    assert app.discovery._build() is app.releases.build
+    app.releases.build = build_of(f"v{discovery.__version__}", ahead=2)
+    assert app.discovery._properties()["ahead"] == "2"

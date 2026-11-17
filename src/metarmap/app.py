@@ -141,7 +141,7 @@ def build(config_file=CONFIG_FILE, strip=None, screen=None, clock: Clock = None,
         speech,
         atis,
         forecasts,
-        Discovery(config, address=my_ip),
+        Discovery(config, address=my_ip, build=lambda: releases.build),
         delays,
     )
     fill_names(app)
