@@ -787,6 +787,17 @@ def test_fetch_that_fails_is_a_500(client, monkeypatch, caplog):
     assert client("/fetch")[0] == 200  # and the next one works
 
 
+def test_fetch_that_fails_on_a_file_doesnt_say_where(client, monkeypatch):
+    """/fetch needs no login: an OSError's text (a path, an errno) stays in the log."""
+    app = client.services
+    error = PermissionError(13, "Permission denied", "/home/pi/metarmap2/config.json")
+    monkeypatch.setattr(app.metars, "fetch", lambda: (_ for _ in ()).throw(error))
+    status, body = client("/fetch")
+    assert status == 500 and "The METAR fetch failed (see the Chart" in body
+    assert "config.json" not in body and "Permission denied" not in body
+    assert not app.fetching.locked()
+
+
 def test_live_says_when_the_next_fetch_is(client):
     f = client.json("/api/live")["fetch"]
     assert f["seconds"] == 600 and f["next"] > time.time() + 590

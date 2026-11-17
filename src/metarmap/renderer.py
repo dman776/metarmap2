@@ -193,12 +193,15 @@ class Renderer:
 
     def _shown(self):
         """
-        (visualizer, looks, started) of what the LEDs show now, read together: a rebuild installs them under the lock,
-        and a visualizer change sets _vis before its looks are in, so _vis with the old looks or step count would give
-        a wrong legend or step until then. Only the read is in the lock: the render loop takes it every frame.
+        (visualizer, looks, started) for the legend and the step, read together: a rebuild installs the looks and the
+        step count under the lock, but a visualizer change sets _vis before they're in. Until then it's the active
+        visualizer (the name the pages show) with no looks (every legend entry in use) and its steps from now, not the
+        last one's looks or step count. Only the read is in the lock: the render loop takes it every frame.
         """
         with self._lock:
-            vis = self._vis if self._started_for is None else self._started_for  # None: no rebuild has gone in yet
+            vis = self._vis
+            if self._started_for is not vis:  # its rebuild isn't in yet
+                return vis, [], self._clock.monotonic()
             return vis, self._looks, self._started  # _looks is replaced at each rebuild, never changed in place
 
     def legend_in_use(self):
@@ -251,7 +254,7 @@ class Renderer:
         if cached is None or cached[0] != self.revision:
             with self._lock:  # the looks and the revision change together, under this lock
                 strip = self._strip_look.to_dict() if self._strip_look is not None else None
-                vis = self._shown()[0]  # the visualizer these looks are for
+                vis = self._vis if self._started_for is None else self._started_for  # the one these looks are for
                 cached = self._look_dicts = (
                     self.revision,
                     [look.to_dict() for look in self._looks],

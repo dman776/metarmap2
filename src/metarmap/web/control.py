@@ -204,6 +204,8 @@ def add_routes(app, services: "App", site, auth, updates=None, installs=None):
         # back when they're in (after a fetch under way, if it ends soon enough): then the LEDs and the names
         try:
             fetched = refetch_metars(services)
+        except OSError:  # its text can name files and paths, and /fetch needs no login: those stay in the log
+            bottle.abort(500, "The METAR fetch failed (see the Chart's log)")
         except Exception as e:  # logged in the fetch; the regular fetch stays where it was
             bottle.abort(500, f"The METAR fetch failed: {e}")
         if not fetched:

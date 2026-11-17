@@ -706,11 +706,11 @@ def test_a_failed_newer_rebuild_leaves_the_older_one_in(config, clock, monkeypat
     assert r.looks[0] == Look.solid(flightcategory.COLORS["MVFR"])
 
 
-def test_the_step_and_legend_are_of_the_leds_shown_during_a_visualizer_change(config, clock, monkeypatch):
+def test_the_step_and_legend_follow_the_new_visualizer_during_its_change(config, clock, monkeypatch):
     """
-    A poll while a visualizer change builds its looks: the new visualizer is set, its looks and step count aren't in
-    yet. The step and the legend stay the ones of what the LEDs show (not the new one's step counted from the old
-    start), until the new looks go in.
+    A poll while a visualizer change builds its looks: the new visualizer is set (the pages already show its name),
+    its looks and step count aren't in yet. Its own legend, every entry in use, and its first step: not its steps
+    counted from the last one's start, nor its legend marked by the last one's looks.
     """
     fcf = visualizer_module.BY_ID["flight_category_forecast"]
     r, _ = make(config, clock, data=forecast_data(), visualizers=[FLIGHT, fcf])
@@ -719,16 +719,17 @@ def test_the_step_and_legend_are_of_the_leds_shown_during_a_visualizer_change(co
     seen = []
 
     def looks_and_poll(vis, *args):
-        seen.append((r.step(), [item["key"] for item in r.legend()], r.legend_in_use()))
+        seen.append((r.step(), r.legend(), r.legend_in_use()))
         return looks(vis, *args)
 
     monkeypatch.setattr(visualizer, "looks", looks_and_poll)
     r.visualizer = 1
-    flight = [item["key"] for item in visualizer.legend(FLIGHT, config.data)]
-    in_use = visualizer.in_use(FLIGHT, looks(FLIGHT, CODES, forecast_data(), config.data), config.data)
-    assert seen == [(None, flight, in_use)]
+    ((step, legend, in_use),) = seen
+    assert step == {"labels": ["Now", "+3h", "+6h", "+12h"], "index": 0, "prefix": "FC"}
+    assert [item["key"] for item in legend] == [item["key"] for item in visualizer.legend(fcf, config.data)]
+    assert in_use == [] and all(item["inUse"] for item in legend)
     assert r.step()["index"] == 0  # in: counted from now
-    assert [item["key"] for item in r.legend()] == [item["key"] for item in visualizer.legend(fcf, config.data)]
+    assert r.legend_in_use() == visualizer.in_use(fcf, r.looks, config.data) != []
 
 
 def test_the_legend_is_built_outside_the_lock(config, clock, monkeypatch):
