@@ -16,6 +16,7 @@ import time
 import uuid
 
 from metarmap import __version__
+from metarmap.lib import versions
 
 log = logging.getLogger(__name__)
 
@@ -57,11 +58,12 @@ class Discovery:
     """
     Announces the map while web_server.announce is on and zeroconf is installed.
     config: has .data (Settings). load: returns the zeroconf module or None. address: returns this machine's IPv4
-    address (tests pass their own).
+    address (tests pass their own). build: returns what's running (releases.read_build's dict) or None.
     """
 
-    def __init__(self, config, load=load_zeroconf, address=lambda: "127.0.0.1"):
+    def __init__(self, config, load=load_zeroconf, address=lambda: "127.0.0.1", build=lambda: None):
         self._config = config
+        self._build = build
         self._load = load
         self._address = address
         self._lock = threading.Lock()
@@ -78,6 +80,20 @@ class Discovery:
     def name(self):
         """The name this map goes by: as announced, else as set."""
         return self.registered_name if self.announcing and self.registered_name else map_name(self._config.data)
+
+    def _properties(self):
+        """
+        The announcement's TXT record. `commit` and `ahead` only when the running version is the release tag it is at
+        or after, plus commits (what a client shows as "v<version>+<ahead> <commit>"): not for an untagged version
+        bump, a pre-release, no tag, local changes or no git.
+        """
+        properties = {"version": __version__, "path": API_PATH}
+        build = self._build()
+        tag = build.get("tag") if build else None
+        if tag and not build.get("modified") and versions.same(tag, __version__):
+            properties["commit"] = build["commit"][:7]
+            properties["ahead"] = str(build.get("ahead") or 0)
+        return properties
 
     def _zeroconf_module(self, fresh=False):
         """The zeroconf module or None. A miss is remembered for RECHECK_SECONDS unless `fresh`."""
@@ -145,7 +161,7 @@ class Discovery:
                     f"{name}.{SERVICE_TYPE}",
                     addresses=[socket.inet_aton(address)],
                     port=self.port,
-                    properties={"version": __version__, "path": API_PATH},
+                    properties=self._properties(),
                     server=f"{host_label()}.local.",
                 )
                 zc = module.Zeroconf(ip_version=module.IPVersion.V4Only)

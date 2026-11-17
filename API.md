@@ -855,4 +855,6 @@ A Chart announces itself with zeroconf (mDNS and DNS-SD) when `web_server.announ
 | Host | `metarmap2-<six hex digits of the MAC>.local.`, and the Chart's IPv4 address (announced again within 5 minutes of a change) |
 | Port | The Chart's web UI port |
 | TXT `version` | The Chart's version, such as `26.11.10` |
+| TXT `commit` | The first 7 characters of the commit the Chart runs, such as `7df0437`. Sent only when the running version is the release tag it is at or after, plus commits: a git checkout without local changes whose nearest release tag is `version` (left out for a version bumped but not yet tagged, a pre-release tag, no tag, local changes or no git) |
+| TXT `ahead` | How many commits the running code is after the release tag it is at or after, as a decimal string such as `8` (`0` when exactly on a release). Sent with `commit` and left out with it. `version` + `ahead` + `commit` give "v26.11.12+8 7df0437" |
 | TXT `path` | `/api/status`: where to read the Chart's state (no login) |
