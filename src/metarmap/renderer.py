@@ -191,16 +191,31 @@ class Renderer:
         """The current look of each LED, in airport order."""
         return list(self._looks)
 
+    def _shown(self):
+        """
+        (visualizer, looks, started) for the legend and the step, read together: a rebuild installs the looks and the
+        step count under the lock, but a visualizer change sets _vis before they're in. Until then it's the active
+        visualizer (the name the pages show) with no looks (every legend entry in use) and its steps from now, not the
+        last one's looks or step count. Only the read is in the lock: the render loop takes it every frame.
+        """
+        with self._lock:
+            vis = self._vis
+            if self._started_for is not vis:  # its rebuild isn't in yet
+                return vis, [], self._clock.monotonic()
+            return vis, self._looks, self._started  # _looks is replaced at each rebuild, never changed in place
+
     def legend_in_use(self):
         """The keys of the active visualizer's legend entries the LEDs show now (virtual airports too); None while one
         look drives the whole strip."""
-        return visualizer.in_use(self._vis, self._looks, self._config.data)
+        vis, looks, _ = self._shown()
+        return visualizer.in_use(vis, looks, self._config.data)
 
     def legend(self):
         """The active visualizer's legend, each entry with inUse: whether an LED shows it now (always, for a whole
         strip look, and for every entry while nothing is shown, e.g. no airports)."""
-        used = self.legend_in_use()
-        items = visualizer.legend(self._vis, self._config.data)
+        vis, looks, _ = self._shown()
+        used = visualizer.in_use(vis, looks, self._config.data)
+        items = visualizer.legend(vis, self._config.data)
         return [{**item, "inUse": not used or item["key"] in used} for item in items]
 
     def step(self):
@@ -208,11 +223,12 @@ class Renderer:
         Which step a stepping visualizer (Visualizer.steps: Flight Category Forecast) is on now, as {"labels": [...],
         "index": n}, counted from when the LEDs were last built; None for any other visualizer.
         """
-        if self._vis.steps is None or self._vis.look is None:
+        vis, _, started = self._shown()
+        if vis.steps is None or vis.look is None:
             return None
-        steps = self._vis.steps(self._config.data)
+        steps = vis.steps(self._config.data)
         seconds = steps["seconds"]
-        elapsed = max(0.0, self._clock.monotonic() - self._started)
+        elapsed = max(0.0, self._clock.monotonic() - started)
         index = int((elapsed % (len(steps["labels"]) * seconds)) // seconds)
         return {"labels": steps["labels"], "index": index, "prefix": steps.get("prefix", "")}
 
@@ -232,19 +248,23 @@ class Renderer:
         # converted once per rebuild, not at every poll of every open page: a stepping look has ~140 colors per LED
         # (Flight Category Forecast), which pegged a Pi's CPU
         # (the revision is kept with them: a rebuild racing this call can't leave old dicts under the new revision)
+        # (the virtual airports' look too: read outside the lock, _strip_look or _vis could already be the next
+        # rebuild's, e.g. a strip look with none cached, or Rainbow's look for Chase's virtual airports)
         cached = self._look_dicts
         if cached is None or cached[0] != self.revision:
             with self._lock:  # the looks and the revision change together, under this lock
+                strip = self._strip_look.to_dict() if self._strip_look is not None else None
+                vis = self._vis if self._started_for is None else self._started_for  # the one these looks are for
                 cached = self._look_dicts = (
                     self.revision,
                     [look.to_dict() for look in self._looks],
-                    self._strip_look.to_dict() if self._strip_look is not None else None,
+                    strip,
+                    strip if strip is None or vis.covers_virtual else Look.off().to_dict(),
                 )
-        _, looks, strip = cached
+        _, looks, strip, virtual = cached
         leds = dict(enumerate(looks))
-        if self._strip_look is not None:
+        if strip is not None:
             settings = self._config.data
-            virtual = strip if self._vis.covers_virtual else Look.off().to_dict()
             leds.update({i: virtual for i in range(settings.led.count, len(settings.airports))})
         return leds, strip
 

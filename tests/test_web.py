@@ -772,6 +772,32 @@ def test_fetch_while_a_fetch_is_stuck_is_a_503(client, monkeypatch):
     assert app.scheduler.get_jobs("fetch")[0].next_run == due  # the regular fetch stays where it was
 
 
+def test_fetch_that_fails_is_a_500(client, monkeypatch, caplog):
+    """A fetch by hand that raises says why, as before the fetch moved to a thread, and leaves nothing held."""
+    app = client.services
+    monkeypatch.setattr(app.metars, "fetch", lambda: (_ for _ in ()).throw(RuntimeError("boom")))
+    (job,) = app.scheduler.get_jobs("fetch")
+    due = job.next_run
+    status, body = client("/fetch")
+    assert status == 500 and "The METAR fetch failed: boom" in body
+    assert "METAR fetch failed: boom" in caplog.text  # logged
+    assert not app.fetching.locked()
+    assert app.scheduler.get_jobs("fetch")[0].next_run == due  # the regular fetch stays where it was
+    monkeypatch.setattr(app.metars, "fetch", lambda: True)
+    assert client("/fetch")[0] == 200  # and the next one works
+
+
+def test_fetch_that_fails_on_a_file_doesnt_say_where(client, monkeypatch):
+    """/fetch needs no login: an OSError's text (a path, an errno) stays in the log."""
+    app = client.services
+    error = PermissionError(13, "Permission denied", "/home/pi/metarmap2/config.json")
+    monkeypatch.setattr(app.metars, "fetch", lambda: (_ for _ in ()).throw(error))
+    status, body = client("/fetch")
+    assert status == 500 and "The METAR fetch failed (see the Chart" in body
+    assert "config.json" not in body and "Permission denied" not in body
+    assert not app.fetching.locked()
+
+
 def test_live_says_when_the_next_fetch_is(client):
     f = client.json("/api/live")["fetch"]
     assert f["seconds"] == 600 and f["next"] > time.time() + 590
@@ -1079,7 +1105,7 @@ def test_live_leds_follow_a_strip_look_with_virtual_airports(services):
 def test_the_looks_never_stay_under_a_newer_revision(services):
     r = services.renderer
     r.led_states()
-    r._look_dicts = (r.revision - 1, ["stale"], None)  # what a rebuild racing the fill would have left
+    r._look_dicts = (r.revision - 1, ["stale"], None, None)  # what a rebuild racing the fill would have left
     looks, _ = r.led_states()
     assert looks[0] != "stale" and r._look_dicts[0] == r.revision
 
@@ -2090,6 +2116,7 @@ def test_a_slow_fetch_does_not_hold_up_other_requests(services):
         release.wait(10)  # like aviationweather.gov taking its time
 
     services.metars.fetch = slow_fetch
+    services.metars.last_fetch_ok, services.metars.locate_failed = True, False  # nothing to retry
     services.metars.station_names = lambda: {}  # /fetch names new airports after the fetch
     services.config.fill_names = lambda names: None
     statuses = []

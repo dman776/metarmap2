@@ -706,6 +706,73 @@ def test_a_failed_newer_rebuild_leaves_the_older_one_in(config, clock, monkeypat
     assert r.looks[0] == Look.solid(flightcategory.COLORS["MVFR"])
 
 
+def test_the_step_and_legend_follow_the_new_visualizer_during_its_change(config, clock, monkeypatch):
+    """
+    A poll while a visualizer change builds its looks: the new visualizer is set (the pages already show its name),
+    its looks and step count aren't in yet. Its own legend, every entry in use, and its first step: not its steps
+    counted from the last one's start, nor its legend marked by the last one's looks.
+    """
+    fcf = visualizer_module.BY_ID["flight_category_forecast"]
+    r, _ = make(config, clock, data=forecast_data(), visualizers=[FLIGHT, fcf])
+    clock.advance(fcf.steps(config.data)["seconds"] * 2.5)  # Flight Category's start is long ago
+    looks = visualizer.looks
+    seen = []
+
+    def looks_and_poll(vis, *args):
+        seen.append((r.step(), r.legend(), r.legend_in_use()))
+        return looks(vis, *args)
+
+    monkeypatch.setattr(visualizer, "looks", looks_and_poll)
+    r.visualizer = 1
+    ((step, legend, in_use),) = seen
+    assert step == {"labels": ["Now", "+3h", "+6h", "+12h"], "index": 0, "prefix": "FC"}
+    assert [item["key"] for item in legend] == [item["key"] for item in visualizer.legend(fcf, config.data)]
+    assert in_use == [] and all(item["inUse"] for item in legend)
+    assert r.step()["index"] == 0  # in: counted from now
+    assert r.legend_in_use() == visualizer.in_use(fcf, r.looks, config.data) != []
+
+
+def test_the_legend_is_built_outside_the_lock(config, clock, monkeypatch):
+    """The render loop takes the lock every frame (one core on a Pi Zero W): a poll holds it only to read."""
+    import threading
+
+    r, _ = make(config, clock)
+    free = []
+
+    def lock_is_free():
+        taken = []
+        thread = threading.Thread(target=lambda: taken.append(r._lock.acquire(timeout=1) and r._lock.release() is None))
+        thread.start()
+        thread.join()
+        free.append(taken == [True])
+
+    legend, in_use = visualizer.legend, visualizer.in_use
+    monkeypatch.setattr(visualizer, "legend", lambda *args: lock_is_free() or legend(*args))
+    monkeypatch.setattr(visualizer, "in_use", lambda *args: lock_is_free() or in_use(*args))
+    r.legend()
+    r.legend_in_use()
+    assert len(free) >= 2 and all(free)
+
+
+def test_virtual_airports_follow_the_strip_look_shown_during_a_visualizer_change(virtual, clock, monkeypatch):
+    """Rainbow is on and Chase is being built: the virtual airports still join the Rainbow shown, not go dark."""
+    r, _ = make(virtual, clock, leds=3, visualizers=[RAINBOW, CHASE])
+    strip_look = visualizer.strip_look
+    seen = []
+
+    def strip_look_and_poll(vis, settings):
+        if vis is CHASE:
+            seen.append(r.led_states())
+        return strip_look(vis, settings)
+
+    monkeypatch.setattr(visualizer, "strip_look", strip_look_and_poll)
+    r.visualizer = 1
+    leds, strip = seen[0]
+    assert strip["effect"] == "rainbow" and leds == {3: strip, 4: strip}
+    leds, strip = r.led_states()
+    assert strip["effect"] == "chase" and leds[3] == {"effect": "off", "colors": []}
+
+
 def test_at_time_leaves_other_looks_alone():
     from metarmap.renderer import at_time
 

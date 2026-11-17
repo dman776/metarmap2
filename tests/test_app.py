@@ -609,6 +609,33 @@ def test_fetch_by_hand_gives_up_on_a_stuck_fetch(make_app, monkeypatch):
         assert app_module.refetch_metars(app) is False
 
 
+def test_a_fetch_by_hand_that_fails_says_so(make_app, monkeypatch, caplog):
+    """GET /fetch's fetch raising: logged, the lock let go, and raised again for /fetch to answer 500."""
+    app = make_app()
+    monkeypatch.setattr(app.metars, "fetch", lambda: True)
+    monkeypatch.setattr(app.renderer, "update_data", lambda metars: (_ for _ in ()).throw(RuntimeError("boom")))
+    with pytest.raises(RuntimeError, match="boom"):
+        app_module.refetch_metars(app)
+    assert not app.fetching.locked()
+    assert "METAR fetch failed: boom" in caplog.text
+    monkeypatch.setattr(app.renderer, "update_data", lambda metars: None)
+    assert app_module.refetch_metars(app) is True  # the next one runs
+
+
+def test_a_retry_that_raises_keeps_retrying(make_app, monkeypatch, caplog):
+    """An error in the retry's thread is logged; the retry job stays, and the lock is let go."""
+    app = make_app()
+    app.metars.last_fetch_ok = False
+    monkeypatch.setattr(app.metars, "fetch", lambda: (_ for _ in ()).throw(RuntimeError("boom")))
+    app_module.retry_soon(app)
+    (retry,) = app.scheduler.get_jobs("retry")
+    retry.next_run = datetime.now() - timedelta(seconds=1)
+    app.scheduler.run_pending()
+    wait_for_fetches()
+    assert not app.fetching.locked() and "METAR retry failed: boom" in caplog.text
+    assert app.scheduler.get_jobs("retry") == [retry]
+
+
 def test_new_data_keeps_the_forecast_step(make_app, monkeypatch):
     """The regular fetch landing mid-forecast doesn't take Flight Category Forecast back to Now."""
     from metarmap.clock import FakeClock

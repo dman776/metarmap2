@@ -202,7 +202,13 @@ def add_routes(app, services: "App", site, auth, updates=None, installs=None):
         from metarmap.app import refetch_metars, schedule_fetch  # here: app.py imports the web
 
         # back when they're in (after a fetch under way, if it ends soon enough): then the LEDs and the names
-        if not refetch_metars(services):
+        try:
+            fetched = refetch_metars(services)
+        except OSError:  # its text can name files and paths, and /fetch needs no login: those stay in the log
+            bottle.abort(500, "The METAR fetch failed (see the Chart's log)")
+        except Exception as e:  # logged in the fetch; the regular fetch stays where it was
+            bottle.abort(500, f"The METAR fetch failed: {e}")
+        if not fetched:
             bottle.abort(503, "A METAR fetch is already running; try again in a moment")
         schedule_fetch(services)  # the next regular fetch a whole interval from now
         return pages.index(services, site)
