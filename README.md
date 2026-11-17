@@ -80,6 +80,17 @@ The Wind Direction visualizer, with wind barbs, over the radar background:
 
 ![The Wind Direction visualizer over live radar: each airport in the color of the direction its wind blows from, with a barb](docs/images/map_wind_direction_with_barbs.jpg)
 
+The two forecast visualizers step through now, +3h, +6h and +12h, all airports together, and the legend lights the step
+being shown. Flight Category Forecast, here on +6h, shows each airport's flight category as its TAF forecasts it (a dim
+white is an airport with no TAF, or one that doesn't reach that far):
+
+![The Map page's Flight Category Forecast on its +6h step, with the legend's step bar and the Micro's copy saying FC +6h](docs/images/map_forecast_step.jpg)
+
+Precipitation Forecast colors each airport by the weather its TAF forecasts (rain blue, snow white and so on), here on
++3h over the Pacific Northwest:
+
+![The Map page's Precipitation Forecast on its +3h step: airports in blue where rain is forecast](docs/images/map_precipitation_forecast.jpg)
+
 Click an airport for its weather in plain English, the raw METAR, or the METAR decoded line by line, with its
 remarks explained (lightning too: how often, what kind, how far and which way; those it can't read yet, like
 thunderstorm locations, icing and local winds, stay as raw text), and the groups of
@@ -93,6 +104,11 @@ TEMPO). With
 wrote it, the line being read lit:
 
 ![An airport's popup on the Map page, with its weather in plain English](docs/images/map_airport_popup.jpg)
+
+The **Decoded** tab lists the report line by line, and grows with what the report says (here an IFR report with rain,
+mist, a variable ceiling, the pressure tendency and the precipitation totals; the list scrolls inside the popup):
+
+![An airport's popup on the Decoded tab: observed time, wind, visibility, weather, clouds, temperature, dewpoint, altimeter, station type, sea-level pressure, pressure tendency, variable ceiling and precipitation](docs/images/map_decoded_tab.jpg)
 
 ### Live traffic
 
@@ -114,6 +130,11 @@ that are below VFR. The METARs page lists every airport's report.
 
 ![The Home page: airports by flight category, the active visualizer with its legend, brightness and the Micro switch](docs/images/page_home.png)
 
+With Flight Category Forecast active, the legend gets a step bar (Now, +3h, +6h, +12h) that follows the step the pixels
+are on:
+
+![The Home page with Flight Category Forecast active: its legend with the step bar on +6h](docs/images/page_home_forecast.png)
+
 ![The METARs page: every airport's flight category and raw report](docs/images/page_metars.png)
 
 ### Config
@@ -127,6 +148,21 @@ Settings save as you change them.
 ![Config, Airports: the airport at each pixel, in the order the pixels are wired, with the Hidden pixel switch (pixels 3 and 7 are hidden)](docs/images/config_airports.png)
 
 ![Config, Web map: the Map page's background, chart and starting view, and the live traffic settings](docs/images/config_web_map.png)
+
+A setting tagged **Restart** (the data pin and the color order, here) takes effect when the Chart restarts: after you
+change one, a banner at the top offers **Restart now**.
+
+![Config with the restart banner: "Some changes take effect after the map restarts" and a Restart now button, above the Physical display tab where Data pin and Color order are tagged Restart](docs/images/config_restart_banner.png)
+
+Config, System: **Software** (the version running, **Check now**, the release channel and **Install a release**),
+**Spoken weather** (the speech server, Pronunciation, Spoken ATIS and a Test button) and **Access** (the Chart's name on
+the network, the web login and the Wi-Fi network):
+
+![Config, System, Software: the running version, Check now, Update to and Install a release](docs/images/config_system_software.png)
+
+![Config, System, Spoken weather: Enable speech, the Kokoro speech server, voice, speed, time limit, Pronunciation, Spoken ATIS and Test](docs/images/config_system_spoken_weather.png)
+
+![Config, System, Access: map name, announce on the network, the web UI login (user name, new password, confirm) and the Wi-Fi network](docs/images/config_system_access.png)
 
 #### Plan a new chart
 
@@ -163,6 +199,8 @@ The Cockpit's **Map** tab has the visualizer name between arrows in the map itse
 (on the Cockpit it is a tap, on the Map page a tap or a click).
 
 ![The Cockpit's Visualizer tab](docs/images/remote_visualizer.png)
+
+![The Cockpit's Map tab: the map with the background switcher, Live traffic, the visualizer name between arrows and the Micro's copy](docs/images/remote_map.jpg)
 
 ![The Cockpit's Info tab: a button for each airport with its flight category's dot, and the search box](docs/images/remote_info.png)
 
@@ -295,7 +333,8 @@ Changes save right away. To check the wiring order:
   Home shows one quiet-hours row and mutes sun events that fall within the window
 - whether the pixels fade down while new METARs download (**Dim while updating**, on by default); they keep moving, and a forecast keeps its step
 
-Every setting takes effect right away; none needs a restart.
+Most settings take effect right away. The data pin and the color order (tagged **Restart**) and the number of pixels
+wait for a restart: a banner offers **Restart now**.
 
 **Config > System > Access** changes:
 - the web UI login. On a Raspberry Pi, the new password also becomes the password of the Pi's login user
@@ -416,6 +455,8 @@ the METARs page in a panel at the bottom (× closes it and stops the audio). The
 doesn't say when it reaches each line, so the Chart works it out from the lines' lengths: close, not exact.
 Click a line to jump to it, while it plays or after; on the Pronunciation page's sample, before pressing Play too.
 
+![The METARs page reading KHOU's ATIS: the panel at the bottom shows each line as the FAA wrote it, then as it is said, the line being read lit](docs/images/atis_read_along.png)
+
 **Pronunciation** (**Config > System > Spoken weather > Pronunciation**, `speech.tunings`): your own words for what
 the Chart doesn't say well, such as a fix or a local name (`MNSTR` said "monster"), a typo in the FAA's text
 (`GRO UND` said "ground"), or a word you'd rather hear another way (`RNAV` said "are nav"), for every airport or one.
@@ -424,6 +465,8 @@ ATIS and the AWOS alike, the airport's name included (`Hobby` said "Hobbie" for 
 reads its "say it as" aloud right away, saved or not, so you can tweak the spelling until it sounds right. The page
 lists the words in your airports' ATIS now that the Chart reads as written (press one to tune it), and **Try it** shows
 and plays an airport's ATIS with your tunings as saved.
+
+![The Pronunciation page: the words said another way (MNSTR, RNAV, and Hobby for KHOU only), the words read as written and Try it with KHOU's ATIS line by line](docs/images/config_pronunciation.png)
 
 Like the spoken weather, it's for fun, not for flight planning.
 
