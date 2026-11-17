@@ -1663,11 +1663,14 @@
             if (!document.hidden) pollTimer = setTimeout(poll, POLL_MS);
         }
     }
-    document.addEventListener('visibilitychange', function () {
+    function pollOnReturn() {
         clearTimeout(pollTimer);
         pollTimer = null;
         if (!document.hidden && !polling) poll();  // one in flight re-arms when it ends
-    });
+    }
+    document.addEventListener('visibilitychange', pollOnReturn);
+    // Safari may bring a page back from its back/forward cache without a visibilitychange
+    window.addEventListener('pageshow', function (e) { if (e.persisted) pollOnReturn(); });
 
     poll();
     setInterval(animate, FRAME_MS);
