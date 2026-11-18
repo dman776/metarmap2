@@ -1114,7 +1114,7 @@ class SendingStrip(SkipUnchangedShow, FakeStrip):
 
 
 def breathing_renderer(config, clock, ticks, n=5):
-    """A renderer whose LEDs all breathe (a 0.2 s step, as Flight Category's estimated categories), on SettlingStrip."""
+    """A renderer whose LEDs all breathe (a 0.2 s step, as Flight Category's estimated categories), on SendingStrip."""
     from metarmap.leds.animations import animation_for
     from metarmap.visualizers import style
 
@@ -1235,6 +1235,71 @@ def test_a_second_locate_of_the_same_led_takes_over(config, clock, ticks):
     pulse_frames = [t for t, colors in frames if white(colors[0])]
     assert pulse_frames[-1] - pulse_frames[0] >= 1300  # the second ran its whole second
     assert r._pulses == {} and strip[0] == flightcategory.COLORS["VFR"]  # what was under the first
+
+
+def pulse_until_white(r, strip, ticks):
+    """Starts a locate() pulse on LED 0 and draws frames until it shows white; returns the pulse."""
+    located = r._start_pulse(0)
+    for _ in range(10):
+        ticks.sleep(0.1)
+        r.draw_frame()
+        if white(strip[0]):
+            return located
+    raise AssertionError("the pulse never showed")
+
+
+def test_an_overdue_pulse_ends_at_the_next_frame(config, clock, ticks):
+    """No frames for longer than a pulse (a stalled loop): the next frame leaves the LED to its own look."""
+    from metarmap import renderer
+
+    r, strip = make(config, clock)
+    located = pulse_until_white(r, strip, ticks)
+    ticks.ms += (renderer.LOCATE_SECONDS + renderer.LOCATE_GRACE) * 1000
+    r.draw_frame()
+    assert r._pulses == {} and located.done.is_set()
+    assert strip[0] == flightcategory.COLORS["VFR"]
+
+
+@pytest.mark.parametrize("sequence", ["comet", "sweep"])
+def test_a_startup_sequence_ends_a_pulse(config, clock, ticks, sequence):
+    """The test pattern (stop(), then the sequence, then resume()) takes the whole strip: the pulse ends there."""
+    config.data.led.init_sequence = sequence
+    r, strip = make(config, clock)
+    located = pulse_until_white(r, strip, ticks)
+    r.test_pattern()
+    assert r._pulses == {} and located.done.is_set()
+    r.render()
+    assert strip[0] == flightcategory.COLORS["VFR"]
+
+
+def test_a_shorter_strip_drops_a_pulse_past_its_end(config, clock, ticks):
+    r, strip = make(config, clock)
+    located = r._start_pulse(4)
+    r.resize(3)
+    r.draw_frame()
+    assert r._pulses == {} and located.done.is_set() and len(strip) == 3
+    assert r._start_pulse(4) is None  # checked in the lock: a resize() just after locate() looked can't raise
+    r.locate(4)  # past the strip now: recorded for the web map, no pulse, no IndexError
+    assert r.last_locate["pixel"] == 4 and r._pulses == {}
+
+
+def test_quiet_hours_fade_a_pulsing_led_from_its_own_color(config, clock, ticks, monkeypatch):
+    """fade_out() mid-pulse: the located LED fades from its look, not from the pulse's white."""
+    from metarmap.leds import intro
+
+    config.data.led.init_sequence = "sweep"
+    r, strip = make(config, clock)
+    located = pulse_until_white(r, strip, ticks)
+    faded_from = []
+    colors_out_at = intro.colors_out_at
+    monkeypatch.setattr(
+        intro,
+        "colors_out_at",
+        lambda t, starts, sources: faded_from.append(list(sources)) or colors_out_at(t, starts, sources),
+    )
+    r.fade_out()
+    assert faded_from[0][0] == flightcategory.COLORS["VFR"] and faded_from[0][1] == flightcategory.COLORS["IFR"]
+    assert r._pulses == {} and located.done.is_set()
 
 
 def test_locate_waits_for_the_pulse_on_its_own_thread(config):

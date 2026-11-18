@@ -501,8 +501,6 @@ class Renderer:
             if 0 <= n < len(airports) and airports[n].skip and not airports[n].code:
                 return  # a Hidden Pixel has no airport to find: nothing pulses, on the strip or on the web map
             self.last_locate = {"pixel": n, "at": self._clock.time()}
-            if not 0 <= n < min(self._config.data.led.count, len(self._pixels)):
-                return
             located = self._start_pulse(n)
             if located is not None:
                 self._clock.wait(located.done, LOCATE_SECONDS + LOCATE_GRACE)
@@ -510,9 +508,13 @@ class Renderer:
             log.exception(f"locate {pixnum}: {e}")
 
     def _start_pulse(self, n):
-        """Puts a locate() pulse over LED n (taking over one already there) and wakes render(). None if it's ignored."""
+        """
+        Puts a locate() pulse over LED n (taking over one already there) and wakes render(). None if it's ignored: an
+        exclusive visualizer, or no such LED (past led.count or the strip: a virtual airport). Checked in the lock, so
+        a resize() or a visualizer change since locate() looked counts.
+        """
         with self._lock:
-            if self._vis.exclusive:  # switched to one since locate() looked
+            if self._vis.exclusive or not 0 <= n < min(self._config.data.led.count, len(self._pixels)):
                 return None
             before = self._pulses.get(n)
             # what's under it: the LED's own color, not the pulse it takes over from
@@ -717,6 +719,7 @@ class Renderer:
             return
         count = min(self._config.data.led.count, len(self._pixels))
         with self._lock:
+            self._end_pulses(lambda n: True)  # a locate() pulse's LED fades from its own color, not the pulse's white
             sources = [tuple(self._pixels[i]) for i in range(count)]  # what each LED shows now
         self._play_sequence(sequence, lambda t, starts: intro.colors_out_at(t, starts, sources))
 
