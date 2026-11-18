@@ -569,10 +569,11 @@ the same day (`v26.11.04.1`). Releases up to `v3.2.0` used the older numbers; th
 still be installed. A Chart on `3.2.0` or older only sees three-number releases, so the first release of a day is
 always a plain date.
 
-To make a release: set `__version__` in `src/metarmap/__init__.py` to the version (`"26.11.04"`), name the
-CHANGELIST's `### Unreleased` heading after it, commit, then tag it (`git tag v26.11.04`), push the tag and create
-the GitHub release from it. Python's packaging tools show the version without the zeros (`26.11.4`); the Chart shows
-it as written.
+To make a release: name the CHANGELIST's `### Unreleased` heading after the version (`26.11.04`), commit, then tag
+it (`git tag v26.11.04`), push the tag and create the GitHub release from it. There is no version number to set in
+the code: `metarmap.__version__` is the newest `v` tag the code is at or after, read from git (or from the installed
+package's metadata when there is no checkout). Python's packaging tools show the version without the zeros
+(`26.11.4`); the Chart shows it as written.
 
 ## Credits
 
