@@ -349,7 +349,13 @@ def build_of(tag, ahead=8, modified=False):
     return {"tag": tag, "commit": "7df0437", "sha": "7df0437" + "a" * 33, "ahead": ahead, "modified": modified}
 
 
-PLAIN = {"version": discovery.__version__, "path": "/api/status"}
+@pytest.fixture(autouse=True)
+def fixed_version(monkeypatch):
+    """The tests name release tags after the version; without git tags (CI's checkout) it isn't one."""
+    monkeypatch.setattr(discovery, "__version__", "26.11.12")
+
+
+PLAIN = {"version": "26.11.12", "path": "/api/status"}
 
 
 def test_announces_the_build_when_the_version_is_the_tag_plus_commits(config):

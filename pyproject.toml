@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "metarmap2"
-dynamic = ["version"]  # metarmap.__version__ is the one place to change it
+dynamic = ["version"]  # read from the newest git release tag by metarmap.__version__
 description = "Raspberry Pi METAR map: NeoPixel LEDs, an OLED screen and a web UI"
 readme = "README.md"
 license = { file = "LICENSE" }

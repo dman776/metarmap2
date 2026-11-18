@@ -18,6 +18,8 @@ jobs:
         python-version: ["3.9", "3.11"]
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # the version is read from the git release tags
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
