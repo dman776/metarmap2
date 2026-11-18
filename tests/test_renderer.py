@@ -7,7 +7,7 @@ import pytest
 
 from conftest import airports
 from metarmap.clock import FakeClock
-from metarmap.leds.strip import FakeStrip
+from metarmap.leds.strip import FakeStrip, SkipUnchangedShow
 from metarmap.models import Look, Report
 from metarmap.settings import Settings
 from metarmap.sun import SunTimes
@@ -365,12 +365,10 @@ def test_choose_a_visualizer_by_id_or_number(config, clock):
 # ---- locate -------------------------------------------------------------------------------------------------
 
 
-def test_locate_pulses_and_records(config, clock):
-    r, strip = make(config, clock)
-    shows = strip.shows
+def test_locate_records(config, clock):
+    r, _ = make(config, clock)
     r.locate(4)
     assert r.last_locate == {"pixel": 4, "at": NOON.timestamp()}
-    assert strip.shows > shows
 
 
 def test_locate_ignored_by_exclusive_visualizers(config, clock):
@@ -379,14 +377,14 @@ def test_locate_ignored_by_exclusive_visualizers(config, clock):
     shows = strip.shows
     r.locate(0)
     assert r.last_locate is None
-    assert strip.shows == shows
+    assert strip.shows == shows and r._pulses == {}
 
 
-def test_locate_errors_are_logged_not_raised(config, clock):
+def test_locate_an_led_past_the_strip_only_records(config, clock):
     config.data.led.count = 100  # longer than the strip
     r, _ = make(config, clock)
     r.locate(99)  # no such LED
-    assert r.last_locate["pixel"] == 99
+    assert r.last_locate["pixel"] == 99 and r._pulses == {}
 
 
 # ---- virtual airports -----------------------------------------------------------------------------------------
@@ -1097,7 +1095,7 @@ def test_frozen_animations_wait_for_resume(config, clock, ticks):
 
 
 def test_a_settling_strip_is_sent_every_tick(config, clock, ticks):
-    """Just after a change the strip resends at every frame (SkipUnchangedShow.settling()): those frames still come."""
+    """Just after a change the strip resends at the next frame (SkipUnchangedShow.settling()): that frame comes."""
     r, strip = make(config, clock)
     start = ticks.ms
     strip.settling = lambda: ticks.ms - start < 100
@@ -1105,6 +1103,167 @@ def test_a_settling_strip_is_sent_every_tick(config, clock, ticks):
     r.render()
     tick = r.frame_seconds() * 1000
     assert [t - start for t in shows[:3]] == [0, tick, 2 * tick]
+
+
+class SendingStrip(SkipUnchangedShow, FakeStrip):
+    """A FakeStrip that sends through SkipUnchangedShow as on a Pi: `shows` counts the frames really sent."""
+
+    @property
+    def _post_brightness_buffer(self):
+        return bytes(v for color in self for v in color)
+
+
+def breathing_renderer(config, clock, ticks, n=5):
+    """A renderer whose LEDs all breathe (a 0.2 s step, as Flight Category's estimated categories), on SettlingStrip."""
+    from metarmap.leds.animations import animation_for
+    from metarmap.visualizers import style
+
+    strip = SendingStrip(n)
+    strip._monotonic = lambda: ticks.ms / 1000  # the animations' clock
+    r = Renderer(strip, SimpleNamespace(data=DATA), config, [FLIGHT], SunTimes("Houston", SUN), clock=clock)
+    looks = [Look.pulse((0, 200, 0), period=style.LIGHT_PERIOD, low=style.LIGHT_LOW)] * n
+    r._looks = looks
+    r._animations = [animation_for(look, pixel) for look, pixel in zip(looks, r._pix)]
+    return r, strip
+
+
+def test_a_settling_strip_draws_one_more_frame_per_step(config, clock, ticks):
+    """
+    Breathing LEDs step every 0.2 s: each step is sent, and once more at the next frame (the settling resend), and
+    then nothing until the next step. With a 0.1 s window it was sent at every tick, 0.1 s of each 0.2 s step.
+    """
+    r, strip = breathing_renderer(config, clock, ticks)
+    frames = show_times(strip, ticks)
+    r.render()
+    r.render()
+    steps = r.animations[0].draw_count
+    assert steps >= 9
+    assert len(frames) <= 2 * steps + 2  # a step and its resend (and an idle frame or so)
+    assert strip.shows >= 2 * steps - 1  # every one of those really sent: the resend isn't lost
+    assert not strip.settling()  # ended between two steps
+
+
+# ---- locate() pulses over the running animations ---------------------------------------------------------------
+
+
+def frames_of(strip, ticks):
+    """Records (ms, colors) at each frame the render loop draws."""
+    frames = []
+    show = strip.show
+
+    def recording_show():
+        frames.append((ticks.ms, list(strip)))
+        return show()
+
+    strip.show = recording_show
+    return frames
+
+
+def white(color):
+    return color[0] == color[1] == color[2] > 0
+
+
+def test_other_leds_keep_animating_during_a_locate_pulse(config, clock, ticks):
+    """The pulse stops nothing: the other LEDs breathe on, in the same frames, and the located LED stays in step."""
+    r, strip = breathing_renderer(config, clock, ticks)
+    frames = frames_of(strip, ticks)
+    ticks.after(0.1, lambda: r.locate(0))  # the OLED loop's thread (the fake clock doesn't wait)
+    for _ in range(3):
+        r.render()
+    pulsing = [colors for _, colors in frames if white(colors[0])]
+    assert len(pulsing) >= 5
+    assert len({colors[1] for colors in pulsing}) >= 3  # LED 1 went on breathing meanwhile
+    assert all(not white(colors[1]) for colors in pulsing)  # and only LED 0 pulsed
+    assert r._pulses == {}  # over
+    assert strip[0] == strip[1]  # back to its own look, in step with the others: its animation never stopped
+    assert r.animations[0].draw_count == r.animations[1].draw_count
+
+
+def test_a_locate_pulse_rises_and_falls_once_and_the_led_comes_back(config, clock, ticks):
+    r, strip = make(config, clock)
+    frames = frames_of(strip, ticks)
+    ticks.after(0.2, lambda: r.locate(0))
+    r.render()
+    r.render()
+    levels = [colors[0][0] for _, colors in frames if white(colors[0])]
+    peak = levels.index(max(levels))
+    assert levels[: peak + 1] == sorted(levels[: peak + 1]) and levels[peak:] == sorted(levels[peak:], reverse=True)
+    pulse_frames = [t for t, colors in frames if white(colors[0])]
+    assert 800 <= pulse_frames[-1] - pulse_frames[0] <= 1100  # about LOCATE_SECONDS
+    assert strip[0] == flightcategory.COLORS["VFR"] and strip[1] == flightcategory.COLORS["IFR"]
+
+
+def test_a_rebuild_during_a_locate_pulse_keeps_it(config, clock, ticks):
+    """New data rebuilds the animations mid-pulse: the pulse goes on (once, not again), then the new look shows."""
+    r, strip = make(config, clock)
+    frames = frames_of(strip, ticks)
+    ticks.after(0.1, lambda: r.locate(0))
+    rebuilt = []
+
+    def new_data():
+        rebuilt.append(ticks.ms)
+        r.update_data(SimpleNamespace(data={**DATA, "KHOU": metar("MVFR")}))
+
+    ticks.after(0.5, new_data)
+    for _ in range(3):
+        r.render()  # the main loop: render() returns at the rebuild and is called again
+    assert any(white(colors[0]) for t, colors in frames if t > rebuilt[0])  # still pulsing after it
+    levels = [colors[0][0] for _, colors in frames if white(colors[0])]
+    peak = levels.index(max(levels))
+    assert levels[peak:] == sorted(levels[peak:], reverse=True)  # one pulse, not started over
+    assert r._pulses == {}
+    assert strip[0] == flightcategory.COLORS["MVFR"]  # the new look, not the one from before the rebuild
+
+
+def test_a_visualizer_that_ignores_locate_ends_its_pulse(config, clock, ticks):
+    r, _ = make(config, clock)
+    located = r._start_pulse(0)
+    r.visualizer = 3  # rainbow: it has every LED
+    assert r._pulses == {} and located.done.is_set()
+
+
+def test_a_second_locate_of_the_same_led_takes_over(config, clock, ticks):
+    """The web UI and the OLED loop both locate the same LED: the last one pulses, the first returns."""
+    r, strip = make(config, clock)
+    frames = frames_of(strip, ticks)
+    first = []
+    ticks.after(0.1, lambda: first.append(r._start_pulse(0)))
+    ticks.after(0.6, lambda: r.locate(0))
+    for _ in range(3):
+        r.render()
+    assert first[0].done.is_set()
+    pulse_frames = [t for t, colors in frames if white(colors[0])]
+    assert pulse_frames[-1] - pulse_frames[0] >= 1300  # the second ran its whole second
+    assert r._pulses == {} and strip[0] == flightcategory.COLORS["VFR"]  # what was under the first
+
+
+def test_locate_waits_for_the_pulse_on_its_own_thread(config):
+    """Real time: locate() returns when the pulse is over (the OLED pages follow it), and the LEDs ran meanwhile."""
+    import threading
+    import time
+
+    from metarmap.clock import Clock
+
+    r, strip = make(config, Clock())
+    stop = threading.Event()
+
+    def main_loop():
+        while not stop.is_set():
+            r.render()
+
+    loop = threading.Thread(target=main_loop, daemon=True)
+    loop.start()
+    try:
+        shows = strip.shows
+        started = time.monotonic()
+        r.locate(0)
+        took = time.monotonic() - started
+    finally:
+        stop.set()
+        loop.join(3)
+    assert 0.9 <= took <= 1.5
+    assert strip.shows - shows >= 8  # the loop drew the pulse's frames while locate() waited
+    assert r._pulses == {} and strip[0] == flightcategory.COLORS["VFR"]
 
 
 def test_animations_that_dont_say_when_theyre_due_get_a_steady_tick(config, clock, ticks, caplog):

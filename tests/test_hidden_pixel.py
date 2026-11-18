@@ -575,16 +575,20 @@ def test_a_still_masked_frame_is_sent_once(ticks):
         with r._lock:
             r._darken_hidden()  # the animations are not due: what the loop does with the frame it did not change
             strip.show()
-    assert strip.shows == sent
+    assert strip.shows == sent + 1  # the change sent once more as it settles (SkipUnchangedShow), then skipped
 
 
 def test_locate_ignores_a_hidden_pixel(ticks):
     r, strip, shows = renderer_for(AIRPORTS, FLIGHT)
     before = len(shows)
     r.locate(1)
-    assert r.last_locate is None and len(shows) == before  # nothing pulses, on the strip or on the web map
+    r.render()
+    assert r.last_locate is None  # nothing pulses, on the strip or on the web map
+    assert all(frame[1] == OFF for frame in shows[before:])
     r.locate(0)
-    assert r.last_locate["pixel"] == 0 and len(shows) > before
+    r.render()
+    assert r.last_locate["pixel"] == 0
+    assert any(frame[0][0] == frame[0][1] == frame[0][2] > 0 for frame in shows[before:])  # white
 
 
 def test_the_startup_comet_still_lights_every_led(ticks):
