@@ -118,16 +118,18 @@ def test_skipping_strip_sends_once_until_something_changes():
     strip[0] = (200, 100, 50)
     strip.show()
     strip.now += SETTLE_SECONDS + 0.01
+    strip.show()  # the settling resend
     strip.show()
     strip.show()
-    assert strip.sent == [bytes([100, 50, 25, 0, 0, 0, 0, 0, 0])]
+    assert strip.sent == [bytes([100, 50, 25, 0, 0, 0, 0, 0, 0])] * 2
     strip[1] = (2, 4, 6)
     strip.show()
-    assert len(strip.sent) == 2 and strip.sent[-1][3:6] == bytes([1, 2, 3])
+    assert len(strip.sent) == 3 and strip.sent[-1][3:6] == bytes([1, 2, 3])
     strip.now += SETTLE_SECONDS + 0.01
+    strip.show()  # its settling resend
     strip[1] = (2, 4, 6)  # the same color again: nothing to send
     strip.show()
-    assert len(strip.sent) == 2
+    assert len(strip.sent) == 4
 
 
 def test_skipping_strip_sends_every_frame_just_after_a_change():
@@ -137,12 +139,49 @@ def test_skipping_strip_sends_every_frame_just_after_a_change():
     strip = skipping_strip()
     strip[0] = (200, 100, 50)
     strip.show()
+    strip.now += SETTLE_SECONDS / 3
+    strip.show()
+    strip.now += SETTLE_SECONDS / 3
+    strip.show()
+    assert len(strip.sent) == 3  # a plain change, then the frames inside the window
     strip.now += SETTLE_SECONDS / 2
     strip.show()
-    assert len(strip.sent) == 2
-    strip.now += SETTLE_SECONDS / 2 + 0.01
+    assert len(strip.sent) == 3  # settled
+
+
+def test_skipping_strip_resends_a_change_even_if_the_next_frame_is_late():
+    """A slow frame (a Pi Zero drawing 200 LEDs) can come after the window: the change is still sent once more."""
+    from metarmap.leds.strip import SETTLE_SECONDS
+
+    strip = skipping_strip()
+    strip[0] = (200, 100, 50)
     strip.show()
-    assert len(strip.sent) == 2  # settled
+    strip.now += 2 * SETTLE_SECONDS
+    strip.show()
+    strip.show()
+    assert len(strip.sent) == 2
+
+
+def test_skipping_strip_settles_between_animation_steps():
+    """
+    The shortest animation step is lightning's 0.05 s: a step is sent, once more at the render loop's next frame (a
+    tick, 0.01 s for lightning), and then the strip has settled, before the next step. At 0.1 s it never settled.
+    """
+    from metarmap.leds.strip import SETTLE_SECONDS
+    from metarmap.visualizers.style import LIGHTNING_STEP
+    from metarmap.renderer import FRAME_SECONDS
+
+    assert FRAME_SECONDS < SETTLE_SECONDS < LIGHTNING_STEP
+    strip = skipping_strip()
+    for step in range(3):
+        strip[0] = (step * 10 + 10, 0, 0)  # the step
+        strip.show()
+        assert strip.settling()
+        strip.now += FRAME_SECONDS  # the loop's next frame
+        strip.show()
+        assert not strip.settling()  # settled: the loop waits for the next step
+        strip.now += LIGHTNING_STEP - FRAME_SECONDS
+    assert len(strip.sent) == 6  # each step twice, nothing in between
 
 
 def test_skipping_strip_sends_a_brightness_change_and_a_clear():
@@ -164,16 +203,16 @@ def test_skipping_strip_resends_now_and_then():
     strip = skipping_strip()
     strip.show()
     strip.now += SETTLE_SECONDS + 0.01
-    strip.show()
-    assert len(strip.sent) == 1
-    strip.now += RESEND_SECONDS - SETTLE_SECONDS - 0.11
-    strip.show()
-    assert len(strip.sent) == 1
-    strip.now += 0.1
+    strip.show()  # the settling resend
+    assert len(strip.sent) == 2
+    strip.now += RESEND_SECONDS - 0.1
     strip.show()
     assert len(strip.sent) == 2
+    strip.now += 0.1
     strip.show()
-    assert len(strip.sent) == 2  # and counts again from that send
+    assert len(strip.sent) == 3
+    strip.show()
+    assert len(strip.sent) == 3  # and counts again from that send
 
 
 def test_skipping_strip_sends_every_time_without_the_buffer(caplog):
@@ -236,12 +275,13 @@ def test_open_strip_on_the_pi_skips_unchanged_sends(monkeypatch):
     strip._monotonic = lambda: 100.0
     strip.show()
     strip._monotonic = lambda: 100.5  # after SETTLE_SECONDS, before RESEND_SECONDS
+    strip.show()  # the settling resend
     strip.show()
-    assert len(strip.sent) == 1
+    assert len(strip.sent) == 2
 
 
 def test_skipping_strip_says_while_it_settles():
-    """The render loop asks, so it keeps drawing frames for the settling sends even when no animation is due."""
+    """The render loop asks, so it draws a frame for the settling resend even when no animation is due."""
     from metarmap.leds.strip import SETTLE_SECONDS
 
     strip = skipping_strip()
@@ -250,6 +290,8 @@ def test_skipping_strip_says_while_it_settles():
     strip.show()
     assert strip.settling()
     strip.now += SETTLE_SECONDS + 0.01
+    assert strip.settling()  # until it's been sent again, however late the next frame is
+    strip.show()
     assert not strip.settling()
     strip.show()  # unchanged: still settled
     assert not strip.settling()

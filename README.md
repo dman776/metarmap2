@@ -310,7 +310,8 @@ On **Config > Airports**:
 
 Changes save right away. To check the wiring order:
 - Choose the **Chase** visualizer on the Home page, which lights each pixel in turn.
-- Or use the locate button next to an airport on the **METARs** page, which pulses that airport's pixel.
+- Or use the locate button next to an airport on the **METARs** page, which pulses that airport's pixel white once
+  (the other pixels keep animating).
 
 ## Settings
 

@@ -48,6 +48,9 @@ FADE_STEPS = 12  # at most; about 20 a second
 # the Pi's NeoPixel library ignores a brightness change smaller than 0.001, so each fade step is at least this big
 # (at night, 1% brightness, that means fewer, larger steps; otherwise steps would be dropped and the level drift)
 FADE_MIN_STEP = 0.0011
+LOCATE_SECONDS = 1.0  # a locate() pulse: dark, up to white and back down once, over this long
+LOCATE_SPEED = 0.1  # a step of it
+LOCATE_GRACE = 0.5  # a pulse still on this long after it should have ended (no frames drawn meanwhile) is ended
 
 
 def at_time(look, seconds):
@@ -59,6 +62,46 @@ def at_time(look, seconds):
         return look
     n = int(seconds / look.step) % len(look.colors)
     return replace(look, colors=look.colors[n:] + look.colors[:n])
+
+
+class _Held:
+    """
+    The one LED a locate() pulse draws into: Pulse fills it, and the render loop puts its color on the strip over
+    what the LED's own animation drew. So the pulse never writes the strip itself, and that animation keeps running.
+    """
+
+    auto_write = False
+
+    def __init__(self):
+        self.color = colors_lib.color(colors_lib.OFF)
+
+    def __len__(self):
+        return 1
+
+    def __getitem__(self, i):
+        return self.color
+
+    def fill(self, color):
+        self.color = tuple(color)
+
+    def show(self):
+        pass
+
+
+class _Located:
+    """A locate() pulse over one LED: what's under it, and when it's over."""
+
+    def __init__(self, under, until):
+        self.held = _Held()
+        self.pulse = Pulse(self.held, speed=LOCATE_SPEED, period=LOCATE_SECONDS, color=WHITE)
+        self.pulse.add_cycle_complete_receiver(self._complete)
+        self.under = under  # the LED's own color, as its animation last drew it
+        self.until = until  # monotonic_ms: ended then even if it never finished (no frames were drawn)
+        self.finished = False  # its one pulse is over
+        self.done = threading.Event()  # set when it's off the LED (finished, replaced or dropped): locate() returns
+
+    def _complete(self, _animation):
+        self.finished = True
 
 
 def frame_due(animations, window=0):
@@ -117,9 +160,11 @@ class Renderer:
         self._hidden = ()  # the Hidden Pixels a whole-strip look must leave dark (see _darken_hidden)
         self._animations = []
         self._frozen = None  # the animations stop() froze, until resume()
+        # LED number -> _Located: the locate() pulses on now, drawn by render() over those LEDs' own animations
+        self._pulses = {}
         # (animations, monotonic_ms) when render() draws the next frame of those animations; other ones draw at once
         self._next_frame = (None, 0)
-        # set (never waited on) when the strip must be drawn at once: a brightness change, resume() after locate()
+        # set (never waited on) when the strip must be drawn at once: a brightness change, a locate() pulse, resume()
         self._wake = threading.Event()
         self._warned = False  # logged that the animations don't say when they're next due
         self.last_locate = None  # {"pixel": n, "at": epoch seconds} of the last locate() pulse
@@ -180,6 +225,9 @@ class Renderer:
             if strip_look is None or not lit:
                 for i in range(lit, len(self._pixels)):  # nothing draws them now: dark, not stuck on their last color
                     self._pixels[i] = colors_lib.color(colors_lib.OFF)
+            # a locate() pulse goes on over the new animations (they draw every LED on their first frame, so what's
+            # under it is new too), except on an LED that's no longer lit or under a visualizer that ignores locate()
+            self._end_pulses(lambda n: vis.exclusive or n >= lit, restore=False)
             self._looks, self._strip_look, self._animations, self._hidden = looks, strip_look, animations, hidden
             self._started, self._started_for = started, vis  # the steps count from here (step())
             self._installed = generation
@@ -277,9 +325,11 @@ class Renderer:
         """
         try:
             with self._lock:
+                self._under_pulses()
                 for animation in self._animations:
                     animation.animate(show=False)
                 self._darken_hidden()
+                self._draw_pulses()
                 self._pixels.show()
         except Exception as e:
             log.warning("draw_frame error: " + str(e))
@@ -317,7 +367,7 @@ class Renderer:
         scheduled jobs on time (and calls render() again). The animations keep their place in between: a fade or a
         forecast goes on where it was. Between frames it sleeps until the first animation is next due, in slices of
         at most SLICE_SECONDS, so new animations (new data, visualizer or strip length), a brightness change or the
-        end of a locate() pulse reach the LEDs at once.
+        end of a locate() pulse reach the LEDs at once. A locate() pulse is drawn in the same frames, over its LED.
         """
         try:
             built = self._animations
@@ -328,9 +378,11 @@ class Renderer:
                     if self._animations is not built:
                         break  # rebuilt: the main loop starts the new animations
                     self._wake.clear()
-                    for animation in built:  # each draws into the strip's buffer if it's due...
+                    self._under_pulses()  # a located LED's own color back in the buffer, for its animation...
+                    for animation in built:  # ...each animation draws into the strip's buffer if it's due...
                         animation.animate(show=False)
                     self._darken_hidden()  # ...a whole-strip look leaves the Hidden Pixels dark...
+                    self._draw_pulses()  # ...a locate() pulse goes over its LED...
                     self._pixels.show()  # ...and the strip is sent once per frame
                     self._next_frame = (built, self._next_frame_at(built, tick))
         except Exception as e:
@@ -358,14 +410,14 @@ class Renderer:
         """
         When (monotonic_ms) to draw the next frame: when the first animation is next due, or the last of those due
         within `tick` (frame_seconds()) of it, so LEDs due at nearly the same time share one frame (frame_due()); at
-        least `tick` after this frame and at most IDLE_SECONDS after it. While the strip settles after a change
-        (SkipUnchangedShow.settling(): it's sent at every frame for a moment, e.g. each step of a forecast fade) every
-        `tick`, as before.
+        least `tick` after this frame and at most IDLE_SECONDS after it. A locate() pulse's steps count as one more
+        animation. While the strip settles after a change (SkipUnchangedShow.settling(): it sends the change again at
+        the next frame, e.g. each step of a forecast fade) after `tick`, which is well before the next step.
         """
         now = monotonic_ms()
         soonest, latest = now + tick * 1000, now + IDLE_SECONDS * 1000
         try:
-            due = frame_due(built, window=tick * 1000)
+            due = frame_due(list(built) + [located.pulse for located in self._pulses.values()], window=tick * 1000)
         except LookupError as e:
             if not self._warned:
                 self._warned = True
@@ -384,15 +436,16 @@ class Renderer:
         self._rebuild(keep_step=True)
 
     def stop(self):
-        """Freezes the animations, e.g. while a locate() pulse or a startup sequence has the strip."""
+        """Freezes the animations, e.g. while a startup sequence has the strip (a locate() pulse on now ends)."""
         with self._lock:
+            self._end_pulses(lambda n: True)
             if self._frozen is None:
                 self._frozen = self._animations
                 for animation in self._frozen:
                     animation.freeze()
 
     def resume(self):
-        """Lets the animations stop() froze go on, and draws them at once."""
+        """Lets the animations stop() froze go on, and draws them at once (also the end of a startup sequence)."""
         with self._lock:
             if self._frozen is not None:
                 for animation in self._frozen:
@@ -432,21 +485,82 @@ class Renderer:
 
     def locate(self, pixnum):
         """
-        Pulses one LED white (ignored while an exclusive visualizer is running, and for a Hidden Pixel). A virtual
-        airport has no LED: only the web map pulses it (from last_locate).
+        Pulses one LED white once (ignored while an exclusive visualizer is running, and for a Hidden Pixel). A
+        virtual airport has no LED: only the web map pulses it (from last_locate).
+
+        The pulse goes over that one LED: render() draws its steps in the same frames as every other LED's animation,
+        which all keep running (the LED's own too, underneath), and the LED is back to its own look at the end. Returns
+        when the pulse is over (the OLED loop's pages follow it); only the caller's thread waits, not the LEDs. A
+        second locate() of the same LED meanwhile takes over the pulse, and the first returns.
         """
         if self._vis.exclusive:
             return
         try:
+            n = int(pixnum)
             airports = self._config.data.airports
-            if 0 <= int(pixnum) < len(airports) and airports[int(pixnum)].skip and not airports[int(pixnum)].code:
+            if 0 <= n < len(airports) and airports[n].skip and not airports[n].code:
                 return  # a Hidden Pixel has no airport to find: nothing pulses, on the strip or on the web map
-            self.last_locate = {"pixel": int(pixnum), "at": self._clock.time()}
-            if int(pixnum) >= self._config.data.led.count:
-                return
-            self.animate_once(Pulse(self._pix[int(pixnum)], speed=0.1, period=1, color=WHITE), False)
+            self.last_locate = {"pixel": n, "at": self._clock.time()}
+            located = self._start_pulse(n)
+            if located is not None:
+                self._clock.wait(located.done, LOCATE_SECONDS + LOCATE_GRACE)
         except Exception as e:
             log.exception(f"locate {pixnum}: {e}")
+
+    def _start_pulse(self, n):
+        """
+        Puts a locate() pulse over LED n (taking over one already there) and wakes render(). None if it's ignored: an
+        exclusive visualizer, or no such LED (past led.count or the strip: a virtual airport). Checked in the lock, so
+        a resize() or a visualizer change since locate() looked counts.
+        """
+        with self._lock:
+            if self._vis.exclusive or not 0 <= n < min(self._config.data.led.count, len(self._pixels)):
+                return None
+            before = self._pulses.get(n)
+            # what's under it: the LED's own color, not the pulse it takes over from
+            under = before.under if before is not None else tuple(self._pixels[n])
+            located = _Located(under, monotonic_ms() + (LOCATE_SECONDS + LOCATE_GRACE) * 1000)
+            self._pulses[n] = located
+            if before is not None:
+                before.done.set()
+            self._wake.set()  # its first step now, not at the other animations' next one
+            return located
+
+    def _under_pulses(self):
+        """Puts each located LED's own color back in the strip's buffer, so its animation goes on from there."""
+        for n, located in self._pulses.items():
+            if n < len(self._pixels):
+                self._pixels[n] = located.under
+
+    def _draw_pulses(self):
+        """
+        Steps each locate() pulse if it's due and draws it over its LED, after the frame's animations. A pulse that's
+        over (or overdue: no frames for a while) leaves its LED to its own color, in this frame.
+        """
+        if not self._pulses:
+            return
+        now = monotonic_ms()
+        for n, located in list(self._pulses.items()):
+            if n >= len(self._pixels):  # the strip got shorter
+                self._end_pulse(n, restore=False)
+                continue
+            located.under = tuple(self._pixels[n])  # as the LED's own animation (or none) left it this frame
+            located.pulse.animate(show=False)
+            if located.finished or now >= located.until:
+                self._end_pulse(n)
+            else:
+                self._pixels[n] = located.held.color
+
+    def _end_pulse(self, n, restore=True):
+        located = self._pulses.pop(n)
+        if restore and n < len(self._pixels):
+            self._pixels[n] = located.under
+        located.done.set()
+
+    def _end_pulses(self, which, restore=True):
+        """Ends the locate() pulses on the LEDs `which(n)` picks (in the lock)."""
+        for n in [n for n in self._pulses if which(n)]:
+            self._end_pulse(n, restore)
 
     # ---- visualizers ------------------------------------------------------------------------------------------
 
@@ -605,6 +719,7 @@ class Renderer:
             return
         count = min(self._config.data.led.count, len(self._pixels))
         with self._lock:
+            self._end_pulses(lambda n: True)  # a locate() pulse's LED fades from its own color, not the pulse's white
             sources = [tuple(self._pixels[i]) for i in range(count)]  # what each LED shows now
         self._play_sequence(sequence, lambda t, starts: intro.colors_out_at(t, starts, sources))
 

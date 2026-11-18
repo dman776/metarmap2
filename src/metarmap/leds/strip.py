@@ -17,9 +17,13 @@ OFF = colors_lib.color(colors_lib.OFF)
 # a strip whose colors haven't changed is still sent this often, so an LED that picked up a wrong color (a glitch on
 # the data line) is put right
 RESEND_SECONDS = 1.0
-# and right after a change it's sent at every frame for this long: a glitch that garbles a pixel in the send of a new
-# color (a slow fade, a blink) is put right at once, not a second later
-SETTLE_SECONDS = 0.1
+# and right after a change it's sent again: at the next frame whenever that comes, and at every frame for this long. A
+# glitch that garbles a pixel in the send of a new color (a fade, a blink) is put right at once, not a second later.
+# Shorter than the shortest animation step (lightning's 0.05 s; a forecast or a breath steps every 0.2 s), so the
+# window ends between two steps: at 0.1 s it never did during lightning, and the render loop drew a frame at every
+# tick (100 a second) for as long as an LED flickered. 0.03 s still takes in the frames right after the change (the
+# loop's next one, 0.01-0.05 s later, is resent anyway, however slow the Pi's frames are)
+SETTLE_SECONDS = 0.03
 
 log = logging.getLogger(__name__)
 
@@ -27,9 +31,9 @@ log = logging.getLogger(__name__)
 class SkipUnchangedShow:
     """
     Mixed in before neopixel.NeoPixel: show() sends the strip only when the bytes it would send differ from what it
-    last sent, or RESEND_SECONDS have passed since, and it keeps sending for SETTLE_SECONDS after a change. The render
-    loop calls show() every frame (up to 100 a second), but most frames change nothing, and on the Pi each send is a
-    per-pixel Python loop plus a sleep inside the library.
+    last sent, or RESEND_SECONDS have passed since; after a change it sends once more at the next show(), and at every
+    show() for SETTLE_SECONDS. The render loop calls show() every frame (up to 100 a second), but most frames change
+    nothing, and on the Pi each send is a per-pixel Python loop plus a sleep inside the library.
 
     It compares the library's post-brightness buffer (adafruit_pixelbuf.PixelBuf._post_brightness_buffer: exactly
     what show() hands to the strip), so a new color, fill(), clear() or brightness change is always sent. A library
@@ -39,6 +43,7 @@ class SkipUnchangedShow:
     _sent = None  # a copy of the bytes last sent
     _sent_at = 0.0  # when, by _monotonic()
     _changed_at = float("-inf")  # when the bytes sent last differed from the ones before
+    _resent = True  # whether the last change has been sent again since (the settling resend)
     _monotonic = staticmethod(time.monotonic)
     _warned = False
 
@@ -51,19 +56,25 @@ class SkipUnchangedShow:
             return super().show()
         now = self._monotonic()
         same = self._sent is not None and buffer == self._sent
-        if same and now - self._sent_at < RESEND_SECONDS and now - self._changed_at >= SETTLE_SECONDS:
+        settled = self._resent and now - self._changed_at >= SETTLE_SECONDS
+        if same and now - self._sent_at < RESEND_SECONDS and settled:
             return None
         # copied before it's sent: if another thread changes the buffer meanwhile, the next show() sees a difference
         sent = bytes(buffer)
         result = super().show()
-        if not same:
-            self._changed_at = now
+        if same:
+            self._resent = True
+        else:
+            self._changed_at, self._resent = now, False
         self._sent, self._sent_at = sent, now
         return result
 
     def settling(self):
-        """Whether the last change was sent less than SETTLE_SECONDS ago: the render loop keeps sending until then."""
-        return self._monotonic() - self._changed_at < SETTLE_SECONDS
+        """
+        Whether the last change is still to be sent again: the render loop draws its next frame soon (a tick, not
+        when the next animation is due), and that frame's show() resends it. Ends there, between animation steps.
+        """
+        return not self._resent
 
 
 def skipping_unchanged(base):
