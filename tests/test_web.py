@@ -1929,6 +1929,16 @@ def test_software_controls_in_order(dev_client):
     assert 'id="update-check" data-call' not in card and "Check now</button>" in card
 
 
+def test_software_card_can_be_redrawn_in_place(release_client):
+    c = release_client
+    c.json("/update/check")
+    body = c("/config")[1]
+    assert body.count('id="updates"') == 1  # app.js swaps this one section for the fresh page's
+    assert re.search(r'data-tab="system">System\s*<span class="tab-dot"', body)  # redrawn with it
+    js = c("/static/app.js")[1]
+    assert "refreshUpdateCard" in js and "getElementById('updates')" in js
+
+
 def test_release_picker_in_every_mode(release_client):
     c = release_client
     for channel in ("releases", "latest"):
