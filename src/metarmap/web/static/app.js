@@ -560,42 +560,136 @@
         });
     }
 
-    // Config > System > Software: a new Update to / Branch runs Check now (never installs), the button glowing meanwhile
-    async function checkUpdate() {
-        const channel = document.getElementById('update-channel');
-        const branch = document.getElementById('update-branch');
-        if (channel && channel.value === 'branch' && !(branch && branch.value)) return;  // no branch picked yet
+    // Config > System > Software: a new Update to / Branch saves, then runs Check now (never installs). While it runs
+    // every control of the card is off (checking), so a second change can't save a channel or branch the running
+    // check isn't reading, nor a second check start; the Check button glows meanwhile
+    const UPDATE_CONTROLS = ['update-channel', 'update-branch', 'update-check', 'release-pick', 'update-run'];
+    let checking = false;
+
+    function lockUpdate(on) {
+        checking = on;
+        UPDATE_CONTROLS.forEach(function (id) {
+            const el = document.getElementById(id);
+            if (el) busy(el, on || el.hasAttribute('data-none'));  // data-none: no releases to pick, ever off
+        });
+        document.querySelectorAll('[data-install-release]').forEach(function (el) { busy(el, on || el.hasAttribute('data-none')); });
         const btn = document.getElementById('update-check');
-        busy(btn, true);
-        if (btn) btn.classList.add('loading');
+        if (btn) btn.classList.toggle('loading', on);
+    }
+
+    // Redraws the Software card from the Chart's own /config page, in one swap (no page reload, no flicker), and
+    // binds its controls again. false: it couldn't (network, an answer without the card): the caller reloads.
+    // focused: the id of what had the focus (disabling the controls drops it), to give it back
+    async function refreshUpdateCard(focused) {
+        const ctrl = new AbortController();
+        const timer = setTimeout(function () { ctrl.abort(); }, 10000);  // a Chart that doesn't answer: reload
         try {
-            await call('/update/check');
-            window.location.reload();
+            const res = await fetch('/config', {cache: 'no-store', credentials: 'same-origin', signal: ctrl.signal});
+            if (!res.ok) return false;
+            const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+            const fresh = doc.getElementById('updates');
+            const old = document.getElementById('updates');
+            if (!fresh || !old) return false;
+            old.replaceWith(document.importNode(fresh, true));
+            bindUpdateCard(document.getElementById('updates'));
+            // the System tab's dot says an update is available: the fresh page knows
+            const tab = document.querySelector('.tab[data-tab="system"]');
+            const freshTab = doc.querySelector('.tab[data-tab="system"]');
+            if (tab && freshTab) tab.innerHTML = freshTab.innerHTML;
+            // and so does the header's "Update available" badge, which may come or go
+            const badge = document.querySelector('.update-badge');
+            const freshBadge = doc.querySelector('.update-badge');
+            const nav = document.querySelector('.nav');
+            if (badge && freshBadge) badge.replaceWith(document.importNode(freshBadge, true));
+            else if (badge) badge.remove();
+            else if (freshBadge && nav) nav.after(document.importNode(freshBadge, true));
+            const again = focused && document.getElementById(focused);
+            if (again && !again.disabled) again.focus({preventScroll: true});
+            return true;
         } catch (err) {
-            showOutput('Error', String(err));
-            busy(btn, false);
-            if (btn) btn.classList.remove('loading');
+            return false;
+        } finally {
+            clearTimeout(timer);
         }
     }
 
+    function bindCheckNow(card) {
+        const check = card.querySelector('#update-check');
+        if (check) check.addEventListener('click', function (e) { e.preventDefault(); checkUpdate(); });
+    }
+
+    // a redrawn card's own handlers (the page's first draw binds them with the rest: Install and Update are
+    // delegated from the document): Check now, its settings, its nested Branch row
+    function bindUpdateCard(card) {
+        bindCheckNow(card);
+        card.querySelectorAll('[data-key]').forEach(bindKey);
+        card.querySelectorAll('[data-when]').forEach(bindWhen);
+    }
+
+    // work: what runs while the card is locked (the save, then the check, then the card redrawn).
+    async function checkUpdate(work) {
+        if (checking) return false;  // one at a time, even if a change slipped in before the controls were off
+        const channel = document.getElementById('update-channel');
+        const branch = document.getElementById('update-branch');
+        const focused = document.activeElement && document.activeElement.id;  // before the lock drops it
+        lockUpdate(true);
+        let reloading = false;
+        try {
+            if (work) await work();
+            // no branch picked yet: a change has nothing to check, but Check now always asks (it fills the branch list)
+            if (work && channel && channel.value === 'branch' && !(branch && branch.value)) return true;
+            await call('/update/check');
+            if (!await refreshUpdateCard(focused)) {
+                reloading = true;  // the card couldn't be redrawn: a reload shows it fresh (and stays locked till then)
+                window.location.reload();
+            }
+        } catch (err) {
+            showOutput(err.saving ? 'Could not save' : 'Error', String(err));
+        } finally {
+            if (!reloading) lockUpdate(false);
+        }
+        return true;
+    }
+
+    // puts a select back to what is saved, and its nested rows (the Branch row) with it
+    function restoreSaved(el) {
+        el.value = el.dataset.saved;
+        el.dispatchEvent(new Event('when-refresh'));  // not 'change': that would save and check again
+    }
+
     // config settings: <input data-key="a.b" data-restart> / <select data-key>
-    document.querySelectorAll('[data-key]').forEach(function (el) {
+    function bindKey(el) {
+        const checks = el.hasAttribute('data-check-update');
+        if (checks) el.dataset.saved = el.value;
         el.addEventListener('change', async function () {
             let value = el.type === 'checkbox' ? el.checked : el.value;
             if (value === '' && el.dataset.empty) value = el.dataset.empty;  // a URL can't end in nothing: "-" is empty
-            try {
-                await call('/config/edit/' + el.dataset.key + '/' + encodeURIComponent(value));
+            const save = async function () {
+                try {
+                    await call('/config/edit/' + el.dataset.key + '/' + encodeURIComponent(value));
+                } catch (err) {
+                    if (checks) restoreSaved(el);  // the card shows what is saved
+                    err.saving = true;
+                    throw err;
+                }
+                if (checks) el.dataset.saved = el.value;
                 if (el.hasAttribute('data-restart')) {
                     const banner = document.getElementById('restart-banner');
                     if (banner) banner.hidden = false;
                 }
-            } catch (err) {
-                showOutput('Could not save', String(err));
+            };
+            if (checks) {
+                if (!await checkUpdate(save)) restoreSaved(el);  // a check is running: this change is dropped
                 return;
             }
-            if (el.hasAttribute('data-check-update')) checkUpdate();
+            try {
+                await save();
+            } catch (err) {
+                showOutput('Could not save', String(err));
+            }
         });
-    });
+    }
+    document.querySelectorAll('[data-key]').forEach(bindKey);
 
     // Config > System > Spoken weather: Test plays an airport's report here, or says why it can't. It asks the
     // server even while the Chart leaves it alone after it didn't answer (/config/speak): to try it after a restart
@@ -659,7 +753,7 @@
     // Config: settings nested under another, <div class="sub" data-when="control-id" [data-when-value="v" |
     // data-when-filled]>, show while its switch is on (or its select has that value, or its text box has something).
     // The page is drawn with them already shown or hidden.
-    document.querySelectorAll('[data-when]').forEach(function (group) {
+    function bindWhen(group) {
         const control = document.getElementById(group.dataset.when);
         if (!control) return;
         const update = function () {
@@ -667,7 +761,11 @@
             else group.hidden = 'whenValue' in group.dataset ? control.value !== group.dataset.whenValue : !control.checked;
         };
         control.addEventListener('change', update);
-    });
+        control.addEventListener('when-refresh', update);  // a value put back by script, which fires no change
+    }
+    document.querySelectorAll('[data-when]').forEach(bindWhen);
+    const updatesCard = document.getElementById('updates');
+    if (updatesCard) bindCheckNow(updatesCard);
 
     // Config > Visualizer: the unticked visualizers are saved as a list of ids (visualizer.auto_rotate.skip)
     const rotateBoxes = document.querySelectorAll('[data-rotate]');

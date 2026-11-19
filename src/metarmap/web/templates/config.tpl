@@ -305,6 +305,37 @@
         <h2>Software</h2>
         <div class="set">
             <div>
+                <label class="t" for="update-channel">Update to</label>
+                <div class="d">Releases: the newest release. Latest commit: the newest code on GitHub, released or not, for testing.{{' Branch: the newest commit of a branch on GitHub (dev_mode).' if release['dev_mode'] else ''}}</div>
+            </div>
+            <select autocomplete="off" id="update-channel" data-key="update.channel" data-check-update>
+                % channels = (('releases', 'Releases'), ('latest', 'Latest commit')) + ((('branch', 'Branch'),) if release['dev_mode'] else ())
+                % for value, label in channels:
+                <option value="{{value}}"{{!' selected' if release['channel'] == value else ''}}>{{label}}</option>
+                % end
+            </select>
+        </div>
+        % if release['dev_mode']:
+        % branches = release['branches'] + ([release['branch']] if release['branch'] and release['branch'] not in release['branches'] else [])
+        <div class="sub" data-when="update-channel" data-when-value="branch" id="update-branch-row"{{!'' if release['channel'] == 'branch' else ' hidden'}}>
+        <div class="set">
+            <div>
+                <label class="t" for="update-branch">Branch</label>
+                <div class="d">Branches on GitHub. Push a new one, then Check now to see it here.</div>
+            </div>
+            <select autocomplete="off" id="update-branch" data-key="update.branch" data-check-update>
+                % if not release['branch']:
+                <option value="" selected disabled>Pick a branch</option>
+                % end
+                % for b in branches:
+                <option value="{{b}}"{{!' selected' if b == release['branch'] else ''}}>{{b}}{{'' if b in release['branches'] else ' (not on GitHub)'}}</option>
+                % end
+            </select>
+        </div>
+        </div>
+        % end
+        <div class="set">
+            <div>
                 <span class="t">Running v{{version}}</span>
                 <div class="d">
                     % if release['error']:
@@ -342,55 +373,33 @@
                     % end
                 </div>
             </div>
-            <button class="btn" type="button" id="update-check" data-call="/update/check">Check now</button>
+            <button class="btn" type="button" id="update-check">Check now</button>
         </div>
-        <div class="set">
-            <div>
-                <label class="t" for="update-channel">Update to</label>
-                <div class="d">Releases: the newest release. Latest commit: the newest code on GitHub, released or not, for testing.{{' Branch: the newest commit of a branch on GitHub (dev_mode).' if release['dev_mode'] else ''}}</div>
-            </div>
-            <select id="update-channel" data-key="update.channel" data-check-update>
-                % channels = (('releases', 'Releases'), ('latest', 'Latest commit')) + ((('branch', 'Branch'),) if release['dev_mode'] else ())
-                % for value, label in channels:
-                <option value="{{value}}"{{!' selected' if release['channel'] == value else ''}}>{{label}}</option>
-                % end
-            </select>
-        </div>
-        % if release['dev_mode']:
-        % branches = release['branches'] + ([release['branch']] if release['branch'] and release['branch'] not in release['branches'] else [])
-        <div class="sub" data-when="update-channel" data-when-value="branch" id="update-branch-row"{{!'' if release['channel'] == 'branch' else ' hidden'}}>
-        <div class="set">
-            <div>
-                <label class="t" for="update-branch">Branch</label>
-                <div class="d">Branches on GitHub. Push a new one, then Check now to see it here.</div>
-            </div>
-            <select id="update-branch" data-key="update.branch" data-check-update>
-                % if not release['branch']:
-                <option value="" selected disabled>Pick a branch</option>
-                % end
-                % for b in branches:
-                <option value="{{b}}"{{!' selected' if b == release['branch'] else ''}}>{{b}}{{'' if b in release['branches'] else ' (not on GitHub)'}}</option>
-                % end
-            </select>
-        </div>
-        </div>
-        % end
-        % if release['releases']:
         <div class="set">
             <div>
                 <label class="t" for="release-pick">Install a release</label>
                 <div class="d">Any release, older ones too. Your settings are kept.</div>
             </div>
             <div class="release-pick">
-                <select id="release-pick">
+                <select autocomplete="off" id="release-pick"{{!'' if release['releases'] else ' disabled data-none'}}>
+                    % if not release['releases']:
+                    <option value="" selected>No releases yet</option>
+                    % end
                     % for r in release['releases']:
                     <option value="{{r['tag']}}"{{!' data-older="true"' if r['older'] else ''}}{{!' selected' if r['running'] else ''}}>{{r['tag']}}{{' (running)' if r['running'] else ''}}</option>
                     % end
                 </select>
-                <button class="btn" type="button" data-install-release>Install</button>
+                <button class="btn" type="button" data-install-release{{!'' if release['releases'] else ' disabled data-none'}}>Install</button>
             </div>
         </div>
-        % end
+        % newer = release['available'] and not release['installed']
+        <div class="set">
+            <div>
+                <span class="t">Update</span>
+                <div class="d">Installs what Update to says, then restarts the Chart. Your settings are kept.</div>
+            </div>
+            <button class="btn{{' primary' if newer else ''}}" type="button" id="update-run" data-update>Update</button>
+        </div>
     </section>
     % end
 

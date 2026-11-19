@@ -154,11 +154,11 @@ change one, a banner at the top offers **Restart now**.
 
 ![Config with the restart banner: "Some changes take effect after the map restarts" and a Restart now button, above the Physical display tab where Data pin and Color order are tagged Restart](docs/images/config_restart_banner.png)
 
-Config, System: **Software** (the version running, **Check now**, the release channel and **Install a release**),
+Config, System: **Software** (**Update to**, **Check now**, **Install a release** and **Update**),
 **Spoken weather** (the speech server, Pronunciation, Spoken ATIS and a Test button) and **Access** (the Chart's name on
 the network, the web login and the Wi-Fi network):
 
-![Config, System, Software: the running version, Check now, Update to and Install a release](docs/images/config_system_software.png)
+![Config, System, Software: Update to, the running version with Check now, Install a release and Update](docs/images/config_system_software.png)
 
 ![Config, System, Spoken weather: Enable speech, the Kokoro speech server, voice, speed, time limit, Pronunciation, Spoken ATIS and Test](docs/images/config_system_spoken_weather.png)
 
@@ -363,11 +363,16 @@ pages) reloads by itself when you come back to it, or within 5 minutes if you ar
 version and commit, so a branch install (same version, new code) reloads it too. A page you are typing in waits.
 
 **Config > System > Software** has more:
-- **Check now** asks GitHub straight away.
+- The controls run top to bottom: **Update to**, the **Branch** (only in dev_mode, with Branch picked), the running
+  version with **Check now**, **Install a release** and **Update**.
+- **Check now** asks GitHub straight away. Changing **Update to** or the branch checks too (it never installs). While a
+  check runs, the whole card is off, so a second change can't start before the first check is done. When it ends, the
+  card, the header's update badge and the System tab's dot redraw in place.
 - **Update to**: **Releases** (the default) installs only released versions, and never goes back to an older one.
   **Latest commit** installs the newest code on GitHub, released or not. Use it on a Chart you test changes on.
-- **Install a release** installs any release, older ones too, to go back if a new one has a problem. It asks first
-  before going back.
+- **Install a release** installs any release, older ones too, whichever **Update to** says, to go back if a new one has a
+  problem. It asks first before going back.
+- **Update** installs what **Update to** says.
 
 Or, over SSH, the newest release:
 

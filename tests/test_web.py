@@ -1898,7 +1898,7 @@ def test_no_branch_choice_without_dev_mode(release_client):
     body = c("/config")[1]
     assert '<option value="branch"' not in body and 'id="update-branch"' not in body
     assert 'id="update-channel" data-key="update.channel" data-check-update>' in body
-    assert 'id="update-check" data-call="/update/check"' in body
+    assert 'id="update-check"' in body and 'data-call="/update/check"' not in body  # app.js runs it, locking the card
     assert c("/config/edit/update.channel/branch")[0] == 400
     assert c("/config/edit/dev_mode/true")[0] == 400  # config.json only
     assert c.services.config.data.dev_mode is False
@@ -1915,6 +1915,53 @@ def test_dev_mode_lists_the_branches(dev_client):
     assert 'id="update-channel" data-key="update.channel" data-check-update>' in body
     assert '<option value="feature/radar">feature/radar</option>' in body
     assert c.json("/api/status", auth=False)["update"]["branches"] == ["feature/radar", "master"]
+
+
+def test_software_controls_in_order(dev_client):
+    c = dev_client
+    c.services.releases.check()
+    card = c("/config")[1].split('id="updates"', 1)[1].split('id="speech"', 1)[0]
+    marks = ['id="update-channel"', 'id="update-branch"', 'id="update-check"', 'id="release-pick"', 'id="update-run"']
+    places = [card.index(m) for m in marks]
+    assert places == sorted(places), places
+    assert "data-install-release" in card and "data-update" in card
+    assert card.count('autocomplete="off"') == 3  # Firefox keeps a disabled state over a reload otherwise
+    assert 'id="update-check" data-call' not in card and "Check now</button>" in card
+
+
+def test_software_card_can_be_redrawn_in_place(release_client):
+    c = release_client
+    c.json("/update/check")
+    body = c("/config")[1]
+    assert body.count('id="updates"') == 1  # app.js swaps this one section for the fresh page's
+    assert re.search(r'data-tab="system">System\s*<span class="tab-dot"', body)  # redrawn with it
+    js = c("/static/app.js")[1]
+    assert "refreshUpdateCard" in js and "update-badge" in js and "getElementById('updates')" in js
+
+
+def test_release_picker_in_every_mode(release_client):
+    c = release_client
+    for channel in ("releases", "latest"):
+        c("/config/edit/update.channel/" + channel)
+        c.services.releases.check()
+        body = c("/config")[1]
+        assert 'id="release-pick"' in body and "data-install-release" in body, channel
+        assert '<option value="v2.7.0"' in body
+
+
+def test_release_picker_without_releases_is_off(make_app):
+    from metarmap.releases import ReleaseCheck
+
+    app = make_app()
+    app.releases = ReleaseCheck(channel=lambda: "releases", current="2.8.4", git=fake_git(tags=()))
+    app.releases.check()
+    c = Client(create_app(app, ip="10.0.0.2"))
+    try:
+        body = c("/config")[1]
+    finally:
+        app.display.stop()
+    assert 'id="release-pick" disabled data-none' in body and "No releases yet" in body
+    assert "data-install-release disabled data-none" in body
 
 
 def test_update_from_a_branch(dev_client):

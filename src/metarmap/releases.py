@@ -134,6 +134,7 @@ class ReleaseCheck:
         self._git = git or (lambda *args: update.run_git(self._repo, *args, timeout=CHECK_TIMEOUT))
         self._clock = clock
         self._lock = threading.Lock()
+        self._check_lock = threading.Lock()  # one check at a time, so the newest settings win
         self._found = {"releases": [], "branches": [], "available": None, "checked": None, "error": None}
         self.installed = None  # what an update installed: it runs after the next restart
         self.build = None  # what's running: load_build() reads it once, when the map starts
@@ -147,7 +148,15 @@ class ReleaseCheck:
         return self.build
 
     def check(self):
-        """Asks GitHub what's newest. Never raises: a failure is kept as state()["error"]. Returns state()."""
+        """
+        Asks GitHub what's newest. Never raises: a failure is kept as state()["error"]. Returns state().
+        Checks run one at a time (two browsers, or the background check and a button), each reading the channel and
+        branch when it starts, so the last one to run is the last to write.
+        """
+        with self._check_lock:
+            return self._check()
+
+    def _check(self):
         channel = self._channel()
         try:
             tags = [
