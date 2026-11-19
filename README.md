@@ -194,7 +194,8 @@ second to leave it out of auto-rotate: its icon dims and a small **skip** badge 
 Hold it again to put it back ("back in rotation"). A plain tap still picks it, skipped or not. Rainbow and Chase are
 always left out of auto-rotate, so they can't be skipped, and the last visualizer auto-rotate still shows can't be
 skipped either. It's the same list as
-Config > Visualizers > *Visualizers in auto-rotate*, kept on the Chart.
+Config > Visualizers > *Visualizers in auto-rotate*, kept on the Chart. During the Chart's quiet hours the Cockpit
+dims itself to about 5% brightness; a touch wakes it (and presses nothing) for 30 seconds.
 
 The Cockpit's **Map** tab has the visualizer name between arrows in the map itself; tap the name to pick any visualizer from a grid of icons, as on the Map page
 (on the Cockpit it is a tap, on the Map page a tap or a click).

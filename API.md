@@ -165,6 +165,7 @@ What the physical map is doing right now. The Map page polls it every second. No
 {
   "now": 1792854523.9,
   "brightness": 0.5,
+  "quiet": false,
   "visualizer": { "active": 0, "id": "flight_category", "name": "Flight Category", "shortName": "Flight Cat",
                   "icon": "plane", "iconRev": "7cb23636", "exclusive": false, "areas": null,
                   "autoRotate": { "enabled": true, "seconds": 60, "next": 1792854560.0, "skip": ["wind"] },
@@ -192,6 +193,7 @@ What the physical map is doing right now. The Map page polls it every second. No
 
 | Field | Description |
 |---|---|
+| `quiet` | `true` while quiet hours (`led.quiet_hours`) are active now, `false` otherwise and when they're disabled. The Cockpit dims itself to a near-black overlay while it is `true` (a touch wakes it for 30 seconds), and the Copilot can do the same. Worked out from the clock alone, no extra I/O. A client that doesn't know it can ignore it |
 | `leds[].lat`, `leds[].lon` | Where the airport is: from its METAR, or for an airport without a report, from aviationweather.gov's station information. `null` if neither knows it. `raw` is `null` for an airport without a report. |
 | `leds[].look` | The pixel's current effect: `solid`, `off`, `blink` (`period` seconds per on/off cycle; with two `colors` it alternates between them instead of turning off), `pulse` (`period`; `low`, if present, is its dimmest point, e.g. `0.3`, otherwise it fades to off), or `cycle` (steps through a loop of frames, `step` seconds each). Colors are CSS hex colors. A `cycle` look is sent as a palette plus runs, which keeps a Flight Category Forecast pixel to a few hundred bytes: `colors` are the distinct colors in order of first appearance, and `runs` is `[[colorIndex, frames], ...]` (`colorIndex` indexes into `colors`, `frames` is how many consecutive frames show it). The runs are one full loop, which the client repeats; the last run may repeat the first run's color. At time `t` the frame is `floor(t / step) % total`, `total` being the sum of the runs' frame counts. `runs` is present only when `effect` is `cycle`; for every other effect `colors` is as before. A client that read `colors` as the whole sequence must use `runs` to expand it. |
 | `leds[].wind` | While a wind visualizer runs (Wind, Wind Gusts, Wind Direction): the airport's wind for its barb on the Map page, `{"dir": 270.0, "kt": 12}` (the direction it blows from, and the sustained speed). `null` when it's calm, variable (`VRB`), has no direction or no report, and for every other visualizer. |

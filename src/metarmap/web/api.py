@@ -262,6 +262,8 @@ def live(services: Services, now=None, leds=None):
     return {
         "now": now if now is not None else time.time(),
         "brightness": renderer.pixels().brightness,
+        # whether quiet hours (led.quiet_hours) are on now: the Cockpit and Copilot dim themselves meanwhile
+        "quiet": renderer.quiet_hours_active(),
         "visualizer": {
             "active": active_num,
             "id": active_vis.id,

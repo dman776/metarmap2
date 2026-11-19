@@ -920,10 +920,29 @@ def test_live(services):
     assert cycle["runs"][:3] == [[0, 3], [1, 2], [0, 3]]
     assert sum(n for _, n in cycle["runs"]) == 80  # 4 s of 0.05 s frames
     json.dumps(live)
+    assert live["quiet"] is False  # quiet hours are off
     assert (live["visualizer"]["shortName"], live["visualizer"]["icon"]) == ("Flight Cat", "plane")
     assert live["display"] == {"enabled": True, "on": True, "screen": {"kind": "message", "title": "MAP"}}
     services.config.data.display_screen.enabled = False
     assert api.live(services)["display"] == {"enabled": False, "on": False, "screen": None}
+
+
+def test_live_says_when_quiet_hours_are_active(services, monkeypatch):
+    quiet = services.config.data.led.quiet_hours
+    quiet.start, quiet.end = "00:00", "23:59"
+    assert api.live(services)["quiet"] is False  # disabled
+    quiet.enabled = True
+    monkeypatch.setattr("metarmap.renderer.quiet_hours_active", lambda now, qh: qh.enabled)
+    assert api.live(services)["quiet"] is True
+    monkeypatch.setattr("metarmap.renderer.quiet_hours_active", lambda now, qh: False)
+    assert api.live(services)["quiet"] is False
+
+
+def test_cockpit_has_the_quiet_hours_overlay(client):
+    body = client("/remote")[1]
+    assert 'id="r-dim"' in body
+    js = client("/static/remote.js")[1]
+    assert "live.quiet" in js
 
 
 # ---- cheap payloads: compact JSON, gzip when asked, leds[] made once per change, /api/version ----------------------
