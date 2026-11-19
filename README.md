@@ -187,13 +187,14 @@ Planning alone never changes the Chart. When a plan has finished, **Apply to thi
 
 ### Cockpit
 
-MetarMap2 Cockpit, at `/remote`, is a remote control for a tablet in kiosk mode, here on an iPad in landscape: pick a visualizer, or, on the
-**Info** tab, press an airport to find its pixel (**Locate**), or, with spoken weather on, to hear its **AWOS** or
-**ATIS**. Press and hold a visualizer for about half a second to leave it out of auto-rotate: its icon dims and a
-small **skip** badge shows, and a message says "skipped". Hold it again to put it back ("back in rotation"). A
-plain tap still picks it, skipped or not. Rainbow and Chase are always left out of auto-rotate, so they can't be
-skipped, and the last visualizer auto-rotate still shows can't be skipped either. It's the same list as Config >
-Visualizers > *Visualizers in auto-rotate*, kept on the Chart.
+MetarMap2 Cockpit, at `/remote`, is a remote control for a tablet in kiosk mode, here on an iPad in landscape: pick a
+visualizer, or, on the **Info** tab, press an airport to find its pixel (**Locate**), or, with spoken weather on, to hear
+its **AWOS** (the bar shows the raw METAR while it plays) or **ATIS**. Press and hold a visualizer for about half a
+second to leave it out of auto-rotate: its icon dims and a small **skip** badge shows, and a message says "skipped".
+Hold it again to put it back ("back in rotation"). A plain tap still picks it, skipped or not. Rainbow and Chase are
+always left out of auto-rotate, so they can't be skipped, and the last visualizer auto-rotate still shows can't be
+skipped either. It's the same list as
+Config > Visualizers > *Visualizers in auto-rotate*, kept on the Chart.
 
 The Cockpit's **Map** tab has the visualizer name between arrows in the map itself; tap the name to pick any visualizer from a grid of icons, as on the Map page
 (on the Cockpit it is a tap, on the Map page a tap or a click).
