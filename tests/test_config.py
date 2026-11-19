@@ -293,12 +293,17 @@ def test_parallel_changes_all_land(config, tmp_path):
     import threading
 
     config.set_led_count(40)
-    threads = [threading.Thread(target=config.set_airport, args=(i, "code", f"K{i:03d}")) for i in range(40)]
-    threads += [threading.Thread(target=config.set_airport, args=(i, "name", f"Airport {i}")) for i in range(40)]
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join()
+
+    def run_all(key, value):
+        threads = [threading.Thread(target=config.set_airport, args=(i, key, value(i))) for i in range(40)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+    # a new code clears the airport's name (the old one's), so the names come after the codes, however busy the machine
+    run_all("code", lambda i: f"K{i:03d}")
+    run_all("name", lambda i: f"Airport {i}")
     saved = json.loads((tmp_path / "config.json").read_text())
     assert [a["code"] for a in saved["airports"]] == [f"K{i:03d}" for i in range(40)]
     assert [a["name"] for a in saved["airports"]] == [f"Airport {i}" for i in range(40)]
