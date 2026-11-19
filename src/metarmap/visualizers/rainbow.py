@@ -4,7 +4,8 @@ Rainbow: a rainbow across the whole strip; not based on weather.
 
 import metarmap.lib.colors as colors_lib
 from metarmap.models import Look
-from metarmap.visualizers.visualizer import Visualizer, legend_item
+from metarmap.visualizers.legend import legend_item
+from metarmap.visualizers.visualizer import Visualizer
 
 
 def legend(settings):

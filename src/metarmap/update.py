@@ -12,6 +12,9 @@ import subprocess
 import sys
 import tempfile
 
+from metarmap.lib import versions
+from metarmap.settings import BRANCH_NAME
+
 log = logging.getLogger(__name__)
 
 CONFIG_FILES = ("config.json", "airports.json")
@@ -100,9 +103,7 @@ def run_update(repo=None, progress=None, channel="releases", version=None, curre
     progress: optional callback(fraction 0..1, label) for the web UI's progress bar.
     Returns an UpdateResult.
     """
-    from metarmap import __version__
-    from metarmap.lib import versions
-    from metarmap.settings import BRANCH_NAME
+    from metarmap import __version__  # here, not at the top: metarmap/__init__.py imports this module to read it
 
     repo = repo or os.getcwd()
     current = current or __version__
@@ -254,8 +255,6 @@ def install_newest_release(repo):
     "branch" (a map for testing), or if
     the code has changes (config.json and airports.json aside). Not ok: GitHub couldn't be reached, or has no releases.
     """
-    from metarmap.lib import versions
-
     try:
         with open(os.path.join(repo, "config.json")) as f:
             data = json.load(f)

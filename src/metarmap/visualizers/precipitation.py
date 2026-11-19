@@ -15,7 +15,8 @@ import metarmap.lib.colors as colors_lib
 from metarmap.decode import parse_weather
 from metarmap.models import Look, Report
 from metarmap.visualizers import style
-from metarmap.visualizers.visualizer import Visualizer, legend_item
+from metarmap.visualizers.legend import legend_item
+from metarmap.visualizers.visualizer import Visualizer
 
 log = logging.getLogger(__name__)
 

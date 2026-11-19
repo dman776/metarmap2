@@ -13,7 +13,8 @@ import metarmap.lib.colors as colors_lib
 from metarmap.decode import estimate_category
 from metarmap.models import FlightCategory as Category, Look, Report
 from metarmap.visualizers import style
-from metarmap.visualizers.visualizer import Visualizer, legend_item
+from metarmap.visualizers.legend import legend_item
+from metarmap.visualizers.visualizer import Visualizer
 
 
 ESTIMATE_PERIOD = 4.0  # seconds per breath of an estimated category

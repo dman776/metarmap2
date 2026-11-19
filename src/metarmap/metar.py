@@ -16,6 +16,7 @@ import requests
 from metarmap import USER_AGENT, http, remarks
 from metarmap.body import TREND_KINDS
 from metarmap.clock import Clock
+from metarmap.decode import estimate_category, parse_weather_group
 from metarmap.models import Report, SkyLayer
 
 log = logging.getLogger(__name__)
@@ -187,8 +188,6 @@ def parse_raw(raw, now) -> Report:
     (NOSIG, BECMG, TEMPO): like the JSON, the weather and clouds are what's observed, not what's forecast (Report.body
     reads the trend). Raises ValueError if it doesn't start like a METAR, or for a visibility over zero (1/0SM).
     """
-    from metarmap.decode import estimate_category, parse_weather_group
-
     raw = " ".join(str(raw or "").split())
     tokens = raw.split(" RMK ")[0].split()
     if tokens and tokens[0] in ("METAR", "SPECI"):

@@ -11,7 +11,7 @@ import threading
 import time
 import uuid
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 import bottle
 
@@ -27,9 +27,7 @@ from metarmap.spoken import spoken
 from metarmap.visualizers import advisories as advisories_vis, tfr as tfr_vis, wind_direction
 from metarmap.visualizers.visualizer import ID as ICON_NAME  # icon names look like visualizer ids
 from metarmap.web import icons, views
-
-if TYPE_CHECKING:  # app.py imports the web, so only for the type checker
-    from metarmap.app import App
+from metarmap.web.services import Services
 
 # each airport's report fields in /api/status (Report.to_api()'s names), in this order
 STATUS_FIELDS = (
@@ -48,7 +46,7 @@ STATUS_FIELDS = (
 )
 
 
-def status(services: "App", ip):
+def status(services: Services, ip):
     """
     Read-only snapshot of the map state.
     """
@@ -148,7 +146,7 @@ def status(services: "App", ip):
     }
 
 
-def update_state(services: "App"):
+def update_state(services: Services):
     """What's newest on GitHub (see metarmap.releases); null for a map without the check."""
     releases = services.releases
     if releases is None:
@@ -174,27 +172,23 @@ def wind_barb(metar: Optional[Report]):
     return {"dir": direction, "kt": speed}
 
 
-def auto_rotate(services: "App"):
+def auto_rotate(services: Services):
     """Auto-rotate: whether it's on, its delay, and when it next changes the visualizer (Unix time; None when off)."""
-    from metarmap.app import next_rotation  # here: app.py imports the web
-
     rotate = services.config.data.visualizer.auto_rotate
     return {
         "enabled": rotate.enabled,
         "seconds": rotate.delay_seconds,
-        "next": next_rotation(services),
+        "next": services.next_rotation(),
         "skip": list(rotate.skip),  # the ids it leaves out (visualizer.auto_rotate.skip)
     }
 
 
-def fetch_schedule(services: "App"):
+def fetch_schedule(services: Services):
     """When METARs are next fetched, that wait's length, and when they were last fetched (Unix times)."""
-    from metarmap.app import next_fetch  # here: app.py imports the web
-
-    return next_fetch(services)
+    return services.next_fetch()
 
 
-def live_leds(services: "App", led_looks, barbs):
+def live_leds(services: Services, led_looks, barbs):
     """Every airport's entry in /api/live's leds[]: report, position and look (`led_looks`: Renderer.led_states())."""
 
     def num(v):
@@ -232,7 +226,7 @@ def live_leds(services: "App", led_looks, barbs):
     return leds
 
 
-def live(services: "App", now=None, leds=None):
+def live(services: Services, now=None, leds=None):
     """
     What the physical map is doing right now: every LED's effect, the OLED screen and the last locate pulse.
     leds: the leds[] entries when they're already made (see LiveLeds); else they're built here.
@@ -293,7 +287,7 @@ class LiveLeds:
     poll from several threads.
     """
 
-    def __init__(self, services: "App"):
+    def __init__(self, services: Services):
         self._services = services
         self._lock = threading.Lock()
         self._key = None
@@ -340,7 +334,7 @@ class LiveLeds:
 LEDS_PLACEHOLDER = "leds-" + uuid.uuid4().hex  # unguessable: no airport or setting can spell it
 
 
-def live_json(services: "App", cache: LiveLeds):
+def live_json(services: Services, cache: LiveLeds):
     """/api/live as compact JSON text, with leds[] from `cache`."""
     body = dumps(live(services, leds=LEDS_PLACEHOLDER))
     marker = f'"{LEDS_PLACEHOLDER}"'
@@ -349,7 +343,7 @@ def live_json(services: "App", cache: LiveLeds):
     return body.replace(marker, cache.text(), 1)
 
 
-def metar(services: "App", code):
+def metar(services: Services, code):
     """
     One airport's METAR, raw and decoded (the Map page's popup). None if the airport isn't on the map.
     """
@@ -388,7 +382,7 @@ def faa_status(m):
     }
 
 
-def spoken_report(services: "App", code):
+def spoken_report(services: Services, code):
     """One airport's METAR as text to be read aloud (see metarmap.spoken); None if the airport isn't on the map."""
     airports = {a.code: a for a in services.config.airports if a.code}
     if code not in airports:
@@ -398,7 +392,7 @@ def spoken_report(services: "App", code):
     return spoken(m, airports[code].name or (m.name if m else ""), code, tunings)
 
 
-def atis_airports(services: "App"):
+def atis_airports(services: Services):
     """The map's airports with a spoken ATIS to ask for: speech on with a server, speech.atis on, and a D-ATIS."""
     atis = services.atis
     if atis is None or services.speech is None or not configured(services.config.data.speech):
@@ -406,7 +400,7 @@ def atis_airports(services: "App"):
     return atis.available()
 
 
-def atis_transcript(services: "App", code):
+def atis_transcript(services: Services, code):
     """
     One airport's ATIS line by line, for reading along: {"code", "lines": [{"raw": the FAA's text, "said": how it's
     read}], "entries": [{"type", "code" (its letter), "time", "updatedAt"}]}. Raises AtisError.
@@ -429,12 +423,12 @@ def atis_transcript(services: "App", code):
     }
 
 
-def atis_report(services: "App", code):
+def atis_report(services: Services, code):
     """One airport's ATIS as text to be read aloud (see metarmap.atis_spoken). Raises AtisError."""
     return " ".join(line["said"] for line in atis_transcript(services, code)["lines"] if line["said"])
 
 
-def atis_overview(services: "App"):
+def atis_overview(services: Services):
     """The map's airports with an ATIS: {code: [{"type", "code" (its letter), "time", "updatedAt"}]}."""
     atis = services.atis
     if atis is None:
@@ -451,7 +445,7 @@ def atis_overview(services: "App"):
     return found
 
 
-def spoken_reports(services: "App"):
+def spoken_reports(services: Services):
     """Every airport's spoken METAR, {code: text}, in the map's order."""
     return {a.code: spoken_report(services, a.code) for a in services.config.airports if a.code}
 
@@ -472,13 +466,13 @@ def traffic_view(query):
     return lat, lon, nm
 
 
-def traffic(services: "App", view=None):
+def traffic(services: Services, view=None):
     """Live traffic around the view, or the airports (see metarmap.traffic), as JSON text; None for a map without it."""
     found = services.traffic
     return found.snapshot_json(view) if found is not None else None
 
 
-def advisories(services: "App"):
+def advisories(services: Services):
     """The G-AIRMET and SIGMET areas below 18,000 ft (metarmap.advisories), each with its color, for the Map page."""
     found = services.advisories
     if found is None:
@@ -488,7 +482,7 @@ def advisories(services: "App"):
     return state
 
 
-def tfrs(services: "App"):
+def tfrs(services: Services):
     """The TFRs in effect or starting within 24 hours (metarmap.tfr), each with its type's color, for the Map page."""
     found = services.tfrs
     if found is None:
@@ -508,7 +502,7 @@ def as_json(data):
     return dumps(data)
 
 
-def version(services: "App"):
+def version(services: Services):
     """
     What the Chart runs, {"version", "commit"}: what every page polls to see an update (a few bytes, /api/status is
     90 KB). commit is the running code's 7-character commit, null without git; a branch install keeps its version
@@ -537,7 +531,7 @@ def as_text(text, code):
     return text
 
 
-def as_audio(services: "App", code, force=False):
+def as_audio(services: Services, code, force=False):
     """An airport's METAR read aloud (WAV), by the speech server (speech.engine: Piper over Wyoming, or Kokoro). 404:
     not on the map; 503: no server is set, or the server is left alone a while after it didn't answer; 504: it didn't
     answer in speech.timeout; 502: the server failed or couldn't be reached. Errors are plain text. force: ask the
@@ -561,7 +555,7 @@ def as_audio(services: "App", code, force=False):
 SAY_MAX = 200
 
 
-def as_said_audio(services: "App", text: str):
+def as_said_audio(services: Services, text: str):
     """
     Some words read aloud (WAV), as the speech server says them: the Pronunciation page's Play beside a tuning, to
     hear a "say it as" before saving it. 400: no words, or too many; 502, 503 and 504 as for as_audio(). It asks the
@@ -590,7 +584,7 @@ def as_error(e):
     return str(e)
 
 
-def as_atis_text(services: "App", code):
+def as_atis_text(services: Services, code):
     try:
         text = atis_report(services, code)
     except AtisError as e:
@@ -599,7 +593,7 @@ def as_atis_text(services: "App", code):
     return text
 
 
-def as_atis_audio(services: "App", code):
+def as_atis_audio(services: Services, code):
     """An airport's ATIS read aloud (WAV), by the speech server. 404: not on the map, or no ATIS; 503: speech or
     spoken ATIS is off, or the speech server is left alone a while; 504: it didn't answer in speech.timeout; 502:
     atis.info or the speech server failed. Errors are plain text."""
@@ -615,14 +609,14 @@ def as_atis_audio(services: "App", code):
     return byte_range(clip)
 
 
-def as_atis_transcript(services: "App", code):
+def as_atis_transcript(services: Services, code):
     try:
         return as_json(atis_transcript(services, code))
     except AtisError as e:
         return as_error(e)
 
 
-def as_atis_overview(services: "App"):
+def as_atis_overview(services: Services):
     try:
         return as_json(atis_overview(services))
     except AtisError as e:
@@ -673,7 +667,7 @@ def byte_range(body: bytes) -> bytes:
     return body[start:end]
 
 
-def add_routes(app, services: "App", site):
+def add_routes(app, services: Services, site):
     leds = LiveLeds(services)
     app.route("/api/status", "GET", lambda: as_json_text(dumps(status(services, site.ip))))
     app.route("/api/version", "GET", lambda: version(services))

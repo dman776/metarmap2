@@ -7,8 +7,9 @@ import re
 from dataclasses import dataclass
 from typing import Callable, List, Optional
 
-import metarmap.lib.colors as colors_lib
 from metarmap.models import Look, Report
+from metarmap.visualizers import style
+from metarmap.visualizers.legend import legend_item
 
 # Visualizer.areas: the areas the Map page can draw, each from /api/<areas>
 AREAS = ("advisories", "tfrs")
@@ -102,32 +103,6 @@ class Visualizer:
         return self.strip_look is not None
 
 
-def legend_item(label, detail, *colors, effect="solid", period=None, low=None, key=None):
-    """
-    One entry of a visualizer legend, shown in the web UI.
-    Args:
-        label (str): what the entry represents (ie. "VFR", "5-10 kts")
-        detail (str): how the LED looks (ie. "Green", "Purple to blue")
-        colors: (green, red, blue) colors (lib/colors.py); two or more are drawn as a gradient. None/empty = LED off
-        effect (str): solid, blink, pulse, flash (first color with flashes of the second), alternate (two colors in
-            turn), chase or off
-        period (float): seconds per blink/pulse cycle, if any
-        low (float): a pulse's dimmest point (0.3: never dark)
-        key (str): what a Look's legend names this entry by (Look.tagged); the label unless that changes with the
-            settings or is shared by several visualizers (style.MISSING, ...)
-    """
-    css = [colors_lib.to_css(c) for c in colors if c is not None]
-    return {
-        "key": key if key is not None else label,
-        "label": label,
-        "detail": detail,
-        "colors": css,
-        "effect": effect if css else "off",
-        "period": period,
-        "low": low,
-    }
-
-
 # ---- using a visualizer -----------------------------------------------------------------------------------------
 
 
@@ -160,8 +135,6 @@ def look(vis, metar, settings) -> Look:
     One airport's look: the visualizer's, with lightning over it when the airport has some. Missing data is off
     instead of a red blink with visualizer.missing_data_blink off.
     """
-    from metarmap.visualizers import style  # style uses legend_item() from here
-
     base = vis.look(metar, settings)
     if not settings.visualizer.missing_data_blink and base == style.missing():
         base = Look.off().tagged(*base.legend)  # still the "missing" entry, which then says Off
@@ -175,8 +148,6 @@ def legend(vis, settings) -> List[dict]:
     The visualizer's legend, with lightning before "METAR not available" (or last) when it shows lightning, and
     missing data as off with visualizer.missing_data_blink off.
     """
-    from metarmap.visualizers import style
-
     items = list(vis.legend(settings))
     if shows_lightning(vis, settings):
         at = next((n for n, item in enumerate(items) if item["effect"] == "off"), len(items))

@@ -14,7 +14,7 @@ import re
 import threading
 import time
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 import bottle
 
@@ -22,12 +22,10 @@ from metarmap.clock import Clock
 from metarmap.config import MAX_LEDS
 from metarmap.planner import airports as live_airports
 from metarmap.planner import apply as plan_apply
-from metarmap.planner import layout, projection
+from metarmap.planner import buildsheet, layout, projection
 from metarmap.web.control import as_json
+from metarmap.web.services import Services
 from metarmap.web.site import render
-
-if TYPE_CHECKING:  # app.py imports the web, so only for the type checker
-    from metarmap.app import App
 
 log = logging.getLogger(__name__)
 
@@ -120,14 +118,10 @@ class JobClock(Clock):
 
 # The build sheet is made by planner/buildsheet.py. These two are looked up when used, so tests can swap them.
 def make_sheet(plan, settings, power, board_in):
-    from metarmap.planner import buildsheet
-
     return buildsheet.build_sheet(plan, settings, power=power, board_in=board_in)
 
 
 def make_power(brightness, ma_white_5v, ma_white_12v):
-    from metarmap.planner import buildsheet
-
     return buildsheet.PowerSettings(brightness=brightness, ma_white_5v=ma_white_5v, ma_white_12v=ma_white_12v)
 
 
@@ -287,7 +281,7 @@ def _on_the_earth(sheet, chart, board_w, board_h, found):
 class Planner:
     """The planner job started from the web UI. One runs at a time; the page polls progress()."""
 
-    def __init__(self, services: "App", load=None):
+    def __init__(self, services: Services, load=None):
         self.services = services
         self._load = load or live_airports.load
         self._lock = threading.Lock()
@@ -711,7 +705,7 @@ class Applier:
     newest backup. Each answer is (status, body).
     """
 
-    def __init__(self, services: "App", planner: "Planner"):
+    def __init__(self, services: Services, planner: "Planner"):
         self.services = services
         self.planner = planner
         self._lock = threading.Lock()  # one apply at a time
@@ -932,7 +926,7 @@ def default_chart(services, choices):
     return best
 
 
-def page(services: "App", site):
+def page(services: Services, site):
     config = services.config
     choices = chart_choices()
     current = [
@@ -958,7 +952,7 @@ def page(services: "App", site):
 class PlannerRoutes:
     """The planner page, its plan (start, progress, cancel) and putting the plan into this Chart (apply, undo)."""
 
-    def __init__(self, services: "App", site, planner: Planner):
+    def __init__(self, services: Services, site, planner: Planner):
         self.services, self.site, self.planner = services, site, planner
         self.applier = Applier(services, planner)
 
@@ -1049,5 +1043,5 @@ class PlannerRoutes:
         app.route("/config/planner/undo", "POST", self.undo, apply=auth)
 
 
-def add_routes(app, services: "App", site, auth, planner: Optional[Planner] = None):
+def add_routes(app, services: Services, site, auth, planner: Optional[Planner] = None):
     PlannerRoutes(services, site, planner or Planner(services)).install(app, auth)

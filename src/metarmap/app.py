@@ -76,6 +76,19 @@ class App:
     # set when an airport code changed: its METAR is fetched now, or right after the fetch under way (refetch_soon)
     refetch_due: threading.Event = field(default_factory=threading.Event)
 
+    # what the web layer calls (web.services.Services), so it never imports this module
+    def refetch_metars(self) -> bool:
+        return refetch_metars(self)
+
+    def schedule_fetch(self) -> None:
+        schedule_fetch(self)
+
+    def next_fetch(self) -> dict:
+        return next_fetch(self)
+
+    def next_rotation(self) -> Optional[float]:
+        return next_rotation(self)
+
 
 # ---- building ------------------------------------------------------------------------------------------------
 
