@@ -2,7 +2,8 @@
 Fetching the map's weather feeds on their schedule, and trying again when one fails.
 
 Feeds holds what the fetches share: the METARs, advisories, TFRs, FAA status and TAFs; the lock that lets one METAR
-fetch run at a time; and the retry state. app.build() makes one and App calls it; it never imports metarmap.app.
+fetch run at a time; and the retry state. App builds one (App.__post_init__) and calls it; it never imports
+metarmap.app.
 """
 
 import logging

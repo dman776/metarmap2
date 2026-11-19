@@ -74,6 +74,7 @@ class App:
     lighting: Lighting = field(init=False)  # brightness by the sun and quiet hours
 
     def __post_init__(self):
+        # Feeds keeps its own references to the feeds above: they are fixed once the App is built
         self.feeds = Feeds(
             self.config,
             self.metars,
