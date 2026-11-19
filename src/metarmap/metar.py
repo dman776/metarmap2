@@ -180,14 +180,8 @@ def observed(day, hour, minute, now):
     raise ValueError(f"{day:02d}{hour:02d}{minute:02d}Z isn't a time in the last month")
 
 
-def parse_raw(raw, now) -> Report:
-    """
-    A METAR typed by hand ("METAR KDWH 272353Z AUTO 08003KT 9SM CLR 21/18 A3014 RMK ...") as parse_report() gives
-    one from the JSON, for the mock METARs. The flight category comes from the visibility and ceiling (FAA limits).
-    Only the body is read here (Report.remarks reads the remarks from raw, as for a fetched report), up to its trend
-    (NOSIG, BECMG, TEMPO): like the JSON, the weather and clouds are what's observed, not what's forecast (Report.body
-    reads the trend). Raises ValueError if it doesn't start like a METAR, or for a visibility over zero (1/0SM).
-    """
+def _split_header(raw, now):
+    """(raw tidied, the observation time or None, the tokens after the station and time) of a typed METAR."""
     raw = " ".join(str(raw or "").split())
     tokens = raw.split(" RMK ")[0].split()
     if tokens and tokens[0] in ("METAR", "SPECI"):
@@ -199,7 +193,11 @@ def parse_raw(raw, now) -> Report:
     if tokens and re.fullmatch(r"\d{6}Z", tokens[0]):
         obs_time = observed(int(tokens[0][:2]), int(tokens[0][2:4]), int(tokens[0][4:6]), now)
         tokens = tokens[1:]
+    return raw, obs_time, tokens
 
+
+def _read_tokens(tokens) -> dict:
+    """The Report fields the body's tokens give, up to a trend."""
     wind_dir, wind_speed, gust = "", None, 0
     visibility, more, wx, sky, vert_vis = None, False, [], [], None
     temp_c = dewpoint_c = None
@@ -248,21 +246,34 @@ def parse_raw(raw, now) -> Report:
         elif parse_weather_group(t):
             wx.append(t)
         i += 1  # anything else (AUTO, COR, RVR...) is skipped here: Report.body reads it
+    return {
+        "wind_dir": wind_dir,
+        "wind_speed": wind_speed,
+        "wind_gust_speed": gust,
+        "visibility_sm": visibility,
+        "visibility_more": more,
+        "vert_vis_ft": vert_vis,
+        "weather": " ".join(wx),
+        "temp_c": temp_c,
+        "dewpoint_c": dewpoint_c,
+        "altimeter_inhg": altim,
+        "sky_conditions": tuple(sky),
+    }
 
+
+def parse_raw(raw, now) -> Report:
+    """
+    A METAR typed by hand ("METAR KDWH 272353Z AUTO 08003KT 9SM CLR 21/18 A3014 RMK ...") as parse_report() gives
+    one from the JSON, for the mock METARs. The flight category comes from the visibility and ceiling (FAA limits).
+    Only the body is read here (Report.remarks reads the remarks from raw, as for a fetched report), up to its trend
+    (NOSIG, BECMG, TEMPO): like the JSON, the weather and clouds are what's observed, not what's forecast (Report.body
+    reads the trend). Raises ValueError if it doesn't start like a METAR, or for a visibility over zero (1/0SM).
+    """
+    raw, obs_time, tokens = _split_header(raw, now)
     report = Report(
         raw=raw,
-        wind_dir=wind_dir,
-        wind_speed=wind_speed,
-        wind_gust_speed=gust,
-        visibility_sm=visibility,
-        visibility_more=more,
-        vert_vis_ft=vert_vis,
-        weather=" ".join(wx),
-        temp_c=temp_c,
-        dewpoint_c=dewpoint_c,
-        altimeter_inhg=altim,
+        **_read_tokens(tokens),
         lightning=remarks.lightning_at_station(remarks.lightning_groups(raw)),
-        sky_conditions=tuple(sky),
         obs_time=obs_time,
     )
     return replace(report, flight_category=estimate_category(report))

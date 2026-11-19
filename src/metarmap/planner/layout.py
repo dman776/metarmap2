@@ -551,31 +551,41 @@ def _nearest_path(xs, ys, start, rng, noise, cancel=None):
     return order
 
 
-def _improve(order, edge, nbrs, fixed_first, every, cancel=None):
+class _Path:
     """
-    2-opt and Or-opt on an open path, trying only each pin's nearest neighbours, until a pass finds nothing better.
-    The path is padded with None at both ends (an end has no wire beyond it), so the moves treat the ends like any
-    other place. fixed_first keeps the first pin where it is. The join between two strings (the edge after every
-    `every`-th pin) is free, so a move is judged on the cost of the whole path with those edges left out: the gain_*
-    helpers say how the free edges' cost changes, as a move shifts or turns the edges that sit at the joins.
+    An open path padded with None at both ends (an end has no wire beyond it), so the moves treat the ends like any
+    other place. The join between two strings (the edge after every `every`-th pin) is free, so a move is judged on
+    the cost of the whole path with those edges left out: the gain_* helpers say how the free edges' cost changes, as
+    a move shifts or turns the edges that sit at the joins. Each *_pass method makes the moves it finds and says
+    whether it made any.
     """
-    n = len(order)
-    t = [None] + list(order) + [None]
-    pos = {}
 
-    def reindex():
-        for k, item in enumerate(t):
+    def __init__(self, order, edge, nbrs, fixed_first, every, cancel):
+        self.n = len(order)
+        self.t = [None] + list(order) + [None]
+        self.edge = edge
+        self.nbrs = nbrs
+        self.fixed_first = fixed_first  # keeps the first pin where it is
+        self.every = every
+        self.cancel = cancel
+        self.pos = {}
+        self.reindex()
+
+    def reindex(self):
+        for k, item in enumerate(self.t):
             if item is not None:
-                pos[item] = k
+                self.pos[item] = k
 
-    def free_edges(lo, hi):
+    def free_edges(self, lo, hi):
         """The free join edges between edge lo and edge hi; edge m joins t[m] and t[m + 1]."""
-        return range(max(every, -(-lo // every) * every), min(hi, n - 1) + 1, every)
+        every = self.every
+        return range(max(every, -(-lo // every) * every), min(hi, self.n - 1) + 1, every)
 
-    def gain_2opt(i, j):
+    def gain_2opt(self, i, j):
         """How much more the free edges cost once t[i + 1..j] is reversed (their cost then, less their cost now)."""
+        t, edge = self.t, self.edge
         total = 0.0
-        for m in free_edges(i, j):
+        for m in self.free_edges(i, j):
             if m == i:
                 new = edge(t[i], t[j])
             elif m == j:
@@ -586,12 +596,13 @@ def _improve(order, edge, nbrs, fixed_first, every, cancel=None):
             total += new - edge(t[m], t[m + 1])
         return total
 
-    def gain_or(s, e, k, reverse):
+    def gain_or(self, s, e, k, reverse):
         """The same for moving t[s..e] between t[k] and t[k + 1] (turned round if reverse)."""
+        t, edge = self.t, self.edge
         length = e - s + 1
         seg = t[s : e + 1][::-1] if reverse else t[s : e + 1]
         total = 0.0
-        for m in free_edges(s - 1, k) if k > e else free_edges(k, e):
+        for m in self.free_edges(s - 1, k) if k > e else self.free_edges(k, e):
             if k > e:  # the stretch moves later: the pins between it and k shift back by its length
                 if m == s - 1:
                     new = edge(t[s - 1], t[e + 1])
@@ -619,71 +630,107 @@ def _improve(order, edge, nbrs, fixed_first, every, cancel=None):
             total += new - edge(t[m], t[m + 1])
         return total
 
-    reindex()
-    first = 2 if fixed_first else 1  # the first place an Or-opt segment may start
-    low = 1 if fixed_first else 0  # the first edge an Or-opt segment may be put in
-    for _ in range(PASSES):
-        _stop(cancel)
+    def two_opt_pass(self):
+        """Reverse the stretch between two neighbours."""
+        t, edge, pos, cancel = self.t, self.edge, self.pos, self.cancel
         improved = False
-        for step, a in enumerate(list(t[1 : n + 1]), 1):  # 2-opt: reverse the stretch between two neighbours
+        for step, a in enumerate(list(t[1 : self.n + 1]), 1):
             _stop_every(cancel, step)
-            for c in nbrs[a]:
+            for c in self.nbrs[a]:
                 p, q = pos[a], pos[c]
                 i, j = (p, q) if p < q else (q, p)
                 delta = edge(t[i], t[j]) + edge(t[i + 1], t[j + 1]) - edge(t[i], t[i + 1]) - edge(t[j], t[j + 1])
-                if delta - gain_2opt(i, j) < -EPS:
+                if delta - self.gain_2opt(i, j) < -EPS:
                     t[i + 1 : j + 1] = t[i + 1 : j + 1][::-1]
-                    reindex()
+                    self.reindex()
                     improved = True
-        for j in range(1, n + 1):  # reverse a start (only if the first pin may change)
-            _stop_every(cancel, j, 64)
-            if not fixed_first and edge(t[1], t[j + 1]) - edge(t[j], t[j + 1]) - gain_2opt(0, j) < -EPS:
+        return improved
+
+    def reverse_start_pass(self):
+        """Reverse a start (only if the first pin may change)."""
+        t, edge = self.t, self.edge
+        improved = False
+        for j in range(1, self.n + 1):
+            _stop_every(self.cancel, j, 64)
+            if not self.fixed_first and edge(t[1], t[j + 1]) - edge(t[j], t[j + 1]) - self.gain_2opt(0, j) < -EPS:
                 t[1 : j + 1] = t[1 : j + 1][::-1]
-                reindex()
+                self.reindex()
                 improved = True
-        for i in range(1, n):  # reverse an end
-            _stop_every(cancel, i, 64)
-            if edge(t[i], t[n]) - edge(t[i], t[i + 1]) - gain_2opt(i, n) < -EPS:
+        return improved
+
+    def reverse_end_pass(self):
+        t, edge, n = self.t, self.edge, self.n
+        improved = False
+        for i in range(1, n):
+            _stop_every(self.cancel, i, 64)
+            if edge(t[i], t[n]) - edge(t[i], t[i + 1]) - self.gain_2opt(i, n) < -EPS:
                 t[i + 1 : n + 1] = t[i + 1 : n + 1][::-1]
-                reindex()
+                self.reindex()
                 improved = True
-        for length in (1, 2, 3):  # Or-opt: move a stretch of up to three pins somewhere better
+        return improved
+
+    def best_place(self, s, e, saved):
+        """Where the stretch t[s..e] would go best (cost, k, reverse), or None if nowhere beats `saved`."""
+        t, edge, pos = self.t, self.edge, self.pos
+        low = 1 if self.fixed_first else 0  # the first edge an Or-opt segment may be put in
+        seg = t[s : e + 1]
+        best = None
+        for end in (seg[0], seg[-1]):
+            for c in self.nbrs[end]:
+                pc = pos[c]
+                if s <= pc <= e:
+                    continue
+                for k in (pc - 1, pc):
+                    if k < low or s - 1 <= k <= e:
+                        continue
+                    u, v = t[k], t[k + 1]
+                    base = edge(u, v)
+                    for reverse in (False, True):
+                        a0, a1 = (seg[-1], seg[0]) if reverse else (seg[0], seg[-1])
+                        cost = edge(u, a0) + edge(a1, v) - base - self.gain_or(s, e, k, reverse)
+                        if cost - saved < -EPS and (best is None or cost < best[0]):
+                            best = (cost, k, reverse)
+        return best
+
+    def or_opt_pass(self):
+        """Move a stretch of up to three pins somewhere better."""
+        t, edge, n = self.t, self.edge, self.n
+        improved = False
+        first = 2 if self.fixed_first else 1  # the first place an Or-opt segment may start
+        for length in (1, 2, 3):
             s = first
             while s + length - 1 <= n:
-                _stop_every(cancel, s)
+                _stop_every(self.cancel, s)
                 e = s + length - 1
                 seg = t[s : e + 1]
                 prev, nxt = t[s - 1], t[e + 1]
                 saved = edge(prev, seg[0]) + edge(seg[-1], nxt) - edge(prev, nxt)
-                if saved > EPS:
-                    best = None
-                    for end in (seg[0], seg[-1]):
-                        for c in nbrs[end]:
-                            pc = pos[c]
-                            if s <= pc <= e:
-                                continue
-                            for k in (pc - 1, pc):
-                                if k < low or s - 1 <= k <= e:
-                                    continue
-                                u, v = t[k], t[k + 1]
-                                base = edge(u, v)
-                                for reverse in (False, True):
-                                    a0, a1 = (seg[-1], seg[0]) if reverse else (seg[0], seg[-1])
-                                    cost = edge(u, a0) + edge(a1, v) - base - gain_or(s, e, k, reverse)
-                                    if cost - saved < -EPS and (best is None or cost < best[0]):
-                                        best = (cost, k, reverse)
-                    if best:
-                        _, k, reverse = best
-                        rest = t[:s] + t[e + 1 :]
-                        at = k if k < s else k - length
-                        rest[at + 1 : at + 1] = seg[::-1] if reverse else seg
-                        t[:] = rest
-                        reindex()
-                        improved = True
+                best = self.best_place(s, e, saved) if saved > EPS else None
+                if best:
+                    _, k, reverse = best
+                    rest = t[:s] + t[e + 1 :]
+                    at = k if k < s else k - length
+                    rest[at + 1 : at + 1] = seg[::-1] if reverse else seg
+                    t[:] = rest
+                    self.reindex()
+                    improved = True
                 s += 1
-        if not improved:
+        return improved
+
+
+def _improve(order, edge, nbrs, fixed_first, every, cancel=None):
+    """
+    2-opt and Or-opt on an open path, trying only each pin's nearest neighbours, until a pass finds nothing better.
+    fixed_first keeps the first pin where it is. See _Path for how the free joins between strings are judged.
+    """
+    path = _Path(order, edge, nbrs, fixed_first, every, cancel)
+    for _ in range(PASSES):
+        _stop(cancel)
+        # not any(): every move must run, so each pass is made before the results are combined
+        moves = [path.two_opt_pass(), path.reverse_start_pass(), path.reverse_end_pass(), path.or_opt_pass()]
+        if not any(moves):
             break
-    return t[1 : n + 1]
+    return path.t[1 : path.n + 1]
 
 
 def _strings(count, string_len):

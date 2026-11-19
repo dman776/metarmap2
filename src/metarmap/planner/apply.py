@@ -54,6 +54,82 @@ def _copy(airport):
     return other
 
 
+def _first_led_of_each_code(current) -> Dict[str, int]:
+    """
+    The first LED that has each code now (a code twice in the config keeps its first); codes are compared without
+    case and spaces, so "kaus" in a hand-edited config is the plan's KAUS.
+    """
+    old_at: Dict[str, int] = {}
+    for index, airport in enumerate(current):
+        code = norm(airport.code)
+        if code and code not in old_at:
+            old_at[code] = index
+    return old_at
+
+
+def _new_strip(current, led_count, result_pixels, old_at, names, hidden):
+    """
+    The airports of the plan's pixels, in LED order, each keeping what its old LED had. Returns (strip, kept, moved,
+    moves, added, promoted).
+    """
+    strip: List[Airport] = []
+    kept = moved = 0
+    moves, added, promoted = [], [], []
+    for number, pixel in enumerate(result_pixels):
+        code = norm(pixel.get("code"))
+        if not code:
+            strip.append(Airport(skip=number in hidden))
+            continue
+        old = old_at.get(code)
+        if old is None:
+            new = Airport(code=code, name=names.get(code, ""), display=False)
+            added.append(code)
+        else:
+            new = _copy(current[old])
+            new.code = code
+            new.name = new.name or names.get(code, "")
+            if old >= led_count:
+                promoted.append(code)
+            elif old == number:
+                kept += 1
+            else:
+                moved += 1
+                moves.append({"code": code, "from": old, "to": number})
+        strip.append(new)
+    return strip, kept, moved, moves, added, promoted
+
+
+def _virtual_airports(current, led_count, in_plan, old_at):
+    """
+    The virtual airports: the dropped real ones first (so a plan never deletes an airport), then the ones that were
+    already virtual, each in its old order. A code is there once: one the plan has is in the strip already.
+    Returns (virtual, became_virtual, merged, blank_virtual).
+    """
+    virtual: List[Airport] = []
+    in_virtual = set()
+    became_virtual: List[str] = []
+    merged = blank_virtual = 0
+    for want_virtual in (False, True):
+        for index, airport in enumerate(current):
+            if (index >= led_count) != want_virtual:
+                continue
+            code = norm(airport.code)
+            if not code:
+                blank_virtual += want_virtual  # a virtual placeholder with no airport: nothing is lost without it
+                continue
+            if code in in_plan:
+                merged += old_at[code] != index  # the same code twice in the config: the plan has it once
+                continue
+            if code in in_virtual:
+                merged += 1
+                continue
+            in_virtual.add(code)
+            virtual.append(_copy(airport))
+            if not want_virtual:
+                became_virtual.append(code)
+    return virtual, became_virtual, merged, blank_virtual
+
+
 def plan_changes(
     current: Sequence[Airport],
     led_count: int,
@@ -79,65 +155,13 @@ def plan_changes(
     hidden = set(hidden_numbers(result_pixels))
     names = {norm(k): v for k, v in names.items()}
 
-    # the first LED that has each code now (a code twice in the config keeps its first); codes are compared
-    # without case and spaces, so "kaus" in a hand-edited config is the plan's KAUS
-    old_at = {}
-    for index, airport in enumerate(current):
-        code = norm(airport.code)
-        if code and code not in old_at:
-            old_at[code] = index
-
-    new_strip: List[Airport] = []
-    kept = moved = 0
-    moves, added, promoted = [], [], []
-    for number, pixel in enumerate(result_pixels):
-        code = norm(pixel.get("code"))
-        if not code:
-            new_strip.append(Airport(skip=number in hidden))
-            continue
-        old = old_at.get(code)
-        if old is None:
-            new = Airport(code=code, name=names.get(code, ""), display=False)
-            added.append(code)
-        else:
-            new = _copy(current[old])
-            new.code = code
-            new.name = new.name or names.get(code, "")
-            if old >= led_count:
-                promoted.append(code)
-            elif old == number:
-                kept += 1
-            else:
-                moved += 1
-                moves.append({"code": code, "from": old, "to": number})
-        new_strip.append(new)
+    old_at = _first_led_of_each_code(current)
+    new_strip, kept, moved, moves, added, promoted = _new_strip(
+        current, led_count, result_pixels, old_at, names, hidden
+    )
     blank = strip - len(plan_codes) - len(hidden)  # the LEDs with no airport that are not Hidden Pixels
     new_strip.extend(Airport() for _ in range(strip - len(new_strip)))
-
-    # the virtual airports: the dropped real ones first (so a plan never deletes an airport), then the ones that were
-    # already virtual, each in its old order. A code is there once: one the plan has is in the strip already
-    virtual: List[Airport] = []
-    in_virtual = set()
-    became_virtual: List[str] = []
-    merged = blank_virtual = 0
-    for want_virtual in (False, True):
-        for index, airport in enumerate(current):
-            if (index >= led_count) != want_virtual:
-                continue
-            code = norm(airport.code)
-            if not code:
-                blank_virtual += want_virtual  # a virtual placeholder with no airport: nothing is lost without it
-                continue
-            if code in in_plan:
-                merged += old_at[code] != index  # the same code twice in the config: the plan has it once
-                continue
-            if code in in_virtual:
-                merged += 1
-                continue
-            in_virtual.add(code)
-            virtual.append(_copy(airport))
-            if not want_virtual:
-                became_virtual.append(code)
+    virtual, became_virtual, merged, blank_virtual = _virtual_airports(current, led_count, in_plan, old_at)
 
     airports = new_strip + virtual
     new_led, new_virtual = len(new_strip), len(virtual)
