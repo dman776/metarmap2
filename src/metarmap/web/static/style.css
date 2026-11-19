@@ -540,8 +540,8 @@ body.kiosk main.wrap { max-width: none; height: 100vh; height: var(--kiosk-h, 10
 .host.offline::before { background: var(--ifr); }
 .host.offline::after { content: "can't reach the Chart"; color: #ff8a8a; }
 .remote.offline .r-panel { opacity: .5; }
-/* quiet hours: the page at about 5% brightness; the overlay takes every touch (remote.js wakes it) */
-.r-dim { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 1000; background: rgba(0, 0, 0, .95); touch-action: manipulation; }
+/* quiet hours: the page at about 15% brightness; the overlay takes every touch (remote.js wakes it) */
+.r-dim { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 1000; background: rgba(0, 0, 0, .85); touch-action: manipulation; }
 .r-dim[hidden] { display: none; }
 .r-full .exit, .r-full[aria-pressed="true"] .enter { display: none; }
 .r-full[aria-pressed="true"] .exit { display: block; }

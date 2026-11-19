@@ -413,7 +413,7 @@
         for (let i = 0; i < items.length; i++) items[i].classList.toggle('on', !!step && i === step.index);
     }
 
-    // ---- quiet hours (/api/live's quiet): a black overlay dims the page to about 5%. The first touch only wakes it (it
+    // ---- quiet hours (/api/live's quiet): a black overlay dims the page to about 15%. The first touch only wakes it (it
     // is swallowed, so nothing beneath is pressed); it dims again DIM_AFTER_MS after the last touch while quiet is
     // still true, and goes at once when quiet ends.
     const DIM_AFTER_MS = 30000;
