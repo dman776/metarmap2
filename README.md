@@ -538,7 +538,9 @@ You can work on the Chart without a Raspberry Pi. With no LED strip or OLED scre
 and the web UI (including the live Map page and its Micro window) works as usual with real METARs.
 
 - Set up: `uv sync --extra dev` (or `python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"`)
-- Run the tests: `.venv/bin/pytest`
+- Run the tests: `.venv/bin/pytest`. They run on every core (pytest-xdist, `-n auto`), so after pulling into an older
+  setup run the set-up line again, or pytest stops with `unrecognized arguments: -n`. For one test, or to see its
+  `print` output, add `-n0`: `.venv/bin/pytest -n0 tests/test_renderer.py -k chase`
 - Check the code: `.venv/bin/ruff check .`
 - Run the map: `.venv/bin/python -m metarmap --port 8080` (or `.venv/bin/metarmap --port 8080`), from the folder
   with `config.json`. Without `--port` it uses `web_server.port` from `config.json` (80); `--version` prints the

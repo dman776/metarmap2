@@ -35,6 +35,7 @@ pi = [
 network = ["zeroconf"]
 dev = [
     "pytest>=7",
+    "pytest-xdist>=3",  # pytest runs the tests on every core (addopts -n auto); -n0 runs one test in the foreground
     "ruff==0.17.2",  # the same version as .pre-commit-config.yaml: the formatter's output can change between versions
 ]
 
@@ -56,7 +57,7 @@ metarmap = ["web/templates/*.tpl", "web/static/*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
-addopts = "-ra"
+addopts = "-ra -n auto"
 # a warning fails the test that causes it, so a new one is seen at once instead of hiding among old ones
 filterwarnings = ["error"]
 
