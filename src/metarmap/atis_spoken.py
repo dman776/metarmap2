@@ -308,7 +308,6 @@ ENGLISH = {
     "ICE",
     "GO",
     "AIR",
-    "ARE",
     "BIRD",
     "MID",
     "WILL",

@@ -47,7 +47,7 @@ def _fix_ownership(repo, uid, gid):
     if os.geteuid() != 0 or uid == 0:
         return 0
     changed = 0
-    for dirpath, dirnames, filenames in os.walk(repo):
+    for dirpath, _dirnames, filenames in os.walk(repo):
         for path in [dirpath] + [os.path.join(dirpath, f) for f in filenames]:
             st = os.lstat(path)
             if (st.st_uid, st.st_gid) != (uid, gid):

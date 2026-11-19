@@ -788,7 +788,7 @@ def test_git_runs_as_the_folder_owner(as_root):
         ["reset", "--hard"],
         ["checkout", "-B", "main", "origin/main"],
     ]
-    for cmd, kwargs in as_root.run:
+    for _cmd, kwargs in as_root.run:
         assert kwargs["user"] == 1000 and kwargs["group"] == 1000
         assert kwargs["env"]["HOME"] == "/home/pi"
         assert kwargs["env"]["GIT_TERMINAL_PROMPT"] == "0"  # never waits for a password
