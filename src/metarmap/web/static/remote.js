@@ -420,19 +420,26 @@
     const dim = document.getElementById('r-dim');
     let isQuiet = false;
     let dimTimer = null;
+    let lastTapAt = 0;  // when the page was last touched (ms), so quiet hours never black it out mid-use
     function setDim(on) {
         if (dim) dim.hidden = !on;
     }
+    function dimSoon() {
+        clearTimeout(dimTimer);
+        const wait = Math.max(0, DIM_AFTER_MS - (Date.now() - lastTapAt));
+        dimTimer = setTimeout(function () { setDim(true); }, wait);
+    }
     function wake() {
+        lastTapAt = Date.now();
         setDim(false);
         clearTimeout(dimTimer);
-        if (isQuiet) dimTimer = setTimeout(function () { setDim(true); }, DIM_AFTER_MS);
+        if (isQuiet) dimSoon();
     }
     function showQuiet(now) {
         if (now === isQuiet) return;
         isQuiet = now;
         clearTimeout(dimTimer);
-        setDim(isQuiet);
+        if (isQuiet) dimSoon(); else setDim(false);
     }
     if (dim) {
         // the overlay is removed on the touch's end (or the click), and the touch's own click is cancelled, so it
@@ -442,7 +449,10 @@
         dim.addEventListener('click', swallow);
         dim.addEventListener('touchstart', function (e) { e.stopPropagation(); });
         // a touch on the page while awake holds off the next dimming
-        const touched = function () { if (isQuiet && dim.hidden) wake(); };
+        const touched = function () {
+            lastTapAt = Date.now();
+            if (isQuiet && dim.hidden) dimSoon();
+        };
         document.addEventListener('touchstart', touched, true);
         document.addEventListener('mousedown', touched, true);
     }

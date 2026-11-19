@@ -1,6 +1,6 @@
 ### Unreleased
 
-- **The Cockpit dims in quiet hours (B105).** While `led.quiet_hours` are active the Cockpit covers itself with a near-black overlay (about 5% brightness). The first touch only wakes it, pressing nothing underneath, and it dims again 30 seconds after the last touch; when quiet hours end the overlay goes at once. `GET /api/live` has a new boolean `quiet` (true while quiet hours are active now), worked out from the clock with no extra I/O; the Copilot can use it too.
+- **The Cockpit dims in quiet hours (B105).** While `led.quiet_hours` are active the Cockpit covers itself with a near-black overlay (about 5% brightness). The first touch only wakes it, pressing nothing underneath, and it dims again 30 seconds after the last touch; when quiet hours end the overlay goes at once. `GET /api/live` has a new boolean `quiet` (true while quiet hours are active now), worked out from the clock with no extra I/O; B105 dims the Copilot with it too once its PR lands.
 
 - **Config's plan-backup files are their own class (B112).** The copies of `config.json` that applying a plan leaves beside it (making, listing, pruning, removing and marking them undone) moved from `Config` into a `PlanBackups` class; `Config` keeps `plan_backups()`, `next_plan_backup_name()` and `restore_plan_backup()` and so shrinks to read, write, edit and publish. Development only; nothing on the Chart changes. No API change.
 

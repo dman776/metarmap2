@@ -26,6 +26,7 @@ from metarmap import __version__, discovery
 from metarmap import app as app_module
 from metarmap.advisories import Advisories
 from metarmap.app import App
+from metarmap.clock import FakeClock
 from metarmap.leds.strip import FakeStrip
 from metarmap.models import Look, Report, SkyLayer
 from metarmap.renderer import Renderer
@@ -927,14 +928,17 @@ def test_live(services):
     assert api.live(services)["display"] == {"enabled": False, "on": False, "screen": None}
 
 
-def test_live_says_when_quiet_hours_are_active(services, monkeypatch):
+def test_live_says_when_quiet_hours_are_active(services):
     quiet = services.config.data.led.quiet_hours
-    quiet.start, quiet.end = "00:00", "23:59"
+    quiet.start, quiet.end = "22:00", "05:00"  # overnight
+    clock = FakeClock(datetime(2026, 1, 15, 23, 30).astimezone())  # 23:30 local
+    services.renderer._clock = clock
     assert api.live(services)["quiet"] is False  # disabled
     quiet.enabled = True
-    monkeypatch.setattr("metarmap.renderer.quiet_hours_active", lambda now, qh: qh.enabled)
     assert api.live(services)["quiet"] is True
-    monkeypatch.setattr("metarmap.renderer.quiet_hours_active", lambda now, qh: False)
+    clock.set_wall_clock(datetime(2026, 1, 16, 4, 0).astimezone())
+    assert api.live(services)["quiet"] is True
+    clock.set_wall_clock(datetime(2026, 1, 16, 12, 0).astimezone())
     assert api.live(services)["quiet"] is False
 
 
