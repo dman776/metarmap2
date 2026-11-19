@@ -52,6 +52,141 @@ def locked(method):
 Patterns = Union[str, Sequence[str]]
 
 
+class PlanBackups:
+    """
+    The copies of config.json that applying a plan leaves beside it (config.json.before-plan-<stamp>, each with a
+    .summary.json), for Config.restore_plan_backup(). Files only: Config's lock is the caller's to hold.
+    """
+
+    def __init__(self, file):
+        self._file = file
+
+    def files(self):
+        """[(stamp, undone, file name)] of the backups apply_plan made beside config.json, newest first."""
+        folder, base = os.path.split(os.path.abspath(self._file))
+        prefix = base + ".before-plan-"
+        found = []
+        try:
+            names = os.listdir(folder)
+        except OSError:
+            return []
+        for name in names:
+            match = name.startswith(prefix) and PLAN_STAMP.match(name[len(prefix) :])
+            if match:
+                found.append((match.group(1), bool(match.group(2)), name))
+        # the stamps only ever go up (see make), so the newest is the highest, whatever the clock says
+        return sorted(found, reverse=True)
+
+    def next_name(self):
+        """The name the next backup would get (the time may differ by a second when it is made)."""
+        return f"{os.path.basename(self._file)}.before-plan-{self._next_stamp()[0]:%Y%m%d-%H%M%S}"
+
+    def _next_stamp(self):
+        """(the UTC time for the next backup's name, its time as made). The name's time never goes below the newest
+        backup's: a Pi that booted before its clock was set would otherwise sort its new backup as the oldest, and
+        prune it or undo the wrong apply."""
+        now = datetime.now(timezone.utc).replace(microsecond=0)
+        stamp = now
+        files = self.files()
+        if files:
+            newest = datetime.strptime(files[0][0], "%Y%m%d-%H%M%S").replace(tzinfo=timezone.utc)
+            if stamp <= newest:
+                stamp = newest + timedelta(seconds=1)
+        return stamp, now
+
+    def make(self, summary):
+        """
+        Copies config.json to config.json.before-plan-<stamp> and keeps the summary beside it. It holds the web
+        password, so the copy is made private from the start (no moment when another user could read it) and then
+        takes the original's mode. Does not remove old backups: prune() does that once the write is done.
+        Returns the new stamp.
+        """
+        stamp_time, made = self._next_stamp()
+        stamp = f"{stamp_time:%Y%m%d-%H%M%S}"
+        dest = f"{self._file}.before-plan-{stamp}"
+        fd = os.open(dest, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        try:
+            with os.fdopen(fd, "wb") as out, open(self._file, "rb") as source:
+                shutil.copyfileobj(source, out)
+            shutil.copystat(self._file, dest)
+        except BaseException:
+            self.remove(stamp)
+            raise
+        try:
+            fd = os.open(f"{dest}.summary.json", os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+            with os.fdopen(fd, "w") as f:
+                json.dump({"made_at": made.isoformat(), "summary": summary or {}}, f)
+        except OSError as e:  # the backup is what matters; the Undo button just shows less
+            log.warning(f"could not keep the summary of the plan backup {os.path.basename(dest)}: {e}")
+        return stamp
+
+    def drop_failed(self, stamp):
+        """The write failed: take the backup made for it away, unless config.json changed after all (the save went
+        through and only the read back failed): then the backup is the way back, so it stays."""
+        dest = f"{self._file}.before-plan-{stamp}"
+        try:
+            same = filecmp.cmp(self._file, dest, shallow=False)
+        except OSError:
+            same = False
+        if same:
+            self.remove(stamp)
+        else:
+            log.warning(f"config.json changed while the plan was applied and the save failed: keeping {dest}")
+
+    def prune(self, keep):
+        """Removes all but the newest PLAN_BACKUPS, never the one called `keep`."""
+        for old_stamp, _undone, _name in self.files()[PLAN_BACKUPS:]:
+            if old_stamp != keep:
+                self.remove(old_stamp)
+
+    def remove(self, stamp):
+        """Removes the files that belong to one backup and nothing else: its copy, the copy marked undone and their
+        summaries (a file a user named like them, e.g. with ".mine" after it, stays)."""
+        base = f"{self._file}.before-plan-{stamp}"
+        for path in (base, base + "-undone", base + ".summary.json", base + "-undone.summary.json"):
+            try:
+                os.remove(path)
+            except FileNotFoundError:
+                pass
+            except OSError as e:
+                log.warning(f"could not remove the plan backup file {os.path.basename(path)}: {e}")
+
+    def listing(self):
+        """The backups an Undo can restore, newest first: [{"file", "path", "made_at" (ISO time), "summary"}]; one
+        that was restored already is not listed."""
+        folder = os.path.dirname(os.path.abspath(self._file))
+        out = []
+        for stamp, undone, name in self.files():
+            if undone:
+                continue
+            path = os.path.join(folder, name)
+            made_at, summary = None, None
+            try:
+                with open(f"{path}.summary.json") as f:
+                    saved = json.load(f)
+                made_at, summary = saved.get("made_at"), saved.get("summary")
+            except (OSError, ValueError, AttributeError):
+                pass
+            if not made_at:
+                made_at = datetime.strptime(stamp, "%Y%m%d-%H%M%S").replace(tzinfo=timezone.utc).isoformat()
+            out.append({"file": name, "path": path, "made_at": made_at, "summary": summary})
+        return out
+
+    def mark_undone(self, chosen):
+        """Renames a restored backup (an entry of listing()) to "...-undone" so it is not offered twice."""
+        try:
+            os.replace(chosen["path"], chosen["path"] + "-undone")
+        except OSError as e:
+            log.warning(f"restored {chosen['file']} but could not mark it undone: {e}")
+        else:
+            try:  # its summary goes with it, so no orphan is left behind
+                os.replace(chosen["path"] + ".summary.json", chosen["path"] + "-undone.summary.json")
+            except FileNotFoundError:
+                pass
+            except OSError as e:
+                log.warning(f"could not rename the summary of {chosen['file']}: {e}")
+
+
 class Config:
     """
     The map's settings, including its airports (one per LED, in LED order, then the virtual ones), saved in
@@ -69,6 +204,7 @@ class Config:
 
     def __init__(self, file):
         self._file = file
+        self._backups = PlanBackups(file)
         self._lock = threading.RLock()
         self._depth = 0  # how deep in locked calls the thread holding the lock is
         self._pending: List[str] = []  # keys changed by the locked call in progress
@@ -400,15 +536,15 @@ class Config:
             raise ValueError(_twice(new, led_count))
         if check is not None:
             check(copy.deepcopy(self._data.airports), self._data.led.count, self._data.led.virtual_count)
-        stamp = self._backup_before_plan(summary) if backup else None
+        stamp = self._backups.make(summary) if backup else None
         try:
             keys = self._replace_airports(new, led_count, virtual_count)
         except BaseException:
             if stamp:
-                self._drop_failed_backup(stamp)  # an apply that did not happen offers no Undo
+                self._backups.drop_failed(stamp)  # an apply that did not happen offers no Undo
             raise
         if stamp:
-            self._prune_plan_backups(keep=stamp)  # only now that the write is safe
+            self._backups.prune(keep=stamp)  # only now that the write is safe
         name = f"{os.path.basename(self._file)}.before-plan-{stamp}" if stamp else None
         log.info(
             f"applied a plan: {len(codes)} airports on {led_count} LEDs and {virtual_count} virtual "
@@ -435,118 +571,16 @@ class Config:
             raise
         return keys
 
-    def _plan_files(self):
-        """[(stamp, undone, file name)] of the backups apply_plan made beside config.json, newest first."""
-        folder, base = os.path.split(os.path.abspath(self._file))
-        prefix = base + ".before-plan-"
-        found = []
-        try:
-            names = os.listdir(folder)
-        except OSError:
-            return []
-        for name in names:
-            match = name.startswith(prefix) and PLAN_STAMP.match(name[len(prefix) :])
-            if match:
-                found.append((match.group(1), bool(match.group(2)), name))
-        # the stamps only ever go up (see _backup_before_plan), so the newest is the highest, whatever the clock says
-        return sorted(found, reverse=True)
-
     def next_plan_backup_name(self):
         """The name the next backup would get (the time may differ by a second when it is made)."""
-        return f"{os.path.basename(self._file)}.before-plan-{self._next_stamp()[0]:%Y%m%d-%H%M%S}"
-
-    def _next_stamp(self):
-        """(the UTC time for the next backup's name, its time as made). The name's time never goes below the newest
-        backup's: a Pi that booted before its clock was set would otherwise sort its new backup as the oldest, and
-        prune it or undo the wrong apply."""
-        now = datetime.now(timezone.utc).replace(microsecond=0)
-        stamp = now
-        files = self._plan_files()
-        if files:
-            newest = datetime.strptime(files[0][0], "%Y%m%d-%H%M%S").replace(tzinfo=timezone.utc)
-            if stamp <= newest:
-                stamp = newest + timedelta(seconds=1)
-        return stamp, now
-
-    def _backup_before_plan(self, summary):
-        """
-        Copies config.json to config.json.before-plan-<stamp> and keeps the summary beside it. It holds the web
-        password, so the copy is made private from the start (no moment when another user could read it) and then
-        takes the original's mode. Does not remove old backups: apply_plan does that once the write is done.
-        Returns the new stamp.
-        """
-        stamp_time, made = self._next_stamp()
-        stamp = f"{stamp_time:%Y%m%d-%H%M%S}"
-        dest = f"{self._file}.before-plan-{stamp}"
-        fd = os.open(dest, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-        try:
-            with os.fdopen(fd, "wb") as out, open(self._file, "rb") as source:
-                shutil.copyfileobj(source, out)
-            shutil.copystat(self._file, dest)
-        except BaseException:
-            self._remove_plan_files(stamp)
-            raise
-        try:
-            fd = os.open(f"{dest}.summary.json", os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-            with os.fdopen(fd, "w") as f:
-                json.dump({"made_at": made.isoformat(), "summary": summary or {}}, f)
-        except OSError as e:  # the backup is what matters; the Undo button just shows less
-            log.warning(f"could not keep the summary of the plan backup {os.path.basename(dest)}: {e}")
-        return stamp
-
-    def _drop_failed_backup(self, stamp):
-        """The write failed: take the backup made for it away, unless config.json changed after all (the save went
-        through and only the read back failed): then the backup is the way back, so it stays."""
-        dest = f"{self._file}.before-plan-{stamp}"
-        try:
-            same = filecmp.cmp(self._file, dest, shallow=False)
-        except OSError:
-            same = False
-        if same:
-            self._remove_plan_files(stamp)
-        else:
-            log.warning(f"config.json changed while the plan was applied and the save failed: keeping {dest}")
-
-    def _prune_plan_backups(self, keep):
-        """Removes all but the newest PLAN_BACKUPS, never the one called `keep`."""
-        for old_stamp, _undone, _name in self._plan_files()[PLAN_BACKUPS:]:
-            if old_stamp != keep:
-                self._remove_plan_files(old_stamp)
-
-    def _remove_plan_files(self, stamp):
-        """Removes the files that belong to one backup and nothing else: its copy, the copy marked undone and their
-        summaries (a file a user named like them, e.g. with ".mine" after it, stays)."""
-        base = f"{self._file}.before-plan-{stamp}"
-        for path in (base, base + "-undone", base + ".summary.json", base + "-undone.summary.json"):
-            try:
-                os.remove(path)
-            except FileNotFoundError:
-                pass
-            except OSError as e:
-                log.warning(f"could not remove the plan backup file {os.path.basename(path)}: {e}")
+        return self._backups.next_name()
 
     def plan_backups(self):
         """
         The backups an Undo can restore, newest first: [{"file", "path", "made_at" (ISO time), "summary"}]; one that
         was restored already is not listed.
         """
-        folder = os.path.dirname(os.path.abspath(self._file))
-        out = []
-        for stamp, undone, name in self._plan_files():
-            if undone:
-                continue
-            path = os.path.join(folder, name)
-            made_at, summary = None, None
-            try:
-                with open(f"{path}.summary.json") as f:
-                    saved = json.load(f)
-                made_at, summary = saved.get("made_at"), saved.get("summary")
-            except (OSError, ValueError, AttributeError):
-                pass
-            if not made_at:
-                made_at = datetime.strptime(stamp, "%Y%m%d-%H%M%S").replace(tzinfo=timezone.utc).isoformat()
-            out.append({"file": name, "path": path, "made_at": made_at, "summary": summary})
-        return out
+        return self._backups.listing()
 
     @locked
     def restore_plan_backup(self, name=None):
@@ -569,17 +603,7 @@ class Config:
         if led_count + virtual_count > MAX_LEDS:
             raise ValueError(f"the backup has {led_count + virtual_count} airports: over {MAX_LEDS}")
         keys = self._replace_airports(airports, led_count, virtual_count)
-        try:
-            os.replace(chosen["path"], chosen["path"] + "-undone")
-        except OSError as e:
-            log.warning(f"restored {chosen['file']} but could not mark it undone: {e}")
-        else:
-            try:  # its summary goes with it, so no orphan is left behind
-                os.replace(chosen["path"] + ".summary.json", chosen["path"] + "-undone.summary.json")
-            except FileNotFoundError:
-                pass
-            except OSError as e:
-                log.warning(f"could not rename the summary of {chosen['file']}: {e}")
+        self._backups.mark_undone(chosen)
         log.info(f"undid the plan: {led_count} LEDs and {virtual_count} virtual airports from {chosen['file']}")
         return {
             "airports": len([a for a in airports if a.code]),
