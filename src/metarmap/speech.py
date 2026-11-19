@@ -145,7 +145,7 @@ class Speech:
         self._post = post or requests.post
         self._clock = clock or time.monotonic
         self._lock = threading.Lock()
-        self._cache: "OrderedDict[str, bytes]" = OrderedDict()
+        self._cache: OrderedDict[str, bytes] = OrderedDict()
         self._cached = 0  # bytes in the cache
         self._rendering: Dict[str, _Render] = {}  # the clips being made now, by cache key
         # how the last clip went, for the server it was asked of (server_of): ok None (none yet), True or False

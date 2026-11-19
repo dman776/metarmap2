@@ -66,9 +66,11 @@ target-version = "py39"
 line-length = 120
 
 [tool.ruff.lint]
-select = ["E", "F", "RUF100", "I", "SIM"]
+select = ["E", "F", "RUF100", "I", "SIM", "UP"]
 ignore = [
     "SIM108",  # the ternaries it wants are over 120 columns; the if/else reads better
+    "UP006",  # typing.List/Dict to list/dict: kept as is, py39 floor and a 190-line churn
+    "UP035",  # same: deprecated typing imports
     "SIM905",  # a plain "a b c".split() beats a long list literal of strings
 ]
 
