@@ -404,7 +404,7 @@ class Planner:
                     job["fraction"] = max(fraction, job["fraction"] or 0.0)  # the total can grow: never go back
                     job["label"] = label
                     job["_downloaded"] = True
-            except Exception:  # noqa: BLE001 - a progress report must never break the fetch
+            except Exception:  # a progress report must never break the fetch
                 pass
 
         return progress

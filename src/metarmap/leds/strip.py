@@ -120,8 +120,8 @@ def open_strip(led):
     """
     if led.count == 0:  # a map of virtual airports only: the pin is left alone, no NeoPixel is made
         try:
-            import board  # noqa: F401
-            import neopixel  # noqa: F401
+            import board
+            import neopixel
         except (ImportError, NotImplementedError):
             return FakeStrip(0, brightness=led.brightness.normal)
         # on a Pi the strip can't grow: more pixels take effect after a restart, as with a NeoPixel strip
