@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from metarmap.config import MAX_LEDS, PLAN_BACKUPS, Config
+from metarmap.config import MAX_LEDS, PLAN_BACKUPS, Config, PlanBackups
 from metarmap.metar import MOCK_KEY
 from metarmap.settings import Airport, Settings
 
@@ -428,3 +428,20 @@ def test_undo_renames_the_summary_with_the_backup(config, tmp_path):
     name = config.apply_plan(plan(0), 3, 1, summary={"n": 1})["backup"]
     config.restore_plan_backup()
     assert files(tmp_path) == sorted([name + "-undone", name + "-undone.summary.json"])  # no orphan summary
+
+
+def test_plan_backups_class_makes_lists_and_prunes_on_its_own(tmp_path):
+    file = tmp_path / "config.json"
+    file.write_text("{}")
+    backups = PlanBackups(str(file))
+    stamps = [backups.make({"n": i}) for i in range(PLAN_BACKUPS + 2)]
+    assert stamps == sorted(stamps) and len(set(stamps)) == len(stamps)  # the stamps only go up, even in one second
+    backups.prune(keep=stamps[0])
+    left = [stamp for stamp, _undone, _name in backups.files()]
+    assert left == sorted([stamps[0]] + stamps[-PLAN_BACKUPS:], reverse=True)  # the newest ones, and the one kept
+    newest = backups.listing()[0]
+    assert newest["summary"] == {"n": PLAN_BACKUPS + 1}
+    backups.mark_undone(newest)
+    assert all(b["file"] != newest["file"] for b in backups.listing())
+    backups.remove(stamps[-1])
+    assert not [n for _s, _u, n in backups.files() if stamps[-1] in n]
