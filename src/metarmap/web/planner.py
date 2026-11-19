@@ -955,89 +955,99 @@ def page(services: "App", site):
     )
 
 
-def add_routes(app, services: "App", site, auth, planner: Optional[Planner] = None):
-    planner = planner or Planner(services)
+class PlannerRoutes:
+    """The planner page, its plan (start, progress, cancel) and putting the plan into this Chart (apply, undo)."""
 
-    def refuse(reason, message, status=400):
+    def __init__(self, services: "App", site, planner: Planner):
+        self.services, self.site, self.planner = services, site, planner
+        self.applier = Applier(services, planner)
+
+    def refuse(self, reason, message, status=400):
         return as_json({"error": message, "reason": reason}, status)
 
-    def start():
+    def start(self):
+        services = self.services
         try:
             data = bottle.request.json
         except bottle.HTTPError as e:  # bottle's own refusals: a body that is not JSON (400) or too big (413)
             big = e.status_code == 413
-            return refuse("invalid", "The request is too big" if big else "The body is not valid JSON", e.status_code)
+            return self.refuse(
+                "invalid", "The request is too big" if big else "The body is not valid JSON", e.status_code
+            )
         except ValueError:
             data = None
         try:
             params = parse(data)
         except Invalid as e:
-            return refuse("invalid", str(e))
+            return self.refuse("invalid", str(e))
         cap = MAX_LEDS - services.config.data.led.virtual_count  # the pixels the Chart can have
         if len(params["must_keep"]) > cap:  # the planner always keeps these, so they alone would be over the cap
-            return refuse(
+            return self.refuse(
                 "invalid",
                 f"You keep {len(params['must_keep'])} airports, but the Chart can take only {cap} pixels. "
                 "Untick some in Must keep.",
             )
-        job, started = planner.start(params)
+        job, started = self.planner.start(params)
         if not started:
             return as_json({**job, "error": "A plan is already running", "reason": "running"}, 409)
         return as_json(job, 202)
 
-    applier = Applier(services, planner)
-
-    def json_body():
+    def json_body(self):
         """(the JSON body, None), or (None, the answer to give) for a body that is not JSON or is too big."""
         try:
             return bottle.request.json, None
         except bottle.HTTPError as e:
             big = e.status_code == 413
-            return None, refuse(
+            return None, self.refuse(
                 "invalid", "The request is too big" if big else "The body is not valid JSON", e.status_code
             )
         except ValueError:
-            return None, refuse("invalid", "The body is not valid JSON")
+            return None, self.refuse("invalid", "The body is not valid JSON")
 
-    def answer(call):
+    def answer(self, call):
         """as_json for an Applier's (status, body); a bug is logged and answered as JSON, never as a 500 page."""
         try:
             status, body = call()
         except Exception as e:
             log.exception(f"planner apply failed: {e}")
-            return refuse("failed", "The Chart could not do that: its log has the details", 500)
+            return self.refuse("failed", "The Chart could not do that: its log has the details", 500)
         return as_json(body, status)
 
-    def apply_preview():
-        return answer(applier.preview)
+    def apply_preview(self):
+        return self.answer(self.applier.preview)
 
-    def apply_now():
-        data, bad = json_body()
+    def apply_now(self):
+        data, bad = self.json_body()
         if bad:
             return bad
         token = data.get("token") if isinstance(data, dict) else None
         if not isinstance(token, str) or not token:
-            return refuse("invalid", "The request needs the token from the preview")
-        return answer(lambda: applier.apply(token))
+            return self.refuse("invalid", "The request needs the token from the preview")
+        return self.answer(lambda: self.applier.apply(token))
 
-    def apply_status():
-        return answer(applier.status)
+    def apply_status(self):
+        return self.answer(self.applier.status)
 
-    def undo():
-        data, bad = json_body()
+    def undo(self):
+        data, bad = self.json_body()
         if bad:
             return bad
         backup = data.get("backup") if isinstance(data, dict) else None
         if not isinstance(backup, str) or not backup:
-            return refuse("invalid", "The request needs the backup's name from the status")
-        return answer(lambda: applier.undo(backup))
+            return self.refuse("invalid", "The request needs the backup's name from the status")
+        return self.answer(lambda: self.applier.undo(backup))
 
-    app.route("/config/planner", "GET", lambda: page(services, site), apply=auth)
-    app.route("/config/planner/plan", "POST", start, apply=auth)
-    app.route("/config/planner/progress", "GET", lambda: as_json(planner.progress()), apply=auth)
-    app.route("/config/planner/cancel", "POST", lambda: as_json(planner.cancel()), apply=auth)
-    # putting the plan into this Chart: a preview (and its token), the apply, and an Undo of the newest apply
-    app.route("/config/planner/apply/preview", "GET", apply_preview, apply=auth)
-    app.route("/config/planner/apply", "POST", apply_now, apply=auth)
-    app.route("/config/planner/apply/status", "GET", apply_status, apply=auth)
-    app.route("/config/planner/undo", "POST", undo, apply=auth)
+    def install(self, app, auth):
+        app.route("/config/planner", "GET", lambda: page(self.services, self.site), apply=auth)
+        app.route("/config/planner/plan", "POST", self.start, apply=auth)
+        app.route("/config/planner/progress", "GET", lambda: as_json(self.planner.progress()), apply=auth)
+        app.route("/config/planner/cancel", "POST", lambda: as_json(self.planner.cancel()), apply=auth)
+        # putting the plan into this Chart: a preview (and its token), the apply, and an Undo of the newest apply
+        app.route("/config/planner/apply/preview", "GET", self.apply_preview, apply=auth)
+        app.route("/config/planner/apply", "POST", self.apply_now, apply=auth)
+        app.route("/config/planner/apply/status", "GET", self.apply_status, apply=auth)
+        app.route("/config/planner/undo", "POST", self.undo, apply=auth)
+
+
+def add_routes(app, services: "App", site, auth, planner: Optional[Planner] = None):
+    PlannerRoutes(services, site, planner or Planner(services)).install(app, auth)

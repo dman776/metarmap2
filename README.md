@@ -559,8 +559,8 @@ The code is the `metarmap` package in `src/metarmap/`:
 - `visualizers/`: how each visualizer colors the pixels. Each is a module of functions (`legend()`, and `look()` or
   `strip_look()`) that ends by declaring itself, `VISUALIZER = Visualizer(id=..., name=..., ...)`, which checks it
   (`visualizers/visualizer.py`); `visualizers.ALL` lists them in the web UI's order
-- `web/`: the web UI and API. `create_app()` builds it; the routes are in `pages.py`, `api.py` and `control.py`,
-  and `views.py` prepares what each page shows (templates in `web/templates/`, files in `web/static/`)
+- `web/`: the web UI and API. `create_app()` builds it; the routes are in `pages.py`, `api.py`, `control.py` and `planner.py` (the last two as Routes classes,
+  one per concern), and `views.py` prepares what each page shows (templates in `web/templates/`, files in `web/static/`)
 - `releases.py`: what's newest on GitHub (the "Update available" check); `update.py`'s `run_update()` installs it
 - `service.py`: switches an older installed `metarmap.service` (one that runs `controller.py`) to the current one
 
