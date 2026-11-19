@@ -237,6 +237,49 @@ def parse(raw) -> Remarks:
         return Remarks(text=text, other=(text,) if text else ())
 
 
+def _fields(name, g, obs) -> dict:
+    """The Remarks fields a group that sets one or two of them gives: g is its regex groups, obs the report's time."""
+    if name == "station":
+        return {"station_type": f"AO{g[0]}{g[1]}"}
+    if name == "slp_missing":
+        return {"sea_level_pressure_missing": True}
+    if name == "slp":
+        return {"sea_level_pressure_hpa": sea_level_pressure(g[0])}
+    if name == "temps":
+        return {"temp_c": _tenths(g[0], g[1]), **({"dewpoint_c": _tenths(g[2], g[3])} if g[2] else {})}
+    if name == "max_6":
+        return {"max_temp_6h_c": _tenths(*g)}
+    if name == "min_6":
+        return {"min_temp_6h_c": _tenths(*g)}
+    if name == "extremes_24":
+        return {"max_temp_24h_c": _tenths(g[0], g[1]), "min_temp_24h_c": _tenths(g[2], g[3])}
+    if name == "tendency":
+        character = int(g[0])
+        sign = 1 if character < 4 else -1 if character > 4 else 0
+        return {"pressure_tendency": PressureTendency(character, sign * int(g[1]) / 10)}
+    if name == "snow_depth":
+        return {"snow_depth_in": int(g[0])}
+    if name == "snowfall":
+        return {"snowfall_6h_in": int(g[0]) / 10}
+    if name == "snow_water":
+        return {"snow_water_in": int(g[0]) / 10}
+    if name == "pressure":
+        return {"pressure_change": "rising rapidly" if g[0] == "RR" else "falling rapidly"}
+    if name == "peak_wind":
+        return {"peak_wind": PeakWind(int(g[0]), int(g[1]), *_clock(g[2], g[3], obs))}
+    if name == "wind_shift":
+        return {"wind_shift": WindShift(*_clock(g[0], g[1], obs), frontal_passage=bool(g[2]))}
+    if name == "vis_at":
+        return {("tower_visibility_sm" if g[0] == "TWR" else "surface_visibility_sm"): _miles(g[1])}
+    if name == "vis_varies":
+        return {"variable_visibility_sm": (_miles(g[0]), _miles(g[1]))}
+    if name == "cig_varies":
+        return {"variable_ceiling_ft": (int(g[0]) * 100, int(g[1]) * 100)}
+    if name in ("no_speci", "maintenance"):
+        return {name: True}
+    return {}
+
+
 def _parse(body, text) -> Remarks:
     """parse() of the tokens before RMK and the remarks text after it."""
     observed = next((t for t in body if re.fullmatch(r"\d{2}" + _HH + _MM + "Z", t)), None)
@@ -258,49 +301,11 @@ def _parse(body, text) -> Remarks:
             run = []
         pos = match.end() + 1
         g = match.groups()
-        if name == "station":
-            found["station_type"] = f"AO{g[0]}{g[1]}"
-        elif name == "slp_missing":
-            found["sea_level_pressure_missing"] = True
-        elif name == "slp":
-            found["sea_level_pressure_hpa"] = sea_level_pressure(g[0])
-        elif name == "temps":
-            found["temp_c"] = _tenths(g[0], g[1])
-            if g[2]:
-                found["dewpoint_c"] = _tenths(g[2], g[3])
-        elif name in ("hourly", "precip_6", "precip_24"):
+        if name in ("hourly", "precip_6", "precip_24"):
             hours = {"hourly": 1, "precip_24": 24}.get(name) or _synoptic_hours(obs)
             precipitation.append(Amount(hours, None if g[0] == "////" else int(g[0]) / 100))
-        elif name == "max_6":
-            found["max_temp_6h_c"] = _tenths(*g)
-        elif name == "min_6":
-            found["min_temp_6h_c"] = _tenths(*g)
-        elif name == "extremes_24":
-            found["max_temp_24h_c"], found["min_temp_24h_c"] = _tenths(g[0], g[1]), _tenths(g[2], g[3])
-        elif name == "tendency":
-            character = int(g[0])
-            sign = 1 if character < 4 else -1 if character > 4 else 0
-            found["pressure_tendency"] = PressureTendency(character, sign * int(g[1]) / 10)
         elif name == "ice":
             ice.append(Amount(int(g[0]), int(g[1]) / 100))
-        elif name == "snow_depth":
-            found["snow_depth_in"] = int(g[0])
-        elif name == "snowfall":
-            found["snowfall_6h_in"] = int(g[0]) / 10
-        elif name == "snow_water":
-            found["snow_water_in"] = int(g[0]) / 10
-        elif name == "pressure":
-            found["pressure_change"] = "rising rapidly" if g[0] == "RR" else "falling rapidly"
-        elif name == "peak_wind":
-            found["peak_wind"] = PeakWind(int(g[0]), int(g[1]), *_clock(g[2], g[3], obs))
-        elif name == "wind_shift":
-            found["wind_shift"] = WindShift(*_clock(g[0], g[1], obs), frontal_passage=bool(g[2]))
-        elif name == "vis_at":
-            found["tower_visibility_sm" if g[0] == "TWR" else "surface_visibility_sm"] = _miles(g[1])
-        elif name == "vis_varies":
-            found["variable_visibility_sm"] = (_miles(g[0]), _miles(g[1]))
-        elif name == "cig_varies":
-            found["variable_ceiling_ft"] = (int(g[0]) * 100, int(g[1]) * 100)
         elif name == "began_ended":
             for event in _EVENT.finditer(match.group(0)):
                 for kind, time in _TIME.findall(event.group(2)):
@@ -310,10 +315,8 @@ def _parse(body, text) -> Remarks:
             lightning.append(_lightning(g))
         elif name == "sensor":
             sensors.append(" ".join(t for t in g if t))
-        elif name == "no_speci":
-            found["no_speci"] = True
-        elif name == "maintenance":
-            found["maintenance"] = True
+        else:
+            found.update(_fields(name, g, obs))
     if run:
         other.append(" ".join(run))
     return Remarks(

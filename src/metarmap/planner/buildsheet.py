@@ -39,19 +39,8 @@ class PowerSettings:
             raise ValueError(f"margin must be a number of 1 or more, not {self.margin!r}")
 
 
-def build_sheet(plan, settings, power=None, board_in=None) -> dict:
-    """
-    The build sheet of a layout.Plan made with layout.Settings. power: a PowerSettings (the defaults if None).
-    board_in: the board's (width, height) in inches as the user gave them, shown as they are; else they are worked out
-    from the millimetres.
-    """
-    power = power or PowerSettings()
-    items = plan.items
-    every = settings.string_len
-    gaps = {gap.index: gap for gap in plan.gaps}
-    width_in, height_in = board_in if board_in else (settings.board_w / MM_PER_INCH, settings.board_h / MM_PER_INCH)
-
-    pixels = [
+def _pixel_rows(items, every) -> list:
+    return [
         {
             "index": k,
             "number": k + 1,
@@ -68,6 +57,9 @@ def build_sheet(plan, settings, power=None, board_in=None) -> dict:
         for k, item in enumerate(items)
     ]
 
+
+def _route(items, gaps, every, pitch) -> list:
+    """The wire (or string join) between each pair of neighbouring pixels."""
     route = []
     for k in range(len(items) - 1):
         a, b = items[k], items[k + 1]
@@ -88,11 +80,14 @@ def build_sheet(plan, settings, power=None, board_in=None) -> dict:
                 "from_index": k,
                 "to_index": k + 1,
                 "length_mm": _r(length),
-                "slack_mm": _r(settings.pitch - length) if length < settings.pitch and entry["kind"] == "wire" else 0.0,
+                "slack_mm": _r(pitch - length) if length < pitch and entry["kind"] == "wire" else 0.0,
             }
         )
         route.append(entry)
+    return route
 
+
+def _cuts(route, items, every) -> list:
     cuts = []
     for entry in route:
         if not entry["cut"]:
@@ -109,8 +104,11 @@ def build_sheet(plan, settings, power=None, board_in=None) -> dict:
                 f"splice in {entry['extension_mm']:.0f} mm",
             }
         )
+    return cuts
 
-    joins = [
+
+def _joins(plan, every) -> list:
+    return [
         {
             "between": list(join["between"]),
             "string_a": join["between"][0] // every + 1,
@@ -121,6 +119,8 @@ def build_sheet(plan, settings, power=None, board_in=None) -> dict:
         for join in plan.joins
     ]
 
+
+def _strings(plan, every) -> list:
     strings = []
     for n, indexes in enumerate(plan.strings):
         last = n == len(plan.strings) - 1
@@ -134,9 +134,13 @@ def build_sheet(plan, settings, power=None, board_in=None) -> dict:
                 "spare_pixels": plan.spare_pixels if last else 0,
             }
         )
+    return strings
 
+
+def _shopping(plan, cuts, joins) -> dict:
+    items = plan.items
     skipped = sum(1 for item in items if item.skipped)
-    shopping = {
+    return {
         "airports": len(items) - skipped,
         "skipped": skipped,
         "pixels": len(items),
@@ -153,7 +157,9 @@ def build_sheet(plan, settings, power=None, board_in=None) -> dict:
         "clipped": len(plan.clipped),
     }
 
-    problems = {
+
+def _problems(plan, every) -> dict:
+    return {
         "crowded": [list(cluster) for cluster in plan.crowded],
         "drops": [{"code": drop.code, "crowding": drop.crowding} for drop in plan.drops],
         "clipped": list(plan.clipped),
@@ -162,6 +168,22 @@ def build_sheet(plan, settings, power=None, board_in=None) -> dict:
         "ok": plan.extensions == 0 and not plan.crowded,
     }
 
+
+def build_sheet(plan, settings, power=None, board_in=None) -> dict:
+    """
+    The build sheet of a layout.Plan made with layout.Settings. power: a PowerSettings (the defaults if None).
+    board_in: the board's (width, height) in inches as the user gave them, shown as they are; else they are worked out
+    from the millimetres.
+    """
+    power = power or PowerSettings()
+    items = plan.items
+    every = settings.string_len
+    gaps = {gap.index: gap for gap in plan.gaps}
+    width_in, height_in = board_in if board_in else (settings.board_w / MM_PER_INCH, settings.board_h / MM_PER_INCH)
+
+    route = _route(items, gaps, every, settings.pitch)
+    cuts = _cuts(route, items, every)
+    joins = _joins(plan, every)
     first = items[0] if items else None
     return {
         "board": {
@@ -178,7 +200,7 @@ def build_sheet(plan, settings, power=None, board_in=None) -> dict:
             "string_len": every,
             "allow_skips": settings.allow_skips,
         },
-        "pixels": pixels,
+        "pixels": _pixel_rows(items, every),
         "start": None
         if first is None
         else {
@@ -191,9 +213,9 @@ def build_sheet(plan, settings, power=None, board_in=None) -> dict:
         "route": route,
         "cuts": cuts,
         "joins": joins,
-        "strings": strings,
-        "shopping": shopping,
-        "problems": problems,
+        "strings": _strings(plan, every),
+        "shopping": _shopping(plan, cuts, joins),
+        "problems": _problems(plan, every),
         "power": power_advice(len(items), power, every),
     }
 

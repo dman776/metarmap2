@@ -46,19 +46,13 @@ STATUS_FIELDS = (
 )
 
 
-def status(services: Services, ip):
-    """
-    Read-only snapshot of the map state.
-    """
+def _iso(dt):
+    return dt.isoformat() if dt is not None else None
 
-    def iso(dt):
-        return dt.isoformat() if dt is not None else None
 
+def _status_airports(services):
     cfg = services.config.data
     metars = services.metars
-    active_num, active_vis = services.renderer.visualizer
-    suntimes = services.sun.times or {}
-
     airports = []
     for index, airport in enumerate(services.config.airports):
         if not airport.code:
@@ -76,73 +70,96 @@ def status(services: Services, ip):
                 **{field: report.get(field) for field in STATUS_FIELDS},
             }
         )
+    return airports
 
+
+def _status_visualizer(services):
+    active_num, active_vis = services.renderer.visualizer
+    return {
+        "active": active_num,
+        "id": active_vis.id,
+        "name": active_vis.name,
+        "shortName": active_vis.short_name,
+        "icon": active_vis.icon,
+        "iconRev": icons.mask_rev(active_vis.icon),  # its mask's ETag at /api/icon/<icon>
+        "exclusive": active_vis.exclusive,
+        "description": active_vis.description,
+        "legend": services.renderer.legend(),
+    }
+
+
+def _status_visualizers(services):
+    skip = services.config.data.visualizer.auto_rotate.skip
+    return [
+        {
+            "index": i,
+            "id": v.id,
+            "name": v.name,
+            "shortName": v.short_name,
+            "icon": v.icon,
+            "iconRev": icons.mask_rev(v.icon),
+            "exclusive": v.exclusive,
+            "skipped": v.id in skip,  # left out of auto-rotate
+        }
+        for i, v in enumerate(services.renderer.visualizers)
+    ]
+
+
+def _status_config(cfg):
+    return {
+        "visualizer.active": cfg.visualizer.active,
+        "visualizer.auto_rotate.enabled": cfg.visualizer.auto_rotate.enabled,
+        "visualizer.auto_rotate.delay_seconds": cfg.visualizer.auto_rotate.delay_seconds,
+        "visualizer.auto_rotate.skip": cfg.visualizer.auto_rotate.skip,
+        "visualizer.auto_rotate.skip_dark": cfg.visualizer.auto_rotate.skip_dark,
+        "visualizer.missing_data_blink": cfg.visualizer.missing_data_blink,
+        "visualizer.estimated_category_breathing": cfg.visualizer.estimated_category_breathing,
+        "visualizer.forecast_step_seconds": cfg.visualizer.forecast_step_seconds,
+        "visualizer.forecast_include_tempo": cfg.visualizer.forecast_include_tempo,
+        "visualizer.legend_in_use_only": cfg.visualizer.legend_in_use_only,
+        "lightning.animation": cfg.lightning.animation,
+        "lightning.color": cfg.lightning.color,
+        "lightning.forecast": cfg.lightning.forecast,
+        "display_screen.enabled": cfg.display_screen.enabled,
+        "display_screen.locate_active": cfg.display_screen.locate_active,
+        "display_screen.delay": cfg.display_screen.delay,
+        "display_screen.shows": cfg.display_screen.shows,
+        "led.inittest": cfg.led.inittest,
+        "led.init_sequence": cfg.led.init_sequence,
+        "led.init_sweep_from": cfg.led.init_sweep_from,
+        "led.dim_on_refresh": cfg.led.dim_on_refresh,
+        "led.brightness.normal": cfg.led.brightness.normal,
+        "led.brightness.dimmed": cfg.led.brightness.dimmed,
+        "led.brightness.off": cfg.led.brightness.off,
+        "led.quiet_hours.enabled": cfg.led.quiet_hours.enabled,
+        "led.quiet_hours.start": cfg.led.quiet_hours.start,
+        "led.quiet_hours.end": cfg.led.quiet_hours.end,
+    }
+
+
+def status(services: Services, ip):
+    """
+    Read-only snapshot of the map state.
+    """
+    cfg = services.config.data
+    metars = services.metars
+    suntimes = services.sun.times or {}
     return {
         "version": __version__,
         "ip": ip,
         "name": services.discovery.name() if services.discovery else map_name(cfg),
         "announcing": bool(services.discovery and services.discovery.announcing),
         "brightness": services.renderer.pixels().brightness,
-        "visualizer": {
-            "active": active_num,
-            "id": active_vis.id,
-            "name": active_vis.name,
-            "shortName": active_vis.short_name,
-            "icon": active_vis.icon,
-            "iconRev": icons.mask_rev(active_vis.icon),  # its mask's ETag at /api/icon/<icon>
-            "exclusive": active_vis.exclusive,
-            "description": active_vis.description,
-            "legend": services.renderer.legend(),
-        },
-        "visualizers": [
-            {
-                "index": i,
-                "id": v.id,
-                "name": v.name,
-                "shortName": v.short_name,
-                "icon": v.icon,
-                "iconRev": icons.mask_rev(v.icon),
-                "exclusive": v.exclusive,
-                "skipped": v.id in cfg.visualizer.auto_rotate.skip,  # left out of auto-rotate
-            }
-            for i, v in enumerate(services.renderer.visualizers)
-        ],
-        "config": {
-            "visualizer.active": cfg.visualizer.active,
-            "visualizer.auto_rotate.enabled": cfg.visualizer.auto_rotate.enabled,
-            "visualizer.auto_rotate.delay_seconds": cfg.visualizer.auto_rotate.delay_seconds,
-            "visualizer.auto_rotate.skip": cfg.visualizer.auto_rotate.skip,
-            "visualizer.auto_rotate.skip_dark": cfg.visualizer.auto_rotate.skip_dark,
-            "visualizer.missing_data_blink": cfg.visualizer.missing_data_blink,
-            "visualizer.estimated_category_breathing": cfg.visualizer.estimated_category_breathing,
-            "visualizer.forecast_step_seconds": cfg.visualizer.forecast_step_seconds,
-            "visualizer.forecast_include_tempo": cfg.visualizer.forecast_include_tempo,
-            "visualizer.legend_in_use_only": cfg.visualizer.legend_in_use_only,
-            "lightning.animation": cfg.lightning.animation,
-            "lightning.color": cfg.lightning.color,
-            "lightning.forecast": cfg.lightning.forecast,
-            "display_screen.enabled": cfg.display_screen.enabled,
-            "display_screen.locate_active": cfg.display_screen.locate_active,
-            "display_screen.delay": cfg.display_screen.delay,
-            "display_screen.shows": cfg.display_screen.shows,
-            "led.inittest": cfg.led.inittest,
-            "led.init_sequence": cfg.led.init_sequence,
-            "led.init_sweep_from": cfg.led.init_sweep_from,
-            "led.dim_on_refresh": cfg.led.dim_on_refresh,
-            "led.brightness.normal": cfg.led.brightness.normal,
-            "led.brightness.dimmed": cfg.led.brightness.dimmed,
-            "led.brightness.off": cfg.led.brightness.off,
-            "led.quiet_hours.enabled": cfg.led.quiet_hours.enabled,
-            "led.quiet_hours.start": cfg.led.quiet_hours.start,
-            "led.quiet_hours.end": cfg.led.quiet_hours.end,
-        },
+        "visualizer": _status_visualizer(services),
+        "visualizers": _status_visualizers(services),
+        "config": _status_config(cfg),
         "display": {"enabled": cfg.display_screen.enabled, "on": cfg.display_screen.enabled and services.display.on},
-        "suntimes": {k: iso(suntimes.get(k)) for k in ("dawn", "sunrise", "sunset", "dusk")},
+        "suntimes": {k: _iso(suntimes.get(k)) for k in ("dawn", "sunrise", "sunset", "dusk")},
         "build": services.releases.build if services.releases else None,
         "update": update_state(services),
-        "lastFetchTime": iso(metars.lastFetchTime),
+        "lastFetchTime": _iso(metars.lastFetchTime),
         "missingStations": metars.missing_stations(),
-        "airports": airports,
+        "airports": _status_airports(services),
     }
 
 

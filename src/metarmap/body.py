@@ -228,9 +228,8 @@ def parse(raw) -> Body:
         return Body(text=text)
 
 
-def _parse(tokens, text) -> Body:
-    found = {"text": text}
-    modifiers, ranges, clouds, recent, shear, states, trends, unread = [], [], [], [], [], [], [], []
+def _skip_header(tokens, found, modifiers) -> int:
+    """Past the report type, COR, station and time that open a report; returns the index of the next token."""
     i = 0
     if tokens[0] in ("METAR", "SPECI"):
         found["report_type"] = tokens[0]
@@ -242,6 +241,22 @@ def _parse(tokens, text) -> Body:
         i += 1
     if i < len(tokens) and re.fullmatch(r"\d{6}Z", tokens[i], re.ASCII):
         i += 1
+    return i
+
+
+def _cloud(match) -> Cloud:
+    base, cloud_kind = match.group(2), match.group(3)
+    return Cloud(
+        match.group(1),
+        int(base) * 100 if _DIGITS.fullmatch(base) else None,
+        cloud_kind if cloud_kind != "///" else None,
+    )
+
+
+def _parse(tokens, text) -> Body:
+    found = {"text": text}
+    modifiers, ranges, clouds, recent, shear, states, trends, unread = [], [], [], [], [], [], [], []
+    i = _skip_header(tokens, found, modifiers)
 
     previous = None  # what the token before was: "wind", "visibility"
     while i < len(tokens):
@@ -287,15 +302,7 @@ def _parse(tokens, text) -> Body:
         elif t.startswith("RE") and _recent(t[2:]):
             recent.append(t[2:])
         elif _CLOUD.fullmatch(t):
-            match = _CLOUD.fullmatch(t)
-            base, cloud_kind = match.group(2), match.group(3)
-            clouds.append(
-                Cloud(
-                    match.group(1),
-                    int(base) * 100 if _DIGITS.fullmatch(base) else None,
-                    cloud_kind if cloud_kind != "///" else None,
-                )
-            )
+            clouds.append(_cloud(_CLOUD.fullmatch(t)))
         elif _UNKNOWN_CLOUD.fullmatch(t):  # //////CB: kept for its type; ////// says nothing
             if t.endswith(("CB", "TCU")):
                 clouds.append(Cloud("", None, t[-3:].lstrip("/")))
