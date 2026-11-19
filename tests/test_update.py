@@ -6,6 +6,7 @@ than root. Also the check behind "Update available" (metarmap.releases) and rele
 
 import json
 import subprocess
+import threading
 from types import SimpleNamespace
 
 import pytest
@@ -910,3 +911,32 @@ def test_the_build_is_whats_running_not_whats_on_disk(repos):
 )
 def test_github_url(remote, url):
     assert github_url(remote) == url
+
+
+def test_checks_run_one_at_a_time():
+    """Two checks at once (two browsers, or the background check and the button) never overlap in git."""
+    running, most = 0, 0
+    guard = threading.Lock()
+    first_in = threading.Event()
+    release_first = threading.Event()
+
+    def fake_git(*args):
+        nonlocal running, most
+        with guard:
+            running += 1
+            most = max(most, running)
+        first_in.set()
+        release_first.wait(2)
+        with guard:
+            running -= 1
+        return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
+
+    releases = ReleaseCheck(git=fake_git)
+    threads = [threading.Thread(target=releases.check) for _ in range(2)]
+    threads[0].start()
+    assert first_in.wait(2)
+    threads[1].start()  # blocks on the check lock while the first one is inside git
+    release_first.set()
+    for t in threads:
+        t.join(5)
+    assert most == 1 and not any(t.is_alive() for t in threads)

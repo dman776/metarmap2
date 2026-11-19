@@ -1,5 +1,7 @@
 ### Unreleased
 
+- **Config > System > Software is in the order you use it.** **Update to**, then the **Branch** (dev_mode, with Branch picked), then the running version with **Check now**, then **Install a release** (now shown even when GitHub lists no releases: disabled, "No releases yet") and a new **Update** button last. While a check runs (after changing Update to or the branch, or with Check now), every control on the card is off, and is back when it ends, also if it fails; a change made while a check is running can no longer save a setting the check isn't reading, and checks now run one at a time on the Chart. The Check now button is no longer a `data-call` button (the page runs it). No API change.
+
 - **The Cockpit shows the raw METAR while an AWOS plays.** On the Info tab's **AWOS** mode the bar used to show the spoken sentence; it now shows the airport's raw METAR, so you can follow along and learn to read one (the spoken sentence is still shown if the raw METAR can't be fetched). ATIS is unchanged. No API change.
 
 - **Fetches cost a Pi Zero much less CPU.** Every data source (METARs, TAFs, advisories, TFRs, delays, traffic, ATIS) used to open a new connection for each request, and on the Pi each new connection spent about 1.4 s of CPU reading the certificate bundle, about half the time of the fetch burst every 10 minutes. They now share one session that keeps connections open and reads the bundle once (a stale connection is retried once). A request with its own TLS settings (`REQUESTS_CA_BUNDLE`, a proxy) is sent the way it was before.

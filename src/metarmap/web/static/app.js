@@ -560,40 +560,84 @@
         });
     }
 
-    // Config > System > Software: a new Update to / Branch runs Check now (never installs), the button glowing meanwhile
-    async function checkUpdate() {
+    // Config > System > Software: a new Update to / Branch saves, then runs Check now (never installs). While it runs
+    // every control of the card is off (checking), so a second change can't save a channel or branch the running
+    // check isn't reading, nor a second check start; the Check button glows meanwhile
+    const UPDATE_CONTROLS = ['update-channel', 'update-branch', 'update-check', 'release-pick', 'update-run'];
+    let checking = false;
+
+    function lockUpdate(on) {
+        checking = on;
+        UPDATE_CONTROLS.forEach(function (id) {
+            const el = document.getElementById(id);
+            if (el) busy(el, on || el.hasAttribute('data-none'));  // data-none: no releases to pick, ever off
+        });
+        document.querySelectorAll('[data-install-release]').forEach(function (el) { busy(el, on || el.hasAttribute('data-none')); });
+        const btn = document.getElementById('update-check');
+        if (btn) btn.classList.toggle('loading', on);
+    }
+
+    // work: what runs while the card is locked (the save, then the check). A page that reloads stays locked.
+    async function checkUpdate(work) {
+        if (checking) return false;  // one at a time, even if a change slipped in before the controls were off
         const channel = document.getElementById('update-channel');
         const branch = document.getElementById('update-branch');
-        if (channel && channel.value === 'branch' && !(branch && branch.value)) return;  // no branch picked yet
-        const btn = document.getElementById('update-check');
-        busy(btn, true);
-        if (btn) btn.classList.add('loading');
+        lockUpdate(true);
+        let reloading = false;
         try {
+            if (work) await work();
+            // no branch picked yet: a change has nothing to check, but Check now always asks (it fills the branch list)
+            if (work && channel && channel.value === 'branch' && !(branch && branch.value)) return true;
             await call('/update/check');
+            reloading = true;
             window.location.reload();
         } catch (err) {
-            showOutput('Error', String(err));
-            busy(btn, false);
-            if (btn) btn.classList.remove('loading');
+            showOutput(err.saving ? 'Could not save' : 'Error', String(err));
+        } finally {
+            if (!reloading) lockUpdate(false);
         }
+        return true;
+    }
+
+    const updateCheck = document.getElementById('update-check');
+    if (updateCheck) updateCheck.addEventListener('click', function (e) { e.preventDefault(); checkUpdate(); });
+
+    // puts a select back to what is saved, and its nested rows (the Branch row) with it
+    function restoreSaved(el) {
+        el.value = el.dataset.saved;
+        el.dispatchEvent(new Event('when-refresh'));  // not 'change': that would save and check again
     }
 
     // config settings: <input data-key="a.b" data-restart> / <select data-key>
     document.querySelectorAll('[data-key]').forEach(function (el) {
+        const checks = el.hasAttribute('data-check-update');
+        if (checks) el.dataset.saved = el.value;
         el.addEventListener('change', async function () {
             let value = el.type === 'checkbox' ? el.checked : el.value;
             if (value === '' && el.dataset.empty) value = el.dataset.empty;  // a URL can't end in nothing: "-" is empty
-            try {
-                await call('/config/edit/' + el.dataset.key + '/' + encodeURIComponent(value));
+            const save = async function () {
+                try {
+                    await call('/config/edit/' + el.dataset.key + '/' + encodeURIComponent(value));
+                } catch (err) {
+                    if (checks) restoreSaved(el);  // the card shows what is saved
+                    err.saving = true;
+                    throw err;
+                }
+                if (checks) el.dataset.saved = el.value;
                 if (el.hasAttribute('data-restart')) {
                     const banner = document.getElementById('restart-banner');
                     if (banner) banner.hidden = false;
                 }
-            } catch (err) {
-                showOutput('Could not save', String(err));
+            };
+            if (checks) {
+                if (!await checkUpdate(save)) restoreSaved(el);  // a check is running: this change is dropped
                 return;
             }
-            if (el.hasAttribute('data-check-update')) checkUpdate();
+            try {
+                await save();
+            } catch (err) {
+                showOutput('Could not save', String(err));
+            }
         });
     });
 
@@ -667,6 +711,7 @@
             else group.hidden = 'whenValue' in group.dataset ? control.value !== group.dataset.whenValue : !control.checked;
         };
         control.addEventListener('change', update);
+        control.addEventListener('when-refresh', update);  // a value put back by script, which fires no change
     });
 
     // Config > Visualizer: the unticked visualizers are saved as a list of ids (visualizer.auto_rotate.skip)
