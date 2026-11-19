@@ -805,7 +805,10 @@ def test_progress_counts_the_tiles_and_what_a_split_adds(api, clock):
         api(stations=tile_stations)
         calls = []
         got = airports.candidates(
-            *BIG_BOX, clock=SafeClock(), workers=workers, progress=lambda done, total: calls.append((done, total))
+            *BIG_BOX,
+            clock=SafeClock(),
+            workers=workers,
+            progress=lambda done, total, calls=calls: calls.append((done, total)),
         )
         assert calls[0] == (0, 16)  # the tiles are known before the first one is fetched
         assert [done for done, _ in calls] == list(range(len(calls)))  # one call per request, in order

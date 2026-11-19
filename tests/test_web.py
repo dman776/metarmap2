@@ -2989,11 +2989,11 @@ def test_skips_at_once_all_land(client):
         barrier = threading.Barrier(len(ids))
         statuses = []
 
-        def skip(vid):
+        def skip(vid, barrier, statuses):
             barrier.wait()
             statuses.append(client(f"/visualizer/{vid}/skip", auth=False)[0])
 
-        threads = [threading.Thread(target=skip, args=(vid,)) for vid in ids]
+        threads = [threading.Thread(target=skip, args=(vid, barrier, statuses)) for vid in ids]
         for t in threads:
             t.start()
         for t in threads:
