@@ -140,6 +140,9 @@
     </section>
 </div>
 
+<!-- quiet hours: a dark overlay over the page; the first touch only wakes it (remote.js) -->
+<div class="r-dim" id="r-dim" hidden></div>
+
 <script src="/static/remote.js?v={{assets}}"></script>
 
 %include("footer.tpl", kiosk=True)

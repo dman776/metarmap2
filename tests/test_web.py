@@ -26,6 +26,7 @@ from metarmap import __version__, discovery
 from metarmap import app as app_module
 from metarmap.advisories import Advisories
 from metarmap.app import App
+from metarmap.clock import FakeClock
 from metarmap.leds.strip import FakeStrip
 from metarmap.models import Look, Report, SkyLayer
 from metarmap.renderer import Renderer
@@ -920,10 +921,32 @@ def test_live(services):
     assert cycle["runs"][:3] == [[0, 3], [1, 2], [0, 3]]
     assert sum(n for _, n in cycle["runs"]) == 80  # 4 s of 0.05 s frames
     json.dumps(live)
+    assert live["quiet"] is False  # quiet hours are off
     assert (live["visualizer"]["shortName"], live["visualizer"]["icon"]) == ("Flight Cat", "plane")
     assert live["display"] == {"enabled": True, "on": True, "screen": {"kind": "message", "title": "MAP"}}
     services.config.data.display_screen.enabled = False
     assert api.live(services)["display"] == {"enabled": False, "on": False, "screen": None}
+
+
+def test_live_says_when_quiet_hours_are_active(services):
+    quiet = services.config.data.led.quiet_hours
+    quiet.start, quiet.end = "22:00", "05:00"  # overnight
+    clock = FakeClock(datetime(2026, 1, 15, 23, 30).astimezone())  # 23:30 local
+    services.renderer._clock = clock
+    assert api.live(services)["quiet"] is False  # disabled
+    quiet.enabled = True
+    assert api.live(services)["quiet"] is True
+    clock.set_wall_clock(datetime(2026, 1, 16, 4, 0).astimezone())
+    assert api.live(services)["quiet"] is True
+    clock.set_wall_clock(datetime(2026, 1, 16, 12, 0).astimezone())
+    assert api.live(services)["quiet"] is False
+
+
+def test_cockpit_has_the_quiet_hours_overlay(client):
+    body = client("/remote")[1]
+    assert 'id="r-dim"' in body
+    js = client("/static/remote.js")[1]
+    assert "live.quiet" in js
 
 
 # ---- cheap payloads: compact JSON, gzip when asked, leds[] made once per change, /api/version ----------------------

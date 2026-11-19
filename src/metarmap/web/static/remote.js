@@ -413,12 +413,57 @@
         for (let i = 0; i < items.length; i++) items[i].classList.toggle('on', !!step && i === step.index);
     }
 
+    // ---- quiet hours (/api/live's quiet): a black overlay dims the page to about 15%. The first touch only wakes it (it
+    // is swallowed, so nothing beneath is pressed); it dims again DIM_AFTER_MS after the last touch while quiet is
+    // still true, and goes at once when quiet ends.
+    const DIM_AFTER_MS = 30000;
+    const dim = document.getElementById('r-dim');
+    let isQuiet = false;
+    let dimTimer = null;
+    let lastTapAt = 0;  // when the page was last touched (ms), so quiet hours never black it out mid-use
+    function setDim(on) {
+        if (dim) dim.hidden = !on;
+    }
+    function dimSoon() {
+        clearTimeout(dimTimer);
+        const wait = Math.max(0, DIM_AFTER_MS - (Date.now() - lastTapAt));
+        dimTimer = setTimeout(function () { setDim(true); }, wait);
+    }
+    function wake() {
+        lastTapAt = Date.now();
+        setDim(false);
+        clearTimeout(dimTimer);
+        if (isQuiet) dimSoon();
+    }
+    function showQuiet(now) {
+        if (now === isQuiet) return;
+        isQuiet = now;
+        clearTimeout(dimTimer);
+        if (isQuiet) dimSoon(); else setDim(false);
+    }
+    if (dim) {
+        // the overlay is removed on the touch's end (or the click), and the touch's own click is cancelled, so it
+        // cannot land on what is beneath
+        const swallow = function (e) { e.preventDefault(); e.stopPropagation(); wake(); };
+        dim.addEventListener('touchend', swallow);
+        dim.addEventListener('click', swallow);
+        dim.addEventListener('touchstart', function (e) { e.stopPropagation(); });
+        // a touch on the page while awake holds off the next dimming
+        const touched = function () {
+            lastTapAt = Date.now();
+            if (isQuiet && dim.hidden) dimSoon();
+        };
+        document.addEventListener('touchstart', touched, true);
+        document.addEventListener('mousedown', touched, true);
+    }
+
     async function poll() {
         try {
             const res = await fetch('/api/live', {cache: 'no-store'});
             if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
             const live = await res.json();
             online(true);
+            showQuiet(!!live.quiet);
             followVisualizer(live.visualizer.active);
             filterLegend(legend.querySelector('.legend'), live.visualizer, shown);
             if (live.visualizer.active === shown) markStep(legend, live.visualizer.step);

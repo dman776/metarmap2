@@ -267,6 +267,7 @@
     }
     // a tap outside any open list closes it; capture, as the map's own controls stop their clicks
     function outside(e) {
+        if (e.target.closest && e.target.closest('#r-dim')) return;  // the Cockpit's quiet-hours cover: a waking touch
         for (let i = 0; i < openMenus.length; i++) {
             if (!openMenus[i].menu.hidden && !openMenus[i].box.contains(e.target)) openMenus[i].close(false);
         }

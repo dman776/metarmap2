@@ -1,5 +1,7 @@
 ### Unreleased
 
+- **The Cockpit dims in quiet hours (B105).** While `led.quiet_hours` are active the Cockpit covers itself with a dark overlay (about 15% brightness). The first touch only wakes it, pressing nothing underneath, and it dims again 30 seconds after the last touch; when quiet hours end the overlay goes at once. `GET /api/live` has a new boolean `quiet` (true while quiet hours are active now), worked out from the clock with no extra I/O; The Copilot dims the same way (metarmap2_remote PR #49).
+
 - **Config's plan-backup files are their own class (B112).** The copies of `config.json` that applying a plan leaves beside it (making, listing, pruning, removing and marking them undone) moved from `Config` into a `PlanBackups` class; `Config` keeps `plan_backups()`, `next_plan_backup_name()` and `restore_plan_backup()` and so shrinks to read, write, edit and publish. Development only; nothing on the Chart changes. No API change.
 
 - **The other long functions are split into small ones (B109).** `run_update` is now an `_Update` class with a method per stage (pick what to install, save the settings, install, restore, report), and the planner's 2-opt/Or-opt search is a `_Path` class with a method per pass. `build_sheet`, `plan_changes`, the web `status`, and the body, remarks and typed-METAR parsers each call small helpers instead of doing it all in one body. Development only; nothing on the Chart changes. No API change.
