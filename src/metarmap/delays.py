@@ -36,7 +36,7 @@ from datetime import datetime, timezone
 
 import requests
 
-from metarmap import USER_AGENT
+from metarmap import USER_AGENT, http
 
 log = logging.getLogger(__name__)
 
@@ -271,11 +271,11 @@ def describe(status):
 
 class Delays:
     """
-    get: requests.get, or a test's own. clock: epoch seconds.
+    get: http.get, or a test's own. clock: epoch seconds.
     """
 
     def __init__(self, get=None, clock=time.time):
-        self._get = get or requests.get
+        self._get = get or http.get
         self._clock = clock
         self._lock = threading.Lock()
         self._fetching = threading.Lock()

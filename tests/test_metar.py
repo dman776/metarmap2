@@ -201,7 +201,7 @@ def test_fetch_success(monkeypatch, make_config, fixture_bytes):
         urls.append(url)
         return FakeResponse(fixture_bytes("metars_houston.json"))
 
-    monkeypatch.setattr(metar.requests, "get", fake_get)
+    monkeypatch.setattr(metar.http, "get", fake_get)
 
     m = metar.Reports(make_config(*HOUSTON), clock=CLOCK)
     assert m.last_fetch_ok is None
@@ -221,7 +221,7 @@ def test_fetch_success(monkeypatch, make_config, fixture_bytes):
     ],
 )
 def test_fetch_errors_are_contained(monkeypatch, make_config, fake_get):
-    monkeypatch.setattr(metar.requests, "get", fake_get)
+    monkeypatch.setattr(metar.http, "get", fake_get)
     m = metar.Reports(make_config("KTST"), clock=CLOCK)
     m.data = {"KTST": Report(raw="previous")}
     assert m.fetch() is False  # must not raise: it runs on the scheduler in the main loop
@@ -231,7 +231,7 @@ def test_fetch_errors_are_contained(monkeypatch, make_config, fake_get):
 
 
 def test_fetch_calls_callback_even_on_error(monkeypatch, make_config):
-    monkeypatch.setattr(metar.requests, "get", lambda url, **kw: FakeResponse(status=500))
+    monkeypatch.setattr(metar.http, "get", lambda url, **kw: FakeResponse(status=500))
     called = []
     metar.Reports(make_config("KTST"), clock=CLOCK).fetch(callback=lambda: called.append(True))
     assert called == [True]
@@ -265,7 +265,7 @@ def stations_api(monkeypatch, fixture_bytes, stations=STATIONS, fail=False):
             return FakeResponse(b"", status=502) if fail else FakeResponse(json.dumps(stations).encode())
         return FakeResponse(fixture_bytes("metars_houston.json"))
 
-    monkeypatch.setattr(metar.requests, "get", fake_get)
+    monkeypatch.setattr(metar.http, "get", fake_get)
     return asked
 
 
@@ -326,7 +326,7 @@ def test_station_names_can_be_read_while_another_thread_looks_up_codes(monkeypat
         codes = url.rsplit("=", 1)[1].split(",")
         return FakeResponse(json.dumps([{"icaoId": c, "lat": 1.0, "lon": 2.0, "site": "n"} for c in codes]).encode())
 
-    monkeypatch.setattr(metar.requests, "get", stations)
+    monkeypatch.setattr(metar.http, "get", stations)
     m = metar.Reports(make_config("KHOU"), clock=CLOCK)
     errors = []
 
@@ -354,7 +354,7 @@ def test_station_names_can_be_read_while_another_thread_looks_up_codes(monkeypat
 
 def test_a_failed_metar_fetch_skips_the_lookup(monkeypatch, make_config):
     asked = []
-    monkeypatch.setattr(metar.requests, "get", lambda url, **kw: asked.append(url) or FakeResponse(status=502))
+    monkeypatch.setattr(metar.http, "get", lambda url, **kw: asked.append(url) or FakeResponse(status=502))
     metar.Reports(make_config("KDKR"), clock=CLOCK).fetch()
     assert len(asked) == 1
 

@@ -1,5 +1,7 @@
 ### Unreleased
 
+- **Fetches cost a Pi Zero much less CPU.** Every data source (METARs, TAFs, advisories, TFRs, delays, traffic, ATIS) used to open a new connection for each request, and on the Pi each new connection spent about 1.4 s of CPU reading the certificate bundle, about half the time of the fetch burst every 10 minutes. They now share one session that keeps connections open and reads the bundle once (a stale connection is retried once). A request with its own TLS settings (`REQUESTS_CA_BUNDLE`, a proxy) is sent the way it was before.
+
 ### dman776 26.11.18 (2026-11-18)
 
 - **The version comes from the release tag.** There is no version number to set in the code any more: the Chart's version is the newest `v` release tag its code is at or after (read from git; from the installed package when there is no checkout; `0+unknown` if neither is known). Making a release is naming this heading, committing, and tagging.

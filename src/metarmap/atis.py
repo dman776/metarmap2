@@ -17,7 +17,7 @@ from typing import Callable, Dict, List, Optional, Set
 
 import requests
 
-from metarmap import USER_AGENT
+from metarmap import USER_AGENT, http
 
 log = logging.getLogger(__name__)
 
@@ -62,13 +62,13 @@ def parse(data) -> Dict[str, List[dict]]:
 class Atis:
     """
     enabled: returns whether spoken ATIS is on now (speech.enabled and speech.atis), so a change applies at once.
-    get: requests.get, or a test's own. clock: epoch seconds. background: run the half-hourly refresh in a thread
+    get: http.get, or a test's own. clock: epoch seconds. background: run the half-hourly refresh in a thread
     (tests run it in place).
     """
 
     def __init__(self, enabled: Callable[[], bool], get=None, clock=time.time, background=True):
         self._enabled = enabled
-        self._get = get or requests.get
+        self._get = get or http.get
         self._clock = clock
         self._background = background
         self._fetching = threading.Lock()  # one fetch at a time

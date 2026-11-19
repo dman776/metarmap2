@@ -13,7 +13,7 @@ from typing import Dict, Optional
 
 import requests
 
-from metarmap import USER_AGENT, remarks
+from metarmap import USER_AGENT, http, remarks
 from metarmap.body import TREND_KINDS
 from metarmap.clock import Clock
 from metarmap.models import Report, SkyLayer
@@ -452,7 +452,7 @@ class Reports:
             self._is_fetching = True
             log.info("Fetching...")
             url = API_URL + ",".join(airport_codes(self._config.airports))
-            response = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=30, verify=True)
+            response = http.get(url, headers={"User-Agent": USER_AGENT}, timeout=30, verify=True)
             response.raise_for_status()
             content = response.content
             self._is_fetching = False
@@ -490,7 +490,7 @@ class Reports:
         if not codes:
             return True
         try:
-            response = requests.get(STATION_URL + ",".join(codes), headers={"User-Agent": USER_AGENT}, timeout=timeout)
+            response = http.get(STATION_URL + ",".join(codes), headers={"User-Agent": USER_AGENT}, timeout=timeout)
             response.raise_for_status()
             stations = response.json()
         except (requests.exceptions.RequestException, ValueError) as e:

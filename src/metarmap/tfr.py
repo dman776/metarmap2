@@ -24,7 +24,7 @@ from datetime import datetime, timezone
 
 import requests
 
-from metarmap import USER_AGENT
+from metarmap import USER_AGENT, http
 from metarmap.advisories import inside
 
 log = logging.getLogger(__name__)
@@ -171,12 +171,12 @@ def real(value):
 class Tfrs:
     """
     nearby: returns the TFR nearby distance in NM now (a setting, so a change applies at once).
-    get: requests.get, or a test's own. clock: epoch seconds. sleep: time.sleep.
+    get: http.get, or a test's own. clock: epoch seconds. sleep: time.sleep.
     """
 
     def __init__(self, nearby=lambda: 10, get=None, clock=time.time, sleep=time.sleep):
         self._nearby = nearby
-        self._get = get or requests.get
+        self._get = get or http.get
         self._clock = clock
         self._sleep = sleep
         self._lock = threading.Lock()

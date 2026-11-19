@@ -22,7 +22,7 @@ import time
 
 import requests
 
-from metarmap import USER_AGENT
+from metarmap import USER_AGENT, http
 
 log = logging.getLogger(__name__)
 
@@ -231,13 +231,13 @@ class Traffic:
     """
     settings: returns geo.map now (traffic_seconds, traffic_ground), so a change on the Config page applies at once.
     points: returns the airports' positions, [(lat, lon), ...].
-    get: requests.get, or a test's own. clock: epoch seconds.
+    get: http.get, or a test's own. clock: epoch seconds.
     """
 
     def __init__(self, settings, points, get=None, clock=time.time):
         self._settings = settings
         self._points = points
-        self._get = get or requests.get
+        self._get = get or http.get
         self._clock = clock
         self._fetching = threading.Lock()  # one fetch at a time; other pages get what's there meanwhile
         self._lock = threading.Lock()
