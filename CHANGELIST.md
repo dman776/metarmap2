@@ -1,5 +1,7 @@
 ### Unreleased
 
+- **`app.py` is split into small classes (B106).** Its 43 loose `f(app)` functions are now `Feeds` (`feeds.py`: the METAR, advisory, TFR, FAA status and TAF fetches, the one-at-a-time fetch lock and the retry; the retry's state is on the object instead of module globals), `Rotation` (`rotation.py`: auto-rotate) and `Lighting` (`lighting.py`: brightness by the sun and quiet hours), each taking only the parts it uses and built by `App`. `app.py` keeps `App`, `build`, `run`, the config wiring and `main`. Log lines from the fetches now come from the `metarmap.feeds` logger. Development only; nothing on the Chart changes. No API change.
+
 - **Imports are at the top of the file where they can be (B110).** `legend_item()` moved from `visualizers/visualizer.py` to its own `visualizers/legend.py`, so `visualizer.py` can import `style` at the top, and `metar.py` and `update.py` import `decode`, `versions` and the settings at the top. The few that stay inside a function have a comment saying why. The web code takes a small `Services` Protocol (`web/services.py`) instead of the whole `App`, so `web/` no longer imports `app.py` and tests can pass small fakes. Development only; nothing on the Chart changes. No API change.
 
 - **The web routes are split into classes (B108).** `control.py` and `planner.py` built their routes as one long function of nested closures; they are now small Routes classes grouped by concern (visualizer, config, system, update; the planner). Development only; nothing on the Chart changes. No API change.

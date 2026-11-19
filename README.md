@@ -552,7 +552,9 @@ and every row on **Config > Airports** gets a **Mock METAR** field: paste a raw 
 real report on the pixels and everywhere else, until you clear it. Mocked airports are marked `mock` on the web pages.
 
 The code is the `metarmap` package in `src/metarmap/`:
-- `app.py` builds the Chart from `config.json` (settings, METARs, LED renderer, OLED loop, scheduled jobs) and runs it
+- `app.py` builds the Chart from `config.json` (settings, METARs, LED renderer, OLED loop, scheduled jobs) and runs it;
+  `feeds.py` fetches the feeds and retries a failed one, `rotation.py` is auto-rotate, `lighting.py` is brightness by
+  the sun and quiet hours
 - `config.py` and `settings.py`: `config.json`, including the airport on each pixel
 - `metar.py`: reading METARs (`process()`, `parse_report()`) and fetching them (`METAR`); `decode.py`: a METAR in
   plain English; `renderer.py` and `leds/`: the LEDs; `display.py` and `oled/`: the OLED screen

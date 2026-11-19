@@ -16,7 +16,7 @@ import threading
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Optional
+from typing import Optional
 
 import schedule
 
@@ -30,13 +30,16 @@ from metarmap.tfr import Tfrs
 from metarmap.clock import Clock
 from metarmap.config import Config
 from metarmap.delays import DELAYS_MINUTES, Delays
+from metarmap.feeds import Feeds
 from metarmap.display import STARTUP_LOCATE_DELAY, Display
 from metarmap.leds.strip import open_strip
+from metarmap.lighting import Lighting
 from metarmap.metar import Reports
 from metarmap.oled.screen import open_screen
 from metarmap.releases import CHECK_HOURS, ReleaseCheck
 from metarmap.renderer import Renderer
-from metarmap.sun import LEVEL_AT, SunTimes
+from metarmap.rotation import Rotation
+from metarmap.sun import SunTimes
 from metarmap.traffic import Traffic
 from metarmap.web import create_app, serve
 from metarmap.web.site import my_ip
@@ -44,12 +47,7 @@ from metarmap.web.site import my_ip
 log = logging.getLogger(__name__)
 
 CONFIG_FILE = "config.json"
-METAR_MINUTES = 10  # how often METARs are fetched
-RETRY_SECONDS = 60  # after a failed fetch or lookup (e.g. aviationweather.gov answering 502), how soon to try again
-_retrying = set()  # the feeds retry_feeds() has said it is trying again, so it says so once
-_retry_lock = threading.Lock()  # retry_soon() runs on the scheduler's thread and the startup lookup's
 WATCHDOG_SECONDS = 15  # how often the OLED loop is checked
-FETCH_WAIT_SECONDS = 20  # GET /fetch waits at most this long for a fetch under way to finish (else 503)
 
 
 @dataclass
@@ -71,23 +69,36 @@ class App:
     forecasts: Optional[Forecasts] = None  # TAFs, for the forecast visualizers (fetched in the background)
     discovery: Optional[Discovery] = None  # announces the map on the network (zeroconf), for the Copilot's map list
     delays: Optional[Delays] = None  # the FAA airport status, for FAA Delays (fetched in the background)
-    # held while a METAR fetch runs (start_fetch): one at a time, so they don't fade the LEDs over each other
-    fetching: threading.Lock = field(default_factory=threading.Lock)
-    # set when an airport code changed: its METAR is fetched now, or right after the fetch under way (refetch_soon)
-    refetch_due: threading.Event = field(default_factory=threading.Event)
+    feeds: Feeds = field(init=False)  # fetching the feeds and trying again (built from the parts above)
+    rotation: Rotation = field(init=False)  # auto-rotate
+    lighting: Lighting = field(init=False)  # brightness by the sun and quiet hours
+
+    def __post_init__(self):
+        self.feeds = Feeds(
+            self.config,
+            self.metars,
+            self.renderer,
+            self.scheduler,
+            advisories=self.advisories,
+            tfrs=self.tfrs,
+            delays=self.delays,
+            forecasts=self.forecasts,
+        )
+        self.rotation = Rotation(self.config, self.renderer, self.scheduler)
+        self.lighting = Lighting(self.config, self.renderer, self.sun, self.scheduler)
 
     # what the web layer calls (web.services.Services), so it never imports this module
     def refetch_metars(self) -> bool:
-        return refetch_metars(self)
+        return self.feeds.refetch_metars()
 
     def schedule_fetch(self) -> None:
-        schedule_fetch(self)
+        self.feeds.schedule_fetch()
 
     def next_fetch(self) -> dict:
-        return next_fetch(self)
+        return self.feeds.next_fetch()
 
     def next_rotation(self) -> Optional[float]:
-        return next_rotation(self)
+        return self.rotation.next_rotation()
 
 
 # ---- building ------------------------------------------------------------------------------------------------
@@ -157,20 +168,13 @@ def build(config_file=CONFIG_FILE, strip=None, screen=None, clock: Clock = None,
         Discovery(config, address=my_ip, build=lambda: releases.build),
         delays,
     )
-    fill_names(app)
+    app.feeds.fill_names()
     schedule_jobs(app)
     wire_config(app)
     if fetch:
         # in the background, so a slow aviationweather.gov or FAA doesn't hold up the map; the LEDs show them when
         # they come (the first TFR list has a few dozen details to fetch)
-        fetch_advisories_soon(app)
-        fetch_tfrs(app)
-        fetch_delays(app)
-        fetch_forecasts(app)
-        locate_soon(app)
-        app.scheduler.every(RETRY_SECONDS).seconds.do(retry_feeds, app).tag(
-            "retry_feeds"
-        )  # ends itself once all loaded
+        app.feeds.start()
         atis.available()  # with spoken ATIS on, which airports have one (in the background): the pages' ATIS buttons
     return app
 
@@ -180,66 +184,19 @@ DISCOVERY_MINUTES = 5  # how often the announcement is checked against the addre
 
 def schedule_jobs(app: App):
     s = app.scheduler
-    schedule_fetch(app)
-    if needs_retry(app):  # the fetch or lookup at startup failed
-        retry_soon(app)
-    s.every().day.at("00:00").do(load_suntimes, app)  # new sun times every day, to dim the map at the right times
-    schedule_brightness(app)
-    schedule_quiet_hours(app)
+    app.feeds.schedule_fetch()
+    if app.feeds.needs_retry():  # the fetch or lookup at startup failed
+        app.feeds.retry_soon()
+    app.lighting.schedule_all()
     s.every(WATCHDOG_SECONDS).seconds.do(watch_display, app)
     s.every(CHECK_HOURS).hours.do(check_releases, app)
     if app.discovery is not None:
         s.every(DISCOVERY_MINUTES).minutes.do(app.discovery.refresh)  # a new address, or no network at first
-    s.every(DELAYS_MINUTES).minutes.do(fetch_delays, app)  # ground stops come and go faster than the METARs
-    schedule_rotation(app)
+    s.every(DELAYS_MINUTES).minutes.do(app.feeds.fetch_delays)  # ground stops come and go faster than the METARs
+    app.rotation.schedule()
     # a visualizer picked by hand (or the previous/next buttons) gets the full auto-rotate delay before the next change
-    app.renderer.subscribe(lambda: schedule_rotation(app))
+    app.renderer.subscribe(app.rotation.schedule)
     app.renderer.subscribe(app.display.visualizer_changed)  # the Micro's Visualizer mode shows the new one
-
-
-def schedule_fetch(app: App):
-    """
-    The regular fetch every METAR_MINUTES, the wait starting now: at startup, and after a fetch by hand (/fetch), so
-    the next one is a whole interval later instead of maybe a minute.
-    """
-    app.scheduler.clear("fetch")
-    app.scheduler.every(METAR_MINUTES).minutes.do(update_data, app).tag("fetch")
-
-
-UNIT_SECONDS = {"seconds": 1, "minutes": 60, "hours": 3600}  # a schedule job's unit, in seconds
-
-
-def next_fetch(app: App) -> dict:
-    """
-    When METARs are next fetched (Unix time; None if nothing is scheduled) and that job's interval in seconds: the
-    regular fetch, or a retry after a failed one if that comes first. With when they were last fetched, for the Home
-    page's countdown.
-    """
-    jobs = [j for tag in ("fetch", "retry") for j in app.scheduler.get_jobs(tag) if j.next_run is not None]
-    soonest = min(jobs, key=lambda j: j.next_run, default=None)
-    fetched = app.metars.lastFetchTime
-    return {
-        "next": soonest.next_run.timestamp() if soonest else None,  # schedule's times are the map's local time
-        "seconds": soonest.interval * UNIT_SECONDS[soonest.unit] if soonest else None,
-        "fetched": fetched.timestamp() if fetched else None,
-    }
-
-
-def schedule_rotation(app: App):
-    """
-    Schedules auto-rotate from the settings, starting the wait now; called again when they change, so they need no
-    restart, and when the visualizer changes, so one picked by hand is shown for the whole delay.
-    """
-    app.scheduler.clear("rotate_visualizer")
-    rotate = app.config.data.visualizer.auto_rotate
-    if rotate.enabled:
-        app.scheduler.every(rotate.delay_seconds).seconds.do(rotate_visualizer, app).tag("rotate_visualizer")
-
-
-def next_rotation(app: App) -> Optional[float]:
-    """When auto-rotate next changes the visualizer (Unix time), or None when it's off."""
-    runs = [job.next_run for job in app.scheduler.get_jobs("rotate_visualizer") if job.next_run is not None]
-    return min(runs).timestamp() if runs else None  # schedule's times are the map's local time
 
 
 # ---- following config changes ----------------------------------------------------------------------------------
@@ -275,24 +232,24 @@ def wire_config(app: App):
     # the in-memory strip changes now; a NeoPixel strip after a restart
     on("led.count", lambda keys: renderer.resize(app.config.data.led.count))
     # reprocessed: the TFRs near each airport, measured with the new distance; a mock METAR in place of the real one
-    on(("tfr.nearby_nm", "airports.mock", "visualizer.forecast_include_tempo"), lambda keys: show_areas(app))
+    on(("tfr.nearby_nm", "airports.mock", "visualizer.forecast_include_tempo"), lambda keys: app.feeds.show_areas())
     on("*", lambda keys: renderer.refresh() if any(not _matches(k, NOT_ON_LEDS) for k in keys) else None)
     # (the skip list is read at each rotation: changing it neither restarts the countdown nor refreshes the LEDs)
     on(
         "visualizer.auto_rotate.*",
-        lambda keys: schedule_rotation(app) if any(k != "visualizer.auto_rotate.skip" for k in keys) else None,
+        lambda keys: app.rotation.schedule() if any(k != "visualizer.auto_rotate.skip" for k in keys) else None,
     )
     on(
         "led.quiet_hours.*",
         # the OLED loop starts over: blank now, or showing again now
         lambda keys: (
-            schedule_quiet_hours(app),
+            app.lighting.schedule_quiet_hours(),
             renderer.adjust_brightness_for_time(),
             app.display.restart(timeout=15),
         ),
     )
     # the level in use now changes now; the others at their time
-    on("led.brightness.*", lambda keys: brightness_changed(app, keys))
+    on("led.brightness.*", lambda keys: app.lighting.brightness_changed(keys))
     # shows what it looks like, without a restart
     on("led.inittest", lambda keys: show_test_pattern(app) if app.config.data.led.inittest else None)
     on(("led.init_sequence", "led.init_sweep_from"), lambda keys: show_test_pattern(app))  # try one: it plays now
@@ -302,16 +259,11 @@ def wire_config(app: App):
     on(("web_server.name", "web_server.announce"), lambda keys: app.discovery.start() if app.discovery else None)
     on(OLED_AIRPORTS, lambda keys: app.display.restart(timeout=15))
     on("display_screen.shows", lambda keys: app.display.restart(timeout=15))  # airports or the visualizer, now
-    on("airports.code", lambda keys: airport_codes_changed(app))
+    on("airports.code", lambda keys: app.feeds.airport_codes_changed())
 
 
 def _matches(key, patterns):
     return any(fnmatch.fnmatchcase(key, p) for p in patterns)
-
-
-def brightness_changed(app: App, keys):
-    if any(k.rsplit(".", 1)[1] == app.renderer.scheduled_level() for k in keys):
-        app.renderer.adjust_brightness_for_time()
 
 
 def show_test_pattern(app: App):
@@ -323,331 +275,10 @@ def display_enabled(app: App):
     app.display.turn_on() if app.config.data.display_screen.enabled else app.display.turn_off()
 
 
-def airport_codes_changed(app: App):
-    """
-    A new airport code: its name now (looked up if need be), so the Airports page shows it when it reloads; its
-    METAR in the background.
-    """
-    unnamed = {a.code for a in app.config.airports if a.code and not a.name}
-    app.config.fill_names({code: app.metars.name_for(code) for code in unnamed})
-    refetch_soon(app)
-    fetch_forecasts(app)  # fetches only if the airports differ from the last TAF fetch's
-
-
-def refetch_soon(app: App) -> Optional[threading.Thread]:
-    """
-    An airport changed: only the METARs (not the advisories and TFRs that update_data() also fetches), in the
-    background; right after the fetch under way if there is one, which may have asked for the old airports.
-    """
-    app.refetch_due.set()  # first: a fetch letting go of the lock now still sees it (_run_fetch)
-    return start_fetch(
-        app, fetch_metars_only, "METAR fetch", busy="an airport changed: its METAR comes after the fetch under way"
-    )
-
-
-def refetch_metars(app: App) -> bool:
-    """
-    GET /fetch: the METARs now, back when they're in (the web thread waits, not the LEDs). A fetch under way is
-    waited for first, up to FETCH_WAIT_SECONDS. Returns False if it was still running then (nothing fetched). Raises
-    what the fetch raised (logged already, app.fetching let go), for /fetch to answer 500.
-    """
-    if not app.fetching.acquire(timeout=FETCH_WAIT_SECONDS):
-        log.warning(f"fetch by hand: a METAR fetch has been under way for over {FETCH_WAIT_SECONDS} s; not fetching")
-        return False
-    error = _run_fetch(app, fetch_metars_only, "METAR fetch")
-    if error is not None:
-        raise error
-    return True
-
-
-def fetch_metars_only(app: App):
-    fetch_reports(app)
-    app.renderer.update_data(app.metars)  # a forecast goes on at the step it's on
-    fill_names(app)
-
-
-# ---- fetching METARs in the background ----------------------------------------------------------------------
-
-
-def start_fetch(app: App, job, what, busy) -> Optional[threading.Thread]:
-    """
-    Runs job(app) in a thread holding app.fetching, so the LEDs keep going while aviationweather.gov answers (it has
-    taken 20 s), and one at a time: two at once would fade the LEDs over each other and could leave them half dim.
-    Returns the thread (tests join it), or None with `busy` logged when a fetch is under way: this one is skipped.
-    """
-    if not app.fetching.acquire(blocking=False):
-        log.info(busy)  # at most every RETRY_SECONDS (a retry), so no flood
-        return None
-    thread = threading.Thread(target=_run_fetch, args=(app, job, what), name="metars", daemon=True)
-    try:
-        thread.start()
-    except Exception:
-        app.fetching.release()  # no thread to let go of it
-        raise
-    return thread
-
-
-def _run_fetch(app: App, job, what) -> Optional[Exception]:
-    """
-    job(app), app.fetching already held; lets go of it however the job ends. Then the METAR of a new airport. Returns
-    what the job raised, logged (a thread's caller doesn't look: the schedule goes on), or None.
-    """
-    error = None
-    try:
-        job(app)
-        if needs_retry(app):
-            retry_soon(app)
-        else:
-            stop_retrying(app)  # at once, not at the retry's next turn (the Home page counts down to it)
-    except Exception as e:
-        log.exception(f"{what} failed: {e}")  # the next regular fetch or retry tries again
-        error = e
-    finally:
-        app.fetching.release()
-    if app.refetch_due.is_set():  # an airport changed while this ran, and its fetch was put off
-        refetch_soon(app)
-    return error
-
-
-def fetch_reports(app: App):
-    """The METARs (with the G-AIRMET hazards). Only in a fetch holding app.fetching. Returns whether they came."""
-    app.refetch_due.clear()  # this fetch asks for the airports as they are now
-    with app.renderer.dimmed():  # off the main loop: the LEDs dim (led.dim_on_refresh) but keep animating
-        return app.metars.fetch()
-
-
-# ---- scheduled jobs ------------------------------------------------------------------------------------------
-
-
-def update_data(app: App) -> Optional[threading.Thread]:
-    """
-    The regular fetch, every METAR_MINUTES, all in the background. Returns the thread fetching the advisories and
-    METARs, or None if the last fetch is still under way: this one is skipped.
-    """
-    fetch_tfrs(app)
-    fetch_delays(app)
-    fetch_forecasts(app)
-    return start_fetch(
-        app, fetch_all, "METAR fetch", busy="regular METAR fetch skipped: the last one is still under way"
-    )
-
-
-def fetch_all(app: App):
-    """update_data()'s thread: the advisories, then the METARs (they pick up the advisories), then the LEDs."""
-    fetch_advisories(app)
-    fetch_metars_only(app)
-
-
-def fetch_advisories(app: App):
-    """New G-AIRMETs and SIGMETs; the METARs pick them up when next processed. Keeps the old ones if it fails."""
-    if app.advisories is not None and app.advisories.fetch():
-        app.metars.apply_mocks()  # reapplied now, in case the METAR fetch after this fails
-
-
-def fetch_advisories_soon(app: App):
-    """At startup: the G-AIRMETs and SIGMETs in the background; the LEDs show them when they come."""
-
-    def fetch():
-        started = time.monotonic()
-        if app.advisories.fetch():
-            log.info(f"advisories fetched in {time.monotonic() - started:.1f}s")
-            show_areas(app)
-
-    if app.advisories is not None:
-        threading.Thread(target=fetch, name="advisories", daemon=True).start()
-
-
-def locate_soon(app: App):
-    """
-    At startup: where the airports without a report are, and the names, in the background (aviationweather.gov's
-    station lookup has taken 20 s and answered 504). Only the Map page's positions and the empty names need it, not
-    the LEDs. A failed lookup is retried like any other (retry_soon).
-    """
-
-    def locate():
-        started = time.monotonic()
-        ok = app.metars.locate()
-        log.info(f"stations looked up in {time.monotonic() - started:.1f}s" + ("" if ok else " (failed)"))
-        fill_names(app)
-        if ok:
-            show_areas(app)  # an airport's position places it in the advisory and TFR areas
-        else:
-            retry_soon(app)
-
-    threading.Thread(target=locate, name="stations", daemon=True).start()
-
-
-def fetch_tfrs(app: App):
-    """Fetches the TFRs in the background; the LEDs show them when it's done."""
-    if app.tfrs is not None:
-        app.tfrs.fetch_soon(then=lambda: show_areas(app))
-
-
-def fetch_delays(app: App):
-    """
-    Fetches the FAA airport status in the background; the LEDs show it when it's done, if it changed (it's fetched
-    every few minutes, and usually hasn't).
-    """
-    if app.delays is not None:
-        app.delays.fetch_soon(then=lambda: show_areas(app))
-
-
-def fetch_forecasts(app: App, force=False):
-    """The TAFs in the background (not more often than they change); the LEDs show them when they come."""
-    if app.forecasts is not None:
-        codes = [a.code for a in app.config.airports if a.code]
-        app.forecasts.fetch_soon(codes, then=lambda: show_areas(app), force=force)
-
-
-def show_areas(app: App):
-    """
-    The reports again, with the advisory and TFR areas each airport is in (or near) and its FAA status, on the LEDs.
-    """
-    app.metars.apply_mocks()  # adds them to each report
-    app.renderer.update_data(app.metars)
-
-
-def fill_names(app: App):
-    """Airports with an empty name get the name the station lookup found (saved to config.json)."""
-    filled = app.config.fill_names(app.metars.station_names())
-    if filled:
-        log.info(f"filled in the names of {filled} airports")
-
-
-def needs_retry(app: App):
-    """Whether the METAR fetch, or the lookup of where airports without a report are, failed."""
-    return app.metars.last_fetch_ok is False or app.metars.locate_failed
-
-
-def feeds_waiting(app: App) -> List[str]:
-    """The advisories, TFR and FAA status feeds that have never loaded: their airports breathe dimly until they do."""
-    feeds = (
-        ("advisories", app.advisories is not None and app.advisories.waiting()),
-        ("TFR", app.tfrs is not None and app.tfrs.fetched is None),
-        ("FAA status", app.delays is not None and app.delays.fetched is None),
-    )
-    return [name for name, waiting in feeds if waiting]
-
-
-def retry_feeds(app: App):
-    """
-    Every RETRY_SECONDS until the advisories, TFRs and FAA status have each loaded once: asks again the ones whose
-    last try failed (one still under way is left to finish), instead of leaving their airports breathing dimly until
-    the next regular fetch, up to METAR_MINUTES away. Each fetch is in the background, so the LEDs don't wait for it.
-    """
-    waiting = feeds_waiting(app)
-    if not waiting:
-        _retrying.clear()
-        return schedule.CancelJob
-    for name, failed, fetch in (
-        ("advisories", "advisories" in waiting and app.advisories.failed(), fetch_advisories_soon),
-        ("TFR", "TFR" in waiting and app.tfrs.error is not None, fetch_tfrs),
-        ("FAA status", "FAA status" in waiting and app.delays.error is not None, fetch_delays),
-    ):
-        if failed:
-            # said once per feed, not every minute for as long as the network is down
-            (log.debug if name in _retrying else log.info)(
-                f"{name}: trying again every {RETRY_SECONDS} s until it loads"
-            )
-            _retrying.add(name)
-            fetch(app)
-
-
-def retry_soon(app: App):
-    """Tries again every RETRY_SECONDS until it works, instead of waiting for the next regular fetch."""
-    with _retry_lock:  # the startup lookup's thread and the scheduler's thread can both get here
-        if not app.scheduler.get_jobs("retry"):
-            what = "METAR fetch" if app.metars.last_fetch_ok is False else "airport position lookup"
-            log.warning(f"{what} failed; trying again every {RETRY_SECONDS} s until it works")
-            app.scheduler.every(RETRY_SECONDS).seconds.do(retry_fetch, app).tag("retry")
-
-
-def stop_retrying(app: App):
-    with _retry_lock:
-        app.scheduler.clear("retry")
-
-
-def retry_fetch(app: App):
-    """The retry job: redoes what failed in the background, so a failing aviationweather.gov doesn't stop the LEDs."""
-    if not needs_retry(app):
-        return schedule.CancelJob
-    start_fetch(app, redo_failed, "METAR retry", busy="METAR retry skipped: a fetch is under way")
-
-
-def redo_failed(app: App):
-    """The fetch (which also does the lookup), or only the lookup."""
-    if app.metars.last_fetch_ok is False:
-        if fetch_reports(app):
-            app.renderer.update_data(app.metars)
-    elif app.metars.locate_failed:
-        app.metars.locate()
-    fill_names(app)
-
-
-def load_suntimes(app: App):
-    log.info("load suntimes")
-    app.sun.reload()
-    schedule_brightness(app)
-
-
-def schedule_brightness(app: App):
-    """Sets the LEDs' brightness at each of today's sun times (dimmed at dawn, normal at sunrise, ...)."""
-    app.scheduler.clear("suntimes")
-    for name, level in LEVEL_AT.items():
-        at = app.sun.times[name].strftime("%H:%M")
-        app.scheduler.every().day.at(at).do(set_brightness, app, level=level).tag("suntimes")
-
-
-def schedule_quiet_hours(app: App):
-    """Recreate local-time quiet-hours boundary jobs after a configuration change."""
-    app.scheduler.clear("quiet_hours")
-    night = app.config.data.led.quiet_hours
-    if night.enabled and night.start != night.end:
-        for at in (night.start, night.end):
-            app.scheduler.every().day.at(at).do(quiet_hours_boundary, app).tag("quiet_hours")
-
-
-def quiet_hours_boundary(app: App):
-    """
-    Quiet hours' start or end time. With the startup sequence on (led.inittest), the map goes dark with it at the
-    start (Renderer.fade_out) and lights up with it at the end. Not when the LEDs are at 0% anyway (led.brightness.off
-    at night), and not for a settings change, which switches the LEDs at once.
-    """
-    renderer = app.renderer
-    play = app.config.data.led.inittest
-    if renderer.quiet_hours_active():
-        if play and renderer.pixels().brightness > 0:
-            renderer.fade_out()
-        renderer.adjust_brightness_for_time()
-    else:
-        renderer.adjust_brightness_for_time()
-        if play and renderer.pixels().brightness > 0:
-            renderer.test_pattern()
-
-
-def set_brightness(app: App, level):
-    """
-    level: a led.brightness setting's name ("dimmed"), read when the job runs so a changed level needs no restart;
-    or a brightness (0.25).
-    """
-    if isinstance(level, str):
-        level = getattr(app.config.data.led.brightness, level)
-    # The renderer owns the scheduled brightness and quiet-hours override.
-    if app.renderer.quiet_hours_active():
-        level = 0.0
-    log.info("set brightness: " + str(level))
-    app.renderer.brightness(level)
-
-
 def check_releases(app: App):
     """Asks GitHub whether there's a newer release (in the background), for the web UI's "Update available"."""
     if app.releases is not None:
         app.releases.check_soon()
-
-
-def rotate_visualizer(app: App):
-    rotate = app.config.data.visualizer.auto_rotate
-    app.renderer.visualizer_next(skip_exclusive=True, skip=rotate.skip, skip_dark=rotate.skip_dark)
 
 
 def watch_display(app: App):

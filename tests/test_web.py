@@ -760,14 +760,14 @@ def test_fetch(client, monkeypatch):
 
 def test_fetch_while_a_fetch_is_stuck_is_a_503(client, monkeypatch):
     """GET /fetch waits FETCH_WAIT_SECONDS for a fetch under way, then says so instead of answering as if it worked."""
-    from metarmap import app as app_module
+    from metarmap import feeds as feeds_module
 
     app = client.services
-    monkeypatch.setattr(app_module, "FETCH_WAIT_SECONDS", 0.01)
+    monkeypatch.setattr(feeds_module, "FETCH_WAIT_SECONDS", 0.01)
     monkeypatch.setattr(app.metars, "fetch", lambda: pytest.fail("fetched alongside the fetch under way"))
     (job,) = app.scheduler.get_jobs("fetch")
     due = job.next_run
-    with app.fetching:  # a fetch under way
+    with app.feeds.fetching:  # a fetch under way
         status, body = client("/fetch")
     assert status == 503 and "A METAR fetch is already running" in body
     assert app.scheduler.get_jobs("fetch")[0].next_run == due  # the regular fetch stays where it was
@@ -782,7 +782,7 @@ def test_fetch_that_fails_is_a_500(client, monkeypatch, caplog):
     status, body = client("/fetch")
     assert status == 500 and "The METAR fetch failed: boom" in body
     assert "METAR fetch failed: boom" in caplog.text  # logged
-    assert not app.fetching.locked()
+    assert not app.feeds.fetching.locked()
     assert app.scheduler.get_jobs("fetch")[0].next_run == due  # the regular fetch stays where it was
     monkeypatch.setattr(app.metars, "fetch", lambda: True)
     assert client("/fetch")[0] == 200  # and the next one works
@@ -796,7 +796,7 @@ def test_fetch_that_fails_on_a_file_doesnt_say_where(client, monkeypatch):
     status, body = client("/fetch")
     assert status == 500 and "The METAR fetch failed (see the Chart" in body
     assert "config.json" not in body and "Permission denied" not in body
-    assert not app.fetching.locked()
+    assert not app.feeds.fetching.locked()
 
 
 def test_live_says_when_the_next_fetch_is(client):
@@ -3006,17 +3006,17 @@ def test_skips_at_once_all_land(client):
 def test_skipping_neither_restarts_the_countdown_nor_refreshes_the_leds(client, monkeypatch):
     app = client.services
     app.config.edit("visualizer.auto_rotate.enabled", "true")
-    before = app_module.next_rotation(app)
+    before = app.rotation.next_rotation()
     refreshed = []
     monkeypatch.setattr(app.renderer, "refresh", lambda *a, **k: refreshed.append(1))
     time.sleep(1.1)  # a restarted countdown would end later
     client("/visualizer/wind/skip", auth=False)
     client("/visualizer/wind/unskip", auth=False)
     client('/config/edit/visualizer.auto_rotate.skip/["wind_gusts"]')
-    assert app_module.next_rotation(app) == before
+    assert app.rotation.next_rotation() == before
     assert refreshed == []
     app.config.edit("visualizer.auto_rotate.delay_seconds", "45")  # the others still reschedule
-    assert app_module.next_rotation(app) != before
+    assert app.rotation.next_rotation() != before
 
 
 # ---- the map on the network ---------------------------------------------------------------------------------
