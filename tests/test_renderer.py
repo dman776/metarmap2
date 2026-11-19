@@ -149,14 +149,22 @@ def test_resize_a_strip_that_cant(config, clock):
     assert r.resize(5) is False
 
 
-def test_every_visualizer_runs_with_no_leds(config, clock):
+@pytest.mark.parametrize("number", range(len(visualizer_module.ALL)), ids=[v.id for v in visualizer_module.ALL])
+def test_every_visualizer_runs_with_no_leds(config, clock, monkeypatch, number):
     """A map of virtual airports only (led.count 0): no visualizer, Chase included, breaks on the empty strip."""
+    from metarmap import renderer
+
+    monkeypatch.setattr(renderer, "RENDER_SECONDS", 0.05)  # render() still draws a frame, without sleeping a second
     config.data.led.count = 0
     r, strip = make(config, clock, leds=0, visualizers=list(visualizer_module.ALL))
-    for number in range(len(visualizer_module.ALL)):
-        r.visualizer = number
-        draw_frame(r)
-        r.render()
+    r.visualizer = number
+    draw_frame(r)
+    shows = strip.shows
+    r.render()
+    assert strip.shows > shows  # render() catches and only logs an error, so a frame drawn is what shows it worked
+    r.visualizer = (number + 1) % len(visualizer_module.ALL)  # and on to the next one, as the main loop does
+    draw_frame(r)
+    r.render()
     assert len(strip) == 0 and r.animations == []
 
 
