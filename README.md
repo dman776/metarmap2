@@ -366,7 +366,8 @@ version and commit, so a branch install (same version, new code) reloads it too.
 - The controls run top to bottom: **Update to**, the **Branch** (only in dev_mode, with Branch picked), the running
   version with **Check now**, **Install a release** and **Update**.
 - **Check now** asks GitHub straight away. Changing **Update to** or the branch checks too (it never installs). While a
-  check runs, the whole card is off, so a second change can't start before the first check is done. When it ends, the card redraws in place.
+  check runs, the whole card is off, so a second change can't start before the first check is done. When it ends, the
+  card, the header's update badge and the System tab's dot redraw in place.
 - **Update to**: **Releases** (the default) installs only released versions, and never goes back to an older one.
   **Latest commit** installs the newest code on GitHub, released or not. Use it on a Chart you test changes on.
 - **Install a release** installs any release, older ones too, whichever **Update to** says, to go back if a new one has a

@@ -579,26 +579,37 @@
 
     // Redraws the Software card from the Chart's own /config page, in one swap (no page reload, no flicker), and
     // binds its controls again. false: it couldn't (network, an answer without the card): the caller reloads.
-    async function refreshUpdateCard() {
+    // focused: the id of what had the focus (disabling the controls drops it), to give it back
+    async function refreshUpdateCard(focused) {
+        const ctrl = new AbortController();
+        const timer = setTimeout(function () { ctrl.abort(); }, 10000);  // a Chart that doesn't answer: reload
         try {
-            const res = await fetch('/config', {cache: 'no-store', credentials: 'same-origin'});
+            const res = await fetch('/config', {cache: 'no-store', credentials: 'same-origin', signal: ctrl.signal});
             if (!res.ok) return false;
             const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
             const fresh = doc.getElementById('updates');
             const old = document.getElementById('updates');
             if (!fresh || !old) return false;
-            const focused = old.contains(document.activeElement) ? document.activeElement.id : '';
             old.replaceWith(document.importNode(fresh, true));
             bindUpdateCard(document.getElementById('updates'));
             // the System tab's dot says an update is available: the fresh page knows
             const tab = document.querySelector('.tab[data-tab="system"]');
             const freshTab = doc.querySelector('.tab[data-tab="system"]');
             if (tab && freshTab) tab.innerHTML = freshTab.innerHTML;
+            // and so does the header's "Update available" badge, which may come or go
+            const badge = document.querySelector('.update-badge');
+            const freshBadge = doc.querySelector('.update-badge');
+            const nav = document.querySelector('.nav');
+            if (badge && freshBadge) badge.replaceWith(document.importNode(freshBadge, true));
+            else if (badge) badge.remove();
+            else if (freshBadge && nav) nav.after(document.importNode(freshBadge, true));
             const again = focused && document.getElementById(focused);
             if (again && !again.disabled) again.focus({preventScroll: true});
             return true;
         } catch (err) {
             return false;
+        } finally {
+            clearTimeout(timer);
         }
     }
 
@@ -620,6 +631,7 @@
         if (checking) return false;  // one at a time, even if a change slipped in before the controls were off
         const channel = document.getElementById('update-channel');
         const branch = document.getElementById('update-branch');
+        const focused = document.activeElement && document.activeElement.id;  // before the lock drops it
         lockUpdate(true);
         let reloading = false;
         try {
@@ -627,7 +639,7 @@
             // no branch picked yet: a change has nothing to check, but Check now always asks (it fills the branch list)
             if (work && channel && channel.value === 'branch' && !(branch && branch.value)) return true;
             await call('/update/check');
-            if (!await refreshUpdateCard()) {
+            if (!await refreshUpdateCard(focused)) {
                 reloading = true;  // the card couldn't be redrawn: a reload shows it fresh (and stays locked till then)
                 window.location.reload();
             }

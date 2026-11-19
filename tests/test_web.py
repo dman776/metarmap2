@@ -1936,7 +1936,7 @@ def test_software_card_can_be_redrawn_in_place(release_client):
     assert body.count('id="updates"') == 1  # app.js swaps this one section for the fresh page's
     assert re.search(r'data-tab="system">System\s*<span class="tab-dot"', body)  # redrawn with it
     js = c("/static/app.js")[1]
-    assert "refreshUpdateCard" in js and "getElementById('updates')" in js
+    assert "refreshUpdateCard" in js and "update-badge" in js and "getElementById('updates')" in js
 
 
 def test_release_picker_in_every_mode(release_client):
