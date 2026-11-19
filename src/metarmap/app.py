@@ -209,6 +209,7 @@ NOT_ON_LEDS = (
     "led.init_*",
     "display_screen.shows",
     "visualizer.auto_rotate.skip",  # only who auto-rotate picks next
+    "visualizer.transition",  # only how the next visualizer change looks
 )
 # changes to what the OLED loop shows, or in which order; it starts over with the new list (names aren't on it)
 OLED_AIRPORTS = (

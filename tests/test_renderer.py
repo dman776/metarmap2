@@ -1394,3 +1394,282 @@ def test_no_leds_is_no_error(config, clock, ticks):
     r, _ = make(config, clock, leds=0)
     r.render()
     assert ticks.sleeps and max(ticks.sleeps) <= LONGEST_SLEEP
+
+
+# ---- changing visualizers: cut, dissolve, dip (visualizer.transition) -----------------------------------------
+
+
+def shown(strip):
+    from metarmap.renderer import rgb
+
+    return [rgb(c) for c in strip]
+
+
+def colors_of(config, clock, number):
+    """What the LEDs show for visualizer `number`, with no transition: the end of one."""
+    r, strip = make(config, clock)
+    r.visualizer = number
+    r.draw_frame()
+    return shown(strip)
+
+
+def switched(config, clock, style, number=1):
+    """A renderer showing Flight Category, then switched to visualizer `number` with `style`: (renderer, strip, old)."""
+    r, strip = make(config, clock)
+    r.draw_frame()
+    old = shown(strip)
+    config.data.visualizer.transition = style
+    r.visualizer = number
+    return r, strip, old
+
+
+def blended(old, new, t):
+    from metarmap.renderer import blend
+
+    return [blend(a, b, t) for a, b in zip(old, new)]
+
+
+def test_cut_changes_at_once(config, clock):
+    new = colors_of(config, clock, 1)
+    r, strip, old = switched(config, clock, "cut")
+    assert not r.transitioning
+    r.draw_frame()
+    assert shown(strip) == new != old
+
+
+@pytest.mark.parametrize("style", ["dissolve", "dip"])
+def test_a_transition_starts_from_the_old_colors(config, clock, style):
+    r, strip, old = switched(config, clock, style)
+    assert r.transitioning
+    r.draw_frame()
+    assert shown(strip) == old  # the old animations are frozen as they were, not run on
+
+
+def test_dissolve_blends_half_way_at_the_midpoint(config, clock):
+    from metarmap.renderer import TRANSITION_SECONDS
+
+    new = colors_of(config, clock, 1)
+    r, strip, old = switched(config, clock, "dissolve")
+    r.draw_frame()
+    clock.advance(TRANSITION_SECONDS / 2)
+    r.draw_frame()
+    assert shown(strip) == blended(old, new, 0.5)
+    assert shown(strip) != old and shown(strip) != new
+
+
+def test_dip_is_dark_at_the_midpoint(config, clock):
+    from metarmap.renderer import TRANSITION_SECONDS
+
+    new = colors_of(config, clock, 1)
+    r, strip, old = switched(config, clock, "dip")
+    r.draw_frame()
+    clock.advance(TRANSITION_SECONDS / 4)
+    r.draw_frame()
+    assert shown(strip) == blended(old, [(0, 0, 0)] * len(old), 0.5)  # half way down
+    clock.advance(TRANSITION_SECONDS / 4)
+    r.draw_frame()
+    assert shown(strip) == [(0, 0, 0)] * len(old)
+    clock.advance(TRANSITION_SECONDS / 4)
+    r.draw_frame()
+    assert shown(strip) == blended([(0, 0, 0)] * len(new), new, 0.5)  # half way up
+
+
+@pytest.mark.parametrize("style", ["dissolve", "dip"])
+def test_a_transition_ends_at_the_new_colors(config, clock, style):
+    from metarmap.renderer import TRANSITION_SECONDS
+
+    new = colors_of(config, clock, 1)
+    r, strip, _ = switched(config, clock, style)
+    r.draw_frame()
+    clock.advance(TRANSITION_SECONDS)
+    r.draw_frame()
+    assert shown(strip) == new
+    assert not r.transitioning  # nothing left running
+
+
+@pytest.mark.parametrize("style", ["dissolve", "dip"])
+def test_refresh_does_not_transition(config, clock, style):
+    r, strip = make(config, clock)
+    r.draw_frame()
+    config.data.visualizer.transition = style
+    r.refresh()
+    assert not r.transitioning
+    r.visualizer = r.active_visualizer  # picked again: the same one
+    assert not r.transitioning
+
+
+def test_no_transition_into_the_first_visualizer(config, clock):
+    """At startup the visualizer from config.json is set before any frame: it shows at once."""
+    config.data.visualizer.transition = "dissolve"
+    r, strip = make(config, clock)
+    r.visualizer = 1
+    assert not r.transitioning
+    r.draw_frame()
+    assert shown(strip) == colors_of(config, clock, 1)
+
+
+def test_a_second_switch_starts_from_the_colors_shown(config, clock):
+    from metarmap.renderer import TRANSITION_SECONDS
+
+    flight, wind = colors_of(config, clock, 0), colors_of(config, clock, 1)
+    r, strip, _ = switched(config, clock, "dissolve")
+    r.draw_frame()
+    clock.advance(TRANSITION_SECONDS / 2)
+    r.draw_frame()
+    middle = shown(strip)
+    r.visualizer = 0  # back to Flight Category, half way through
+    assert r.transitioning
+    r.draw_frame()
+    assert shown(strip) == middle  # no jump back to Wind's or Flight Category's colors
+    clock.advance(TRANSITION_SECONDS / 2)
+    r.draw_frame()
+    assert shown(strip) == blended(middle, flight, 0.5)
+    clock.advance(TRANSITION_SECONDS / 2)
+    r.draw_frame()
+    assert shown(strip) == flight and middle != wind
+
+
+def test_a_cut_mid_transition_ends_it(config, clock):
+    r, strip, _ = switched(config, clock, "dissolve")
+    r.draw_frame()
+    config.data.visualizer.transition = "cut"
+    r.visualizer = 2
+    assert not r.transitioning
+    r.draw_frame()
+    assert shown(strip) == colors_of(config, clock, 2)
+
+
+def test_brightness_still_applies_during_a_transition(config, clock):
+    """The blend is in the colors; the strip's brightness (dim, quiet hours) goes on top, as always."""
+    from metarmap.renderer import TRANSITION_SECONDS
+
+    new = colors_of(config, clock, 1)
+    r, strip, old = switched(config, clock, "dissolve")
+    r.draw_frame()
+    r.brightness(0.0)  # quiet hours
+    clock.advance(TRANSITION_SECONDS / 2)
+    r.draw_frame()
+    assert strip.brightness == 0.0
+    assert shown(strip) == blended(old, new, 0.5)
+    r.brightness(0.3)
+    clock.advance(TRANSITION_SECONDS / 2)
+    r.draw_frame()
+    assert strip.brightness == 0.3 and shown(strip) == new
+
+
+def test_a_whole_strip_look_dissolves_in(config, clock):
+    from metarmap.renderer import TRANSITION_SECONDS
+
+    r, strip, old = switched(config, clock, "dissolve", number=3)  # rainbow
+    r.draw_frame()
+    clock.advance(TRANSITION_SECONDS / 2)
+    r.draw_frame()
+    live = r._transition.live  # what the rainbow drew this frame
+    assert shown(strip) == blended(old, live, 0.5) != live
+    clock.advance(TRANSITION_SECONDS / 2)
+    r.draw_frame()
+    assert not r.transitioning and shown(strip) != old
+
+
+def test_a_hidden_pixel_stays_dark_through_a_transition(config, clock):
+    from metarmap.renderer import TRANSITION_SECONDS
+
+    config.data.airports[2].skip = True  # LED 2 has no airport: a Hidden Pixel
+    r, strip, _ = switched(config, clock, "dissolve", number=3)  # rainbow would light it
+
+    for _ in range(3):
+        r.draw_frame()
+        assert strip[2] == (0, 0, 0)
+        clock.advance(TRANSITION_SECONDS / 2)
+
+
+def test_a_startup_sequence_ends_a_transition(config, clock):
+    r, strip, _ = switched(config, clock, "dip")
+    r.stop()
+    assert not r.transitioning
+    r.resume()
+
+
+def test_a_transition_draws_frames_at_the_normal_rate_and_then_rests(config, clock, ticks, monkeypatch):
+    """A still map rests between frames; during the 0.5 s blend it draws a smooth series, then rests again."""
+    from metarmap import renderer
+
+    sleep = ticks.sleep
+    monkeypatch.setattr(renderer.time, "sleep", lambda s: (sleep(s), clock.advance(s)))
+    r, strip, _ = switched(config, clock, "dissolve")
+    shows = show_times(strip, ticks)
+    start = ticks.ms
+    r.render()
+    during = [t - start for t in shows if t - start < renderer.TRANSITION_SECONDS * 1000]
+    after = [t - start for t in shows if t - start > renderer.TRANSITION_SECONDS * 1000 + 50]
+    assert len(during) >= renderer.TRANSITION_SECONDS / renderer.TRANSITION_FRAME_SECONDS - 1
+    assert max(b - a for a, b in zip(during, during[1:])) <= renderer.TRANSITION_FRAME_SECONDS * 1000 + 1
+    assert not r.transitioning
+    assert len(after) <= 2  # a still map again: the idle frames only
+    assert shown(strip) == colors_of(config, clock, 1)
+
+
+def white_pulse(r, n):
+    """A locate() pulse on LED n, held at full white (its own steps follow the real clock)."""
+    located = r._start_pulse(n)
+    located.pulse.animate = lambda show=True: True
+    located.held.color = (255, 255, 255)
+    return located
+
+
+def test_a_locate_pulse_during_a_transition(config, clock):
+    """It goes over its LED's new color, not the blend, and the LED ends on its new color."""
+    from metarmap.renderer import TRANSITION_SECONDS
+
+    new = colors_of(config, clock, 1)
+    r, strip, old = switched(config, clock, "dissolve")
+    r.draw_frame()
+    clock.advance(TRANSITION_SECONDS / 2)
+    r.draw_frame()
+    located = white_pulse(r, 0)
+    assert located.under == new[0]  # the LED's own color, not the blend shown
+    r.draw_frame()
+    assert strip[0] == blended([old[0]], [(255, 255, 255)], 0.5)[0]  # the pulse blends in with the rest
+    assert shown(strip)[1:] == blended(old, new, 0.5)[1:]
+    r._end_pulse(0)
+    clock.advance(TRANSITION_SECONDS / 2)
+    r.draw_frame()
+    assert not r.transitioning and shown(strip) == new
+
+
+def test_fewer_leds_during_a_transition_go_dark(config, clock):
+    """led.count lowered mid-dissolve: the LEDs past it fade out, not stay on the transition's last colors."""
+    from metarmap.renderer import TRANSITION_SECONDS
+
+    r, strip, _ = switched(config, clock, "dissolve")
+    r.draw_frame()
+    clock.advance(TRANSITION_SECONDS / 2)
+    r.draw_frame()
+    assert strip[4] != (0, 0, 0)
+    config.data.led.count = 3
+    r.refresh()
+    for _ in range(3):
+        clock.advance(TRANSITION_SECONDS / 2)
+        r.draw_frame()
+    assert not r.transitioning
+    assert strip[3] == strip[4] == (0, 0, 0)
+
+
+def test_a_pulse_past_fewer_leds_during_a_transition_goes_dark(config, clock):
+    """A locate() pulse on an LED that's no longer lit ends without its white staying in the transition's colors."""
+    from metarmap.renderer import TRANSITION_SECONDS
+
+    r, strip, _ = switched(config, clock, "dissolve")
+    r.draw_frame()
+    white_pulse(r, 4)
+    clock.advance(TRANSITION_SECONDS / 4)
+    r.draw_frame()
+    assert r._transition.live[4] == (255, 255, 255)
+    config.data.led.count = 3
+    r.refresh()
+    assert 4 not in r._pulses
+    for _ in range(3):
+        clock.advance(TRANSITION_SECONDS / 2)
+        r.draw_frame()
+    assert not r.transitioning
+    assert strip[4] == (0, 0, 0)

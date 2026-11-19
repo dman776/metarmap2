@@ -194,6 +194,17 @@
             </select>
         </div>
         </div>
+        <div class="set">
+            <div>
+                <label class="t" for="visualizer-transition">Transition</label>
+                <div class="d">How the pixels change from one visualizer to the next; 0.5 s. Cut changes at once, Dissolve blends each pixel into the new color, Dip to black fades out and back up.</div>
+            </div>
+            <select id="visualizer-transition" data-key="visualizer.transition">
+                % for value, name in (('cut', 'Cut'), ('dissolve', 'Dissolve'), ('dip', 'Dip to black')):
+                <option value="{{value}}"{{!' selected' if value == d.visualizer.transition else ''}}>{{name}}</option>
+                % end
+            </select>
+        </div>
         % switch('visualizer.auto_rotate.enabled', d.visualizer.auto_rotate.enabled, 'Auto-rotate visualizers', 'Cycle through the visualizers on a timer. Picking one by hand shows it for the whole delay before the next change.')
         <div class="sub" data-when="visualizer-auto_rotate-enabled"{{!'' if d.visualizer.auto_rotate.enabled else ' hidden'}}>
         % slider('visualizer.auto_rotate.delay_seconds', d.visualizer.auto_rotate.delay_seconds, 'Auto-rotate delay', 'Time on each visualizer.', lo=10, hi=600, step=10, fmt='sec')
