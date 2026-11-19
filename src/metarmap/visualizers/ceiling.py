@@ -10,6 +10,7 @@ import metarmap.lib.colors as colors_lib
 from metarmap.decode import ceiling_ft
 from metarmap.models import Look, Report
 from metarmap.visualizers import style
+from metarmap.visualizers.legend import legend_item
 from metarmap.visualizers.style import Band
 from metarmap.visualizers.visualizer import Visualizer
 
@@ -32,7 +33,7 @@ def no_ceiling(settings):
 def legend(settings):
     return [
         *style.band_legend(BANDS, settings),
-        style.legend_item(NO_CEILING, "Dim white", no_ceiling(settings)),
+        legend_item(NO_CEILING, "Dim white", no_ceiling(settings)),
         style.missing_legend("sky condition"),
         style.no_report_legend(),
     ]

@@ -19,7 +19,8 @@ from metarmap.models import FlightCategory as Category, Look, Report
 from metarmap.visualizers import forecast_steps, style
 from metarmap.visualizers.flightcategory import COLORS
 from metarmap.visualizers.forecast_steps import FRAME, NO_FORECAST, NO_FORECAST_COLOR
-from metarmap.visualizers.visualizer import Visualizer, legend_item
+from metarmap.visualizers.legend import legend_item
+from metarmap.visualizers.visualizer import Visualizer
 
 
 def legend(settings):

@@ -18,7 +18,8 @@ from metarmap.forecast import HOURS
 from metarmap.models import Look, Report
 from metarmap.visualizers import forecast_steps, precipitation, style
 from metarmap.visualizers.forecast_steps import FRAME, NO_FORECAST, NO_FORECAST_COLOR
-from metarmap.visualizers.visualizer import Visualizer, legend_item
+from metarmap.visualizers.legend import legend_item
+from metarmap.visualizers.visualizer import Visualizer
 
 # how much of a kind: heavy, moderate, light, in the vicinity
 INTENSITY_ORDER = {style.HEAVY: 0, style.MODERATE: 1, style.LIGHT: 2, style.VICINITY: 3}

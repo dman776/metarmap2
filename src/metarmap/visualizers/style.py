@@ -22,7 +22,7 @@ from typing import Callable, Optional, Sequence, Union
 import metarmap.lib.colors as colors_lib
 from metarmap.decode import parse_weather
 from metarmap.models import Look, Report
-from metarmap.visualizers.visualizer import legend_item
+from metarmap.visualizers.legend import legend_item
 
 LIGHT, MODERATE, HEAVY, VICINITY = "-", "", "+", "VC"
 

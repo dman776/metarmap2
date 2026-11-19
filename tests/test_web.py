@@ -40,6 +40,7 @@ from metarmap.web import site
 from metarmap.visualizers.visualizer import ICONS
 from metarmap import discovery
 from metarmap.web import api, control, create_app, icons, views
+from metarmap.web.services import Services
 
 AUTH = "Basic " + base64.b64encode(b"metar:map").decode()
 OBS = datetime(2026, 10, 24, 17, 53, tzinfo=timezone.utc)
@@ -806,6 +807,50 @@ def test_live_says_when_the_next_fetch_is(client):
 def test_the_fetch_button_has_a_countdown(client):
     page = client("/")[1]
     assert 'id="fetch-ring"' in page and 'id="fetch-time"' in page
+
+
+# ---- the Services protocol: the web layer needs only these members of the map ------------------------------------
+
+
+def test_app_satisfies_the_services_members(services):
+    for name in Services.__annotations__:
+        assert hasattr(services, name), name
+    for name in ("refetch_metars", "schedule_fetch", "next_fetch", "next_rotation"):
+        assert callable(getattr(services, name))
+
+
+def test_services_lists_everything_the_web_code_uses():
+    web = pathlib.Path(app_module.__file__).parent / "web"
+    used = {m for path in web.glob("*.py") for m in re.findall(r"\bservices\.(\w+)", path.read_text())}
+    assert (
+        used - set(Services.__annotations__) - {"refetch_metars", "schedule_fetch", "next_fetch", "next_rotation"}
+        == set()
+    )
+
+
+def test_the_schedules_come_from_services_not_from_the_app_module():
+    rotation = SimpleNamespace(
+        config=SimpleNamespace(
+            data=SimpleNamespace(
+                visualizer=SimpleNamespace(auto_rotate=SimpleNamespace(enabled=True, delay_seconds=30, skip=[]))
+            )
+        ),
+        next_rotation=lambda: 123.0,
+        next_fetch=lambda: {"next": 1.0, "seconds": 600, "fetched": None},
+    )
+    assert api.auto_rotate(rotation) == {"enabled": True, "seconds": 30, "next": 123.0, "skip": []}
+    assert api.fetch_schedule(rotation)["seconds"] == 600
+
+
+def test_fetch_by_hand_asks_services_to_refetch_and_reschedule(monkeypatch):
+    calls = []
+    fake = SimpleNamespace(
+        refetch_metars=lambda: calls.append("refetch") or True, schedule_fetch=lambda: calls.append("schedule")
+    )
+    monkeypatch.setattr(control.pages, "index", lambda services, site: "home")
+    routes = control.SystemRoutes(None, None, fake, None)
+    assert routes.fetch() == "home"
+    assert calls == ["refetch", "schedule"]
 
 
 # ---- the API, against fake services with known data ----------------------------------------------------------

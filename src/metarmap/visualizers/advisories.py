@@ -10,7 +10,8 @@ from typing import Optional
 import metarmap.lib.colors as colors_lib
 from metarmap.models import Look, Report
 from metarmap.visualizers import style
-from metarmap.visualizers.visualizer import Visualizer, legend_item
+from metarmap.visualizers.legend import legend_item
+from metarmap.visualizers.visualizer import Visualizer
 
 
 MIXED_PERIOD = 2.0  # seconds per alternation of two AIRMET hazards

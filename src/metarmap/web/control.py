@@ -8,7 +8,6 @@ import logging
 import subprocess
 import threading
 import time
-from typing import TYPE_CHECKING
 
 import bottle
 
@@ -19,9 +18,7 @@ from metarmap.discovery import PackageInstall
 from metarmap.visualizers import index_of
 from metarmap.lib import versions
 from metarmap.web import api, pages
-
-if TYPE_CHECKING:  # app.py imports the web, so only for the type checker
-    from metarmap.app import App
+from metarmap.web.services import Services
 
 log = logging.getLogger(__name__)
 
@@ -361,19 +358,17 @@ class SystemRoutes:
         return ""
 
     def fetch(self):
-        from metarmap.app import refetch_metars, schedule_fetch  # here: app.py imports the web
-
         services = self.services
         # back when they're in (after a fetch under way, if it ends soon enough): then the LEDs and the names
         try:
-            fetched = refetch_metars(services)
+            fetched = services.refetch_metars()
         except OSError:  # its text can name files and paths, and /fetch needs no login: those stay in the log
             bottle.abort(500, "The METAR fetch failed (see the Chart's log)")
         except Exception as e:  # logged in the fetch; the regular fetch stays where it was
             bottle.abort(500, f"The METAR fetch failed: {e}")
         if not fetched:
             bottle.abort(503, "A METAR fetch is already running; try again in a moment")
-        schedule_fetch(services)  # the next regular fetch a whole interval from now
+        services.schedule_fetch()  # the next regular fetch a whole interval from now
         return pages.index(services, self.site)
 
     def restart(self):
@@ -445,7 +440,7 @@ class UpdateRoutes:
         app.route("/update/progress", "GET", lambda: as_json(self.updates.progress()), apply=auth)
 
 
-def add_routes(app, services: "App", site, auth, updates=None, installs=None):
+def add_routes(app, services: Services, site, auth, updates=None, installs=None):
     renderer, config = services.renderer, services.config
     updates = updates or Updates()
     installs = installs or PackageInstall(on_done=lambda: services.discovery.restart() if services.discovery else None)

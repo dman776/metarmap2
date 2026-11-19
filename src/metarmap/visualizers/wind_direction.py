@@ -8,7 +8,8 @@ from typing import Optional
 import metarmap.lib.colors as colors_lib
 from metarmap.models import Look, Report
 from metarmap.visualizers import style
-from metarmap.visualizers.visualizer import Visualizer, legend_item
+from metarmap.visualizers.legend import legend_item
+from metarmap.visualizers.visualizer import Visualizer
 
 
 # clockwise from north, 45° each, centered on the heading (north is 338-22°)

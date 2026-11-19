@@ -11,7 +11,8 @@ import metarmap.lib.colors as colors_lib
 from metarmap.delays import CLOSED, DELAY, GROUND_STOP, NORMAL
 from metarmap.models import Look, Report
 from metarmap.visualizers import style
-from metarmap.visualizers.visualizer import Visualizer, legend_item
+from metarmap.visualizers.legend import legend_item
+from metarmap.visualizers.visualizer import Visualizer
 
 # a delay's color by its minutes (a Ground Delay Program's average; the middle of an arrival or departure delay's
 # range). A delay whose minutes the FAA doesn't give in a form that can be read shows as the shortest

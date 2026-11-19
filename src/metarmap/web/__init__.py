@@ -9,7 +9,6 @@ is built in views.
 import logging
 import socketserver
 import threading
-from typing import TYPE_CHECKING
 from wsgiref.simple_server import WSGIRequestHandler, WSGIServer, make_server
 
 import bottle
@@ -17,15 +16,13 @@ from bottle import auth_basic
 
 from metarmap.web import api, control, pages, views
 from metarmap.web import planner as planner_page
+from metarmap.web.services import Services
 from metarmap.web.site import Site, my_ip
-
-if TYPE_CHECKING:  # app.py imports the web, so only for the type checker
-    from metarmap.app import App
 
 log = logging.getLogger(__name__)
 
 
-def create_app(services: "App", ip=None, updates=None, installs=None, planner=None) -> bottle.Bottle:
+def create_app(services: Services, ip=None, updates=None, installs=None, planner=None) -> bottle.Bottle:
     """
     The web app for a map. ip: shown in the header and /api/status (default: this machine's address);
     updates: a control.Updates (tests pass one with a fake update); planner: a planner.Planner (tests pass one with a

@@ -4,21 +4,20 @@ The web UI's pages. Each page function gathers its template's data from the map'
 
 import io
 import pprint
-from typing import TYPE_CHECKING
 
+from metarmap.atis import AtisError
+from metarmap.atis_spoken import unknown
 from metarmap.speech import configured
 from metarmap import system
 from metarmap.config import MAX_LEDS
 from metarmap.leds import intro
 from metarmap.settings import LED_ORDERS, LED_PINS, LIGHTNING_COLORS, TRAFFIC_SECONDS
 from metarmap.web import api, views
+from metarmap.web.services import Services
 from metarmap.web.site import render
 
-if TYPE_CHECKING:  # app.py imports the web, so only for the type checker
-    from metarmap.app import App
 
-
-def stations(services: "App"):
+def stations(services: Services):
     return views.stations(
         services.config.airports,
         services.metars.data,
@@ -27,7 +26,7 @@ def stations(services: "App"):
     )
 
 
-def index(services: "App", site):
+def index(services: Services, site):
     s = stations(services)
     return render(
         site,
@@ -50,7 +49,7 @@ def index(services: "App", site):
     )
 
 
-def metars(services: "App", site):
+def metars(services: Services, site):
     s = stations(services)
     return render(
         site,
@@ -64,7 +63,7 @@ def metars(services: "App", site):
     )
 
 
-def map_page(services: "App", site):
+def map_page(services: Services, site):
     settings = views.map_settings(services.config.data.geo.map, site.sectionals, stations(services))
     return render(
         site,
@@ -76,7 +75,7 @@ def map_page(services: "App", site):
     )
 
 
-def remote(services: "App", site):
+def remote(services: Services, site):
     """A remote control for the map, laid out for an iPad in kiosk mode."""
     s = stations(services)
     return render(
@@ -96,13 +95,13 @@ def remote(services: "App", site):
     )
 
 
-def legend(services: "App", site):
+def legend(services: Services, site):
     """The active visualizer's legend on its own: the Map page swaps it in when the visualizer changes."""
     active = views.visualizer(services.renderer)
     return render(site, "legend.tpl", legend=active["legend"], step=active["step"])
 
 
-def debug(services: "App", site):
+def debug(services: Services, site):
     renderer = services.renderer
     return render(
         site,
@@ -152,7 +151,7 @@ KOKORO_VOICES = (
 )
 
 
-def config(services: "App", site):
+def config(services: Services, site):
     settings = views.map_settings(services.config.data.geo.map, site.sectionals, stations(services))
     return render(
         site,
@@ -178,7 +177,7 @@ def config(services: "App", site):
     )
 
 
-def airports(services: "App", site):
+def airports(services: Services, site):
     config = services.config
     count, virtual = config.data.led.count, config.data.led.virtual_count
     leds = views.leds(config.airports, count)
@@ -197,12 +196,9 @@ def airports(services: "App", site):
     )
 
 
-def pronunciation(services: "App", site):
+def pronunciation(services: Services, site):
     """The spoken weather's tunings (the AWOS and the ATIS): words and phrases said another way, with the words the
     map reads as written."""
-    from metarmap.atis import AtisError
-    from metarmap.atis_spoken import unknown
-
     speech = services.config.data.speech
     codes = [a.code for a in services.config.airports if a.code]
     with_atis = [c for c in codes if c in api.atis_airports(services)]
@@ -231,7 +227,7 @@ def pronunciation(services: "App", site):
     )
 
 
-def raw(services: "App"):
+def raw(services: Services):
     data = services.metars.data
     buf = io.StringIO()
     buf.write("".join(f"<b>{s}</b>: {data[s].raw if data[s] else 'N/A'}<br />" for s in data.keys()))
@@ -239,11 +235,11 @@ def raw(services: "App"):
     return buf.getvalue()
 
 
-def raw_code(services: "App", code):
+def raw_code(services: Services, code):
     return "<b>" + code + "</b>: " + services.metars.data[code].raw + "<br />"
 
 
-def add_routes(app, services: "App", site, auth):
+def add_routes(app, services: Services, site, auth):
     app.route("/", "GET", lambda: index(services, site))
     app.route("/metars", "GET", lambda: metars(services, site))
     app.route("/map", "GET", lambda: map_page(services, site))
