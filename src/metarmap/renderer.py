@@ -8,6 +8,12 @@ import time
 from contextlib import contextmanager
 from dataclasses import replace
 
+from adafruit_led_animation.animation.pulse import Pulse
+from adafruit_led_animation.animation.rainbowcomet import RainbowComet
+from adafruit_led_animation.color import WHITE
+from adafruit_led_animation.helper import PixelSubset
+from adafruit_led_animation.sequence import AnimateOnce
+
 import metarmap.lib.colors as colors_lib
 from metarmap.clock import Clock
 from metarmap.leds import intro
@@ -15,12 +21,6 @@ from metarmap.leds.animations import animation_for, look_interval
 from metarmap.models import Look
 from metarmap.sun import SunTimes, brightness_for, level_at, quiet_hours_active
 from metarmap.visualizers import index_of, visualizer
-
-from adafruit_led_animation.sequence import AnimateOnce
-from adafruit_led_animation.helper import PixelSubset
-from adafruit_led_animation.animation.pulse import Pulse
-from adafruit_led_animation.animation.rainbowcomet import RainbowComet
-from adafruit_led_animation.color import WHITE
 
 try:  # the animations' own clock, so "when it's next due" and "now" agree
     from adafruit_led_animation import monotonic_ms

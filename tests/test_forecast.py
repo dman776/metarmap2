@@ -12,7 +12,8 @@ from metarmap.forecast import Forecasts, category_at, parse_tafs
 from metarmap.metar import with_forecast
 from metarmap.models import Look, Report, SkyLayer
 from metarmap.settings import Settings
-from metarmap.visualizers import flightcategory, flightcategory_forecast as fcf, style, visualizer
+from metarmap.visualizers import flightcategory, style, visualizer
+from metarmap.visualizers import flightcategory_forecast as fcf
 
 # KHOU: base VFR with a TEMPO to BKN015 (MVFR) until 1794279600; FM1794283200 6 SM, OVC030 (MVFR); a TEMPO to OVC015
 # (IFR) 1794297600-1794312000; FM1794315600 back to VFR (valid until 1794355200)

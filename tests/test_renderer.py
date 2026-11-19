@@ -4,15 +4,15 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import pytest
-
 from conftest import airports
+
+from metarmap import visualizers as visualizer_module
 from metarmap.clock import FakeClock
 from metarmap.leds.strip import FakeStrip, SkipUnchangedShow
 from metarmap.models import Look, Report
+from metarmap.renderer import Renderer
 from metarmap.settings import Settings
 from metarmap.sun import SunTimes
-from metarmap.renderer import Renderer
-from metarmap import visualizers as visualizer_module
 from metarmap.visualizers import chase, flightcategory, precipitation, rainbow, visualizer, wind
 
 NOON = datetime(2026, 10, 24, 17, 0, tzinfo=timezone.utc)
@@ -850,6 +850,7 @@ def ticks(monkeypatch):
     import adafruit_led_animation.animation as animation_module
     import adafruit_led_animation.animation.rainbow as rainbow_module
     import adafruit_led_animation.pulse_generator as pulse_module
+
     from metarmap import renderer
 
     t = AnimationTime()

@@ -168,8 +168,8 @@ def test_skipping_strip_settles_between_animation_steps():
     tick, 0.01 s for lightning), and then the strip has settled, before the next step. At 0.1 s it never settled.
     """
     from metarmap.leds.strip import SETTLE_SECONDS
-    from metarmap.visualizers.style import LIGHTNING_STEP
     from metarmap.renderer import FRAME_SECONDS
+    from metarmap.visualizers.style import LIGHTNING_STEP
 
     assert FRAME_SECONDS < SETTLE_SECONDS < LIGHTNING_STEP
     strip = skipping_strip()

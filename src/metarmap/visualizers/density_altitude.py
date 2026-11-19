@@ -11,7 +11,6 @@ from metarmap.visualizers import style
 from metarmap.visualizers.style import Band
 from metarmap.visualizers.visualizer import Visualizer
 
-
 STANDARD_PRESSURE = 29.92
 
 # feet of density altitude above the field elevation

@@ -11,12 +11,11 @@ import time
 
 import bottle
 
-from metarmap import system
+from metarmap import system, update
 from metarmap.config import parse_user
-from metarmap import update
 from metarmap.discovery import PackageInstall
-from metarmap.visualizers import index_of
 from metarmap.lib import versions
+from metarmap.visualizers import index_of
 from metarmap.web import api, pages
 from metarmap.web.services import Services
 

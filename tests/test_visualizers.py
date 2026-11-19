@@ -9,10 +9,9 @@ from datetime import datetime, timezone
 import pytest
 
 import metarmap.lib.colors as colors_lib
-from metarmap.models import Look, Report, SkyLayer
-from metarmap.visualizers.visualizer import Visualizer
-from metarmap.settings import LIGHTNING_COLORS, Settings
 from metarmap import decode, visualizers
+from metarmap.models import Look, Report, SkyLayer
+from metarmap.settings import LIGHTNING_COLORS, Settings
 from metarmap.visualizers import (
     advisories,
     ceiling,
@@ -34,6 +33,7 @@ from metarmap.visualizers import (
     windgusts,
 )
 from metarmap.visualizers.density_altitude import calculate_density_altitude
+from metarmap.visualizers.visualizer import Visualizer
 
 C = colors_lib.get_colors()
 OFF = Look.off()

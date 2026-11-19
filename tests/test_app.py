@@ -9,7 +9,9 @@ from types import SimpleNamespace
 import pytest
 import schedule
 
-from metarmap import app as app_module, feeds as feeds_module, visualizers
+from metarmap import app as app_module
+from metarmap import feeds as feeds_module
+from metarmap import visualizers
 from metarmap.models import Report
 from metarmap.visualizers import flightcategory
 
@@ -839,6 +841,7 @@ def test_a_failed_fetch_is_retried_every_minute_until_it_works(make_app, monkeyp
 
 def test_a_failed_fetch_at_startup_is_retried(tmp_path, monkeypatch):
     import requests
+
     from metarmap import metar
     from metarmap.leds.strip import FakeStrip
     from metarmap.oled.screen import FakeScreen

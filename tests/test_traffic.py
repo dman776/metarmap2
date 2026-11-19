@@ -2,9 +2,8 @@
 Tests for live traffic (metarmap.traffic): the area asked about, reading adsb.fi's answer, and how often it's asked.
 """
 
-from types import SimpleNamespace
-
 import json
+from types import SimpleNamespace
 
 import pytest
 import requests

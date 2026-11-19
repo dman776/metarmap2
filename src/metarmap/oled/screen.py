@@ -51,10 +51,10 @@ class SSD1306Screen:
     TOP = 16  # rows 0-15 are yellow on a two-color OLED, the rest blue
 
     def __init__(self):
-        from board import SCL, SDA
-        import busio
-        from oled_text import OledText, BigLine
         import adafruit_ssd1306  # noqa: F401 (oled_text needs it; fail early if missing)
+        import busio
+        from board import SCL, SDA
+        from oled_text import BigLine, OledText
 
         self._oled = OledText(busio.I2C(SCL, SDA), self.WIDTH, self.HEIGHT)
         self._oled.auto_show = False

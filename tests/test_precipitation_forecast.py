@@ -7,8 +7,8 @@ import pytest
 from metarmap import visualizers
 from metarmap.models import Look, Report
 from metarmap.settings import Settings
-from metarmap.visualizers import flightcategory_forecast, forecast_steps, precipitation, precipitation_forecast as pf
-from metarmap.visualizers import style, visualizer
+from metarmap.visualizers import flightcategory_forecast, forecast_steps, precipitation, style, visualizer
+from metarmap.visualizers import precipitation_forecast as pf
 
 
 @pytest.fixture

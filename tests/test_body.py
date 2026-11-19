@@ -4,8 +4,8 @@ import json
 import logging
 import random
 from collections import Counter
-from datetime import datetime, timezone
 from dataclasses import replace
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest

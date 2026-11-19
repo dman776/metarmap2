@@ -14,7 +14,6 @@ from metarmap.visualizers.legend import legend_item
 from metarmap.visualizers.style import Band
 from metarmap.visualizers.visualizer import Visualizer
 
-
 BANDS = [
     Band(500, colors_lib.RED, "Below 500 ft (LIFR)", "Red"),
     Band(1000, colors_lib.ORANGE, "500-999 ft (IFR)", "Orange"),

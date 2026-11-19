@@ -15,7 +15,8 @@ from typing import Optional
 
 from metarmap.decode import estimate_category
 from metarmap.forecast import HOURS
-from metarmap.models import FlightCategory as Category, Look, Report
+from metarmap.models import FlightCategory as Category
+from metarmap.models import Look, Report
 from metarmap.visualizers import forecast_steps, style
 from metarmap.visualizers.flightcategory import COLORS
 from metarmap.visualizers.forecast_steps import FRAME, NO_FORECAST, NO_FORECAST_COLOR

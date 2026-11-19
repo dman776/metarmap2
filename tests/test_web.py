@@ -22,24 +22,22 @@ import pytest
 import schedule
 
 import metarmap.lib.colors as colors_lib
-from metarmap import __version__
+from metarmap import __version__, discovery
 from metarmap import app as app_module
-from metarmap.app import App
 from metarmap.advisories import Advisories
-from metarmap.tfr import Tfrs
+from metarmap.app import App
 from metarmap.leds.strip import FakeStrip
 from metarmap.models import Look, Report, SkyLayer
 from metarmap.renderer import Renderer
 from metarmap.settings import Airport, Settings
 from metarmap.sun import SunTimes
+from metarmap.tfr import Tfrs
 from metarmap.traffic import Traffic
 from metarmap.visualizers import advisories as advisories_vis
 from metarmap.visualizers import flightcategory, rainbow, style, wind, wind_direction, windgusts
 from metarmap.visualizers import tfr as tfr_vis
-from metarmap.web import site
 from metarmap.visualizers.visualizer import ICONS
-from metarmap import discovery
-from metarmap.web import api, control, create_app, icons, views
+from metarmap.web import api, control, create_app, icons, site, views
 from metarmap.web.services import Services
 
 AUTH = "Basic " + base64.b64encode(b"metar:map").decode()
@@ -2212,6 +2210,7 @@ def test_is_login():
 
 def test_a_slow_fetch_does_not_hold_up_other_requests(services):
     import urllib.request
+
     from metarmap.web import serve
 
     release, started = threading.Event(), threading.Event()

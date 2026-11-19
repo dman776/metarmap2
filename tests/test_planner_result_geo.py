@@ -8,12 +8,12 @@ import json
 import time
 
 import pytest
+from test_web import Client
 
 from metarmap.planner import airports as live_airports
 from metarmap.planner import projection
 from metarmap.web import create_app
 from metarmap.web import planner as planner_web
-from test_web import Client
 
 MM = projection.MM_PER_INCH
 WIDTH_IN = 32

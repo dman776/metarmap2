@@ -5,13 +5,13 @@ The web UI's pages. Each page function gathers its template's data from the map'
 import io
 import pprint
 
+from metarmap import system
 from metarmap.atis import AtisError
 from metarmap.atis_spoken import unknown
-from metarmap.speech import configured
-from metarmap import system
 from metarmap.config import MAX_LEDS
 from metarmap.leds import intro
 from metarmap.settings import LED_ORDERS, LED_PINS, LIGHTNING_COLORS, TRAFFIC_SECONDS
+from metarmap.speech import configured
 from metarmap.web import api, views
 from metarmap.web.services import Services
 from metarmap.web.site import render

@@ -18,8 +18,8 @@ A screen is a dict:
 
 from typing import Optional
 
-from metarmap.lib.units import celsius_to_fahrenheit
 from metarmap.decode import estimate_category
+from metarmap.lib.units import celsius_to_fahrenheit
 from metarmap.models import Report
 
 MISSING = "--"
