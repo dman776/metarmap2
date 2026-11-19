@@ -3066,3 +3066,69 @@ def test_source_airports_js_saves_the_hidden_pixel_switch_and_shows_the_refusal(
     assert "/skip/" in block and "note.textContent = err.message" in block  # the server's sentence, as text
     assert "innerHTML" not in block
     assert "?." not in block and "=>" not in block
+
+
+class FakeSkipConfig:
+    """Just what VisualizerRoutes.skip_visualizer uses: the skip list and edit()."""
+
+    def __init__(self, skip=()):
+        self._lock = threading.RLock()
+        self.data = SimpleNamespace(visualizer=SimpleNamespace(auto_rotate=SimpleNamespace(skip=list(skip))))
+
+    def edit(self, key, value):
+        assert key == "visualizer.auto_rotate.skip"
+        self.data.visualizer.auto_rotate.skip = json.loads(value)
+
+
+def skip_routes(skip=(), exclusive=()):
+    vis = [SimpleNamespace(id=i, name=i.title(), exclusive=i in exclusive) for i in ("a", "b", "c")]
+    config = FakeSkipConfig(skip)
+    return control.VisualizerRoutes(SimpleNamespace(visualizers=vis), config, None, None), config
+
+
+def skip_answer(routes, key, skip):
+    import bottle
+
+    out = json.loads(routes.skip_visualizer(key, skip))
+    return out, bottle.response.status_code
+
+
+def test_routes_skip_unknown_visualizer_is_refused():
+    routes, config = skip_routes()
+    out, status = skip_answer(routes, "nope", True)
+    assert (status, out["reason"]) == (400, "unknown")
+    assert config.data.visualizer.auto_rotate.skip == []
+
+
+def test_routes_skip_exclusive_visualizer_is_refused():
+    routes, config = skip_routes(exclusive=("b",))
+    out, status = skip_answer(routes, "b", True)
+    assert (status, out["reason"]) == (400, "exclusive")
+    assert config.data.visualizer.auto_rotate.skip == []
+
+
+def test_routes_skip_the_last_visualizer_is_refused():
+    routes, config = skip_routes(skip=("a", "b"))
+    out, status = skip_answer(routes, "c", True)
+    assert (status, out["reason"]) == (400, "last")
+    assert config.data.visualizer.auto_rotate.skip == ["a", "b"]
+
+
+def test_routes_skip_and_unskip_are_idempotent():
+    routes, config = skip_routes()
+    assert skip_answer(routes, "a", True)[0] == {"id": "a", "skipped": True, "skip": ["a"]}
+    assert skip_answer(routes, "a", True)[0]["skip"] == ["a"]
+    assert skip_answer(routes, "a", False)[0] == {"id": "a", "skipped": False, "skip": []}
+    assert skip_answer(routes, "a", False)[0]["skip"] == []
+
+
+def test_update_routes_wire_the_updates_to_the_config():
+    config = SimpleNamespace(
+        data=SimpleNamespace(update_channel=lambda: "branch", update=SimpleNamespace(branch="dev"))
+    )
+    releases = SimpleNamespace(installed=None, checked=0, check_soon=lambda: None)
+    updates = control.Updates(run_update=lambda **kw: None)
+    control.UpdateRoutes(config, releases, updates, None)
+    assert (updates.channel(), updates.branch()) == ("branch", "dev")
+    updates.on_done(SimpleNamespace(changed=True, target="v9.9.9"))
+    assert releases.installed == "v9.9.9"

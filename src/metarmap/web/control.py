@@ -105,124 +105,104 @@ def as_json(data, status=200):
     return json.dumps(data)
 
 
-def add_routes(app, services: "App", site, auth, updates=None, installs=None):
-    renderer, config = services.renderer, services.config
-    releases = services.releases
-    updates = updates or Updates()
-    installs = installs or PackageInstall(on_done=lambda: services.discovery.restart() if services.discovery else None)
-    updates.channel = lambda: config.data.update_channel()
-    updates.branch = lambda: config.data.update.branch
+def body():
+    """The JSON body of a POST (passwords never go in a URL)."""
+    try:
+        data = bottle.request.json
+    except ValueError:
+        data = None
+    if not isinstance(data, dict):
+        bottle.abort(400, "Send the values as a JSON object")
+    return data
 
-    def installed(result):
-        """After an update: the header says to restart, and the check sees what's newest now."""
-        if releases is not None:
-            if result.changed:
-                releases.installed = result.target
-            releases.check_soon()
 
-    updates.on_done = installed
+class VisualizerRoutes:
+    """Which visualizer shows, and which are left out of auto-rotate."""
 
-    def visualizer(key):
+    def __init__(self, renderer, config, services, site):
+        self.renderer, self.config, self.services, self.site = renderer, config, services, site
+
+    def visualizer(self, key):
         """/visualizer/wind_direction, or by number: /visualizer/3."""
         try:
-            renderer.visualizer = key
+            self.renderer.visualizer = key
         except LookupError:
             bottle.abort(404, f"No visualizer {key!r}")
-        return pages.index(services, site)
+        return pages.index(self.services, self.site)
 
-    def visualizer_next():
-        renderer.visualizer_next()
-        return pages.index(services, site)
+    def visualizer_next(self):
+        self.renderer.visualizer_next()
+        return pages.index(self.services, self.site)
 
-    def visualizer_previous():
-        renderer.visualizer_previous()
-        return pages.index(services, site)
+    def visualizer_previous(self):
+        self.renderer.visualizer_previous()
+        return pages.index(self.services, self.site)
 
-    def auto_rotate(state):
+    def auto_rotate(self, state):
         """The Remote page's auto-rotate switch: saved, but needs no login (it's only this one setting)."""
         if state not in ("on", "off"):
             bottle.abort(400, "Use /visualizer/auto_rotate/on or /visualizer/auto_rotate/off")
-        config.edit("visualizer.auto_rotate.enabled", "true" if state == "on" else "false")
-        return pages.index(services, site)
+        self.config.edit("visualizer.auto_rotate.enabled", "true" if state == "on" else "false")
+        return pages.index(self.services, self.site)
 
-    def skip_visualizer(key, skip):
+    def _refuse(self, reason, message):  # a small JSON body the Cockpit reads: "reason" says which
+        return as_json({"error": message, "reason": reason}, 400)
+
+    def skip_visualizer(self, key, skip):
         """
         The Cockpit's and the Copilot's press-and-hold: leaves a visualizer out of auto-rotate (skip) or puts it back,
         in visualizer.auto_rotate.skip. Saved, but needs no login (it's only that one setting). Idempotent. The one
         running keeps running until auto-rotate moves on; picking it by hand still works.
         """
-
-        def refuse(reason, message):  # a small JSON body the Cockpit reads: "reason" says which
-            return as_json({"error": message, "reason": reason}, 400)
-
+        renderer, config = self.renderer, self.config
         try:
             vis = renderer.visualizers[index_of(key, renderer.visualizers)]
         except LookupError:
-            return refuse("unknown", f"No visualizer {key!r}")
+            return self._refuse("unknown", f"No visualizer {key!r}")
         with config._lock:  # read, check and save as one step: two requests at once mustn't lose one (RLock)
             left_out = list(config.data.visualizer.auto_rotate.skip)
             if skip and vis.id not in left_out:
                 if vis.exclusive:
-                    return refuse("exclusive", f"{vis.name} is always left out of auto-rotate")
+                    return self._refuse("exclusive", f"{vis.name} is always left out of auto-rotate")
                 if all(v.exclusive or v.id in left_out or v.id == vis.id for v in renderer.visualizers):
-                    return refuse("last", f"{vis.name} is the last visualizer in auto-rotate; at least one must stay")
+                    return self._refuse(
+                        "last", f"{vis.name} is the last visualizer in auto-rotate; at least one must stay"
+                    )
                 left_out.append(vis.id)
             elif not skip and vis.id in left_out:
                 left_out.remove(vis.id)
             try:
                 config.edit("visualizer.auto_rotate.skip", json.dumps(left_out))
             except ValueError as e:
-                return refuse("invalid", str(e))
+                return self._refuse("invalid", str(e))
             left_out = list(config.data.visualizer.auto_rotate.skip)
         return as_json({"id": vis.id, "skipped": vis.id in left_out, "skip": left_out})
 
-    def brightness(level):
-        renderer.brightness(float(level))
-        return pages.index(services, site)
+    def install(self, app, auth):
+        app.route("/visualizer/<key>", "GET", self.visualizer)
+        app.route("/visualizer/next", "GET", self.visualizer_next)
+        app.route("/visualizer/previous", "GET", self.visualizer_previous)
+        app.route("/visualizer/auto_rotate/<state>", "GET", self.auto_rotate)
+        app.route("/visualizer/<key>/skip", "GET", lambda key: self.skip_visualizer(key, True))
+        app.route("/visualizer/<key>/unskip", "GET", lambda key: self.skip_visualizer(key, False))
 
-    def display_power(state):
-        """The Home page's OLED switch: on or off until changed again or the map restarts (not saved)."""
-        if state not in ("on", "off"):
-            bottle.abort(400, "Use /display/on or /display/off")
-        if not config.data.display_screen.enabled:
-            bottle.abort(409, "The OLED screen is turned off in Config (display_screen.enabled)")
-        services.display.turn_on() if state == "on" else services.display.turn_off()
-        return pages.index(services, site)
 
-    def locate(pixnum):
-        renderer.locate(pixnum)
-        return pages.metars(services, site)
+class ConfigRoutes:
+    """Settings, airport edits, pronunciation, the web UI login and Wi-Fi: all behind the login."""
 
-    def play_init_sequence():
-        """Config > Physical display's Play now: the startup sequence once, as it's set (on or off at startup)."""
-        threading.Thread(target=renderer.test_pattern, name="test-pattern", daemon=True).start()
-        return ""
+    def __init__(self, config, services, site):
+        self.config, self.services, self.site = config, services, site
 
-    def fetch():
-        from metarmap.app import refetch_metars, schedule_fetch  # here: app.py imports the web
-
-        # back when they're in (after a fetch under way, if it ends soon enough): then the LEDs and the names
+    def edit_config(self, key, value):
         try:
-            fetched = refetch_metars(services)
-        except OSError:  # its text can name files and paths, and /fetch needs no login: those stay in the log
-            bottle.abort(500, "The METAR fetch failed (see the Chart's log)")
-        except Exception as e:  # logged in the fetch; the regular fetch stays where it was
-            bottle.abort(500, f"The METAR fetch failed: {e}")
-        if not fetched:
-            bottle.abort(503, "A METAR fetch is already running; try again in a moment")
-        schedule_fetch(services)  # the next regular fetch a whole interval from now
-        return pages.index(services, site)
-
-    def edit_config(key, value):
-        try:
-            config.edit(key, value)
+            self.config.edit(key, value)
         except KeyError:
             bottle.abort(400, f"Unknown setting: {key}")
         except ValueError as e:
             bottle.abort(400, str(e))
-        return pages.config(services, site)
+        return pages.config(self.services, self.site)
 
-    def edit_airports(change):
+    def edit_airports(self, change):
         """
         Runs one airport change; unknown LEDs and airports are 404s, bad values 400s. The LEDs, the OLED and a new
         airport's name and METAR follow it (app.wire_config).
@@ -235,33 +215,24 @@ def add_routes(app, services: "App", site, auth, updates=None, installs=None):
             bottle.abort(400, str(e))
         return bottle.redirect("/config/airports")
 
-    def set_airport(pixel, key, value):
-        return edit_airports(lambda: config.set_airport(pixel, key, value))
+    def set_airport(self, pixel, key, value):
+        return self.edit_airports(lambda: self.config.set_airport(pixel, key, value))
 
-    def move_airport(src, dst):
-        return edit_airports(lambda: config.move_airport(src, dst))
+    def move_airport(self, src, dst):
+        return self.edit_airports(lambda: self.config.move_airport(src, dst))
 
-    def edit_airport(oldkey, newkey):
-        return edit_airports(lambda: config.edit_airport(oldkey, newkey))
+    def edit_airport(self, oldkey, newkey):
+        return self.edit_airports(lambda: self.config.edit_airport(oldkey, newkey))
 
-    def edit_airport_property(airport, key, value):
-        return edit_airports(lambda: config.edit_airport_property(airport, key, value))
+    def edit_airport_property(self, airport, key, value):
+        return self.edit_airports(lambda: self.config.edit_airport_property(airport, key, value))
 
-    def body():
-        """The JSON body of a POST (passwords never go in a URL)."""
-        try:
-            data = bottle.request.json
-        except ValueError:
-            data = None
-        if not isinstance(data, dict):
-            bottle.abort(400, "Send the values as a JSON object")
-        return data
-
-    def set_mock_metar():
+    def set_mock_metar(self):
         """
         The Airports page's mock METAR field (dev_mode): {"pixel": 3, "metar": "METAR KDWH 272353Z ..."} saves it and
         shows it in place of the fetched report at once; an empty "metar" goes back to the real one.
         """
+        config = self.config
         data = body()
         try:
             pixel = int(data.get("pixel"))
@@ -271,7 +242,7 @@ def add_routes(app, services: "App", site, auth, updates=None, installs=None):
         except IndexError:
             bottle.abort(404, f"No LED {data.get('pixel')}")
         code = config.airports[pixel].code
-        shown = services.metars.data.get(code)
+        shown = self.services.metars.data.get(code)
         return as_json(
             {
                 "code": code,
@@ -280,20 +251,21 @@ def add_routes(app, services: "App", site, auth, updates=None, installs=None):
             }
         )
 
-    def set_tunings():
+    def set_tunings(self):
         """The Pronunciation page's Save: {"tunings": [{"text", "say", "airport"}]}, the whole list."""
         try:
-            config.set_tunings(body().get("tunings"))
+            self.config.set_tunings(body().get("tunings"))
         except ValueError as e:
             bottle.abort(400, str(e))
-        tunings = config.data.speech.tunings
+        tunings = self.config.data.speech.tunings
         return as_json({"tunings": [{"text": t.text, "say": t.say, "airport": t.airport} for t in tunings]})
 
-    def set_login():
+    def set_login(self):
         """
         Changes the web UI login, and the Pi login user's Linux password to the same password. The Linux password
         changes first; if that fails, nothing changes.
         """
+        config = self.config
         data = body()
         password = str(data.get("password") or "")
         try:
@@ -311,7 +283,7 @@ def add_routes(app, services: "App", site, auth, updates=None, installs=None):
         log.info(f"web UI login changed (user {config.data.web_server.user})")
         return as_json({"user": config.data.web_server.user, "linux_password": linux})
 
-    def set_wifi():
+    def set_wifi(self):
         """Switches the Pi to another Wi-Fi network a few seconds after answering; the current one stays a fallback."""
         data = body()
         ssid, password = str(data.get("ssid") or "").strip(), str(data.get("password") or "")
@@ -330,76 +302,154 @@ def add_routes(app, services: "App", site, auth, updates=None, installs=None):
         threading.Thread(target=switch, name="wifi", daemon=True).start()
         return as_json({"ssid": ssid, "current": system.current_wifi(), "delay": WIFI_DELAY}, status=202)
 
-    def update_start():
+    def install(self, app, auth):
+        services = self.services
+        app.route("/config/edit/<key>/<value:path>", "GET", self.edit_config, apply=auth)  # a branch name can have a /
+        app.route("/config/airports/<pixel:int>/<key>/<value>", "GET", self.set_airport, apply=auth)
+        app.route("/config/airports/move/<src:int>/<dst:int>", "GET", self.move_airport, apply=auth)
+        app.route("/config/airports/mock", "POST", self.set_mock_metar, apply=auth)
+        app.route("/config/tunings", "POST", self.set_tunings, apply=auth)
+        # Play beside a tuning: its "say it as", read aloud before it's saved (behind the login: any words at all)
+        app.route(
+            "/config/say.audio",
+            "GET",
+            lambda: api.as_said_audio(services, bottle.request.query.getunicode("text")),
+            apply=auth,
+        )
+        # Config's Test: an airport's AWOS, asked of the server even while it's left alone after not answering (behind
+        # the login, so only someone setting it up can make it ask a server that may be stuck)
+        app.route(
+            "/config/speak/<code>.audio",
+            "GET",
+            lambda code: api.as_audio(services, code.upper(), force=True),
+            apply=auth,
+        )
+        # the older by-code edits, still used by anything written for airports.json
+        app.route("/config/airports/edit/<oldkey>/<newkey>", "GET", self.edit_airport, apply=auth)
+        app.route("/config/airports/edit/prop/<airport>/<key>/<value>", "GET", self.edit_airport_property, apply=auth)
+        app.route("/config/login", "POST", self.set_login, apply=auth)
+        app.route("/config/wifi", "POST", self.set_wifi, apply=auth)
+
+
+class SystemRoutes:
+    """The Chart itself: brightness, the OLED, locate, the startup sequence, a METAR fetch and a restart."""
+
+    def __init__(self, renderer, config, services, site):
+        self.renderer, self.config, self.services, self.site = renderer, config, services, site
+
+    def brightness(self, level):
+        self.renderer.brightness(float(level))
+        return pages.index(self.services, self.site)
+
+    def display_power(self, state):
+        """The Home page's OLED switch: on or off until changed again or the map restarts (not saved)."""
+        if state not in ("on", "off"):
+            bottle.abort(400, "Use /display/on or /display/off")
+        if not self.config.data.display_screen.enabled:
+            bottle.abort(409, "The OLED screen is turned off in Config (display_screen.enabled)")
+        display = self.services.display
+        display.turn_on() if state == "on" else display.turn_off()
+        return pages.index(self.services, self.site)
+
+    def locate(self, pixnum):
+        self.renderer.locate(pixnum)
+        return pages.metars(self.services, self.site)
+
+    def play_init_sequence(self):
+        """Config > Physical display's Play now: the startup sequence once, as it's set (on or off at startup)."""
+        threading.Thread(target=self.renderer.test_pattern, name="test-pattern", daemon=True).start()
+        return ""
+
+    def fetch(self):
+        from metarmap.app import refetch_metars, schedule_fetch  # here: app.py imports the web
+
+        services = self.services
+        # back when they're in (after a fetch under way, if it ends soon enough): then the LEDs and the names
+        try:
+            fetched = refetch_metars(services)
+        except OSError:  # its text can name files and paths, and /fetch needs no login: those stay in the log
+            bottle.abort(500, "The METAR fetch failed (see the Chart's log)")
+        except Exception as e:  # logged in the fetch; the regular fetch stays where it was
+            bottle.abort(500, f"The METAR fetch failed: {e}")
+        if not fetched:
+            bottle.abort(503, "A METAR fetch is already running; try again in a moment")
+        schedule_fetch(services)  # the next regular fetch a whole interval from now
+        return pages.index(services, self.site)
+
+    def restart(self):
+        services = self.services
+        if services.discovery:
+            services.discovery.stop()  # says goodbye on the network, so the Copilot's list drops this map at once
+        if services.display:
+            services.display.stop()
+        self.renderer.clear()
+        update.restart()
+
+    def install(self, app, auth):
+        app.route("/brightness/<level>", "GET", self.brightness)
+        app.route("/display/<state>", "GET", self.display_power)
+        app.route("/locate/<pixnum>", "GET", self.locate)
+        app.route("/led/init_sequence/play", "GET", self.play_init_sequence)
+        app.route("/fetch", "GET", self.fetch)
+        app.route("/restart", "GET", self.restart, apply=auth)
+
+
+class UpdateRoutes:
+    """Updating the software from the web UI, and installing the zeroconf package."""
+
+    def __init__(self, config, releases, updates, installs):
+        self.config, self.releases, self.updates, self.installs = config, releases, updates, installs
+        updates.channel = lambda: config.data.update_channel()
+        updates.branch = lambda: config.data.update.branch
+        updates.on_done = self.installed
+
+    def installed(self, result):
+        """After an update: the header says to restart, and the check sees what's newest now."""
+        releases = self.releases
+        if releases is not None:
+            if result.changed:
+                releases.installed = result.target
+            releases.check_soon()
+
+    def update_start(self):
         """Starts an update: what the channel says, or the release in the JSON body ({"version": "v2.7.1"})."""
         # no body (curl -X POST sends no Content-Length at all: -1) means the channel's update
         version = body().get("version") if bottle.request.content_length > 0 else None
         if version is not None and not versions.parse(version):
             bottle.abort(400, f"{version!r} isn't a release version (like v2.8.4)")
-        return as_json(updates.start(version), status=202)
+        return as_json(self.updates.start(version), status=202)
 
-    def update_now():
+    def update_now(self):
         """The older GET /update (Home Assistant's button): updates and answers with the log."""
+        config = self.config
         result = update.run_update(channel=config.data.update_channel(), branch=config.data.update.branch)
         if result.ok:
-            installed(result)
+            self.installed(result)
         return "".join(line + "<br />" for line in result.log)
 
-    def update_check():
-        if releases is None:
+    def update_check(self):
+        if self.releases is None:
             bottle.abort(404, "This map doesn't check for updates")
-        return as_json(releases.check())
+        return as_json(self.releases.check())
 
-    def restart():
-        if services.discovery:
-            services.discovery.stop()  # says goodbye on the network, so the Copilot's list drops this map at once
-        if services.display:
-            services.display.stop()
-        renderer.clear()
-        update.restart()
+    def install(self, app, auth):
+        app.route("/update", "GET", self.update_now, apply=auth)
+        # 202: started; the web UI polls /update/progress for its progress bar
+        app.route("/update/start", "POST", self.update_start, apply=auth)
+        app.route("/update/check", "GET", self.update_check, apply=auth)
+        # the zeroconf package, installed by pip from Home's button; same job shape as an update's
+        app.route("/update/packages", "POST", lambda: as_json(self.installs.start(), status=202), apply=auth)
+        app.route(
+            "/update/packages/progress", "GET", lambda: as_json(self.installs.progress() or NO_UPDATE), apply=auth
+        )
+        app.route("/update/progress", "GET", lambda: as_json(self.updates.progress()), apply=auth)
 
-    app.route("/visualizer/<key>", "GET", visualizer)
-    app.route("/visualizer/next", "GET", visualizer_next)
-    app.route("/visualizer/previous", "GET", visualizer_previous)
-    app.route("/visualizer/auto_rotate/<state>", "GET", auto_rotate)
-    app.route("/visualizer/<key>/skip", "GET", lambda key: skip_visualizer(key, True))
-    app.route("/visualizer/<key>/unskip", "GET", lambda key: skip_visualizer(key, False))
-    app.route("/brightness/<level>", "GET", brightness)
-    app.route("/display/<state>", "GET", display_power)
-    app.route("/locate/<pixnum>", "GET", locate)
-    app.route("/led/init_sequence/play", "GET", play_init_sequence)
-    app.route("/fetch", "GET", fetch)
-    app.route("/config/edit/<key>/<value:path>", "GET", edit_config, apply=auth)  # a branch name can have a /
-    app.route("/config/airports/<pixel:int>/<key>/<value>", "GET", set_airport, apply=auth)
-    app.route("/config/airports/move/<src:int>/<dst:int>", "GET", move_airport, apply=auth)
-    app.route("/config/airports/mock", "POST", set_mock_metar, apply=auth)
-    app.route("/config/tunings", "POST", set_tunings, apply=auth)
-    # Play beside a tuning: its "say it as", read aloud before it's saved (behind the login: any words at all)
-    app.route(
-        "/config/say.audio",
-        "GET",
-        lambda: api.as_said_audio(services, bottle.request.query.getunicode("text")),
-        apply=auth,
-    )
-    # Config's Test: an airport's AWOS, asked of the server even while it's left alone after not answering (behind the
-    # login, so only someone setting it up can make it ask a server that may be stuck)
-    app.route(
-        "/config/speak/<code>.audio",
-        "GET",
-        lambda code: api.as_audio(services, code.upper(), force=True),
-        apply=auth,
-    )
-    # the older by-code edits, still used by anything written for airports.json
-    app.route("/config/airports/edit/<oldkey>/<newkey>", "GET", edit_airport, apply=auth)
-    app.route("/config/airports/edit/prop/<airport>/<key>/<value>", "GET", edit_airport_property, apply=auth)
-    app.route("/update", "GET", update_now, apply=auth)
-    # 202: started; the web UI polls /update/progress for its progress bar
-    app.route("/update/start", "POST", update_start, apply=auth)
-    app.route("/update/check", "GET", update_check, apply=auth)
-    # the zeroconf package, installed by pip from Home's button; same job shape as an update's
-    app.route("/update/packages", "POST", lambda: as_json(installs.start(), status=202), apply=auth)
-    app.route("/update/packages/progress", "GET", lambda: as_json(installs.progress() or NO_UPDATE), apply=auth)
-    app.route("/update/progress", "GET", lambda: as_json(updates.progress()), apply=auth)
-    app.route("/restart", "GET", restart, apply=auth)
-    app.route("/config/login", "POST", set_login, apply=auth)
-    app.route("/config/wifi", "POST", set_wifi, apply=auth)
+
+def add_routes(app, services: "App", site, auth, updates=None, installs=None):
+    renderer, config = services.renderer, services.config
+    updates = updates or Updates()
+    installs = installs or PackageInstall(on_done=lambda: services.discovery.restart() if services.discovery else None)
+    VisualizerRoutes(renderer, config, services, site).install(app, auth)
+    SystemRoutes(renderer, config, services, site).install(app, auth)
+    ConfigRoutes(config, services, site).install(app, auth)
+    UpdateRoutes(config, services.releases, updates, installs).install(app, auth)
