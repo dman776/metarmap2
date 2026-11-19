@@ -9,7 +9,7 @@ from types import SimpleNamespace
 import pytest
 import schedule
 
-from metarmap import app as app_module, visualizers
+from metarmap import app as app_module, feeds as feeds_module, visualizers
 from metarmap.models import Report
 from metarmap.visualizers import flightcategory
 
@@ -81,7 +81,7 @@ def test_quiet_hours_begin_with_the_sequence_taking_the_map_dark(boundary):
     app, calls, set_quiet = boundary
     app.config.data.led.inittest = True
     set_quiet(True)
-    app_module.quiet_hours_boundary(app)
+    app.lighting.quiet_hours_boundary()
     assert calls == ["fade_out", "adjust"]  # dark the way it lights up, then 0%
 
 
@@ -89,7 +89,7 @@ def test_quiet_hours_end_with_the_startup_sequence(boundary):
     app, calls, set_quiet = boundary
     app.config.data.led.inittest = True
     set_quiet(False)
-    app_module.quiet_hours_boundary(app)
+    app.lighting.quiet_hours_boundary()
     assert calls == ["adjust", "test_pattern"]  # brightness back, then the map lights up
 
 
@@ -98,7 +98,7 @@ def test_quiet_hours_without_the_startup_sequence_just_switch(boundary, quiet):
     app, calls, set_quiet = boundary
     app.config.data.led.inittest = False
     set_quiet(quiet)
-    app_module.quiet_hours_boundary(app)
+    app.lighting.quiet_hours_boundary()
     assert calls == ["adjust"]
 
 
@@ -110,7 +110,7 @@ def test_no_sequence_while_the_leds_are_at_zero(boundary, quiet, monkeypatch):
     app.renderer.brightness(0.0)
     monkeypatch.setattr(app.renderer, "brightness_for", lambda now: 0.0)
     set_quiet(quiet)
-    app_module.quiet_hours_boundary(app)
+    app.lighting.quiet_hours_boundary()
     assert calls == ["adjust"]
 
 
@@ -143,12 +143,12 @@ def test_next_fetch(make_app):
     import time
 
     app = make_app()
-    f = app_module.next_fetch(app)
+    f = app.feeds.next_fetch()
     assert f["next"] == pytest.approx(time.time() + 600, abs=5)
     assert f["seconds"] == 600
     assert f["fetched"] is None  # not fetched in tests
     app.metars.lastFetchTime = datetime(2026, 11, 6, 12, 0)
-    assert app_module.next_fetch(app)["fetched"] == datetime(2026, 11, 6, 12, 0).timestamp()
+    assert app.feeds.next_fetch()["fetched"] == datetime(2026, 11, 6, 12, 0).timestamp()
 
 
 def test_next_fetch_counts_down_to_a_retry_first(make_app):
@@ -156,8 +156,8 @@ def test_next_fetch_counts_down_to_a_retry_first(make_app):
 
     app = make_app()
     app.metars.last_fetch_ok = False
-    app_module.retry_soon(app)
-    f = app_module.next_fetch(app)
+    app.feeds.retry_soon()
+    f = app.feeds.next_fetch()
     assert f["seconds"] == 60
     assert f["next"] == pytest.approx(time.time() + 60, abs=5)
 
@@ -166,7 +166,7 @@ def test_a_fetch_by_hand_restarts_the_wait(make_app):
     app = make_app()
     (job,) = app.scheduler.get_jobs("fetch")
     job.next_run = datetime.now() + timedelta(seconds=30)  # nearly due
-    app_module.schedule_fetch(app)
+    app.feeds.schedule_fetch()
     (job,) = app.scheduler.get_jobs("fetch")  # still one
     assert 595 <= (job.next_run - datetime.now()).total_seconds() <= 600
 
@@ -175,7 +175,7 @@ def test_auto_rotate(make_app):
     app = make_app(**{"visualizer.auto_rotate.enabled": True, "visualizer.auto_rotate.delay_seconds": 30})
     (job,) = app.scheduler.get_jobs("rotate_visualizer")
     assert job.interval == 30
-    app_module.rotate_visualizer(app)
+    app.rotation.rotate()
     assert app.renderer.visualizer[0] == 1
 
 
@@ -235,14 +235,14 @@ def test_next_rotation(make_app):
     import time
 
     app = make_app(**{"visualizer.auto_rotate.enabled": True, "visualizer.auto_rotate.delay_seconds": 30})
-    assert app_module.next_rotation(app) == pytest.approx(time.time() + 30, abs=5)
+    assert app.rotation.next_rotation() == pytest.approx(time.time() + 30, abs=5)
     app.config.edit("visualizer.auto_rotate.enabled", "false")
-    assert app_module.next_rotation(app) is None
+    assert app.rotation.next_rotation() is None
 
 
 def test_auto_rotate_leaves_out_the_skipped(make_app):
     app = make_app(**{"visualizer.auto_rotate.skip": '["wind", "wind_gusts"]'})
-    app_module.rotate_visualizer(app)
+    app.rotation.rotate()
     assert app.renderer.visualizer[1].id == "wind_direction"  # after Flight Category, past Wind and Wind Gusts
 
 
@@ -263,21 +263,21 @@ def dark_for(monkeypatch, *ids):
 def test_auto_rotate_skips_the_dark(make_app, monkeypatch):
     app = make_app(**{"visualizer.auto_rotate.skip_dark": True})
     dark_for(monkeypatch, "wind", "wind_gusts")
-    app_module.rotate_visualizer(app)
+    app.rotation.rotate()
     assert app.renderer.visualizer[1].id == "wind_direction"  # past Wind and Wind Gusts, with nothing to show
 
 
 def test_auto_rotate_shows_the_dark_with_skip_dark_off(make_app, monkeypatch):
     app = make_app()
     dark_for(monkeypatch, "wind", "wind_gusts")
-    app_module.rotate_visualizer(app)
+    app.rotation.rotate()
     assert app.renderer.visualizer[1].id == "wind"
 
 
 def test_auto_rotate_stays_when_every_other_visualizer_is_dark(make_app, monkeypatch):
     app = make_app(**{"visualizer.auto_rotate.skip_dark": True})
     dark_for(monkeypatch, *(v.id for v in visualizers.ALL if v.id != "flight_category"))
-    app_module.rotate_visualizer(app)
+    app.rotation.rotate()
     assert app.renderer.visualizer[1].id == "flight_category"
 
 
@@ -304,10 +304,12 @@ def quiet_app(make_app, monkeypatch):
     calls = []
     spy(monkeypatch, app.renderer, "refresh", calls)
     spy(monkeypatch, app.display, "restart", calls, "display.restart")
-    spy(monkeypatch, app_module, "refetch_metars", calls)
+    spy(monkeypatch, app.feeds, "refetch_metars", calls)
     # threads app.py starts (test pattern, fetch) are recorded, not started; only app.py's, not every thread's
     thread = SimpleNamespace(start=lambda: calls.append("thread"))
-    monkeypatch.setattr(app_module, "threading", SimpleNamespace(Thread=lambda *args, **kwargs: thread))
+    fake_threading = SimpleNamespace(Thread=lambda *args, **kwargs: thread)
+    monkeypatch.setattr(app_module, "threading", fake_threading)
+    monkeypatch.setattr(feeds_module, "threading", fake_threading)
     return app, calls
 
 
@@ -436,8 +438,8 @@ def test_refetch_metars(make_app, monkeypatch):
     calls = []
     monkeypatch.setattr(app.metars, "fetch", lambda: calls.append("fetch") or True)
     monkeypatch.setattr(app.renderer, "update_data", lambda metars: calls.append("update_data"))
-    monkeypatch.setattr(app_module, "fill_names", lambda a: calls.append("fill_names"))
-    app_module.refetch_metars(app)
+    monkeypatch.setattr(app.feeds, "fill_names", lambda: calls.append("fill_names"))
+    app.feeds.refetch_metars()
     assert calls == ["fetch", "update_data", "fill_names"]
 
 
@@ -455,7 +457,7 @@ def test_update_data_fetches_and_redraws(make_app, monkeypatch):
 
     monkeypatch.setattr(app.metars, "fetch", fetch)
     normal = app.renderer.pixels().brightness
-    app_module.update_data(app).join(5)
+    app.feeds.update_data().join(5)
     assert app.renderer.looks[0].colors[0] == flightcategory.COLORS["VFR"]
     assert brightness == [normal / 2] and app.renderer.pixels().brightness == normal  # dimmed while fetching
 
@@ -489,24 +491,24 @@ def test_the_main_loop_doesnt_wait_for_the_fetch(slow_fetch):
     job = app.scheduler.get_jobs("fetch")[0]
     job.next_run = datetime.now() - timedelta(seconds=1)
     app.scheduler.run_pending()  # the main loop's call: back at once
-    assert fetched == [] and app.fetching.locked()
+    assert fetched == [] and app.feeds.fetching.locked()
     (thread,) = [t for t in threading.enumerate() if t.name == "metars"]
     release.set()
     thread.join(5)
-    assert fetched == [True] and not app.fetching.locked()
+    assert fetched == [True] and not app.feeds.fetching.locked()
     assert app.renderer.looks[0].colors[0] == flightcategory.COLORS["VFR"]  # the new data is on the LEDs
 
 
 def test_a_fetch_due_while_the_last_one_runs_is_skipped(slow_fetch, caplog):
     app, release, fetched, entered = slow_fetch
-    first = app_module.update_data(app)
-    with caplog.at_level("INFO", logger="metarmap.app"):
-        assert app_module.update_data(app) is None  # still fetching: not a second one at the same time
+    first = app.feeds.update_data()
+    with caplog.at_level("INFO", logger=feeds_module.log.name):
+        assert app.feeds.update_data() is None  # still fetching: not a second one at the same time
     assert "regular METAR fetch skipped" in caplog.text  # said in the log, not only at debug
     release.set()
     first.join(5)
     assert fetched == [True]
-    app_module.update_data(app).join(5)  # the next one runs again
+    app.feeds.update_data().join(5)  # the next one runs again
     assert fetched == [True, True]
 
 
@@ -519,18 +521,18 @@ def test_a_failed_fetch_thread_doesnt_stop_the_next(make_app, monkeypatch, caplo
 
     monkeypatch.setattr(app.metars, "fetch", lambda: True)
     monkeypatch.setattr(app.renderer, "update_data", broken)
-    app_module.update_data(app).join(5)
-    assert not app.fetching.locked()
+    app.feeds.update_data().join(5)
+    assert not app.feeds.fetching.locked()
     assert "METAR fetch failed: boom" in caplog.text
-    assert app_module.update_data(app) is not None  # not skipped as if one were still running
+    assert app.feeds.update_data() is not None  # not skipped as if one were still running
 
 
 def test_a_retry_waits_for_the_regular_fetch(slow_fetch, monkeypatch):
     """The retry job doesn't fetch on the main loop while the regular fetch is under way in the background."""
     app, release, fetched, entered = slow_fetch
     app.metars.last_fetch_ok = False
-    thread = app_module.update_data(app)
-    assert app_module.retry_fetch(app) is None and fetched == []  # left for next time, not a CancelJob
+    thread = app.feeds.update_data()
+    assert app.feeds.retry_fetch() is None and fetched == []  # left for next time, not a CancelJob
     release.set()
     thread.join(5)
 
@@ -539,14 +541,14 @@ def test_a_failing_retry_doesnt_stop_the_leds(slow_fetch):
     """The retry job (every RETRY_SECONDS while aviationweather.gov fails) fetches in the background too."""
     app, release, fetched, entered = slow_fetch
     app.metars.last_fetch_ok = False
-    app_module.retry_soon(app)
+    app.feeds.retry_soon()
     (retry,) = app.scheduler.get_jobs("retry")
     retry.next_run = datetime.now() - timedelta(seconds=1)
     app.scheduler.run_pending()  # the main loop's call: back while the fetch is still waiting
-    assert fetched == [] and app.fetching.locked()
+    assert fetched == [] and app.feeds.fetching.locked()
     release.set()
     wait_for_fetches()
-    assert fetched == [True] and not app.fetching.locked()
+    assert fetched == [True] and not app.feeds.fetching.locked()
     assert app.scheduler.get_jobs("retry") == []  # it worked: no more retries
     assert app.renderer.looks[0].colors[0] == flightcategory.COLORS["VFR"]
 
@@ -554,17 +556,17 @@ def test_a_failing_retry_doesnt_stop_the_leds(slow_fetch):
 def test_a_new_airport_during_a_fetch_gets_its_metar_after_it(slow_fetch):
     """The fetch under way may have asked for the old airports: the airport change's fetch comes right after it."""
     app, release, fetched, entered = slow_fetch
-    app_module.update_data(app)
+    app.feeds.update_data()
     assert entered.wait(5)  # the fetch under way has asked for the airports
-    assert app_module.refetch_soon(app) is None  # not at the same time...
+    assert app.feeds.refetch_soon() is None  # not at the same time...
     release.set()
     wait_for_fetches()
     assert fetched == [True, True]  # ...but after it
-    assert not app.refetch_due.is_set() and not app.fetching.locked()
+    assert not app.feeds.refetch_due.is_set() and not app.feeds.fetching.locked()
 
 
 class WaitingLock:
-    """app.fetching, saying (`waiting`) when someone waits for it: GET /fetch, not the background fetches."""
+    """app.feeds.fetching, saying (`waiting`) when someone waits for it: GET /fetch, not the background fetches."""
 
     def __init__(self, lock, waiting):
         self._lock, self._waiting = lock, waiting
@@ -587,11 +589,11 @@ def test_fetch_by_hand_waits_for_a_fetch_under_way(slow_fetch, monkeypatch):
     slow, began = app.metars.fetch, []
     monkeypatch.setattr(app.metars, "fetch", lambda: began.append(True) or slow())
     waiting = threading.Event()
-    app.fetching = WaitingLock(app.fetching, waiting)
-    app_module.update_data(app)
+    app.feeds.fetching = WaitingLock(app.feeds.fetching, waiting)
+    app.feeds.update_data()
     assert entered.wait(5)
     done = []
-    by_hand = threading.Thread(target=lambda: done.append(app_module.refetch_metars(app)))
+    by_hand = threading.Thread(target=lambda: done.append(app.feeds.refetch_metars()))
     by_hand.start()
     assert waiting.wait(5)  # GET /fetch is waiting for the lock the fetch under way holds...
     assert len(began) == 1 and done == []  # ...not fetching alongside it
@@ -603,10 +605,10 @@ def test_fetch_by_hand_waits_for_a_fetch_under_way(slow_fetch, monkeypatch):
 
 def test_fetch_by_hand_gives_up_on_a_stuck_fetch(make_app, monkeypatch):
     app = make_app()
-    monkeypatch.setattr(app_module, "FETCH_WAIT_SECONDS", 0.01)
+    monkeypatch.setattr(feeds_module, "FETCH_WAIT_SECONDS", 0.01)
     monkeypatch.setattr(app.metars, "fetch", lambda: pytest.fail("fetched over the fetch under way"))
-    with app.fetching:  # a fetch under way
-        assert app_module.refetch_metars(app) is False
+    with app.feeds.fetching:  # a fetch under way
+        assert app.feeds.refetch_metars() is False
 
 
 def test_a_fetch_by_hand_that_fails_says_so(make_app, monkeypatch, caplog):
@@ -615,11 +617,11 @@ def test_a_fetch_by_hand_that_fails_says_so(make_app, monkeypatch, caplog):
     monkeypatch.setattr(app.metars, "fetch", lambda: True)
     monkeypatch.setattr(app.renderer, "update_data", lambda metars: (_ for _ in ()).throw(RuntimeError("boom")))
     with pytest.raises(RuntimeError, match="boom"):
-        app_module.refetch_metars(app)
-    assert not app.fetching.locked()
+        app.feeds.refetch_metars()
+    assert not app.feeds.fetching.locked()
     assert "METAR fetch failed: boom" in caplog.text
     monkeypatch.setattr(app.renderer, "update_data", lambda metars: None)
-    assert app_module.refetch_metars(app) is True  # the next one runs
+    assert app.feeds.refetch_metars() is True  # the next one runs
 
 
 def test_a_retry_that_raises_keeps_retrying(make_app, monkeypatch, caplog):
@@ -627,12 +629,12 @@ def test_a_retry_that_raises_keeps_retrying(make_app, monkeypatch, caplog):
     app = make_app()
     app.metars.last_fetch_ok = False
     monkeypatch.setattr(app.metars, "fetch", lambda: (_ for _ in ()).throw(RuntimeError("boom")))
-    app_module.retry_soon(app)
+    app.feeds.retry_soon()
     (retry,) = app.scheduler.get_jobs("retry")
     retry.next_run = datetime.now() - timedelta(seconds=1)
     app.scheduler.run_pending()
     wait_for_fetches()
-    assert not app.fetching.locked() and "METAR retry failed: boom" in caplog.text
+    assert not app.feeds.fetching.locked() and "METAR retry failed: boom" in caplog.text
     assert app.scheduler.get_jobs("retry") == [retry]
 
 
@@ -648,20 +650,20 @@ def test_new_data_keeps_the_forecast_step(make_app, monkeypatch):
     clock.advance(seconds * 1.5)
     assert app.renderer.step()["index"] == 1
     monkeypatch.setattr(app.metars, "fetch", lambda: True)
-    app_module.update_data(app).join(5)
+    app.feeds.update_data().join(5)
     assert app.renderer.step()["index"] == 1  # still +3h
 
 
 def test_load_suntimes_replaces_the_brightness_jobs(make_app):
     app = make_app()
-    app_module.load_suntimes(app)
-    app_module.load_suntimes(app)
+    app.lighting.load_suntimes()
+    app.lighting.load_suntimes()
     assert jobs(app)["set_brightness"] == 4
 
 
 def test_set_brightness(make_app):
     app = make_app()
-    app_module.set_brightness(app, level=0.25)
+    app.lighting.set_brightness(level=0.25)
     assert app.renderer.pixels().brightness == 0.25
 
 
@@ -822,10 +824,10 @@ def test_a_failed_fetch_is_retried_every_minute_until_it_works(make_app, monkeyp
 
     monkeypatch.setattr(app.metars, "fetch", fetch)
 
-    app_module.update_data(app).join(5)  # e.g. aviationweather.gov answers 502
+    app.feeds.update_data().join(5)  # e.g. aviationweather.gov answers 502
     (retry,) = app.scheduler.get_jobs("retry")
-    assert retry.interval == app_module.RETRY_SECONDS and retry.unit == "seconds"
-    app_module.update_data(app).join(5)  # failing again doesn't add a second retry
+    assert retry.interval == feeds_module.RETRY_SECONDS and retry.unit == "seconds"
+    app.feeds.update_data().join(5)  # failing again doesn't add a second retry
     assert len(app.scheduler.get_jobs("retry")) == 1
 
     retry.next_run = datetime.now() - timedelta(seconds=1)  # only the retry is due
@@ -922,7 +924,7 @@ def test_a_failed_position_lookup_is_retried_on_its_own(make_app, monkeypatch):
     monkeypatch.setattr(app.metars, "fetch", fetch)
     monkeypatch.setattr(app.metars, "locate", locate)
 
-    app_module.update_data(app).join(5)
+    app.feeds.update_data().join(5)
     (retry,) = app.scheduler.get_jobs("retry")
     for _ in range(2):
         retry.next_run = datetime.now() - timedelta(seconds=1)
@@ -938,7 +940,7 @@ def test_names_are_filled_after_a_fetch(make_app, monkeypatch):
     first.name = ""
     monkeypatch.setattr(app.metars, "fetch", lambda: True)
     monkeypatch.setattr(app.metars, "station_names", lambda: {first.code: "Somewhere Muni"})
-    app_module.update_data(app).join(5)
+    app.feeds.update_data().join(5)
     assert app.config.airports[0].name == "Somewhere Muni"
 
 
@@ -959,8 +961,9 @@ def test_startup_doesnt_wait_for_the_advisories(tmp_path, monkeypatch):
     monkeypatch.setattr(advisories.Advisories, "fetch", slow_fetch)
     monkeypatch.setattr(tfr.Tfrs, "fetch_soon", lambda self, then=None: None)
     monkeypatch.setattr(metar.Reports, "fetch", lambda self, callback=None, locate=True: True)
-    monkeypatch.setattr(app_module, "locate_soon", lambda app: None)  # it shows the areas too: not what this is about
-    monkeypatch.setattr(app_module, "show_areas", lambda app: shown.set())
+    # locate_soon shows the areas too: not what this is about
+    monkeypatch.setattr(feeds_module.Feeds, "locate_soon", lambda self: None)
+    monkeypatch.setattr(feeds_module.Feeds, "show_areas", lambda self: shown.set())
     (tmp_path / "config.json").write_text((REPO / "config.json").read_text())
 
     app_module.build(str(tmp_path / "config.json"), strip=FakeStrip(50), screen=FakeScreen())
@@ -1006,32 +1009,33 @@ def feeds(make_app, monkeypatch):
     """A map whose three feeds can be set to loaded, failed or still on their way; (app, what was asked again)."""
     app = make_app()
     app.advisories, app.tfrs, app.delays = Feed(), Feed(), Feed()
+    app.feeds.advisories, app.feeds.tfrs, app.feeds.delays = app.advisories, app.tfrs, app.delays
     asked = []
     for name in ("fetch_advisories_soon", "fetch_tfrs", "fetch_delays"):
-        monkeypatch.setattr(app_module, name, lambda app, name=name: asked.append(name))
+        monkeypatch.setattr(app.feeds, name, lambda name=name: asked.append(name))
     return app, asked
 
 
 def test_feeds_waiting_are_the_ones_never_loaded(feeds):
     app, _ = feeds
-    assert app_module.feeds_waiting(app) == ["advisories", "TFR", "FAA status"]
+    assert app.feeds.feeds_waiting() == ["advisories", "TFR", "FAA status"]
     app.tfrs.fetched = 1000.0
     app.advisories._waiting = False
-    assert app_module.feeds_waiting(app) == ["FAA status"]
+    assert app.feeds.feeds_waiting() == ["FAA status"]
 
 
 def test_a_map_without_a_feed_doesnt_wait_for_it(feeds):
     app, _ = feeds
-    app.advisories = app.tfrs = app.delays = None
-    assert app_module.feeds_waiting(app) == []
-    assert app_module.retry_feeds(app) is not None  # CancelJob: there is nothing to wait for
+    app.feeds.advisories = app.feeds.tfrs = app.feeds.delays = None
+    assert app.feeds.feeds_waiting() == []
+    assert app.feeds.retry_feeds() is not None  # CancelJob: there is nothing to wait for
 
 
 def test_only_feeds_whose_try_failed_are_asked_again(feeds):
     app, asked = feeds
     app.advisories._failed = True
     app.delays.error = "couldn't get the FAA airport status: down"
-    app_module.retry_feeds(app)  # the TFR list is still on its way: left to finish
+    app.feeds.retry_feeds()  # the TFR list is still on its way: left to finish
     assert asked == ["fetch_advisories_soon", "fetch_delays"]
 
 
@@ -1039,7 +1043,7 @@ def test_the_retry_ends_once_every_feed_has_loaded(feeds):
     app, asked = feeds
     app.advisories._waiting = False
     app.tfrs.fetched = app.delays.fetched = 1000.0
-    assert app_module.retry_feeds(app) is schedule.CancelJob
+    assert app.feeds.retry_feeds() is schedule.CancelJob
     assert asked == []
 
 
@@ -1048,7 +1052,7 @@ def test_a_feed_that_loaded_once_is_not_asked_again_by_the_retry(feeds):
     app.tfrs.fetched, app.tfrs.error = 1000.0, "couldn't get the TFR list"  # a later failure keeps the old list
     app.advisories._waiting = False
     app.delays.fetched = 1000.0
-    assert app_module.retry_feeds(app) is schedule.CancelJob and asked == []
+    assert app.feeds.retry_feeds() is schedule.CancelJob and asked == []
 
 
 def test_the_retry_is_scheduled_with_the_startup_fetches_only(make_app, monkeypatch, tmp_path):
@@ -1057,8 +1061,8 @@ def test_the_retry_is_scheduled_with_the_startup_fetches_only(make_app, monkeypa
     from metarmap.settings import Settings
 
     for name in ("fetch_advisories_soon", "fetch_tfrs", "fetch_delays", "fetch_forecasts", "locate_soon"):
-        monkeypatch.setattr(app_module, name, lambda app: None)
-    monkeypatch.setattr(app_module, "schedule_fetch", lambda app: None)
+        monkeypatch.setattr(feeds_module.Feeds, name, lambda self: None)
+    monkeypatch.setattr(feeds_module.Feeds, "schedule_fetch", lambda self: None)
     config = Settings.load(REPO / "config.json")
     config.save(tmp_path / "config.json")
     for fetch, expected in ((True, 1), (False, 0)):
@@ -1073,12 +1077,12 @@ def test_a_retry_says_so_once_per_feed(feeds, caplog):
 
     app, asked = feeds
     app.advisories._failed = True
-    with caplog.at_level(logging.INFO, logger=app_module.log.name):
+    with caplog.at_level(logging.INFO, logger=feeds_module.log.name):
         for _ in range(3):
-            app_module.retry_feeds(app)
+            app.feeds.retry_feeds()
     said = [r for r in caplog.records if "trying again" in r.getMessage()]
     assert len(said) == 1 and asked == ["fetch_advisories_soon"] * 3  # asked every time, said once
     app.advisories._waiting = app.advisories._failed = False
     app.tfrs.fetched = app.delays.fetched = 1000.0
-    assert app_module.retry_feeds(app) is schedule.CancelJob
-    assert app_module._retrying == set()  # said again next time it's needed
+    assert app.feeds.retry_feeds() is schedule.CancelJob
+    assert app.feeds._retrying == set()  # said again next time it's needed
