@@ -844,7 +844,7 @@ def test_a_failed_fetch_at_startup_is_retried(tmp_path, monkeypatch):
     def bad_gateway(url, **kwargs):
         raise requests.exceptions.HTTPError("502 Server Error: Bad Gateway")
 
-    monkeypatch.setattr(metar.requests, "get", bad_gateway)
+    monkeypatch.setattr(metar.http, "get", bad_gateway)
     (tmp_path / "config.json").write_text((REPO / "config.json").read_text())
     app = app_module.build(str(tmp_path / "config.json"), strip=FakeStrip(50), screen=FakeScreen())
     assert app.metars.last_fetch_ok is False

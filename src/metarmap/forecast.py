@@ -23,7 +23,7 @@ from typing import Dict, List, Optional, Tuple
 
 import requests
 
-from metarmap import USER_AGENT
+from metarmap import USER_AGENT, http
 from metarmap.decode import CATEGORIES, category_from
 from metarmap.metar import parse_visibility
 from metarmap.models import SkyLayer
@@ -165,11 +165,11 @@ def weather_at(taf: Taf, when: float, include_temporary: bool = True) -> Optiona
 
 class Forecasts:
     """
-    The TAFs of the map's airports. get: requests.get, or a test's own. clock: epoch seconds.
+    The TAFs of the map's airports. get: http.get, or a test's own. clock: epoch seconds.
     """
 
     def __init__(self, get=None, clock=time.time):
-        self._get = get or requests.get
+        self._get = get or http.get
         self._clock = clock
         self._lock = threading.Lock()
         self._fetching = threading.Lock()
