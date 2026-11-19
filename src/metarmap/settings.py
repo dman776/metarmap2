@@ -5,6 +5,7 @@ Settings load from an existing config.json unchanged; missing keys get their def
 so older or hand-edited files keep working and round-trip on save.
 """
 
+import contextlib
 import dataclasses
 import json
 import logging
@@ -453,10 +454,8 @@ class Settings(_Section):
                 pass  # not root: the file is ours anyway
             os.replace(tmp, path)
         except BaseException:
-            try:  # it holds the web password: don't leave it behind
+            with contextlib.suppress(OSError):  # it holds the web password: don't leave it behind
                 os.remove(tmp)
-            except OSError:
-                pass
             raise
 
     # ---- editing -------------------------------------------------------------------------------------------------

@@ -66,7 +66,11 @@ target-version = "py39"
 line-length = 120
 
 [tool.ruff.lint]
-select = ["E", "F", "RUF100", "I"]
+select = ["E", "F", "RUF100", "I", "SIM"]
+ignore = [
+    "SIM108",  # the ternaries it wants are over 120 columns; the if/else reads better
+    "SIM905",  # a plain "a b c".split() beats a long list literal of strings
+]
 
 [tool.ruff.format]
 # ruff format's defaults (Black's style); the pre-commit hook and CI check it

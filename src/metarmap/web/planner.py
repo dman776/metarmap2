@@ -6,6 +6,7 @@ runs at a time and a page that is reloaded picks it up again. The plan itself on
 puts a finished plan into the Chart's airports, after a preview, with a backup and an Undo.
 """
 
+import contextlib
 import inspect
 import json
 import logging
@@ -131,10 +132,8 @@ def make_power(brightness, ma_white_5v, ma_white_12v):
 def _number(data, key, default, low, high, label, whole=False, low_open=False):
     value = data.get(key, default)
     if isinstance(value, str) and value.strip():
-        try:
+        with contextlib.suppress(ValueError):
             value = float(value)
-        except ValueError:
-            pass
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise Invalid(f"{label} must be a number")
     try:

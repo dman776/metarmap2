@@ -49,7 +49,7 @@ def category_now(metar: Report) -> Optional[str]:
 
 
 def step_color(category):
-    return COLORS[category] if category in COLORS else NO_FORECAST_COLOR
+    return COLORS.get(category, NO_FORECAST_COLOR)
 
 
 def step_seconds(settings):

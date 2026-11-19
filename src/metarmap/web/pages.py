@@ -230,7 +230,7 @@ def pronunciation(services: Services, site):
 def raw(services: Services):
     data = services.metars.data
     buf = io.StringIO()
-    buf.write("".join(f"<b>{s}</b>: {data[s].raw if data[s] else 'N/A'}<br />" for s in data.keys()))
+    buf.write("".join(f"<b>{s}</b>: {data[s].raw if data[s] else 'N/A'}<br />" for s in data))
     buf.write(f"<pre><code>{pprint.pformat(data, indent=4)}</code></pre>")
     return buf.getvalue()
 

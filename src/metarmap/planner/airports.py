@@ -10,6 +10,7 @@ callable, called from the worker threads after each request finishes (so it must
 are serialized, but not on one thread); an exception in it is logged and the fetch goes on.
 """
 
+import contextlib
 import json
 import logging
 import math
@@ -552,10 +553,8 @@ def _detail(airport):
     runways = [r for r in listed if isinstance(r, dict)] if isinstance(listed, list) else []
     longest = 0
     for runway in runways:
-        try:
+        with contextlib.suppress(ValueError):
             longest = max(longest, int(str(runway.get("dimension")).split("x")[0]))
-        except ValueError:
-            pass
     return {
         "tower": bool(str(airport.get("tower") or "").strip()),
         "passengers": _number(airport.get("passengers")),
@@ -671,7 +670,5 @@ def _store(path, key, entry):
             log.warning(f"Could not save the airport cache {path}: {e}")
         finally:
             if temporary:
-                try:
+                with contextlib.suppress(OSError):
                     os.remove(temporary)
-                except OSError:
-                    pass

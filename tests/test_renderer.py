@@ -294,9 +294,8 @@ def test_dimmed_turned_off(config, clock):
 def test_dimmed_comes_back_after_an_error(config, clock):
     r, strip = make(config, clock)
     strip.brightness = 0.4
-    with pytest.raises(RuntimeError):
-        with r.dimmed():
-            raise RuntimeError("fetch failed")
+    with pytest.raises(RuntimeError), r.dimmed():
+        raise RuntimeError("fetch failed")
     assert strip.brightness == 0.4
 
 

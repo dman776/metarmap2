@@ -146,7 +146,7 @@ def test_look_fades_between_steps(settings):
 def test_no_taf_is_a_dim_white_not_good_weather(settings):
     look = fcf.look(Report(flight_category="VFR"), settings)
     assert fcf.NO_FORECAST_COLOR in look.colors and look.legend == ("VFR", fcf.NO_FORECAST)
-    assert fcf.NO_FORECAST_COLOR != flightcategory.COLORS["VFR"]
+    assert flightcategory.COLORS["VFR"] != fcf.NO_FORECAST_COLOR
 
 
 def test_a_forecast_that_never_changes_is_solid(settings):

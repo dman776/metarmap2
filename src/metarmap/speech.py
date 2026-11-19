@@ -20,6 +20,7 @@ A slow or hung server costs one wait, not one per press:
 health() says how the last clip went (/api/live's speechOk and speechError).
 """
 
+import contextlib
 import hashlib
 import io
 import json
@@ -108,10 +109,9 @@ class _Cutoff:
 
     def _cut(self):
         self.fired = True
-        try:
+        # closed already, or a stand-in without one
+        with contextlib.suppress(OSError, AttributeError):
             self._sock.shutdown(socket.SHUT_RDWR)
-        except (OSError, AttributeError):  # closed already, or a stand-in without one
-            pass
 
     def __enter__(self):
         if self._sock is not None:
