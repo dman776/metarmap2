@@ -3089,6 +3089,7 @@ def skip_routes(skip=(), exclusive=()):
 def skip_answer(routes, key, skip):
     import bottle
 
+    bottle.response.status = 200  # so a status left by an earlier test can't hide this one's
     out = json.loads(routes.skip_visualizer(key, skip))
     return out, bottle.response.status_code
 
@@ -3116,19 +3117,22 @@ def test_routes_skip_the_last_visualizer_is_refused():
 
 def test_routes_skip_and_unskip_are_idempotent():
     routes, config = skip_routes()
-    assert skip_answer(routes, "a", True)[0] == {"id": "a", "skipped": True, "skip": ["a"]}
-    assert skip_answer(routes, "a", True)[0]["skip"] == ["a"]
-    assert skip_answer(routes, "a", False)[0] == {"id": "a", "skipped": False, "skip": []}
-    assert skip_answer(routes, "a", False)[0]["skip"] == []
+    assert skip_answer(routes, "a", True) == ({"id": "a", "skipped": True, "skip": ["a"]}, 200)
+    assert skip_answer(routes, "a", True) == ({"id": "a", "skipped": True, "skip": ["a"]}, 200)
+    assert skip_answer(routes, "a", False) == ({"id": "a", "skipped": False, "skip": []}, 200)
+    assert skip_answer(routes, "a", False) == ({"id": "a", "skipped": False, "skip": []}, 200)
 
 
 def test_update_routes_wire_the_updates_to_the_config():
     config = SimpleNamespace(
         data=SimpleNamespace(update_channel=lambda: "branch", update=SimpleNamespace(branch="dev"))
     )
-    releases = SimpleNamespace(installed=None, checked=0, check_soon=lambda: None)
+    checks = []
+    releases = SimpleNamespace(installed=None, check_soon=lambda: checks.append(1))
     updates = control.Updates(run_update=lambda **kw: None)
     control.UpdateRoutes(config, releases, updates, None)
     assert (updates.channel(), updates.branch()) == ("branch", "dev")
     updates.on_done(SimpleNamespace(changed=True, target="v9.9.9"))
-    assert releases.installed == "v9.9.9"
+    assert releases.installed == "v9.9.9" and len(checks) == 1
+    updates.on_done(SimpleNamespace(changed=False, target="v10.0.0"))  # nothing installed: no new version to show
+    assert releases.installed == "v9.9.9" and len(checks) == 2
