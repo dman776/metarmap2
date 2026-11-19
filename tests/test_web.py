@@ -1068,6 +1068,19 @@ def test_one_update_check_for_every_page(client):
     assert "/api/version" not in remote and "dataset.version" not in remote
 
 
+def test_b102_cockpit_shows_the_raw_metar_during_awos(client):
+    remote = client("/static/remote.js")[1]
+    remote = remote if isinstance(remote, str) else remote.decode()
+    assert "'/api/metar/' + encodeURIComponent(code)" in remote  # the raw METAR in the bar
+    assert "base + encodeURIComponent(code)" in remote  # the spoken sentence is the fallback
+    assert "m.raw" in remote
+    assert "is-metar" in remote and "wordsRaw" in remote  # monospace only for the raw METAR
+    css = client("/static/style.css")[1]
+    css = css if isinstance(css, str) else css.decode()
+    assert ".r-speak-text.is-metar" in css and "max-height: 6em" in css
+    assert "ticket !== presses" in remote  # a late reply to an earlier press is dropped
+
+
 def test_live_leds_follow_a_position_given_to_a_report_without_one(services):
     cache = api.LiveLeds(services)
     services.metars.data["KIAH"] = metar("IFR", latitude=None, longitude=None)  # a mock Report: no lat/lon

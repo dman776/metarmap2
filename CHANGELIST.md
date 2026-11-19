@@ -1,5 +1,7 @@
 ### Unreleased
 
+- **The Cockpit shows the raw METAR while an AWOS plays.** On the Info tab's **AWOS** mode the bar used to show the spoken sentence; it now shows the airport's raw METAR, so you can follow along and learn to read one (the spoken sentence is still shown if the raw METAR can't be fetched). ATIS is unchanged. No API change.
+
 - **Fetches cost a Pi Zero much less CPU.** Every data source (METARs, TAFs, advisories, TFRs, delays, traffic, ATIS) used to open a new connection for each request, and on the Pi each new connection spent about 1.4 s of CPU reading the certificate bundle, about half the time of the fetch burst every 10 minutes. They now share one session that keeps connections open and reads the bundle once (a stale connection is retried once). A request with its own TLS settings (`REQUESTS_CA_BUNDLE`, a proxy) is sent the way it was before.
 
 ### dman776 26.11.18 (2026-11-18)

@@ -452,6 +452,8 @@
         const stopBtn = document.getElementById('r-speak-stop');
         const idleText = textEl.textContent;
         let current = null;  // the button being read
+        let wordsRaw = false;  // words is the raw METAR, not a sentence
+        let presses = 0;  // counts every start, so a late reply to an earlier press of the same button is dropped
         let base = '/api/speak/';  // and where its words come from: /api/speak/ (AWOS) or /api/atis/ (ATIS)
         let words = null;  // its text, once it's come
         const said = document.getElementById('r-transcript');  // an ATIS's lines, to read along
@@ -468,9 +470,10 @@
             btn.classList.toggle('speaking', state === 'speaking');
             btn.setAttribute('aria-pressed', state ? 'true' : 'false');
         }
-        function showBar(code, text, state) {
+        function showBar(code, text, state, isMetar) {  // isMetar: the text is the raw METAR (monospace, taller)
             codeEl.textContent = code || '';
             textEl.textContent = text;
+            textEl.classList.toggle('is-metar', !!isMetar);
             bar.dataset.state = state || '';
             stopBtn.hidden = !code || state === 'error';
         }
@@ -482,6 +485,7 @@
             const code = current && current.dataset.speak;
             current = null;
             words = null;
+            wordsRaw = false;
             if (message) showBar(code, message, 'error');
             else showBar('', IDLE[mode] || idleText, '');
         }
@@ -502,8 +506,10 @@
             if (current) mark(current, null);
             document.dispatchEvent(new CustomEvent('metarmap:speaking', {detail: 'info'}));  // the map popup's stops
             current = btn;
+            const ticket = ++presses;
             base = mode === 'atis' ? '/api/atis/' : '/api/speak/';
             words = null;
+            wordsRaw = false;
             mark(btn, 'loading');
             showBar(code, mode === 'atis' ? 'Getting the ATIS...' : 'Getting the weather...', 'loading');
             audio.src = base + encodeURIComponent(code) + '.audio';
@@ -531,12 +537,21 @@
                 }).catch(function () { /* the audio says it all */ });
                 return;
             }
-            fetch(base + encodeURIComponent(code), {cache: 'no-store'})
-                .then(function (res) { return res.ok ? res.text() : null; })
-                .then(function (text) {
-                    if (current !== btn || !text) return;
+            // AWOS shows the raw METAR (to learn to read one) where the spoken sentence would be; the sentence is the fallback
+            const spoken = function () {
+                return fetch(base + encodeURIComponent(code), {cache: 'no-store'})
+                    .then(function (res) { return res.ok ? res.text() : null; });
+            };
+            fetch('/api/metar/' + encodeURIComponent(code), {cache: 'no-store'})
+                .then(function (res) { return res.ok ? res.json() : null; })
+                .then(function (m) { return m && m.raw ? {text: m.raw, raw: true} : spoken().then(function (t) { return {text: t, raw: false}; }); },
+                    function () { return spoken().then(function (t) { return {text: t, raw: false}; }); })
+                .then(function (got) {
+                    const text = got && got.text;
+                    if (current !== btn || ticket !== presses || !text) return;
                     words = text;
-                    if (btn.classList.contains('speaking')) showBar(code, words, 'speaking');
+                    wordsRaw = got.raw;
+                    if (btn.classList.contains('speaking')) showBar(code, words, 'speaking', wordsRaw);
                 })
                 .catch(function () { /* the audio says it all */ });
         }
@@ -555,7 +570,7 @@
         audio.addEventListener('playing', function () {
             if (!current) return;
             mark(current, 'speaking');
-            showBar(current.dataset.speak, words || 'Speaking...', 'speaking');
+            showBar(current.dataset.speak, words || 'Speaking...', 'speaking', wordsRaw);
         });
         audio.addEventListener('ended', function () { stop(); });
         audio.addEventListener('error', function () {

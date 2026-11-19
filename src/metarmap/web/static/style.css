@@ -605,6 +605,7 @@ body.kiosk main.wrap { max-width: none; height: 100vh; height: var(--kiosk-h, 10
 .r-speak-code { flex: none; font: 700 16px var(--mono); color: var(--accent); }
 .r-speak-code:empty { display: none; }
 .r-speak-text { flex: 1; min-width: 0; color: var(--muted); font-size: 14px; line-height: 1.35; max-height: 4.1em; overflow-y: auto; }
+.r-speak-text.is-metar { font-family: var(--mono); font-size: 13px; max-height: 6em; word-break: break-word; }
 .r-speak-bar[data-state="speaking"] .r-speak-text { color: var(--text); }
 .r-speak-bar[data-state="error"] { border-color: var(--ifr); }
 .r-speak-bar[data-state="error"] .r-speak-text { color: var(--ifr); }

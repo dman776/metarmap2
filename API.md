@@ -253,7 +253,7 @@ curl -sI -H 'If-None-Match: "3e3d702c"' http://metarmap.local/api/icon/hourglass
 
 ### `GET /api/metar/<code>`
 
-One airport's METAR, raw and in plain English. The Map page's Summary and Decoded tabs use it. No authentication. The code is
+One airport's METAR, raw and in plain English. The Map page's Summary and Decoded tabs use it, and the Cockpit's AWOS bar shows its raw field. No authentication. The code is
 case-insensitive; an airport that isn't on the Chart is a 404.
 
 ```json
@@ -835,7 +835,7 @@ hidden pixel: wire it into the string, but it shows no airport.`) or the pixels 
 | `GET /metars` | | Table of METARs for every airport |
 | `GET /map` | | Live mirror of the Chart and the Micro on an FAA chart, satellite or radar background (a new radar scan every 5 minutes while radar is shown). An airport's popup has Summary, Raw and Decoded tabs, and with spoken weather on a Listen tab: its AWOS (showing the raw METAR), and its ATIS (the FAA's text, read along) where `leds[].atis` |
 | `GET /map/legend` | | The active visualizer's legend (HTML), which the Map page and the Cockpit swap in when the visualizer changes |
-| `GET /remote` | | MetarMap2 Cockpit: a remote control laid out for an iPad in kiosk mode, in three tabs: Visualizer (the visualizers and the legend, with a footer of controls: the auto-rotate switch with a countdown to the next visualizer, which is saved, and pixel brightness and the Micro switch, which aren't), Map (the Map page's live map, with its visualizer arrows and the name that opens a grid of every visualizer) and Info (every airport; a press locates it, or with spoken weather on, reads its AWOS, or with `speech.atis` its ATIS: Locate, AWOS and ATIS modes, ATIS showing only the airports with one). It follows changes made anywhere else (it polls `/api/live`). `/remote#map` or `#info` opens that tab, and `#locator`, `#awos` or `#atis` the Info tab in that mode; otherwise it opens the tab and mode last used on that device. *Add to Home Screen* opens it full screen |
+| `GET /remote` | | MetarMap2 Cockpit: a remote control laid out for an iPad in kiosk mode, in three tabs: Visualizer (the visualizers and the legend, with a footer of controls: the auto-rotate switch with a countdown to the next visualizer, which is saved, and pixel brightness and the Micro switch, which aren't), Map (the Map page's live map, with its visualizer arrows and the name that opens a grid of every visualizer) and Info (every airport; a press locates it, or with spoken weather on, reads its AWOS (the bar showing the raw METAR), or with `speech.atis` its ATIS: Locate, AWOS and ATIS modes, ATIS showing only the airports with one). It follows changes made anywhere else (it polls `/api/live`). `/remote#map` or `#info` opens that tab, and `#locator`, `#awos` or `#atis` the Info tab in that mode; otherwise it opens the tab and mode last used on that device. *Add to Home Screen* opens it full screen |
 | `GET /raw` | | Raw METAR text for every airport, followed by the full parsed data |
 | `GET /raw/<code>` | | Raw METAR text for one airport |
 | `GET /debug` | | Debug information |
