@@ -2,12 +2,12 @@
 
 from dataclasses import replace
 from datetime import datetime, timezone
-from zoneinfo import ZoneInfo
 from types import SimpleNamespace
+from zoneinfo import ZoneInfo
 
 import pytest
-
 from conftest import airports
+
 from metarmap.models import Report, SkyLayer
 from metarmap.oled import screens
 from metarmap.oled.bitmaps import ICONS

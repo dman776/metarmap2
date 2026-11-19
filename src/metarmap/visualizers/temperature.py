@@ -11,7 +11,6 @@ from metarmap.visualizers import style
 from metarmap.visualizers.style import Band
 from metarmap.visualizers.visualizer import Visualizer
 
-
 # in °F; below freezing gets its own band, since that's where icing starts
 BANDS = [
     Band(32, colors_lib.WHITE, "Below 32°F (freezing)", "White"),

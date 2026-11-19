@@ -15,7 +15,7 @@ import json
 import math
 import os
 from dataclasses import dataclass
-from functools import lru_cache
+from functools import cache, lru_cache
 from typing import Optional, Tuple
 
 SECTIONALS_FILE = os.path.join(
@@ -192,7 +192,7 @@ def _tan_half(phi):
     return math.tan(math.pi / 4 + phi / 2)
 
 
-@lru_cache(maxsize=None)
+@cache
 def _lambert_constants(chart):
     """(n, f, rho0) of the chart's cone: project() and unproject() share them, so the two cannot drift apart."""
     phi1, phi2 = (math.radians(p) for p in chart.parallels)
@@ -220,7 +220,7 @@ def _inverse_lambert(chart, x, y):
     return math.degrees(lat), chart.central_meridian + math.degrees(theta / n)
 
 
-@lru_cache(maxsize=None)
+@cache
 def _wall_rectangle(chart):
     """
     (x0, x1, y0, y1) in Lambert units of the wall chart's rectangle: the smallest one holding the chart's fit points

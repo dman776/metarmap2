@@ -75,4 +75,4 @@ def to_css(color) -> str:
     peak = max(r, g, b)
     if 0 < peak < 90:
         r, g, b = (int(c * 90 / peak) for c in (r, g, b))
-    return "#{:02x}{:02x}{:02x}".format(r, g, b)
+    return f"#{r:02x}{g:02x}{b:02x}"

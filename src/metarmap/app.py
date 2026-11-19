@@ -21,17 +21,15 @@ from typing import Optional
 import schedule
 
 from metarmap import __version__, logs, service, visualizers
-from metarmap.atis import Atis
-from metarmap.discovery import Discovery
-from metarmap.speech import Speech
 from metarmap.advisories import Advisories
-from metarmap.forecast import Forecasts
-from metarmap.tfr import Tfrs
+from metarmap.atis import Atis
 from metarmap.clock import Clock
 from metarmap.config import Config
 from metarmap.delays import DELAYS_MINUTES, Delays
-from metarmap.feeds import Feeds
+from metarmap.discovery import Discovery
 from metarmap.display import STARTUP_LOCATE_DELAY, Display
+from metarmap.feeds import Feeds
+from metarmap.forecast import Forecasts
 from metarmap.leds.strip import open_strip
 from metarmap.lighting import Lighting
 from metarmap.metar import Reports
@@ -39,7 +37,9 @@ from metarmap.oled.screen import open_screen
 from metarmap.releases import CHECK_HOURS, ReleaseCheck
 from metarmap.renderer import Renderer
 from metarmap.rotation import Rotation
+from metarmap.speech import Speech
 from metarmap.sun import SunTimes
+from metarmap.tfr import Tfrs
 from metarmap.traffic import Traffic
 from metarmap.web import create_app, serve
 from metarmap.web.site import my_ip

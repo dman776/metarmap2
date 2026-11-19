@@ -13,9 +13,8 @@ from datetime import timezone
 from typing import Optional
 from zoneinfo import ZoneInfo
 
-from metarmap.config import Config
-from metarmap.sun import get_location, quiet_hours_active
 from metarmap.clock import Clock
+from metarmap.config import Config
 from metarmap.oled.screens import (
     airports_to_show,
     message_screen,
@@ -24,6 +23,7 @@ from metarmap.oled.screens import (
     splash_screen,
     visualizer_screen,
 )
+from metarmap.sun import get_location, quiet_hours_active
 
 log = logging.getLogger(__name__)
 

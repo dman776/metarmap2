@@ -18,8 +18,8 @@ A screen is a dict:
 
 from typing import Optional
 
-from metarmap.lib.units import celsius_to_fahrenheit
 from metarmap.decode import estimate_category
+from metarmap.lib.units import celsius_to_fahrenheit
 from metarmap.models import Report
 
 MISSING = "--"
@@ -46,25 +46,25 @@ def wind_text(data: Report):
     if speed <= 0:
         return "CALM"
     wind_dir = str(data.wind_dir).upper()
-    wind_dir = "VRB" if wind_dir in ("VRB", "") else "{0:03d}".format(int(wind_dir))
-    gust = "G{0:02d}".format(int(data.wind_gust_speed)) if data.wind_gust else ""
-    return "{0}@{1:02d}{2}".format(wind_dir, speed, gust)
+    wind_dir = "VRB" if wind_dir in ("VRB", "") else f"{int(wind_dir):03d}"
+    gust = f"G{int(data.wind_gust_speed):02d}" if data.wind_gust else ""
+    return f"{wind_dir}@{speed:02d}{gust}"
 
 
 def visibility_text(data: Report):
     if data.visibility_sm is None:
         return None
-    return "{0}SM".format(data.vis)
+    return f"{data.vis}SM"
 
 
 def temp_text(celsius):
     if celsius is None:
         return None
-    return "{0}\N{DEGREE SIGN}C / {1:.0f}\N{DEGREE SIGN}F".format(celsius, celsius_to_fahrenheit(celsius))
+    return f"{celsius}\N{DEGREE SIGN}C / {celsius_to_fahrenheit(celsius):.0f}\N{DEGREE SIGN}F"
 
 
 def time_text(obs, tz):
-    return "{0} {1}".format(obs.astimezone(tz).strftime("%H:%MC"), obs.strftime("%H:%MZ"))
+    return "{} {}".format(obs.astimezone(tz).strftime("%H:%MC"), obs.strftime("%H:%MZ"))
 
 
 def badge_text(data: Optional[Report]):
@@ -96,7 +96,7 @@ def screen_for(station, data: Optional[Report], page, tz=None, virtual=False):
         lines = [
             {"icon": "wind", "text": safe_text(wind_text, data)},
             {"icon": "visibility", "text": safe_text(visibility_text, data)},
-            {"icon": "pressure", "text": safe_text(lambda d: "{0:2.2f}".format(d.altimeter_inhg), data)},
+            {"icon": "pressure", "text": safe_text(lambda d: f"{d.altimeter_inhg:2.2f}", data)},
         ]
     else:
         lines = [

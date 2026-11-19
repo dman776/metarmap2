@@ -23,7 +23,6 @@ from metarmap.visualizers import (
     wind_direction,
     windgusts,
 )
-
 from metarmap.visualizers.visualizer import Visualizer
 
 # one look per airport, from its METAR

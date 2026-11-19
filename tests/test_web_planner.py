@@ -9,16 +9,16 @@ import math
 import re
 import sys
 import threading
-from datetime import datetime, timedelta, timezone
 import time
+from datetime import datetime, timedelta, timezone
 
 import pytest
+from test_web import AUTH, Client
 
 from metarmap.planner import airports as live_airports
 from metarmap.planner import layout
 from metarmap.web import create_app
 from metarmap.web import planner as planner_web
-from test_web import AUTH, Client
 
 HOUSTON = (-97.8728, 27.5573, -90.4408, 32.2747)  # west, south, east, north
 

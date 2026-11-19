@@ -12,7 +12,6 @@ from metarmap.visualizers import style
 from metarmap.visualizers.legend import legend_item
 from metarmap.visualizers.visualizer import Visualizer
 
-
 # type -> (color, legend label); in the order of metarmap.tfr.TYPES
 COLORS = {
     "VIP": (colors_lib.RED, "VIP: presidential and other VIP movements"),

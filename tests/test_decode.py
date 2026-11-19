@@ -7,8 +7,8 @@ from pathlib import Path
 import pytest
 
 from metarmap import decode
-from metarmap.metar import parse_raw, parse_report, parse_visibility
 from metarmap.body import RunwayRange
+from metarmap.metar import parse_raw, parse_report, parse_visibility
 from metarmap.models import Report, SkyLayer
 
 OBS = datetime(2026, 10, 24, 17, 53, tzinfo=timezone.utc)

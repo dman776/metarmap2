@@ -22,24 +22,22 @@ import pytest
 import schedule
 
 import metarmap.lib.colors as colors_lib
-from metarmap import __version__
+from metarmap import __version__, discovery
 from metarmap import app as app_module
-from metarmap.app import App
 from metarmap.advisories import Advisories
-from metarmap.tfr import Tfrs
+from metarmap.app import App
 from metarmap.leds.strip import FakeStrip
 from metarmap.models import Look, Report, SkyLayer
 from metarmap.renderer import Renderer
 from metarmap.settings import Airport, Settings
 from metarmap.sun import SunTimes
+from metarmap.tfr import Tfrs
 from metarmap.traffic import Traffic
 from metarmap.visualizers import advisories as advisories_vis
 from metarmap.visualizers import flightcategory, rainbow, style, wind, wind_direction, windgusts
 from metarmap.visualizers import tfr as tfr_vis
-from metarmap.web import site
 from metarmap.visualizers.visualizer import ICONS
-from metarmap import discovery
-from metarmap.web import api, control, create_app, icons, views
+from metarmap.web import api, control, create_app, icons, site, views
 from metarmap.web.services import Services
 
 AUTH = "Basic " + base64.b64encode(b"metar:map").decode()
@@ -2212,6 +2210,7 @@ def test_is_login():
 
 def test_a_slow_fetch_does_not_hold_up_other_requests(services):
     import urllib.request
+
     from metarmap.web import serve
 
     release, started = threading.Event(), threading.Event()
@@ -2990,11 +2989,11 @@ def test_skips_at_once_all_land(client):
         barrier = threading.Barrier(len(ids))
         statuses = []
 
-        def skip(vid):
+        def skip(vid, barrier, statuses):
             barrier.wait()
             statuses.append(client(f"/visualizer/{vid}/skip", auth=False)[0])
 
-        threads = [threading.Thread(target=skip, args=(vid,)) for vid in ids]
+        threads = [threading.Thread(target=skip, args=(vid, barrier, statuses)) for vid in ids]
         for t in threads:
             t.start()
         for t in threads:
@@ -3099,7 +3098,7 @@ def test_markup_airports_page_has_a_hidden_pixel_switch_on_each_pixel_row(client
     assert body.count('data-field="skip"') == app.config.data.led.count  # a pixel row each; virtual rows have none
     assert 'aria-label="Hidden pixel, pixel 1"' in body and 'role="switch"' in body
     assert (
-        "A hidden pixel is wired but shows nothing: it bridges a gap in a string so no wire has to be cut. "  # noqa: E501
+        "A hidden pixel is wired but shows nothing: it bridges a gap in a string so no wire has to be cut. "
         "Its number stays in the strip." in body
     )
     assert '<span class="ap-error" role="alert" hidden></span>' in body  # the server's refusal shows here

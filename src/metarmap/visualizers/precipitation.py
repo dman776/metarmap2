@@ -8,9 +8,9 @@ clouds...), freezing precipitation and ice, snow, rain, drizzle, unknown precipi
 and dust. Two kinds in one group (e.g. -RASN) alternate.
 """
 
+import logging
 from typing import Optional
 
-import logging
 import metarmap.lib.colors as colors_lib
 from metarmap.decode import parse_weather
 from metarmap.models import Look, Report

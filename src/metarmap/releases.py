@@ -16,8 +16,7 @@ import threading
 import time
 from datetime import datetime, timezone
 
-from metarmap import __version__
-from metarmap import update
+from metarmap import __version__, update
 from metarmap.lib import versions
 
 log = logging.getLogger(__name__)

@@ -1,7 +1,9 @@
 """Quiet Hours override and Home schedule; current-period highlighting."""
 
 from datetime import datetime
+
 import pytest
+
 from metarmap.settings import Settings
 from metarmap.sun import quiet_hours_active
 from metarmap.web.views import brightness_schedule

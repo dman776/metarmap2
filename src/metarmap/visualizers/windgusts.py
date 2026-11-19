@@ -11,7 +11,6 @@ from metarmap.visualizers import style
 from metarmap.visualizers.style import Band
 from metarmap.visualizers.visualizer import Visualizer
 
-
 # knots the gusts are above the wind
 BANDS = [
     Band(1, colors_lib.GRAY, "No gusts", "Dim white"),

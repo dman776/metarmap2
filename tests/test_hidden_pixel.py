@@ -421,6 +421,7 @@ def ticks(monkeypatch):
     import adafruit_led_animation.animation as animation_module
     import adafruit_led_animation.animation.rainbow as rainbow_module
     import adafruit_led_animation.pulse_generator as pulse_module
+
     from metarmap import renderer
 
     t = AnimationTime()

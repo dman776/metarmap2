@@ -11,7 +11,6 @@ from metarmap.visualizers import style
 from metarmap.visualizers.style import Band
 from metarmap.visualizers.visualizer import Visualizer
 
-
 BANDS = [
     Band(1, colors_lib.RED, "Under 1 mile (LIFR)", "Red"),
     Band(3, colors_lib.ORANGE, "1 to under 3 miles (IFR)", "Orange"),

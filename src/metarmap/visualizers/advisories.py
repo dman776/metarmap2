@@ -13,7 +13,6 @@ from metarmap.visualizers import style
 from metarmap.visualizers.legend import legend_item
 from metarmap.visualizers.visualizer import Visualizer
 
-
 MIXED_PERIOD = 2.0  # seconds per alternation of two AIRMET hazards
 SIGMET_PERIOD = style.HEAVY_PERIOD  # a SIGMET blinks like heavy weather: fast, bright and dim, never dark
 

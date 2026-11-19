@@ -4,8 +4,7 @@ import pytest
 
 from metarmap.models import Look, Report
 from metarmap.settings import Settings
-from metarmap.visualizers import flightcategory, style
-from metarmap.visualizers import visualizer
+from metarmap.visualizers import flightcategory, style, visualizer
 
 
 @pytest.mark.parametrize(

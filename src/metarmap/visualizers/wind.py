@@ -10,7 +10,6 @@ from metarmap.visualizers import style
 from metarmap.visualizers.style import Band
 from metarmap.visualizers.visualizer import Visualizer
 
-
 # also the gust colors in Wind Gusts
 BANDS = [
     Band(1, colors_lib.GRAY, "Calm", "Dim white"),

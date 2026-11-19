@@ -10,11 +10,11 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import pytest
-
 from conftest import airports
+
+from metarmap.clock import FakeClock
 from metarmap.display import QUIET_CHECK_SECONDS, Display, watchdog_limit
 from metarmap.models import Report
-from metarmap.clock import FakeClock
 from metarmap.oled.screen import FakeScreen
 from metarmap.settings import Settings
 

@@ -1,11 +1,10 @@
 """Tests for turning Looks into LED animations (metarmap/leds/animations.py) and for the Look model."""
 
 import pytest
-from adafruit_led_animation.helper import PixelSubset
-
 from adafruit_led_animation.animation.blink import Blink
 from adafruit_led_animation.animation.colorcycle import ColorCycle
 from adafruit_led_animation.animation.pulse import Pulse
+from adafruit_led_animation.helper import PixelSubset
 
 import metarmap.lib.colors as colors_lib
 from metarmap.leds.animations import PULSE_STEPS, animation_for

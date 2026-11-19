@@ -4,15 +4,15 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import pytest
-
 from conftest import airports
+
+from metarmap import visualizers as visualizer_module
 from metarmap.clock import FakeClock
 from metarmap.leds.strip import FakeStrip, SkipUnchangedShow
 from metarmap.models import Look, Report
+from metarmap.renderer import Renderer
 from metarmap.settings import Settings
 from metarmap.sun import SunTimes
-from metarmap.renderer import Renderer
-from metarmap import visualizers as visualizer_module
 from metarmap.visualizers import chase, flightcategory, precipitation, rainbow, visualizer, wind
 
 NOON = datetime(2026, 10, 24, 17, 0, tzinfo=timezone.utc)
@@ -294,9 +294,8 @@ def test_dimmed_turned_off(config, clock):
 def test_dimmed_comes_back_after_an_error(config, clock):
     r, strip = make(config, clock)
     strip.brightness = 0.4
-    with pytest.raises(RuntimeError):
-        with r.dimmed():
-            raise RuntimeError("fetch failed")
+    with pytest.raises(RuntimeError), r.dimmed():
+        raise RuntimeError("fetch failed")
     assert strip.brightness == 0.4
 
 
@@ -850,6 +849,7 @@ def ticks(monkeypatch):
     import adafruit_led_animation.animation as animation_module
     import adafruit_led_animation.animation.rainbow as rainbow_module
     import adafruit_led_animation.pulse_generator as pulse_module
+
     from metarmap import renderer
 
     t = AnimationTime()

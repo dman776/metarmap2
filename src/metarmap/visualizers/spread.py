@@ -11,7 +11,6 @@ from metarmap.visualizers import style
 from metarmap.visualizers.style import Band
 from metarmap.visualizers.visualizer import Visualizer
 
-
 # °C between the temperature and the dewpoint
 BANDS = [
     Band(1, colors_lib.RED, "1°C or less: fog or low clouds likely", "Red", inclusive=True),

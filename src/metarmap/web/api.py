@@ -15,16 +15,19 @@ from typing import Optional
 
 import bottle
 
-from metarmap.discovery import map_name
 from metarmap import __version__
+from metarmap.atis import AtisError
+from metarmap.atis_spoken import for_airport
+from metarmap.atis_spoken import lines as atis_lines
 from metarmap.decode import decode, summary
 from metarmap.delays import CLOSED, FOREVER, NORMAL, describe
+from metarmap.discovery import map_name
 from metarmap.models import Report
-from metarmap.atis import AtisError
-from metarmap.atis_spoken import for_airport, lines as atis_lines
 from metarmap.speech import SpeechError, configured
 from metarmap.spoken import spoken
-from metarmap.visualizers import advisories as advisories_vis, tfr as tfr_vis, wind_direction
+from metarmap.visualizers import advisories as advisories_vis
+from metarmap.visualizers import tfr as tfr_vis
+from metarmap.visualizers import wind_direction
 from metarmap.visualizers.visualizer import ID as ICON_NAME  # icon names look like visualizer ids
 from metarmap.web import icons, views
 from metarmap.web.services import Services

@@ -492,7 +492,7 @@ class PowersaveEnv:
 
         env = dict(
             os.environ,
-            PATH="%s:%s" % (self.bin, os.environ["PATH"]),
+            PATH="{}:{}".format(self.bin, os.environ["PATH"]),
             CALLS=str(self.log),
             METARMAP_ONLY="powersave",
             METARMAP_NET_DIR=str(self.net),
@@ -550,8 +550,8 @@ def test_powersave_one_exec_per_wifi_interface(powersave):
     (powersave.net / "eth0").mkdir()
     assert powersave.run().returncode == 0
     unit = (powersave.units / "wifi-powersave-off.service").read_text()
-    assert "ExecStart=%s dev wlan0 set power_save off\n" % powersave.iw in unit
-    assert "ExecStart=%s dev wlan1 set power_save off\n" % powersave.iw in unit
+    assert f"ExecStart={powersave.iw} dev wlan0 set power_save off\n" in unit
+    assert f"ExecStart={powersave.iw} dev wlan1 set power_save off\n" in unit
     assert "eth0" not in unit
     assert "Wants=sys-subsystem-net-devices-wlan0.device sys-subsystem-net-devices-wlan1.device\n" in unit
 
@@ -788,7 +788,7 @@ def test_git_runs_as_the_folder_owner(as_root):
         ["reset", "--hard"],
         ["checkout", "-B", "main", "origin/main"],
     ]
-    for cmd, kwargs in as_root.run:
+    for _cmd, kwargs in as_root.run:
         assert kwargs["user"] == 1000 and kwargs["group"] == 1000
         assert kwargs["env"]["HOME"] == "/home/pi"
         assert kwargs["env"]["GIT_TERMINAL_PROMPT"] == "0"  # never waits for a password
