@@ -8,7 +8,7 @@ from conftest import airports
 
 from metarmap import visualizers as visualizer_module
 from metarmap.clock import FakeClock
-from metarmap.leds.strip import FakeStrip, SkipUnchangedShow
+from metarmap.leds.strip import FakeStrip, PixelGroup, SkipUnchangedShow
 from metarmap.models import Look, Report
 from metarmap.renderer import Renderer
 from metarmap.settings import Settings
@@ -56,6 +56,18 @@ def make(config, clock, data=DATA, leds=5, visualizers=None):
 def draw_frame(renderer):
     for animation in renderer.animations:
         animation.animate()
+
+
+def led_groups(renderer):
+    """The LEDs each of the renderer's animations draws: one animation per distinct look."""
+    out = []
+    for animation in renderer.animations:
+        pixels = animation.pixel_object
+        if isinstance(pixels, PixelGroup):
+            out.append(list(pixels.leds))
+        else:  # one LED's PixelSubset
+            out.append([renderer._pix.index(pixels)])
+    return out
 
 
 # ---- looks and what reaches the LEDs --------------------------------------------------------------------------
@@ -133,14 +145,20 @@ def test_more_airports_than_leds(config, clock):
 
 
 def test_resize(config, clock):
-    """The in-memory strip can change length without a restart; each LED keeps its own animation."""
+    """The in-memory strip can change length without a restart; each look's LEDs are those on the strip now."""
     r, strip = make(config, clock, leds=3)
     assert r.resize(5) is True
-    assert len(strip) == 5 and len(r.animations) == 5
+    # VFR, IFR, LIFR and off (LEDs 2 and 3: no airport, no report) share one animation
+    assert len(strip) == 5 and led_groups(r) == [[0], [1], [2, 3], [4]]
     draw_frame(r)
     assert strip[4] == flightcategory.COLORS["LIFR"]
-    assert r.resize(2) is True and len(r.animations) == 2
+    assert r.resize(2) is True and led_groups(r) == [[0], [1]]
     draw_frame(r)  # no IndexError
+    assert r.resize(4) is True and led_groups(r) == [[0], [1], [2, 3]]  # a group made again for the new length
+    strip[3] = (9, 9, 9)
+    r._animations[2]._next_update = 0  # due now
+    draw_frame(r)
+    assert strip[3] == (0, 0, 0)
 
 
 def test_resize_a_strip_that_cant(config, clock):
@@ -1673,3 +1691,247 @@ def test_a_pulse_past_fewer_leds_during_a_transition_goes_dark(config, clock):
         r.draw_frame()
     assert not r.transitioning
     assert strip[4] == (0, 0, 0)
+
+
+# ---- LEDs with equal looks share one animation (look_groups, PixelGroup) ------------------------------------------
+
+
+def test_look_groups():
+    from metarmap.renderer import look_groups
+
+    red, green = Look.solid((255, 0, 0)), Look.pulse((0, 255, 0), period=2.0, low=0.3)
+    rainbow_look = Look.rainbow(period=5)
+    looks = [red, green, red.tagged("vfr"), Look.off(), green, rainbow_look, rainbow_look, Look.off()]
+    assert look_groups(looks) == [
+        (red, [0, 2]),  # the legend isn't part of how it looks
+        (green, [1, 4]),
+        (Look.off(), [3, 7]),
+        (rainbow_look, [5]),  # a look spread along its LEDs: one each
+        (rainbow_look, [6]),
+    ]
+    unhashable = Look("solid", [(1, 2, 3)])  # colors as a list: compared by hash, so its own group, never an error
+    assert look_groups([unhashable, unhashable]) == [(unhashable, [0]), (unhashable, [1])]
+    assert look_groups([]) == []
+
+
+@pytest.mark.parametrize(
+    "a, b",
+    [
+        (Look.pulse((0, 255, 0), period=2.0, low=0.3), Look.pulse((0, 255, 0), period=3.0, low=0.3)),  # period
+        (Look.pulse((0, 255, 0), period=2.0, low=0.3), Look.pulse((0, 255, 0), period=2.0, low=0.5)),  # low
+        (Look.pulse((0, 255, 0), period=2.0), Look.pulse((0, 255, 0), period=2.0, low=0.3)),  # dark or not
+        (Look.cycle([(1, 0, 0), (2, 0, 0)], step=0.2), Look.cycle([(1, 0, 0), (2, 0, 0)], step=0.3)),  # step
+        (Look.cycle([(1, 0, 0), (2, 0, 0)], step=0.2), Look.cycle([(2, 0, 0), (1, 0, 0)], step=0.2)),  # phase
+        (Look.blink((255, 0, 0), period=1.0), Look.blink((255, 0, 0), period=2.0)),  # period
+        (Look.blink((255, 0, 0)), Look.blink((255, 0, 0), background=(0, 0, 255))),  # second color
+        (Look.solid((255, 0, 0)), Look.solid((254, 0, 0))),  # color
+        (Look.solid((0, 0, 0)), Look.off()),  # effect, even when it looks the same
+    ],
+)
+def test_looks_differing_in_any_drawn_field_get_their_own_animation(a, b):
+    from metarmap.renderer import look_groups
+
+    assert look_groups([a, b, a, b]) == [(a, [0, 2]), (b, [1, 3])]
+
+
+def test_pixel_group_writes_through_to_its_leds():
+    strip = FakeStrip(6)
+    group = PixelGroup(strip, [4, 1, 3])
+    assert len(group) == 3 and group.leds == (4, 1, 3)
+    group.fill((1, 2, 3))
+    assert strip == [(0, 0, 0), (1, 2, 3), (0, 0, 0), (1, 2, 3), (1, 2, 3), (0, 0, 0)]
+    group[1] = (9, 9, 9)
+    assert strip[1] == (9, 9, 9) and group[1] == (9, 9, 9) and group[-1] == (1, 2, 3)
+    group[0:2] = [(5, 5, 5), (6, 6, 6)]
+    assert strip[4] == (5, 5, 5) and strip[1] == (6, 6, 6) and group[:2] == [(5, 5, 5), (6, 6, 6)]
+    with pytest.raises(ValueError):
+        group[0:2] = [(1, 1, 1)]
+    group.show()
+    assert strip.shows == 1
+    with pytest.raises(ValueError):
+        PixelGroup(strip, [])
+
+
+def test_one_animation_per_distinct_look(config, clock):
+    """Two LEDs of each category: one animation per category, drawn over both, and the strip as before."""
+    config.data.airports = airports("KHOU", "KIAH", "KHOU", "", "KIAH", "KGLS", "KDKR", "")
+    config.data.led.count = 8
+    r, strip = make(config, clock, leds=8)
+    assert len(r.animations) == len(set(r.looks)) == 4
+    assert led_groups(r) == [[0, 2], [1, 4], [3, 6, 7], [5]]
+    r.draw_frame()
+    vfr, ifr, lifr = (flightcategory.COLORS[c] for c in ("VFR", "IFR", "LIFR"))
+    off = (0, 0, 0)
+    assert strip == [vfr, ifr, vfr, off, ifr, lifr, off, off]
+    assert r.led_states()[0] == {i: look.to_dict() for i, look in enumerate(r.looks)}  # the web map: per LED
+
+
+def everything_settings():
+    """Settings with every kind of motion on: lightning, blinking missing data, breathing estimates."""
+    settings = Settings()
+    settings.lightning.animation = True
+    settings.lightning.forecast = True
+    settings.visualizer.missing_data_blink = True
+    settings.visualizer.estimated_category_breathing = True
+    return settings
+
+
+def many_airports():
+    """(codes, data): every sample report on two LEDs, and LEDs with no airport, so most looks have several LEDs."""
+    from test_visualizers import sample_reports
+
+    reports = sample_reports()
+    codes = [f"K{i:03d}" for i in range(len(reports))]
+    data = dict(zip(codes, reports))
+    return codes + [""] * 3 + codes[::-1], data
+
+
+def grouped_and_ungrouped(monkeypatch, vis, other, transition="dissolve"):
+    """
+    Two renderers of `vis` (then `other`) on the same clocks over the same airports: one as it runs, and one that gives
+    every LED its own animation, as it was before looks were grouped (SHARED_EFFECTS empty during its rebuilds).
+    """
+    from metarmap import renderer as renderer_module
+
+    codes, data = many_airports()
+    built = []
+    clock = FakeClock(NOON)
+    for shared in (renderer_module.SHARED_EFFECTS, frozenset()):
+        settings = everything_settings()
+        settings.airports = airports(*codes)
+        settings.led.count = len(codes)
+        settings.visualizer.transition = transition
+        with monkeypatch.context() as m:
+            m.setattr(renderer_module, "SHARED_EFFECTS", shared)
+            strip = FakeStrip(len(codes))
+            r = Renderer(
+                strip, SimpleNamespace(data=data), SimpleNamespace(data=settings), [vis, other], SUN_TIMES, clock=clock
+            )
+        built.append((r, strip, shared))
+    return clock, built
+
+
+SUN_TIMES = SunTimes("Houston", SUN)
+
+
+def each_frame(built, ticks, clock, frames, events=None, seed=3):
+    """
+    Draws `frames` frames of every renderer in `built` at the same irregular instants (5-60 ms apart), runs
+    events[frame](renderer) on each first, and yields the strips' colors at each frame.
+    """
+    import random
+
+    from metarmap import renderer as renderer_module
+
+    rand = random.Random(seed)
+    for frame in range(frames):
+        step = rand.randint(5, 60)
+        ticks.ms += step
+        clock.advance(step / 1000)
+        for r, _, shared in built:
+            if events and frame in events:
+                with pytest.MonkeyPatch.context() as m:  # its rebuilds group (or don't) as it was built
+                    m.setattr(renderer_module, "SHARED_EFFECTS", shared)
+                    events[frame](r)
+            with r._lock:
+                r._draw(r._animations)
+        yield [list(strip) for _, strip, _ in built]
+
+
+def switch_to_other(r):
+    r.visualizer = 1
+
+
+def locate_shared_led(r):
+    r._start_pulse(1)  # LED 1 (the first sample report has no report: off, as many others)
+
+
+def stop_and_resume(r):
+    r.stop()
+
+
+@pytest.mark.parametrize("vis", visualizer_module.ALL, ids=lambda v: v.id)
+def test_grouped_looks_draw_exactly_what_one_animation_per_led_did(monkeypatch, ticks, vis):
+    """
+    Every visualizer over a few hundred LEDs (lightning, blinking missing data, breathing estimates on), frame by
+    frame at irregular instants: the strip is the same as with one animation per LED, through a locate() pulse on a
+    shared LED, a freeze and resume (a startup sequence), a dissolve to another visualizer and new data.
+    """
+    other = FLIGHT if vis is not FLIGHT else WIND
+    clock, built = grouped_and_ungrouped(monkeypatch, vis, other)
+    (grouped, _, _), (reference, _, _) = built
+    assert grouped.looks == reference.looks
+    if grouped.strip_look is None:
+        lit = grouped.looks[: grouped._config.data.led.count]
+        assert len(reference.animations) == len(lit)
+        assert len(grouped.animations) == len(set(lit)) < len(lit)
+    events = {
+        30: locate_shared_led,
+        60: stop_and_resume,
+        64: lambda r: r.resume(),
+        100: switch_to_other,
+        110: locate_shared_led,
+        140: lambda r: r.update_data(r._metars),  # new data: a forecast goes on at its step (at_time)
+    }
+    compared = 0
+    for colors in each_frame(built, ticks, clock, 160, events):
+        assert colors[0] == colors[1]
+        compared += 1
+    assert compared == 160
+    assert grouped.looks == reference.looks  # on the other visualizer by now
+
+
+def test_grouped_looks_render_the_same_frames(monkeypatch, ticks):
+    """The render loop sends the same colors at the same moments (frame_due over fewer animations: same instants)."""
+    clock, built = grouped_and_ungrouped(monkeypatch, FLIGHT, WIND)
+    start = ticks.ms
+    runs = []
+    for r, strip, _ in built:
+        ticks.ms = start
+        frames = frames_of(strip, ticks)
+        for _ in range(3):
+            r.render()
+        runs.append(frames)
+    assert len(runs[0]) > 10 and runs[0] == runs[1]
+
+
+def test_a_locate_pulse_on_a_shared_led_leaves_the_others_in_its_group(config, clock, ticks):
+    """LEDs 0 and 2 share a breathing animation: a pulse on LED 0 whitens only it, and it comes back in step."""
+    config.data.airports = airports("KHOU", "KIAH", "KHOU")
+    config.data.led.count = 3
+    data = {"KHOU": Report(flight_category=None, visibility_sm=10.0), "KIAH": metar("IFR")}  # KHOU's breathes
+    r, strip = make(config, clock, data=data, leds=3)
+    assert led_groups(r) == [[0, 2], [1]] and r.looks[0].effect in ("pulse", "cycle")
+    frames = frames_of(strip, ticks)
+    ticks.after(0.1, lambda: r.locate(0))
+    for _ in range(3):
+        r.render()
+    pulsing = [colors for _, colors in frames if white(colors[0])]
+    assert len(pulsing) >= 5 and not any(white(colors[2]) for colors in pulsing)
+    assert len({colors[2] for colors in pulsing}) >= 3  # LED 2 went on breathing meanwhile
+    assert r._pulses == {} and strip[0] == strip[2]  # back in step with the LED it shares its animation with
+
+
+def test_a_transition_blends_each_led_of_a_group(config, clock):
+    """A dissolve from Flight Category to Wind: LEDs sharing an animation each blend from their own old color."""
+    from metarmap.renderer import TRANSITION_SECONDS
+
+    config.data.airports = airports("KHOU", "KIAH", "KHOU", "KGLS")
+    config.data.led.count = 4
+    data = {"KHOU": metar("VFR", wind=25), "KIAH": metar("IFR", wind=5), "KGLS": metar("LIFR", wind=5)}
+    r, strip = make(config, clock, data=data, leds=4)
+    r.draw_frame()
+    old = list(strip)
+    config.data.visualizer.transition = "dissolve"
+    r.visualizer = 1  # wind: KIAH and KGLS have the same wind, so one animation for LEDs 1 and 3
+    assert led_groups(r) == [[0, 2], [1, 3]]
+    r.draw_frame()
+    new = r._transition.live
+    assert new[1] == new[3] and old[1] != old[3]
+    clock.advance(TRANSITION_SECONDS / 2)
+    r.draw_frame()
+    assert list(strip) == blended(old, new, 0.5)
+    assert strip[1] != strip[3]  # each from its own old color
+    clock.advance(TRANSITION_SECONDS)
+    r.draw_frame()
+    assert not r.transitioning and strip[1] == strip[3] == new[1]

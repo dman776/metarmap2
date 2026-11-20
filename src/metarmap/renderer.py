@@ -18,6 +18,7 @@ import metarmap.lib.colors as colors_lib
 from metarmap.clock import Clock
 from metarmap.leds import intro
 from metarmap.leds.animations import animation_for, look_interval
+from metarmap.leds.strip import PixelGroup
 from metarmap.models import Look
 from metarmap.sun import SunTimes, brightness_for, level_at, quiet_hours_active
 from metarmap.visualizers import index_of, visualizer
@@ -66,6 +67,37 @@ def at_time(look, seconds):
         return look
     n = int(seconds / look.step) % len(look.colors)
     return replace(look, colors=look.colors[n:] + look.colors[:n])
+
+
+# the effects whose animation draws the same color on every LED it has, from nothing but its look and the frames'
+# times (Solid, Blink, ColorCycle, Pulse: no randomness, nothing per LED). LEDs with equal looks (at_time() of the same
+# moment) share one of those, drawn over all of them, so it runs once a frame, not once per LED (200 breathing LEDs were
+# 200 animate() calls a frame on a Pi Zero). A rainbow or chase spreads along its LEDs: one per LED, as before
+SHARED_EFFECTS = frozenset({"off", "solid", "blink", "pulse", "cycle"})
+
+
+def look_groups(looks):
+    """
+    [(look, [LED, ...]), ...]: the LEDs of `looks` (in LED order) gathered by equal look, in order of each look's first
+    LED. A look whose effect isn't in SHARED_EFFECTS (or that can't be compared by hash) has a group of its own.
+    """
+    groups = []
+    shared = {}  # look -> its group's LEDs
+    for i, look in enumerate(looks):
+        members = None
+        if look.effect in SHARED_EFFECTS:
+            try:
+                members = shared.get(look)
+                if members is None:
+                    members = shared[look] = []
+                    groups.append((look, members))
+            except TypeError:  # unhashable (e.g. colors given as lists): its own group
+                members = None
+        if members is None:
+            members = []
+            groups.append((look, members))
+        members.append(i)
+    return groups
 
 
 class _Held:
@@ -177,7 +209,7 @@ class Renderer:
 
     def __init__(self, strip, metars, config, visualizers, sun: SunTimes, clock: Clock = None):
         self._pixels = strip
-        # one addressable subset per LED, so each airport gets its own animation
+        # one addressable subset per LED, for an airport whose look no other LED has (else a PixelGroup: _rebuild)
         self._pix = [PixelSubset(strip, i, i + 1) for i in range(len(strip))]
         self._metars = metars
         self._config = config
@@ -244,9 +276,13 @@ class Renderer:
             # the virtual airports (after led.count) have no LED; their looks are for the web map. A strip still
             # longer than led.count (a NeoPixel strip until the restart) keeps its extra LEDs dark
             elapsed = max(0.0, self._clock.monotonic() - started)
+            pix = self._pix  # read once: a resize() in another thread replaces it
+            shown = [at_time(look, elapsed) for look in looks[: min(settings.led.count, len(pix))]]
+            # one animation per distinct look, over all its LEDs (look_groups): they're all built now, so LEDs with
+            # equal looks are at the same step at every frame, as their own animations would be
             animations = [
-                animation_for(at_time(look, elapsed), pixel)
-                for look, pixel in zip(looks[: settings.led.count], self._pix)
+                animation_for(look, pix[leds[0]] if len(leds) == 1 else PixelGroup(self._pixels, leds))
+                for look, leds in look_groups(shown)
             ]
         # a whole-strip look (Rainbow, Chase) is one animation over every LED, so it would light the Hidden Pixels too;
         # a look per airport already draws "off" for an LED with no airport
@@ -378,6 +414,7 @@ class Renderer:
 
     @property
     def animations(self):
+        """The animations running now: one per distinct look (its LEDs share it), or the one whole-strip look's."""
         return list(self._animations)
 
     def led_states(self):
@@ -448,11 +485,12 @@ class Renderer:
     def frame_seconds(self):
         """
         The shortest gap between two frames. A whole-strip look (Rainbow, Chase) is one animation, cheap to run, so it
-        gets FRAME_SECONDS: a later frame makes its steps uneven (stutter). Looks per LED are one animation each, 50
-        of them: an eighth of the shortest step of those, within FRAME_SECONDS and MAX_FRAME_SECONDS, so LEDs due at
-        nearly the same time are drawn in one frame (100 frames a second for a look that changes every 0.2 s kept a
-        Pi's CPU at 100% with Flight Category Forecast). MAX_FRAME_SECONDS when nothing moves (every look solid or off).
-        It's also the steady tick if the animations can't say when they're next due (another library version).
+        gets FRAME_SECONDS: a later frame makes its steps uneven (stutter). Looks per LED are one animation per distinct
+        look (up to one per LED): an eighth of the shortest step of those, within FRAME_SECONDS and MAX_FRAME_SECONDS,
+        so LEDs due at nearly the same time are drawn in one frame (100 frames a second for a look that changes every
+        0.2 s kept a Pi's CPU at 100% with Flight Category Forecast). MAX_FRAME_SECONDS when nothing moves (every look
+        solid or off). It's also the steady tick if the animations can't say when they're next due (another library
+        version).
         """
         if self._strip_look is not None:
             return FRAME_SECONDS
