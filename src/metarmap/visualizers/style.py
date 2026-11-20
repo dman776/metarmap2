@@ -22,6 +22,7 @@ from typing import Callable, Optional, Sequence, Union
 import metarmap.lib.colors as colors_lib
 from metarmap.decode import parse_weather
 from metarmap.models import Look, Report
+from metarmap.settings import Settings
 from metarmap.visualizers.legend import legend_item
 
 LIGHT, MODERATE, HEAVY, VICINITY = "-", "", "+", "VC"
@@ -138,7 +139,7 @@ def has_lightning(metar: Optional[Report]) -> bool:
     return metar.lightning or any(g.descriptor == "TS" for g in parse_weather(metar.weather))
 
 
-def lightning_color(settings):
+def lightning_color(settings: Settings):
     """lightning.color's name and LED color (one of settings.LIGHTNING_COLORS: its Rule checks it)."""
     name = settings.lightning.color
     return name, LIGHTNING_COLORS[name]
@@ -158,7 +159,7 @@ def color_at(look: Look, t: float):
     return look.colors[0] if look.effect != "off" and look.colors else black
 
 
-def with_lightning(look: Look, settings) -> Look:
+def with_lightning(look: Look, settings: Settings) -> Look:
     """
     `look` with lightning flickering over it. Between flickers the LED does what `look` does; where that's the
     lightning color itself (a thunderstorm with nothing else to show), it's dimmed so the flashes stand out.
@@ -179,7 +180,7 @@ def with_lightning(look: Look, settings) -> Look:
     return Look.cycle(frames, step=LIGHTNING_STEP).tagged(*look.legend, LIGHTNING_KEY)
 
 
-def lightning_legend(settings):
+def lightning_legend(settings: Settings):
     name, flash = lightning_color(settings)
     return legend_item(
         "Lightning or a thunderstorm",
@@ -256,20 +257,20 @@ class Band:
             return True
         return value <= self.below if self.inclusive else value < self.below
 
-    def color_for(self, settings):
+    def color_for(self, settings: Settings):
         return self.color(settings) if callable(self.color) else named(self.color)
 
 
-def band_for(value, bands, settings):
+def band_for(value, bands, settings: Settings):
     """The color of the band `value` falls in."""
     return next(band for band in bands if band.holds(value)).color_for(settings)
 
 
-def band_look(value, bands, settings) -> Look:
+def band_look(value, bands, settings: Settings) -> Look:
     """The band `value` falls in, in its color, showing its legend entry (band_legend)."""
     band = next(band for band in bands if band.holds(value))
     return Look.solid(band.color_for(settings)).tagged(band.label)
 
 
-def band_legend(bands, settings):
+def band_legend(bands, settings: Settings):
     return [legend_item(band.label, band.detail, band.color_for(settings)) for band in bands]

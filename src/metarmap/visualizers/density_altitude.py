@@ -7,6 +7,7 @@ from typing import Optional, Union
 
 import metarmap.lib.colors as colors_lib
 from metarmap.models import Look, Report
+from metarmap.settings import Settings
 from metarmap.visualizers import style
 from metarmap.visualizers.style import Band
 from metarmap.visualizers.visualizer import Visualizer
@@ -45,7 +46,7 @@ def calculate_density_altitude(pressure: float, field_elevation_m: float, oat: f
     return pa + 118.8 * (oat - isa)
 
 
-def legend(settings):
+def legend(settings: Settings):
     return [
         *style.band_legend(BANDS, settings),
         style.missing_legend("temperature or altimeter setting"),
@@ -53,7 +54,7 @@ def legend(settings):
     ]
 
 
-def look(metar: Optional[Report], settings) -> Look:
+def look(metar: Optional[Report], settings: Settings) -> Look:
     if not metar:
         return style.no_report()
     # a sea-level field (0 m) and 0°C are real values; a missing altimeter setting is read as 0

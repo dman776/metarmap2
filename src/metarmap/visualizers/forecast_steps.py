@@ -8,6 +8,7 @@ A step lasts visualizer.forecast_step_seconds plus FADE; the pages and the Micro
 
 import metarmap.lib.colors as colors_lib
 from metarmap.forecast import HOURS
+from metarmap.settings import Settings
 from metarmap.visualizers import style
 
 NO_FORECAST = "no_forecast"  # the legend entry's key
@@ -21,17 +22,17 @@ def blend(a, b, amount):
     return tuple(int(round(x + (y - x) * amount)) for x, y in zip(a, b))
 
 
-def hold_frames(settings):
+def hold_frames(settings: Settings):
     """How many frames a step is held: forecast_step_seconds."""
     return max(1, round(settings.visualizer.forecast_step_seconds / FRAME))
 
 
-def step_seconds(settings):
+def step_seconds(settings: Settings):
     """How long one step lasts: it is shown for forecast_step_seconds, then fades into the next for FADE."""
     return settings.visualizer.forecast_step_seconds + FADE
 
 
-def steps(settings, prefix):
+def steps(settings: Settings, prefix):
     """Visualizer.steps for a forecast visualizer; prefix is what the Micro puts before the step ("FC +3h")."""
     return {"labels": list(STEPS), "seconds": step_seconds(settings), "prefix": prefix}
 

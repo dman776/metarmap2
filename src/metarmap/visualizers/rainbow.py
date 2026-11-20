@@ -4,11 +4,12 @@ Rainbow: a rainbow across the whole strip; not based on weather.
 
 import metarmap.lib.colors as colors_lib
 from metarmap.models import Look
+from metarmap.settings import Settings
 from metarmap.visualizers.legend import legend_item
 from metarmap.visualizers.visualizer import Visualizer
 
 
-def legend(settings):
+def legend(settings: Settings):
     return [
         legend_item(
             "All LEDs",
@@ -28,7 +29,7 @@ def legend(settings):
     ]
 
 
-def strip_look(settings) -> Look:
+def strip_look(settings: Settings) -> Look:
     return Look.rainbow(period=5)
 
 

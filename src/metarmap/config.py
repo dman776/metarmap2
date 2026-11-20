@@ -9,7 +9,7 @@ import re
 import shutil
 import threading
 from datetime import datetime, timedelta, timezone
-from typing import Callable, List, Sequence, Union
+from typing import Callable, Dict, List, Sequence, Union
 
 from metarmap.metar import MOCK_KEY, parse_raw
 from metarmap.settings import Airport, Settings, parse_tunings, parse_value
@@ -647,7 +647,7 @@ class Config:
 
 def _twice(airports, led_count):
     """The refusal for a code in the list twice: which code, and where (pixel numbers, then virtual airports)."""
-    where = {}
+    where: Dict[str, List[str]] = {}
     for index, airport in enumerate(airports):
         if airport.code:
             place = f"pixel {index + 1}" if index < led_count else f"virtual airport {index - led_count + 1}"

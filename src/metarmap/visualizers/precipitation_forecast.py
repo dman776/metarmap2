@@ -16,6 +16,7 @@ from typing import Optional
 from metarmap.decode import parse_weather
 from metarmap.forecast import HOURS
 from metarmap.models import Look, Report
+from metarmap.settings import Settings
 from metarmap.visualizers import forecast_steps, precipitation, style
 from metarmap.visualizers.forecast_steps import FRAME, NO_FORECAST, NO_FORECAST_COLOR
 from metarmap.visualizers.legend import legend_item
@@ -45,7 +46,7 @@ def most_significant(candidates):
     return min(candidates, key=weight, default="")
 
 
-def step_look(obs, settings) -> Look:
+def step_look(obs, settings: Settings) -> Look:
     return precipitation.look_for_weather(obs, settings)
 
 
@@ -54,7 +55,7 @@ def hold(look: Look, frames: int):
     return [tuple(style.color_at(look, n * FRAME)) for n in range(frames)]
 
 
-def legend(settings):
+def legend(settings: Settings):
     items = list(precipitation.legend(settings))
     at = next((n for n, item in enumerate(items) if item["key"] == style.MISSING), len(items))
     items.insert(
@@ -69,7 +70,7 @@ def legend(settings):
     return items
 
 
-def look(metar: Optional[Report], settings) -> Look:
+def look(metar: Optional[Report], settings: Settings) -> Look:
     if not metar:
         return style.no_report()
     now = step_look(metar.weather, settings)

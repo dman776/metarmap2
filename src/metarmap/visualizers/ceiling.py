@@ -9,6 +9,7 @@ from typing import Optional
 import metarmap.lib.colors as colors_lib
 from metarmap.decode import ceiling_ft
 from metarmap.models import Look, Report
+from metarmap.settings import Settings
 from metarmap.visualizers import style
 from metarmap.visualizers.legend import legend_item
 from metarmap.visualizers.style import Band
@@ -25,11 +26,11 @@ BANDS = [
 NO_CEILING = "No ceiling (clear, few or scattered clouds)"
 
 
-def no_ceiling(settings):
+def no_ceiling(settings: Settings):
     return style.dim(style.named(colors_lib.WHITE))
 
 
-def legend(settings):
+def legend(settings: Settings):
     return [
         *style.band_legend(BANDS, settings),
         legend_item(NO_CEILING, "Dim white", no_ceiling(settings)),
@@ -38,7 +39,7 @@ def legend(settings):
     ]
 
 
-def look(metar: Optional[Report], settings) -> Look:
+def look(metar: Optional[Report], settings: Settings) -> Look:
     if not metar:
         return style.no_report()
     layers = metar.sky_conditions

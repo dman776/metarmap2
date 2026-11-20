@@ -10,6 +10,7 @@ from typing import Optional
 import metarmap.lib.colors as colors_lib
 from metarmap.delays import CLOSED, DELAY, GROUND_STOP, NORMAL
 from metarmap.models import Look, Report
+from metarmap.settings import Settings
 from metarmap.visualizers import style
 from metarmap.visualizers.legend import legend_item
 from metarmap.visualizers.visualizer import Visualizer
@@ -33,7 +34,7 @@ def stop_look() -> Look:
     return Look.blink(red, period=STOP_PERIOD, background=style.dim(red)).tagged(STOP_LABEL)
 
 
-def legend(settings):
+def legend(settings: Settings):
     red = style.named(STOP_COLOR)
     return [
         legend_item(CLOSED_LABEL, "Magenta", style.named(CLOSED_COLOR)),
@@ -48,7 +49,7 @@ def legend(settings):
     ]
 
 
-def look(metar: Optional[Report], settings) -> Look:
+def look(metar: Optional[Report], settings: Settings) -> Look:
     if not metar:
         return style.no_report()
     status = metar.faa_status

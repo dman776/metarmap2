@@ -17,6 +17,7 @@ from metarmap.decode import estimate_category
 from metarmap.forecast import HOURS
 from metarmap.models import FlightCategory as Category
 from metarmap.models import Look, Report
+from metarmap.settings import Settings
 from metarmap.visualizers import forecast_steps, style
 from metarmap.visualizers.flightcategory import COLORS
 from metarmap.visualizers.forecast_steps import FRAME, NO_FORECAST, NO_FORECAST_COLOR
@@ -24,7 +25,7 @@ from metarmap.visualizers.legend import legend_item
 from metarmap.visualizers.visualizer import Visualizer
 
 
-def legend(settings):
+def legend(settings: Settings):
     items = [
         legend_item(
             "VFR", "Green", COLORS[Category.VFR], effect="solid"
@@ -52,11 +53,11 @@ def step_color(category):
     return COLORS.get(category, NO_FORECAST_COLOR)
 
 
-def step_seconds(settings):
+def step_seconds(settings: Settings):
     return forecast_steps.step_seconds(settings)
 
 
-def steps(settings):
+def steps(settings: Settings):
     return forecast_steps.steps(settings, "FC")
 
 
@@ -66,7 +67,7 @@ def frames(colors, seconds):
     return forecast_steps.sequence([[color] * held for color in colors])
 
 
-def look(metar: Optional[Report], settings) -> Look:
+def look(metar: Optional[Report], settings: Settings) -> Look:
     if not metar:
         return style.no_report()
     now = category_now(metar)
