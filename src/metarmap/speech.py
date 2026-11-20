@@ -36,7 +36,7 @@ from typing import Callable, Dict, Optional, Tuple
 import requests
 from urllib3.exceptions import ReadTimeoutError
 
-from metarmap import USER_AGENT
+from metarmap import USER_AGENT, http
 
 log = logging.getLogger(__name__)
 
@@ -136,13 +136,13 @@ class _Render:
 class Speech:
     """
     settings: returns the speech settings now (settings.SpeechSettings), so a change applies at once.
-    connect: socket.create_connection, post: requests.post, clock: time.monotonic; stand-ins in tests.
+    connect: socket.create_connection, post: http.post, clock: time.monotonic; stand-ins in tests.
     """
 
     def __init__(self, settings: Callable, connect=None, post=None, clock=None):
         self._settings = settings
         self._connect = connect or socket.create_connection
-        self._post = post or requests.post
+        self._post = post or http.post
         self._clock = clock or time.monotonic
         self._lock = threading.Lock()
         self._cache: OrderedDict[str, bytes] = OrderedDict()
@@ -354,7 +354,9 @@ class Speech:
             response = self._post(
                 url,
                 json=body,
-                headers={"User-Agent": USER_AGENT},
+                # a new connection each time, as before the shared session: a POST isn't retried, so a kept-alive
+                # connection the server had closed would fail the clip and leave Kokoro alone as if it were down
+                headers={"User-Agent": USER_AGENT, "Connection": "close"},
                 timeout=(min(CONNECT_SECONDS, left), left),
                 stream=True,
             )

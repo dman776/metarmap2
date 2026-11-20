@@ -140,7 +140,7 @@ def clock():
 def api(monkeypatch):
     def install(**kwargs):
         fake = FakeApi(**kwargs)
-        monkeypatch.setattr(airports.requests, "get", fake.get)
+        monkeypatch.setattr(airports.http, "get", fake.get)
         return fake
 
     return install
@@ -256,7 +256,7 @@ def test_a_tile_that_never_answers_is_counted_not_raised(api, clock):
 
 
 def test_an_answer_that_is_not_json_is_a_failed_request(monkeypatch, clock):
-    monkeypatch.setattr(airports.requests, "get", lambda url, **kw: FakeResponse(ValueError("not JSON")))
+    monkeypatch.setattr(airports.http, "get", lambda url, **kw: FakeResponse(ValueError("not JSON")))
     assert airports.candidates(-96, 29, -95, 30, clock=clock).failed == 1
 
 
@@ -446,7 +446,7 @@ def test_a_partial_fetch_is_returned_with_an_error_and_not_cached(api, monkeypat
             return FakeResponse([], 500)
         return fake.get(url, params=params, **kwargs)
 
-    monkeypatch.setattr(airports.requests, "get", metar_only)
+    monkeypatch.setattr(airports.http, "get", metar_only)
     result = airports.load(BOX, cache_path=str(path), clock=clock)
     assert len(result.airports) == 3 and "failed" in result.error and result.stale is False
     assert not path.exists()  # a short list isn't kept over a good one
@@ -472,7 +472,7 @@ def test_an_unwritable_cache_does_not_stop_load(api, clock, tmp_path):
 
 def test_a_204_is_an_empty_answer_not_a_failed_request(monkeypatch, clock):
     # the API answers a valid request with nothing to report (a box over the sea, an unknown code) with 204 and no body
-    monkeypatch.setattr(airports.requests, "get", lambda url, **kw: FakeResponse(ValueError("no body"), 204))
+    monkeypatch.setattr(airports.http, "get", lambda url, **kw: FakeResponse(ValueError("no body"), 204))
     assert airports.candidates(-96, 29, -95, 30, clock=clock) == airports.Fetched([], 0)
     assert airports.details(["KXXX"], clock=clock) == airports.Fetched({}, 0)
 
@@ -518,7 +518,7 @@ def test_a_partial_fetch_does_not_replace_a_whole_old_cache(api, monkeypatch, cl
             return FakeResponse([], 500)
         return fake.get(url, params=params, **kwargs)
 
-    monkeypatch.setattr(airports.requests, "get", metar_only)
+    monkeypatch.setattr(airports.http, "get", metar_only)
     result = airports.load(BOX, cache_path=path, clock=clock)
     assert result.stale is True and result.airports == first.airports and result.fetched_at == first.fetched_at
     assert "failed" in result.error and "using the cache from" in result.error

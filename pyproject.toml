@@ -17,6 +17,7 @@ dependencies = [
     "requests>=2.25",
     "schedule>=1.1",
     "tzdata",
+    "urllib3>=1.26",  # http.py imports it directly (Retry, ReadTimeoutError), not only through requests
 ]
 
 [project.optional-dependencies]
