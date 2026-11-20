@@ -12,7 +12,7 @@ It comes in five pieces:
 | **MetarMap2 Chart** | The map on the wall: a Raspberry Pi and a pixel (an LED) at each airport |
 | **MetarMap2 Micro** | The optional small OLED screen, cycling through the airports you pick |
 | **MetarMap2 Web** | The web UI, to watch, control and set up the Chart from a phone or computer |
-| **MetarMap2 Cockpit** | A remote control for a tablet in kiosk mode, at `/remote` |
+| **MetarMap2 Cockpit** | A remote control for a tablet in kiosk mode, at `/cockpit` |
 | **MetarMap2 Copilot** | An optional 2.8" touchscreen beside the Chart ([metarmap2_remote](https://github.com/dman776/metarmap2_remote)) |
 
 Written from the ground up with a web UI, an API and a Home Assistant integration (see [Credits](#credits)).
@@ -56,7 +56,7 @@ Written from the ground up with a web UI, an API and a Home Assistant integratio
   arrows (also in fullscreen, and always on the Cockpit's Map tab) to pick any visualizer from a grid of icons; the
   ones you've skipped from auto-rotate say "skipped". Tick **Live traffic** to see the aircraft
   in the map's view (pan and zoom to look at any city); click one for its details and the map follows it. Update and restart the Chart from the Home
-  page. **MetarMap2 Cockpit**, at `/remote`, is a remote control for a tablet in kiosk mode.
+  page. **MetarMap2 Cockpit**, at `/cockpit`, is a remote control for a tablet in kiosk mode.
 - **API and Home Assistant**: everything in the web UI also works over HTTP (see [API.md](API.md)); the
   [metarmap2_ha](https://github.com/dman776/metarmap2_ha) integration adds the map to Home Assistant.
 - **MetarMap2 Copilot** (optional): [metarmap2_remote](https://github.com/dman776/metarmap2_remote) is firmware for
@@ -187,7 +187,7 @@ Planning alone never changes the Chart. When a plan has finished, **Apply to thi
 
 ### Cockpit
 
-MetarMap2 Cockpit, at `/remote`, is a remote control for a tablet in kiosk mode, here on an iPad in landscape: pick a
+MetarMap2 Cockpit, at `/cockpit`, is a remote control for a tablet in kiosk mode, here on an iPad in landscape: pick a
 visualizer, or, on the **Info** tab, press an airport to find its pixel (**Locate**), or, with spoken weather on, to hear
 its **AWOS** (the bar shows the raw METAR while it plays) or **ATIS**. Press and hold a visualizer for about half a
 second to leave it out of auto-rotate: its icon dims and a small **skip** badge shows, and a message says "skipped".
@@ -200,11 +200,11 @@ dims itself to about 15% brightness; a touch wakes it (and presses nothing) for 
 The Cockpit's **Map** tab has the visualizer name between arrows in the map itself; tap the name to pick any visualizer from a grid of icons, as on the Map page
 (on the Cockpit it is a tap, on the Map page a tap or a click).
 
-![The Cockpit's Visualizer tab](docs/images/remote_visualizer.png)
+![The Cockpit's Visualizer tab](docs/images/cockpit_visualizer.png)
 
-![The Cockpit's Map tab: the map with the background switcher, Live traffic, the visualizer name between arrows and the Micro's copy](docs/images/remote_map.jpg)
+![The Cockpit's Map tab: the map with the background switcher, Live traffic, the visualizer name between arrows and the Micro's copy](docs/images/cockpit_map.jpg)
 
-![The Cockpit's Info tab: a button for each airport with its flight category's dot, and the search box](docs/images/remote_info.png)
+![The Cockpit's Info tab: a button for each airport with its flight category's dot, and the search box](docs/images/cockpit_info.png)
 
 For a dedicated screen instead of a tablet, MetarMap2 Copilot
 ([metarmap2_remote](https://github.com/dman776/metarmap2_remote)) is a companion project: firmware for a 2.8" ESP32-S3

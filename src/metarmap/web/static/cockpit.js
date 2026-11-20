@@ -1,9 +1,9 @@
-// MetarMap2 remote: the Remote page's tabs, and keeping it in step with the map, whoever changes it (another remote,
+// MetarMap2 Cockpit: the Cockpit page's tabs, and keeping it in step with the map, whoever changes it (another Cockpit,
 // auto-rotate, Home Assistant). The buttons themselves are app.js's data-call buttons.
 (function () {
     'use strict';
 
-    // opened at http://user:password@map/remote (an old bookmark): browsers refuse fetch() from a page whose address
+    // opened at http://user:password@map/cockpit (an old bookmark): browsers refuse fetch() from a page whose address
     // has a login in it, so go to the same page without it
     const here = new URL(document.URL);  // location.href leaves the login out
     if (here.username || here.password) {
@@ -29,13 +29,14 @@
 
     const LIVE_MS = 1000;
     const HOLD_MS = 3000;  // after a touch, a control keeps what the user set while the map catches up
+    // the storage keys keep their old name, so a device keeps its last tab and mode
     const TAB_KEY = 'metarmap.remote.tab';
     const MODE_KEY = 'metarmap.remote.mode';
     // the Info tab's modes, and the old tabs' names: #locator and #awos (a kiosk's address, a remembered tab)
     const MODES = ['locate', 'awos', 'atis'];
     const OLD_TABS = {locator: 'locate', awos: 'awos', atis: 'atis'};
 
-    const page = document.querySelector('.remote');
+    const page = document.querySelector('.cockpit');
     const host = document.querySelector('.r-host');
     const visName = document.getElementById('r-vis-name');
     const visDesc = document.getElementById('r-vis-desc');
@@ -170,7 +171,7 @@
             legend.innerHTML = html;
             shown = index;
         } catch (err) {
-            console.error('[remote] legend failed', err);
+            console.error('[cockpit] legend failed', err);
         } finally {
             if (loading === index) loading = null;  // try again on the next poll if it failed
         }
@@ -226,7 +227,7 @@
             markSkipped(chip, skip);
             say(skip ? chip.dataset.name + ': skipped' : chip.dataset.name + ': back in rotation');
         } catch (err) {
-            console.error('[remote] skip failed', err);
+            console.error('[cockpit] skip failed', err);
             say('Could not change auto-rotate');
         }
     }
@@ -314,7 +315,7 @@
             rotateTouched = 0;
             poll();  // the new countdown now, not at the next poll
         } catch (err) {
-            console.error('[remote] auto-rotate failed', err);
+            console.error('[cockpit] auto-rotate failed', err);
         }
     });
 
@@ -473,7 +474,7 @@
             showOled(live.display);
             showAirports(live.leds, live.locate, live.now);
         } catch (err) {
-            console.error('[remote] poll failed', err);
+            console.error('[cockpit] poll failed', err);
             online(false);
         }
     }
@@ -652,7 +653,7 @@
             if (fullscreenElement()) {
                 (document.exitFullscreen || document.webkitExitFullscreen).call(document);
             } else {
-                Promise.resolve(request.call(root)).catch(function (err) { console.error('[remote] fullscreen', err); });
+                Promise.resolve(request.call(root)).catch(function (err) { console.error('[cockpit] fullscreen', err); });
             }
         });
         document.addEventListener('fullscreenchange', fullscreenChanged);
