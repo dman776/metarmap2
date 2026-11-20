@@ -25,7 +25,7 @@ from datetime import datetime, timezone
 import requests
 
 from metarmap import USER_AGENT, http
-from metarmap.advisories import inside
+from metarmap.advisories import box, inside
 
 log = logging.getLogger(__name__)
 
@@ -139,14 +139,6 @@ def distance_nm(lat, lon, polygon):
         t = 0.0 if dx == dy == 0 else max(0.0, min(1.0, -(x1 * dx + y1 * dy) / (dx * dx + dy * dy)))
         best = min(best, math.hypot(x1 + t * dx, y1 + t * dy))
     return best
-
-
-def box(polygon):
-    """The polygon's (south, north, west, east) in degrees, as given (no wrapping, like distance_nm); None if empty."""
-    if not polygon:
-        return None
-    lats, lons = [lat for lat, _ in polygon], [lon for _, lon in polygon]
-    return min(lats), max(lats), min(lons), max(lons)
 
 
 def nearest_nm(lat, lon, scale, bounds):
