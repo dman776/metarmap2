@@ -320,8 +320,9 @@ def with_advisories(data, advisories):
     """
     The METARs, each with airmets and sigmets: the G-AIRMET and SIGMET hazards over the airport
     (metarmap.advisories), most important first. Either is None while there are none to go by (before its first fetch
-    that worked) or the airport has no position.
+    that worked) or the airport has no position. The areas in effect are worked out once, for all the airports.
     """
+    in_effect = advisories.hazards()
     result = {}
     for code, m in data.items():
         if m is None:  # no report: stays None, so every visualizer still shows it as "METAR not available"
@@ -329,7 +330,7 @@ def with_advisories(data, advisories):
             continue
         lat, lon = m.latitude, m.longitude
         try:
-            hazards = advisories.hazards_at(float(lat), float(lon)) if lat is not None and lon is not None else None
+            hazards = in_effect.at(float(lat), float(lon)) if lat is not None and lon is not None else None
         except (TypeError, ValueError):
             hazards = None
         hazards = hazards or {}

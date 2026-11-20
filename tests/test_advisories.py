@@ -203,6 +203,8 @@ def test_movement(direction, speed, text):
         [None],
         [{"hazard": "IFR", "geometryType": "AREA", "coords": "x"}],
         [{**gairmet("IFR"), "coords": [{"lat": "30", "lon": "-95"}]}],
+        [{**gairmet("IFR"), "coords": [*square(30.0, -95.0)[:3], {"lat": "nan", "lon": "-95"}]}],
+        [{**gairmet("IFR"), "coords": [*square(30.0, -95.0)[:3], {"lat": "30", "lon": "-inf"}]}],
     ],
 )
 def test_parse_skips_what_it_cant_use(data):
@@ -246,6 +248,89 @@ def test_hazards_at():
     assert found.hazards_at(*HOUSTON) == {"airmets": ["ICE", "IFR", "TURB-LO"], "sigmets": ["CONV", "TURB"]}
     assert found.hazards_at(40.0, -105.0) == {"airmets": ["MT_OBSC"], "sigmets": []}
     assert found.hazards_at(35.0, -80.0) == {"airmets": [], "sigmets": []}
+
+
+def corners(*points):
+    """A polygon as aviationweather.gov sends a SIGMET's: [{"lat", "lon"}, ...]."""
+    return [{"lat": lat, "lon": lon} for lat, lon in points]
+
+
+def test_a_place_outside_an_areas_box_is_not_ray_cast(monkeypatch):
+    found, _, _ = make(airmets=[gairmet("IFR", *HOUSTON)], sigmets=[sigmet("CONV", *HOUSTON)])
+    found.fetch()
+    cast = []
+    real = advisories.inside
+    monkeypatch.setattr(advisories, "inside", lambda lat, lon, polygon: cast.append(polygon) or real(lat, lon, polygon))
+    assert found.hazards_at(35.0, -80.0) == {"airmets": [], "sigmets": []}  # far from every area
+    assert cast == []
+    assert found.hazards_at(*HOUSTON) == {"airmets": ["IFR"], "sigmets": ["CONV"]}  # in both boxes, so both are cast
+    assert len(cast) == 2
+
+
+# a triangle and an L, each with an empty corner of its box, and one across 180° (taken as given, not wrapped)
+TRIANGLE = ((30.0, -100.0), (30.0, -96.0), (34.0, -100.0))
+ELL = ((40.0, -90.0), (40.0, -86.0), (42.0, -86.0), (42.0, -88.0), (44.0, -88.0), (44.0, -90.0))
+ACROSS_180 = ((50.0, 175.0), (50.0, -175.0), (55.0, -175.0), (55.0, 175.0))
+
+
+def brute_force_at(found, lat, lon):
+    """hazards_at() the long way: every area in effect ray cast, as before the boxes."""
+    hazards = {}
+    for kind, order in (("airmet", advisories.AIRMETS), ("sigmet", advisories.SIGMETS)):
+        inside = {a["hazard"] for a in found.areas(kind) if advisories.inside(lat, lon, a["coords"])}
+        hazards[kind + "s"] = [h for h in order if h in inside]
+    return hazards
+
+
+def test_the_boxes_change_no_answer():
+    found, _, _ = make(
+        airmets=[gairmet("IFR", coords=corners(*TRIANGLE)), gairmet("ICE", coords=corners(*ELL))],
+        sigmets=[sigmet("CONV", coords=corners(*TRIANGLE)), sigmet("VA", coords=corners(*ACROSS_180))],
+    )
+    found.fetch()
+    places = [
+        (33.0, -97.0),  # in the triangle's box, past its long side
+        (31.0, -99.0),  # in the triangle
+        (43.0, -87.0),  # in the L's box, in its notch
+        (41.0, -89.0),  # in the L
+        (32.0, -100.0),  # on the triangle's west edge, its box's west side
+        (34.0, -100.0),  # its north corner
+        (30.0, -98.0),  # its south edge
+        (44.0, -89.0),  # on the L's north edge
+        (52.0, 179.0),  # inside the area across 180°, which as given spans -175..175: not in it
+        (52.0, 0.0),  # in that span's middle: in it, as before the boxes
+        (52.0, -180.0),
+    ]
+    places += [(lat / 4, lon / 4) for lat in range(110, 230) for lon in range(-410, -340, 3)]  # a grid over them
+    for lat, lon in places:
+        assert found.hazards_at(lat, lon) == brute_force_at(found, lat, lon), (lat, lon)
+    assert found.hazards_at(31.0, -99.0) == {"airmets": ["IFR"], "sigmets": ["CONV"]}
+    assert found.hazards_at(33.0, -97.0) == {"airmets": [], "sigmets": []}
+    assert found.hazards_at(43.0, -87.0) == {"airmets": [], "sigmets": []}
+    assert found.hazards_at(41.0, -89.0) == {"airmets": ["ICE"], "sigmets": []}
+    assert found.hazards_at(52.0, 0.0) == {"airmets": [], "sigmets": ["VA"]}
+
+
+@pytest.mark.parametrize("lat, lon", [(float("nan"), -95.34), (29.98, float("inf")), (29.98, float("-inf"))])
+def test_a_place_that_isnt_a_number_is_in_nothing(lat, lon):
+    found, _, _ = make(airmets=[gairmet("IFR", *HOUSTON)], sigmets=[sigmet("CONV", *HOUSTON)])
+    found.fetch()
+    assert found.hazards_at(lat, lon) == {"airmets": [], "sigmets": []} == brute_force_at(found, lat, lon)
+
+
+def test_box():
+    assert advisories.box(list(ELL)) == (40.0, 44.0, -90.0, -86.0)
+    assert advisories.box([]) is None
+
+
+def test_hazards_are_the_areas_in_effect_when_asked():
+    found, _, clock = make(airmets=[gairmet("IFR", *HOUSTON, expires=2000)])
+    assert found.hazards().at(*HOUSTON) == {"airmets": None, "sigmets": None}
+    found.fetch()
+    hazards = found.hazards()
+    clock.t = 2000  # the G-AIRMET expires, but these are the ones in effect when they were asked for
+    assert hazards.at(*HOUSTON) == {"airmets": ["IFR"], "sigmets": []}
+    assert found.hazards().at(*HOUSTON) == {"airmets": [], "sigmets": []}
 
 
 def test_only_advisories_in_effect_count():
@@ -315,6 +400,18 @@ def test_with_advisories():
     assert (result["KDFW"].airmets, result["KDFW"].sigmets) == ([], [])
     assert (result["KXXX"].airmets, result["KXXX"].sigmets) == (None, None)  # no position
     assert data["KIAH"].airmets is None  # the fetched reports are left as they were
+
+
+def test_with_advisories_works_out_the_areas_in_effect_once(monkeypatch):
+    found, _, _ = make(airmets=[gairmet("IFR", *HOUSTON)], sigmets=[sigmet("CONV", *HOUSTON)])
+    found.fetch()
+    checked = []
+    real = advisories.in_effect
+    monkeypatch.setattr(advisories, "in_effect", lambda area, now: checked.append(area) or real(area, now))
+    data = {code: Report(raw="...", latitude=29.98 + n / 100, longitude=-95.34) for n, code in enumerate("ABCDE")}
+    result = with_advisories(data, found)
+    assert all((r.airmets, r.sigmets) == (["IFR"], ["CONV"]) for r in result.values())
+    assert len(checked) == 2  # each area once, not once for each of the 5 airports
 
 
 def test_an_airport_without_a_report_stays_none():

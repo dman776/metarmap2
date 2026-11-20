@@ -16,6 +16,7 @@ turbulence doesn't affect flying from the airport.
 """
 
 import logging
+import math
 import threading
 import time
 
@@ -72,12 +73,14 @@ def base_ft(advisory):
 
 
 def outline(advisory):
-    """The area's [(lat, lon), ...], or None if it isn't one."""
+    """The area's [(lat, lon), ...], or None if it isn't one (fewer than 3 corners, or one that isn't a number)."""
     try:
         coords = [(float(c["lat"]), float(c["lon"])) for c in advisory.get("coords") or []]
     except (KeyError, TypeError, ValueError):
         return None
-    return coords if len(coords) >= 3 else None
+    if len(coords) < 3 or not all(math.isfinite(lat) and math.isfinite(lon) for lat, lon in coords):
+        return None
+    return coords
 
 
 def number(value):
@@ -167,6 +170,17 @@ def inside(lat, lon, polygon):
     return found
 
 
+def box(polygon):
+    """
+    The polygon's (south, north, west, east) in degrees, as given (no wrapping at 180°, like inside() and
+    tfr.distance_nm()); None if empty. inside() is never true outside it, so a place outside needn't be ray cast.
+    """
+    if not polygon:
+        return None
+    lats, lons = [lat for lat, _ in polygon], [lon for _, lon in polygon]
+    return min(lats), max(lats), min(lons), max(lons)
+
+
 def in_effect(area, now):
     starts, ends = number(area.get("from")), number(area.get("expires"))
     return (starts is None or starts <= now) and (ends is None or ends > now)
@@ -177,9 +191,37 @@ class Feed:
 
     def __init__(self, name, url, parse):
         self.name, self.url, self.parse = name, url, parse
-        self.areas = None  # None until the first fetch works
+        self.areas = None  # [(area, its box()), ...]; None until the first fetch works
         self.fetched = None
         self.error = None
+
+
+class Hazards:
+    """
+    The G-AIRMET and SIGMET areas in effect at one moment ({"airmet": [(area, box), ...], "sigmet": ...}, either None
+    before its feed's first fetch that worked), to ask about any number of places.
+    """
+
+    def __init__(self, in_effect):
+        self._in_effect = in_effect
+
+    def at(self, lat, lon):
+        """
+        {"airmets": [...], "sigmets": [...]}: the hazards over a place, most important first, each once. Either is None
+        before its feed's first fetch that worked. Areas whose box the place is outside aren't ray cast.
+        """
+        found = {}
+        for kind, order in (("airmet", AIRMETS), ("sigmet", SIGMETS)):
+            pairs = self._in_effect[kind]
+            if pairs is None:
+                found[kind + "s"] = None
+                continue
+            hazards = set()
+            for area, (south, north, west, east) in pairs:
+                if south <= lat <= north and west <= lon <= east and inside(lat, lon, area["coords"]):
+                    hazards.add(area["hazard"])
+            found[kind + "s"] = [h for h in order if h in hazards]
+        return found
 
 
 class Advisories:
@@ -220,8 +262,9 @@ class Advisories:
                 log.warning(f"{feed.name} fetch failed: {e}")
             feed.error = f"couldn't reach aviationweather.gov: {e}"
             return False
+        boxed = [(area, box(area["coords"])) for area in areas]  # outline() gives each at least 3 corners
         with self._lock:
-            feed.areas, feed.fetched, feed.error = areas, self._clock(), None
+            feed.areas, feed.fetched, feed.error = boxed, self._clock(), None
         return True
 
     def waiting(self):
@@ -236,24 +279,23 @@ class Advisories:
 
     def areas(self, kind):
         """The "airmet" or "sigmet" areas in effect now; None before that feed's first fetch that worked."""
+        pairs = self._in_effect(kind, self._clock())
+        return None if pairs is None else [area for area, _ in pairs]
+
+    def _in_effect(self, kind, now):
+        """[(area, box), ...] of the kind's areas in effect at now; None before its feed's first fetch that worked."""
         with self._lock:
-            areas = self._feeds[kind].areas
-        if areas is None:
-            return None
+            pairs = self._feeds[kind].areas
+        return None if pairs is None else [(area, bounds) for area, bounds in pairs if in_effect(area, now)]
+
+    def hazards(self):
+        """The areas in effect now, as Hazards: worked out once for a whole refresh of airports, not once for each."""
         now = self._clock()
-        return [a for a in areas if in_effect(a, now)]
+        return Hazards({kind: self._in_effect(kind, now) for kind in self._feeds})
 
     def hazards_at(self, lat, lon):
-        """
-        {"airmets": [...], "sigmets": [...]}: the hazards over a place, most important first, each once. Either is None
-        before its feed's first fetch that worked.
-        """
-        found = {}
-        for kind, order in (("airmet", AIRMETS), ("sigmet", SIGMETS)):
-            areas = self.areas(kind)
-            hazards = None if areas is None else {a["hazard"] for a in areas if inside(lat, lon, a["coords"])}
-            found[kind + "s"] = None if hazards is None else [h for h in order if h in hazards]
-        return found
+        """Hazards.at() for one place; for many, ask hazards() once and its at() for each."""
+        return self.hazards().at(lat, lon)
 
     def state(self):
         """For /api/advisories: each feed's last fetch, and the areas in effect (for the Map page)."""
