@@ -24,7 +24,7 @@ from datetime import datetime, timedelta
 
 import requests
 
-from metarmap import USER_AGENT
+from metarmap import USER_AGENT, http
 from metarmap.clock import Clock
 
 log = logging.getLogger(__name__)
@@ -505,7 +505,7 @@ def _get(url, params, timeout, clock, budget):
             return None
         sent = clock.time()
         try:
-            response = requests.get(url, params=params, headers={"User-Agent": USER_AGENT}, timeout=timeout)
+            response = http.get(url, params=params, headers={"User-Agent": USER_AGENT}, timeout=timeout)
             if response.status_code == 429:
                 budget.rate_limited(_retry_after(response), sent)
                 raise requests.exceptions.HTTPError("HTTP 429, rate limited")

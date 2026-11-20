@@ -12,6 +12,7 @@ from types import SimpleNamespace
 import pytest
 import requests
 
+from metarmap import http
 from metarmap import speech as speech_module
 from metarmap.settings import SpeechSettings
 from metarmap.speech import Speech, SpeechError
@@ -177,7 +178,7 @@ def sent_events_of(data):
 
 class FakeKokoro:
     """
-    Stands in for requests.post: records each request and answers with raw PCM, or what it's told to.
+    Stands in for http.post: records each request and answers with raw PCM, or what it's told to.
     chunks: the answer's pieces as iter_content gives them (else `content` in one); each one runs `between` first.
     """
 
@@ -241,6 +242,18 @@ def test_kokoro_asks_for_raw_audio_and_makes_a_wav():
     with wave.open(io.BytesIO(clip)) as w:
         assert (w.getframerate(), w.getsampwidth(), w.getnchannels()) == (24000, 2, 1)
         assert w.readframes(w.getnframes()) == pcm
+
+
+def test_kokoro_asks_on_a_new_connection_each_time():
+    """A POST isn't retried: a kept-alive connection the server had closed would fail the clip, Kokoro "down"."""
+    speech, fake, _ = make_kokoro()
+    speech.audio("Hooks.")
+    (call,) = fake.calls
+    assert call.headers == {"User-Agent": speech_module.USER_AGENT, "Connection": "close"}
+
+
+def test_speech_posts_through_the_shared_session():
+    assert Speech(lambda: None)._post is http.post
 
 
 def test_kokoro_voice_and_speed_make_new_clips():
@@ -839,7 +852,7 @@ def test_a_real_trickling_server_with_connection_close_is_cut_off():
     shift = [0.0]  # the clock jumps once the answer starts, so the time limit comes in a fraction of a second
 
     def post(*args, **kwargs):
-        response = requests.post(*args, **kwargs)
+        response = http.session().post(*args, **kwargs)  # what http.post sends a plain request through
         shift[0] = 4.7
         return response
 

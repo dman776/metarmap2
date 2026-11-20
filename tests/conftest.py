@@ -92,7 +92,7 @@ def no_release_checks(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def no_network(monkeypatch, request):
-    """Tests never reach aviationweather.gov; a test that needs it fakes http.get itself."""
+    """Tests never reach aviationweather.gov; a test that needs it fakes http.get (or http.post) itself."""
     import requests
 
     from metarmap import http
@@ -103,3 +103,4 @@ def no_network(monkeypatch, request):
     monkeypatch.setattr(requests, "get", offline)
     if request.module.__name__ != "test_http":  # that file tests the real http.get, with its Session faked
         monkeypatch.setattr(http, "get", offline)
+        monkeypatch.setattr(http, "post", offline)
