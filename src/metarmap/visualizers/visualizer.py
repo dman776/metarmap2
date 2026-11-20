@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Callable, List, Optional
 
 from metarmap.models import Look, Report
+from metarmap.settings import Settings
 from metarmap.visualizers import style
 from metarmap.visualizers.legend import legend_item
 
@@ -73,13 +74,13 @@ class Visualizer:
     short_name: str
     icon: str
     legend: Callable[..., List[dict]]
-    look: Optional[Callable[[Optional[Report], object], Look]] = None
-    strip_look: Optional[Callable[[object], Look]] = None
+    look: Optional[Callable[[Optional[Report], Settings], Look]] = None
+    strip_look: Optional[Callable[[Settings], Look]] = None
     covers_virtual: bool = False
     barbs: bool = False
     areas: Optional[str] = None
     lightning: bool = True
-    steps: Optional[Callable[[object], dict]] = None
+    steps: Optional[Callable[[Settings], dict]] = None
 
     def __post_init__(self):
         if not ID.fullmatch(self.id):
@@ -106,12 +107,12 @@ class Visualizer:
 # ---- using a visualizer -----------------------------------------------------------------------------------------
 
 
-def strip_look(vis: Visualizer, settings) -> Optional[Look]:
+def strip_look(vis: Visualizer, settings: Settings) -> Optional[Look]:
     """The visualizer's look for the whole strip, or None if it has one look per airport."""
     return vis.strip_look(settings) if vis.strip_look is not None else None
 
 
-def looks(vis, codes, data, settings) -> List[Look]:
+def looks(vis, codes, data, settings: Settings) -> List[Look]:
     """
     One look per LED. codes: each LED's airport, in LED order ("" for none, which stays dark);
     data: airport code -> METAR.
@@ -119,7 +120,7 @@ def looks(vis, codes, data, settings) -> List[Look]:
     return [look(vis, data.get(code), settings) if code else Look.off() for code in codes]
 
 
-def shows_lightning(vis: Visualizer, settings) -> bool:
+def shows_lightning(vis: Visualizer, settings: Settings) -> bool:
     """
     Whether lightning goes over the visualizer's looks and into its legend: lightning.animation, for one with a look
     per airport that hasn't opted out (lightning=False). A forecast visualizer (one with steps) also needs
@@ -130,7 +131,7 @@ def shows_lightning(vis: Visualizer, settings) -> bool:
     return vis.steps is None or settings.lightning.forecast
 
 
-def look(vis, metar, settings) -> Look:
+def look(vis, metar, settings: Settings) -> Look:
     """
     One airport's look: the visualizer's, with lightning over it when the airport has some. Missing data is off
     instead of a red blink with visualizer.missing_data_blink off.
@@ -143,7 +144,7 @@ def look(vis, metar, settings) -> Look:
     )
 
 
-def legend(vis, settings) -> List[dict]:
+def legend(vis, settings: Settings) -> List[dict]:
     """
     The visualizer's legend, with lightning before "METAR not available" (or last) when it shows lightning, and
     missing data as off with visualizer.missing_data_blink off.
@@ -160,7 +161,7 @@ def legend(vis, settings) -> List[dict]:
     return items
 
 
-def in_use(vis, looks, settings) -> Optional[List[str]]:
+def in_use(vis, looks, settings: Settings) -> Optional[List[str]]:
     """
     The keys of the legend entries the LEDs (`looks`, one per airport) are showing, in the legend's order; None for a
     visualizer with one look for the whole strip, whose legend is always shown whole.
@@ -171,7 +172,7 @@ def in_use(vis, looks, settings) -> Optional[List[str]]:
     return [item["key"] for item in legend(vis, settings) if item["key"] in shown]
 
 
-def info(vis, settings) -> dict:
+def info(vis, settings: Settings) -> dict:
     """What the web UI and API show about a visualizer."""
     return {
         "id": vis.id,

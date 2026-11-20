@@ -4,19 +4,20 @@ Chase: one blue LED moving along the strip; useful for checking the wiring order
 
 import metarmap.lib.colors as colors_lib
 from metarmap.models import Look
+from metarmap.settings import Settings
 from metarmap.visualizers.legend import legend_item
 from metarmap.visualizers.visualizer import Visualizer
 
 BLUE = colors_lib.color(colors_lib.BLUE)
 
 
-def legend(settings):
+def legend(settings: Settings):
     return [
         legend_item("All LEDs", "Blue, lighting in sequence", BLUE, effect="chase", period=1),
     ]
 
 
-def strip_look(settings) -> Look:
+def strip_look(settings: Settings) -> Look:
     # one lit LED, then the rest of the strip dark, so it walks every LED in turn (with no LEDs, spacing 0 is only
     # there to keep the animation's size + spacing from being 0; the renderer builds none then)
     return Look.chase(BLUE, step=0.1, size=1, spacing=max(settings.led.count - 1, 0))

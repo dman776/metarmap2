@@ -7,6 +7,7 @@ from typing import Optional
 
 import metarmap.lib.colors as colors_lib
 from metarmap.models import Look, Report
+from metarmap.settings import Settings
 from metarmap.visualizers import style
 from metarmap.visualizers.style import Band
 from metarmap.visualizers.visualizer import Visualizer
@@ -28,11 +29,11 @@ def gust_spread(metar: Report) -> int:
     return max(0, (metar.wind_gust_speed or 0) - (metar.wind_speed or 0))
 
 
-def legend(settings):
+def legend(settings: Settings):
     return [*style.band_legend(BANDS, settings), style.missing_legend("wind speed"), style.no_report_legend()]
 
 
-def look(metar: Optional[Report], settings) -> Look:
+def look(metar: Optional[Report], settings: Settings) -> Look:
     if not metar:
         return style.no_report()
     if metar.wind_speed is None:

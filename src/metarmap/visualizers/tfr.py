@@ -8,6 +8,7 @@ from typing import Optional
 
 import metarmap.lib.colors as colors_lib
 from metarmap.models import Look, Report
+from metarmap.settings import Settings
 from metarmap.visualizers import style
 from metarmap.visualizers.legend import legend_item
 from metarmap.visualizers.visualizer import Visualizer
@@ -43,11 +44,11 @@ def css(tfr_type):
     return colors_lib.to_css(color(tfr_type))
 
 
-def nearby_nm(settings):
+def nearby_nm(settings: Settings):
     return getattr(getattr(settings, "tfr", None), "nearby_nm", 0) or 0
 
 
-def legend(settings):
+def legend(settings: Settings):
     reach = nearby_nm(settings)
     red = color("VIP")
     nearby = (
@@ -74,7 +75,7 @@ def legend(settings):
     ]
 
 
-def look(metar: Optional[Report], settings) -> Look:
+def look(metar: Optional[Report], settings: Settings) -> Look:
     if not metar:
         return style.no_report()
     tfrs = metar.tfrs

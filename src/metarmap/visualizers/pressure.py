@@ -6,6 +6,7 @@ from typing import Optional
 
 import metarmap.lib.colors as colors_lib
 from metarmap.models import Look, Report
+from metarmap.settings import Settings
 from metarmap.visualizers import style
 from metarmap.visualizers.style import Band
 from metarmap.visualizers.visualizer import Visualizer
@@ -20,11 +21,11 @@ BANDS = [
 ]
 
 
-def legend(settings):
+def legend(settings: Settings):
     return [*style.band_legend(BANDS, settings), style.missing_legend("altimeter setting"), style.no_report_legend()]
 
 
-def look(metar: Optional[Report], settings) -> Look:
+def look(metar: Optional[Report], settings: Settings) -> Look:
     if not metar:
         return style.no_report()
     if not metar.altimeter_inhg:  # missing from the report

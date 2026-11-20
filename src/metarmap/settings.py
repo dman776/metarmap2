@@ -68,7 +68,9 @@ def default_of(f):
 
 def visualizer_id(value, key):
     """A visualizer's id from its id or its number in visualizers.ALL (as the API accepts them)."""
-    from metarmap import visualizers  # here, not at the top: the visualizers don't need the settings to load
+    from metarmap import (
+        visualizers,  # here: the visualizers import this module, so a top-level import is circular
+    )
 
     try:
         return visualizers.ALL[visualizers.index_of(value)].id

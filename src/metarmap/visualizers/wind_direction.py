@@ -7,6 +7,7 @@ from typing import Optional
 
 import metarmap.lib.colors as colors_lib
 from metarmap.models import Look, Report
+from metarmap.settings import Settings
 from metarmap.visualizers import style
 from metarmap.visualizers.legend import legend_item
 from metarmap.visualizers.visualizer import Visualizer
@@ -42,7 +43,7 @@ def heading(metar: Report):
         return None
 
 
-def look(metar: Optional[Report], settings) -> Look:
+def look(metar: Optional[Report], settings: Settings) -> Look:
     if not metar:
         return style.no_report()
     direction = heading(metar)
@@ -56,7 +57,7 @@ def look(metar: Optional[Report], settings) -> Look:
     return Look.solid(style.named(color)).tagged(name)
 
 
-def legend(settings):
+def legend(settings: Settings):
     items = []
     for i, (name, color, detail) in enumerate(SECTORS):
         low, high = (i * 45 - 22) % 360, i * 45 + 22

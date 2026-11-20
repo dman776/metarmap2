@@ -32,5 +32,9 @@ jobs:
         run: ruff check .
       - name: Format
         run: ruff format --check .
+      - name: Type check
+        # one Python is enough: the check reads the code, not the runtime
+        if: matrix.python-version == '3.9'
+        run: mypy
       - name: Test
         run: pytest

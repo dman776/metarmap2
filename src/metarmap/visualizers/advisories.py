@@ -9,6 +9,7 @@ from typing import Optional
 
 import metarmap.lib.colors as colors_lib
 from metarmap.models import Look, Report
+from metarmap.settings import Settings
 from metarmap.visualizers import style
 from metarmap.visualizers.legend import legend_item
 from metarmap.visualizers.visualizer import Visualizer
@@ -72,7 +73,7 @@ def sigmet_look(c) -> Look:
     return Look.blink(c, period=SIGMET_PERIOD, background=style.dim(c))
 
 
-def legend(settings):
+def legend(settings: Settings):
     items, shown = [], set()
     for name, label in SIGMET_COLORS.values():
         if label not in shown:
@@ -110,7 +111,7 @@ def legend(settings):
     ]
 
 
-def look(metar: Optional[Report], settings) -> Look:
+def look(metar: Optional[Report], settings: Settings) -> Look:
     if not metar:
         return style.no_report()
     sigmets = metar.sigmets or []

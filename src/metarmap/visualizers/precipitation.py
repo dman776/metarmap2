@@ -14,6 +14,7 @@ from typing import Optional
 import metarmap.lib.colors as colors_lib
 from metarmap.decode import parse_weather
 from metarmap.models import Look, Report
+from metarmap.settings import Settings
 from metarmap.visualizers import style
 from metarmap.visualizers.legend import legend_item
 from metarmap.visualizers.visualizer import Visualizer
@@ -71,13 +72,13 @@ def intensity_of(group):
     return style.VICINITY if group.vicinity else group.intensity
 
 
-def look(metar: Optional[Report], settings) -> Look:
+def look(metar: Optional[Report], settings: Settings) -> Look:
     if not metar:
         return style.no_report()
     return look_for_weather(metar.weather, settings)
 
 
-def look_for_weather(obs, settings) -> Look:
+def look_for_weather(obs, settings: Settings) -> Look:
     """How the LED looks for a METAR's weather codes, e.g. "-RA BR"."""
     if not obs or obs.strip() == "NSW":
         return Look.off().tagged(NO_WEATHER)  # nothing to report ("NSW": no significant weather)
@@ -106,7 +107,7 @@ def look_for_weather(obs, settings) -> Look:
     return style.by_intensity(COLOR[kinds[0]], intensity_of(group), kinds[0])
 
 
-def legend(settings):
+def legend(settings: Settings):
     return [
         legend_item("Rain", "Blue", RAIN, key="rain"),
         legend_item("Drizzle", "Dim blue", style.dim(RAIN, 0.5), key="drizzle"),

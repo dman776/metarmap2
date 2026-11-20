@@ -13,6 +13,7 @@ import metarmap.lib.colors as colors_lib
 from metarmap.decode import estimate_category
 from metarmap.models import FlightCategory as Category
 from metarmap.models import Look, Report
+from metarmap.settings import Settings
 from metarmap.visualizers import style
 from metarmap.visualizers.legend import legend_item
 from metarmap.visualizers.visualizer import Visualizer
@@ -29,7 +30,7 @@ COLORS = {
 OFF = colors_lib.color(colors_lib.OFF)
 
 
-def legend(settings):
+def legend(settings: Settings):
     breathing = settings.visualizer.estimated_category_breathing
     items = [
         legend_item("VFR", "Green", COLORS[Category.VFR]),
@@ -52,7 +53,7 @@ def legend(settings):
     return items
 
 
-def look(metar: Optional[Report], settings) -> Look:
+def look(metar: Optional[Report], settings: Settings) -> Look:
     if not metar:
         return style.no_report()
     category = metar.flight_category
