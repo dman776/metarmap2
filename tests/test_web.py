@@ -140,9 +140,9 @@ def client(make_app):
         "/debug",
         "/config",
         "/config/airports",
-        "/remote",
+        "/cockpit",
         "/static/app.js",
-        "/static/remote.js",
+        "/static/cockpit.js",
         "/update/progress",
     ],
 )
@@ -158,7 +158,7 @@ POLL_GUARDS = {
         "!document.hidden && !polling",
         "pageshow",
     ],
-    "remote.js": ["if (!document.hidden) poll();"],
+    "cockpit.js": ["if (!document.hidden) poll();"],
     "app.js": [
         "if (!document.hidden) timer = {id: setTimeout(pollFetch",
         "!document.hidden && !fetching",
@@ -945,10 +945,18 @@ def test_live_says_when_quiet_hours_are_active(services):
     assert api.live(services)["quiet"] is False
 
 
+def test_the_old_remote_address_redirects_to_the_cockpit_without_a_login(client):
+    for auth in (True, False):
+        status, _ = client("/remote", auth=auth)
+        assert status == 303
+        assert client.headers["Location"].endswith("/cockpit")
+    assert client("/cockpit", auth=False)[0] == 200
+
+
 def test_cockpit_has_the_quiet_hours_overlay(client):
-    body = client("/remote")[1]
+    body = client("/cockpit")[1]
     assert 'id="r-dim"' in body
-    js = client("/static/remote.js")[1]
+    js = client("/static/cockpit.js")[1]
     assert "live.quiet" in js
 
 
@@ -1074,7 +1082,7 @@ PAGES = [
     "/config/airports",
     "/config/pronunciation",
     "/config/planner",
-    "/remote",
+    "/cockpit",
 ]
 
 
@@ -1103,7 +1111,7 @@ def test_the_pages_and_unversioned_static_files_are_revalidated(client):
 
 def test_versioned_static_files_are_left_to_the_browser(client):
     """?v= changes with the file, so app.js and the others cost no request at all while their address is the same."""
-    for name in ("app.js", "style.css", "remote.js"):
+    for name in ("app.js", "style.css", "cockpit.js"):
         client(f"/static/{name}?v=1")
         assert "Cache-Control" not in client.headers, name
 
@@ -1132,13 +1140,13 @@ def test_one_update_check_for_every_page(client):
     ):
         assert part in js, part
     assert "'visibilitychange', checkVersion" in js and "e.persisted" in js
-    remote = client("/static/remote.js")[1]
+    remote = client("/static/cockpit.js")[1]
     remote = remote if isinstance(remote, str) else remote.decode()
     assert "/api/version" not in remote and "dataset.version" not in remote
 
 
 def test_b102_cockpit_shows_the_raw_metar_during_awos(client):
-    remote = client("/static/remote.js")[1]
+    remote = client("/static/cockpit.js")[1]
     remote = remote if isinstance(remote, str) else remote.decode()
     assert "'/api/metar/' + encodeURIComponent(code)" in remote  # the raw METAR in the bar
     assert "base + encodeURIComponent(code)" in remote  # the spoken sentence is the fallback
@@ -1351,7 +1359,7 @@ def legend_rows(body):
     return {key: hidden == " hidden" for key, hidden in re.findall(r'<li data-key="([^"]+)"( hidden)?>', body)}
 
 
-@pytest.mark.parametrize("page", ["/", "/map", "/remote"])
+@pytest.mark.parametrize("page", ["/", "/map", "/cockpit"])
 def test_legend_in_use_only(client, page):
     """No METARs fetched: every airport is "METAR not available", the only entry in use."""
     rows = legend_rows(client(page)[1])
@@ -1607,27 +1615,27 @@ def info_modes(page):
 
 def test_the_info_tab_offers_awos_with_a_server(client):
     """Only once there's a speech server to read the reports: then AWOS beside Locate, on the same airports."""
-    page = client("/remote")[1]
+    page = client("/cockpit")[1]
     assert info_modes(page) == [] and 'id="r-speak-audio"' not in page
     client.services.config.data.speech.enabled = True
     client.services.config.data.speech.wyoming_host = "192.168.0.14"
-    page = client("/remote")[1]
+    page = client("/cockpit")[1]
     assert info_modes(page) == ["locate", "awos"] and 'id="r-speak-audio"' in page
     codes = [a.code for a in client.services.config.airports if a.code]
     assert re.findall(r'data-speak="([A-Z0-9]+)"', page) == codes  # each airport, in the map's order
-    assert page.count('data-call="/locate/') == len(codes)  # Locate is the mode it opens in (remote.js)
+    assert page.count('data-call="/locate/') == len(codes)  # Locate is the mode it opens in (cockpit.js)
 
 
 def test_the_info_tab_offers_atis_with_speech_atis(client):
     speech = client.services.config.data.speech
     speech.enabled, speech.wyoming_host, speech.atis = True, "192.168.0.14", True
     client.services.atis = SimpleNamespace(available=lambda: {"KHOU"})
-    page = client("/remote")[1]
+    page = client("/cockpit")[1]
     assert info_modes(page) == ["locate", "awos", "atis"]
     assert re.findall(r'data-station="(\w+)" data-speak="\w+" data-atis="true"', page) == ["KHOU"]
     assert 'id="r-no-atis"' in page
     speech.atis = False
-    assert info_modes(client("/remote")[1]) == ["locate", "awos"]
+    assert info_modes(client("/cockpit")[1]) == ["locate", "awos"]
 
 
 def test_config_has_a_spoken_weather_section(client):
@@ -1671,9 +1679,9 @@ def test_kokoro_settings(client):
 def test_the_awos_mode_follows_the_engine(client):
     speech = client.services.config.data.speech
     speech.enabled, speech.engine, speech.kokoro_url = True, "kokoro", "http://192.168.0.164:8880"
-    assert "awos" in info_modes(client("/remote")[1])
+    assert "awos" in info_modes(client("/cockpit")[1])
     speech.engine = "wyoming"  # and no Home Assistant set
-    assert "awos" not in info_modes(client("/remote")[1])
+    assert "awos" not in info_modes(client("/cockpit")[1])
 
 
 def test_config_shows_the_engines_settings(client):
@@ -1705,10 +1713,10 @@ def test_enable_speech_opens_the_settings(client):
     page = client("/config")[1]
     assert 'data-key="speech.enabled"' in page
     assert 'data-when="speech-enabled" hidden' in page  # the server settings wait for the switch
-    assert "data-awos=" not in client("/metars")[1] and "awos" not in info_modes(client("/remote")[1])
+    assert "data-awos=" not in client("/metars")[1] and "awos" not in info_modes(client("/cockpit")[1])
     assert client("/config/edit/speech.enabled/true")[0] == 200
     assert 'data-when="speech-enabled">' in client("/config")[1]
-    assert "data-awos=" in client("/metars")[1] and "awos" in info_modes(client("/remote")[1])
+    assert "data-awos=" in client("/metars")[1] and "awos" in info_modes(client("/cockpit")[1])
 
 
 def test_speech_settings(client):
@@ -2435,8 +2443,8 @@ def test_the_web_pages_are_metarmap2_web(client):
     assert status == 200 and "<title>Map · MetarMap2 Web</title>" in body
     assert "MetarMap2 Web\n" in body  # the brand beside the logo
     menu = body[body.index('<nav class="nav"') : body.index("</nav>")]
-    assert [x.split('"')[1] for x in menu.split("<a href=")[1:]] == ["/", "/metars", "/map", "/remote", "/config"]
-    assert '<a href="/remote">Cockpit</a>' in menu
+    assert [x.split('"')[1] for x in menu.split("<a href=")[1:]] == ["/", "/metars", "/map", "/cockpit", "/config"]
+    assert '<a href="/cockpit">Cockpit</a>' in menu
     assert "Live mirror of the Chart and the Micro. Click an airport for its weather." in body
 
 
@@ -2450,7 +2458,7 @@ def test_home_screen_icon_is_a_180_px_png():
 
 def test_remote_page(client):
     app = client.services
-    status, body = client("/remote", auth=False)  # it changes nothing that's saved: no login
+    status, body = client("/cockpit", auth=False)  # it changes nothing that's saved: no login
     assert status == 200
     assert "<title>Cockpit · MetarMap2</title>" in body  # MetarMap2 Cockpit (B56)
     assert '<meta name="apple-mobile-web-app-title" content="Cockpit">' in body
@@ -2516,7 +2524,7 @@ def test_a_visualizer_picked_by_hand_restarts_the_auto_rotate_countdown(client, 
 
 def test_remote_auto_rotate_switch(client):
     app = client.services
-    assert 'id="auto-rotate" class="switch" type="checkbox">' in client("/remote", auth=False)[1]
+    assert 'id="auto-rotate" class="switch" type="checkbox">' in client("/cockpit", auth=False)[1]
     assert client.json("/api/live", auth=False)["visualizer"]["autoRotate"] == {
         "enabled": False,
         "seconds": app.config.data.visualizer.auto_rotate.delay_seconds,
@@ -2527,7 +2535,7 @@ def test_remote_auto_rotate_switch(client):
     assert app.config.data.visualizer.auto_rotate.enabled
     (job,) = app.scheduler.get_jobs("rotate_visualizer")
     assert client.json("/api/live")["visualizer"]["autoRotate"]["next"] == job.next_run.timestamp()
-    assert 'id="auto-rotate" class="switch" type="checkbox" checked' in client("/remote")[1]
+    assert 'id="auto-rotate" class="switch" type="checkbox" checked' in client("/cockpit")[1]
     assert client("/visualizer/auto_rotate/off", auth=False)[0] == 200
     assert not app.config.data.visualizer.auto_rotate.enabled and not app.scheduler.get_jobs("rotate_visualizer")
     assert client("/visualizer/auto_rotate/maybe", auth=False)[0] == 400
@@ -2602,12 +2610,12 @@ def test_skipped_visualizers_in_the_api_and_the_cockpit(client):
     assert status()["wind"] is True and status()["wind_gusts"] is False
     assert client.json("/api/live", auth=False)["visualizer"]["autoRotate"]["skip"] == ["wind"]
 
-    body = client("/remote", auth=False)[1]
+    body = client("/cockpit", auth=False)[1]
     assert body.count('<span class="skip-badge"') == len(app.renderer.visualizers)  # the badge is in each chip
     assert body.count('class="chip skipped"') == 1
     assert 'class="chip skipped" type="button" aria-pressed="false" data-call="/visualizer/wind"' in body
     assert 'data-id="wind"' in body and 'id="r-toast"' in body
-    js = client("/static/remote.js", auth=False)[1]
+    js = client("/static/cockpit.js", auth=False)[1]
     for text in ("PRESS_MS = 600", "touchstart", "mousedown", "contextmenu", "/skip", "/unskip", "autoRotate.skip"):
         assert text in js
     assert (
@@ -2621,17 +2629,17 @@ def test_skipped_visualizers_in_the_api_and_the_cockpit(client):
 def test_remote_page_follows_the_map(client):
     app = client.services
     app.display.start()
-    assert 'id="oled-on" class="switch" type="checkbox" checked' in client("/remote")[1]
+    assert 'id="oled-on" class="switch" type="checkbox" checked' in client("/cockpit")[1]
     client("/visualizer/rainbow")  # Rainbow: locate is paused
     client("/config/edit/led.virtual_count/1")
     client("/config/airports/50/code/KDWH")
-    body = client("/remote")[1]
+    body = client("/cockpit")[1]
     assert '<div class="name" id="r-vis-name">Rainbow</div>' in body
     assert '<span class="badge warn" id="r-paused">Locate is paused by Rainbow</span>' in body
     assert 'class="r-grid paused"' in body
     assert 'class="r-apt virtual" type="button" data-call="/locate/50"' in body
     client("/config/edit/display_screen.enabled/false")
-    assert 'id="oled-on"' not in client("/remote")[1]
+    assert 'id="oled-on"' not in client("/cockpit")[1]
 
 
 # ---- airport names ----------------------------------------------------------------------------------------------
@@ -2911,13 +2919,13 @@ def test_the_pages_have_somewhere_to_read_along(client):
     speech.enabled, speech.wyoming_host, speech.atis = True, "192.168.0.14", True
     client.services.atis = SimpleNamespace(available=lambda: {"KHOU"})
     assert 'id="atis-sheet"' in client("/metars")[1]
-    assert 'id="r-transcript"' in client("/remote")[1]
+    assert 'id="r-transcript"' in client("/cockpit")[1]
     speech.atis = False
     client.services.atis = SimpleNamespace(available=lambda: set())
-    assert 'id="atis-sheet"' not in client("/metars")[1] and 'id="r-transcript"' not in client("/remote")[1]
+    assert 'id="atis-sheet"' not in client("/metars")[1] and 'id="r-transcript"' not in client("/cockpit")[1]
 
 
-@pytest.mark.parametrize("page", ["/map", "/remote"])
+@pytest.mark.parametrize("page", ["/map", "/cockpit"])
 def test_the_map_popup_can_read_along(client, page):
     """The popup's Listen tab (map.js) reads an ATIS along with app.js's window.metarmapTranscript."""
     body = client(page)[1]

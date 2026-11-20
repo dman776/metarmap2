@@ -518,17 +518,17 @@ pre.dump { margin: 0; padding: 16px 20px; overflow: auto; font: 13px/1.6 var(--m
     .trow.metar > :nth-child(6) { grid-area: btn; }
 }
 
-/* remote (kiosk): a bar with the tabs, and the open tab filling the rest of the screen and scrolling on its own.
-   --kiosk-h is the window's height from remote.js: an older iPad's Safari has no dvh, and its 100vh reaches under
+/* Cockpit (kiosk): a bar with the tabs, and the open tab filling the rest of the screen and scrolling on its own.
+   --kiosk-h is the window's height from cockpit.js: an older iPad's Safari has no dvh, and its 100vh reaches under
    the toolbars */
 body.kiosk { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
 body.kiosk main.wrap { max-width: none; height: 100vh; height: var(--kiosk-h, 100dvh); gap: 0; padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
-.remote { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
+.cockpit { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
 .r-bar { display: flex; align-items: center; gap: 10px; }
 .r-brand { flex: none; }
 .r-brand-name { flex: none; margin-left: -2px; color: var(--text); font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }  /* as .brand */
 /* iPad Safari's own close button sits over the top left corner in fullscreen */
-@media (pointer: coarse) { .remote.fullscreen .r-bar { padding-left: 72px; } }
+@media (pointer: coarse) { .cockpit.fullscreen .r-bar { padding-left: 72px; } }
 .r-tabs { flex: 1 1 auto; min-width: 0; max-width: 560px; display: flex; gap: 4px; padding: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
 .r-tab { flex: 1 1 0; min-width: 0; min-height: 44px; padding: 0 8px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font: 600 14px var(--sans); cursor: pointer; }
 .r-tab svg { flex: none; }
@@ -539,8 +539,8 @@ body.kiosk main.wrap { max-width: none; height: 100vh; height: var(--kiosk-h, 10
 .r-host { margin-left: auto; }
 .host.offline::before { background: var(--ifr); }
 .host.offline::after { content: "can't reach the Chart"; color: #ff8a8a; }
-.remote.offline .r-panel { opacity: .5; }
-/* quiet hours: the page at about 15% brightness; the overlay takes every touch (remote.js wakes it) */
+.cockpit.offline .r-panel { opacity: .5; }
+/* quiet hours: the page at about 15% brightness; the overlay takes every touch (cockpit.js wakes it) */
 .r-dim { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 1000; background: rgba(0, 0, 0, .85); touch-action: manipulation; }
 .r-dim[hidden] { display: none; }
 .r-full .exit, .r-full[aria-pressed="true"] .enter { display: none; }

@@ -298,7 +298,7 @@
 
     // ---- an ATIS to read along (/api/atis/<code>/lines): each line the FAA's text, then how it's said. While the
     // audio plays, the line being said is lit and kept in view. The voice doesn't say when it reaches a line, so it's
-    // worked out from how long each line's words are: close, not exact. remote.js uses it too (window.metarmapTranscript)
+    // worked out from how long each line's words are: close, not exact. cockpit.js uses it too (window.metarmapTranscript)
     const LEAD = 0.5;  // seconds: a jump lands this far before its line, so as not to miss the start of it. A line is
                        // lit this much early, so the one jumped to is the one lit
     const lineWeights = function (lines) {

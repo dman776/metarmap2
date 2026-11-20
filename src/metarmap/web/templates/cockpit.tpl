@@ -1,8 +1,8 @@
-%include("header.tpl", title="Cockpit", page="remote", kiosk=True, leaflet=True)
+%include("header.tpl", title="Cockpit", page="cockpit", kiosk=True, leaflet=True)
 % import json
 % from metarmap.web import icons
 {{!icons.sprite()}}
-<div class="remote">
+<div class="cockpit">
     <header class="r-bar">
         <svg class="r-brand" width="22" height="22" viewBox="0 0 24 24" aria-label="MetarMap2" role="img"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z" fill="none" stroke="#f5b544" stroke-width="1.8" stroke-linejoin="round"/></svg>
         <span class="r-brand-name">Cockpit</span>
@@ -47,7 +47,7 @@
                         data-vis="{{i}}" data-id="{{v['id']}}" data-name="{{v['name']}}" data-desc="{{v['description']}}" data-exclusive="{{'true' if v['exclusive'] else 'false'}}">{{!icons.use(v['icon'])}}{{v['name']}}<span class="skip-badge" aria-hidden="true">skip</span></button>
                 % end
             </div>
-            <!-- press and hold a visualizer to leave it out of auto-rotate, or put it back (remote.js) -->
+            <!-- press and hold a visualizer to leave it out of auto-rotate, or put it back (cockpit.js) -->
             <div class="r-toast" id="r-toast" role="status" aria-live="polite" hidden></div>
         </div>
         <div class="r-legend" id="r-legend">
@@ -77,7 +77,7 @@
         </div>
     </section>
 
-    <!-- the Map page's map; remote.js loads map.js the first time the tab opens (Leaflet can't lay out a hidden map) -->
+    <!-- the Map page's map; cockpit.js loads map.js the first time the tab opens (Leaflet can't lay out a hidden map) -->
     <section class="r-panel r-map" id="r-map" role="tabpanel" aria-labelledby="tab-map" hidden>
         <div id="map" class="live-map" role="region" aria-label="Map of airport pixels" data-script="/static/map.js?v={{assets}}"></div>
         %include("vis_choices.tpl", visualizers=visualizers, active=active)
@@ -140,9 +140,9 @@
     </section>
 </div>
 
-<!-- quiet hours: a dark overlay over the page; the first touch only wakes it (remote.js) -->
+<!-- quiet hours: a dark overlay over the page; the first touch only wakes it (cockpit.js) -->
 <div class="r-dim" id="r-dim" hidden></div>
 
-<script src="/static/remote.js?v={{assets}}"></script>
+<script src="/static/cockpit.js?v={{assets}}"></script>
 
 %include("footer.tpl", kiosk=True)

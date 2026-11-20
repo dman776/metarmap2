@@ -5,6 +5,8 @@ The web UI's pages. Each page function gathers its template's data from the map'
 import io
 import pprint
 
+import bottle
+
 from metarmap import system
 from metarmap.atis import AtisError
 from metarmap.atis_spoken import unknown
@@ -75,12 +77,12 @@ def map_page(services: Services, site):
     )
 
 
-def remote(services: Services, site):
-    """A remote control for the map, laid out for an iPad in kiosk mode."""
+def cockpit(services: Services, site):
+    """The Cockpit: a remote control for the map, laid out for an iPad in kiosk mode."""
     s = stations(services)
     return render(
         site,
-        "remote.tpl",
+        "cockpit.tpl",
         stations=s,
         cats=views.CATEGORIES,
         settings=views.map_settings(services.config.data.geo.map, site.sectionals, s),
@@ -244,7 +246,9 @@ def add_routes(app, services: Services, site, auth):
     app.route("/metars", "GET", lambda: metars(services, site))
     app.route("/map", "GET", lambda: map_page(services, site))
     app.route("/map/legend", "GET", lambda: legend(services, site))
-    app.route("/remote", "GET", lambda: remote(services, site))
+    app.route("/cockpit", "GET", lambda: cockpit(services, site))
+    # the Cockpit's old address (a bookmark, a Home Screen icon)
+    app.route("/remote", "GET", lambda: bottle.redirect("/cockpit", 303))
     app.route("/debug", "GET", lambda: debug(services, site))
     app.route("/raw", "GET", lambda: raw(services))
     app.route("/raw/<code>", "GET", lambda code: raw_code(services, code))
