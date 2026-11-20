@@ -37,7 +37,8 @@ network = ["zeroconf"]
 dev = [
     "pytest>=7",
     "pytest-xdist>=3",  # pytest runs the tests on every core (addopts -n auto); -n0 runs one test in the foreground
-    "mypy>=1.8",  # CI type check; modules that still fail are listed under [[tool.mypy.overrides]]
+    "mypy==1.19.1",  # CI type check, pinned like ruff: the newest that installs on Python 3.9 (2.x needs 3.10); modules that still fail are listed under [[tool.mypy.overrides]]
+    "types-requests",  # mypy 1.19 reports requests as untyped without these stubs
     "ruff==0.17.2",  # the same version as .pre-commit-config.yaml: the formatter's output can change between versions
 ]
 

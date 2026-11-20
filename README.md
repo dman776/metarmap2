@@ -543,7 +543,8 @@ and the web UI (including the live Map page and its Micro window) works as usual
   setup run the set-up line again, or pytest stops with `unrecognized arguments: -n`. For one test, or to see its
   `print` output, add `-n0`: `.venv/bin/pytest -n0 tests/test_renderer.py -k chase`
 - Check the types: `.venv/bin/mypy`. Modules listed under `[[tool.mypy.overrides]]` in `pyproject.toml` still have
-  errors and are skipped; fix one and delete it from the list so CI keeps it clean
+  errors and are skipped; fix one and delete it from the list so CI keeps it clean. CI runs it on Python 3.9 with a
+  pinned mypy, so a newer Python can report different errors
 - Check the code: `.venv/bin/ruff check .`
 - Run the map: `.venv/bin/python -m metarmap --port 8080` (or `.venv/bin/metarmap --port 8080`), from the folder
   with `config.json`. Without `--port` it uses `web_server.port` from `config.json` (80); `--version` prints the
