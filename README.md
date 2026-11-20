@@ -143,7 +143,7 @@ Settings save as you change them.
 
 ![Config, Physical display: the Chart pixels (data pin, color order, startup sequence, brightness, quiet hours) and the Micro](docs/images/config_physical_display.png)
 
-![Config, Visualizers: the global settings (default visualizer, missing data blink, legend items in use, lightning and its color, auto-rotate), then Flight Category, Forecast and TFR](docs/images/config_visualizers.png)
+![Config, Visualizers: the global settings (default visualizer, missing data blink, legend items in use, lightning and its color, transition between visualizers, auto-rotate), then Flight Category, Forecast and TFR](docs/images/config_visualizers.png)
 
 ![Config, Airports: the airport at each pixel, in the order the pixels are wired, with the Hidden pixel switch (pixels 3 and 7 are hidden)](docs/images/config_airports.png)
 

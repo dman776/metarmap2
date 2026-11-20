@@ -56,6 +56,7 @@ Returns a read-only snapshot of the Chart's state as `application/json`. No auth
     "visualizer.auto_rotate.delay_seconds": 60,
     "visualizer.auto_rotate.skip": [],
     "visualizer.auto_rotate.skip_dark": false,
+    "visualizer.transition": "cut",
     "visualizer.missing_data_blink": true,
     "visualizer.estimated_category_breathing": true,
     "visualizer.forecast_step_seconds": 6,
@@ -604,6 +605,7 @@ Settings that apply right away:
 - `display_screen.enabled`: turns the Micro on or off (blank)
 - `tfr.nearby_nm`: the TFR visualizer also shows a TFR this close to an airport (dim), 0 to 50 NM; 0 is inside only. 10 by default. Applies right away
 - `lightning.animation`: a double flicker every 2 s on airports with lightning at, over or near them (an `LTG` remark with no distance, `OHD` or `VC`; not distant lightning alone, `LTG DSNT`) or a thunderstorm (`TS`, `TSRA`, `VCTS`...), over whatever every weather visualizer shows; Rainbow and Chase are unaffected. Off: no flashes anywhere (Precipitation still shows a thunderstorm: its precipitation, else yellow)
+- `visualizer.transition`: how the Chart's pixels change when the visualizer changes, by any route (a button, auto-rotate, the Micro, a client): `cut` (at once, the default), `dissolve` (each pixel blends from its color to the new one) or `dip` (each pixel fades to dark, then up to the new color). Always 0.5 s. Pixels only: the Map page switches at once. Any other value is a 400 (Config > Visualizers > Global)
 - `visualizer.missing_data_blink`: the slow red blink on an airport whose report lacks what the visualizer shows (no flight category, visibility or sky condition; no wind speed; weather codes the Chart doesn't know...), in every visualizer. `false`: those pixels stay dark, and the legends say *Off*. `true` by default. An airport that is only waiting for a feed's first data (G-AIRMETs and SIGMETs, the TFR list, the FAA status) is not missing data: it breathes dim white (legend `key` `waiting`, `effect` `pulse`) until the data comes, with this setting on or off. An airport whose position is unknown is still missing data in Advisories and TFR.
 - `visualizer.estimated_category_breathing`: an estimated flight category (the station reported visibility or clouds, but no category) breathes slowly. `false`: a steady color, like a reported category; the Micro still marks it (`VFR*`). `true` by default
 - `visualizer.forecast_step_seconds`: Flight Category Forecast and Precipitation Forecast show each step (now, +3, +6 and +12 hours) this many seconds (2-30), fading into the next. `6` by default (Config > Visualizers > Forecast)

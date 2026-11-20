@@ -217,12 +217,19 @@ class AutoRotate(_Section):
     skip_dark: bool = False
 
 
+# visualizer.transition: how the LEDs change from one visualizer to another. cut: at once; dissolve: each LED blends
+# from its color to the new one; dip: each LED fades to dark, then up to the new one (renderer.TRANSITION_SECONDS)
+VISUALIZER_TRANSITIONS = ("cut", "dissolve", "dip")
+
+
 @dataclass
 class VisualizerSettings(_Section):
     # the id of the visualizer at startup (its number is taken too, and saved as the id). Older files saved a number
     # (and a `numbering`): see migrate_visualizers
     active: str = setting("flight_category", parse=visualizer_id)
     auto_rotate: AutoRotate = field(default_factory=AutoRotate)
+    # how the LEDs change to another visualizer (not the web map): cut, dissolve or dip
+    transition: str = setting("cut", choices=VISUALIZER_TRANSITIONS)
     # the slow red blink of an airport whose report lacks what the visualizer shows; off: its LED stays dark
     missing_data_blink: bool = True
     # an estimated flight category breathes slowly; off: it shows in a steady color

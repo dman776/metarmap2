@@ -51,6 +51,10 @@ FADE_MIN_STEP = 0.0011
 LOCATE_SECONDS = 1.0  # a locate() pulse: dark, up to white and back down once, over this long
 LOCATE_SPEED = 0.1  # a step of it
 LOCATE_GRACE = 0.5  # a pulse still on this long after it should have ended (no frames drawn meanwhile) is ended
+# a change to another visualizer (visualizer.transition): dissolve blends over this long, dip fades out for half of it
+# and in for the other half. Frames come at least every TRANSITION_FRAME_SECONDS meanwhile, for a smooth blend
+TRANSITION_SECONDS = 0.5
+TRANSITION_FRAME_SECONDS = 0.02
 
 
 def at_time(look, seconds):
@@ -102,6 +106,41 @@ class _Located:
 
     def _complete(self, _animation):
         self.finished = True
+
+
+def rgb(color):
+    """An LED's color as a tuple: a whole-strip animation (Rainbow) may set a packed 0xRRGGBB int (the in-memory strip
+    keeps it as set; a NeoPixel strip gives tuples back)."""
+    if isinstance(color, int):
+        return ((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF)
+    return tuple(color)
+
+
+def blend(start, end, t):
+    """The color `t` (0 to 1) of the way from `start` to `end`."""
+    return tuple(int(round(a + (b - a) * t)) for a, b in zip(start, end))
+
+
+class _Transition:
+    """
+    A change to another visualizer, over TRANSITION_SECONDS: each LED from the color it showed at the switch (frozen,
+    so the old animations stop at once) to what the new animations draw now (live). render() draws the new animations
+    as usual, keeps what they drew (live) and puts the blend on the strip in its place.
+    """
+
+    def __init__(self, style, frozen, started):
+        self.style = style  # "dissolve" or "dip"
+        self.frozen = frozen  # each LED's color at the switch
+        self.started = started  # Clock.monotonic()
+        self.live = None  # each LED's color as the new animations last drew it; None until their first frame
+
+    def color(self, i, t):
+        """LED i's color `t` (0 to 1) of the way through."""
+        frozen, live = self.frozen[i], self.live[i]
+        if self.style == "dip":  # down to dark, then up to the new color
+            off = (0,) * len(live)
+            return blend(frozen, off, t * 2) if t < 0.5 else blend(off, live, t * 2 - 1)
+        return blend(frozen, live, t)
 
 
 def frame_due(animations, window=0):
@@ -162,6 +201,8 @@ class Renderer:
         self._frozen = None  # the animations stop() froze, until resume()
         # LED number -> _Located: the locate() pulses on now, drawn by render() over those LEDs' own animations
         self._pulses = {}
+        self._transition = None  # a _Transition to the visualizer just picked, while it's on
+        self._drawn = False  # a frame has been drawn: no transition into the first visualizer (startup)
         # (animations, monotonic_ms) when render() draws the next frame of those animations; other ones draw at once
         self._next_frame = (None, 0)
         # set (never waited on) when the strip must be drawn at once: a brightness change, a locate() pulse, resume()
@@ -177,10 +218,11 @@ class Renderer:
 
     # ---- looks -> animations ------------------------------------------------------------------------------------
 
-    def _rebuild(self, keep_step=False):
+    def _rebuild(self, keep_step=False, transition=False):
         """
         New looks and animations from the data, settings and visualizer. keep_step (new data only): a stepping
         visualizer (Flight Category Forecast) goes on at the step it's on instead of starting again at Now.
+        transition (another visualizer): the LEDs change to it as visualizer.transition says.
         """
         # web threads (a visualizer picked, a setting changed) and the fetch's thread can rebuild at the same time
         with self._lock:
@@ -222,9 +264,17 @@ class Renderer:
                 # everything this one did, or newer. Else a fetch landing during a visualizer change could put back
                 # the old visualizer's looks
                 return
+            if transition:
+                self._start_transition()  # from what the LEDs show now, before anything below changes them
             if strip_look is None or not lit:
+                off = colors_lib.color(colors_lib.OFF)
+                live = self._transition.live if self._transition is not None else None
                 for i in range(lit, len(self._pixels)):  # nothing draws them now: dark, not stuck on their last color
-                    self._pixels[i] = colors_lib.color(colors_lib.OFF)
+                    self._pixels[i] = off
+                    if live is not None and i < len(live):
+                        # a transition on now puts its colors back before each frame: dark there too (with a locate()
+                        # pulse ended below on it), so the LED fades out instead of staying lit
+                        live[i] = rgb(off)
             # a locate() pulse goes on over the new animations (they draw every LED on their first frame, so what's
             # under it is new too), except on an LED that's no longer lit or under a visualizer that ignores locate()
             self._end_pulses(lambda n: vis.exclusive or n >= lit, restore=False)
@@ -233,6 +283,48 @@ class Renderer:
             self._installed = generation
             self._look_dicts = None  # led_states()'s cache
             self.revision += 1
+
+    def _start_transition(self):
+        """
+        Starts a change to the new visualizer as visualizer.transition says (in the lock), from the colors on the LEDs
+        now: mid-way through another one, the blend shown. Cut (or no frame drawn yet: startup, or a startup sequence
+        has the strip) changes at once, and ends one that's on.
+        """
+        style = self._config.data.visualizer.transition
+        if style not in ("dissolve", "dip") or not self._drawn or self._frozen is not None:
+            self._transition = None
+            return
+        frozen = [rgb(self._pixels[i]) for i in range(len(self._pixels))]
+        self._transition = _Transition(style, frozen, self._clock.monotonic())
+        self._wake.set()
+
+    def _under_transition(self):
+        """The new animations' own colors back in the strip's buffer, so an LED not due this frame keeps its own."""
+        transition = self._transition
+        if transition is not None and transition.live is not None:
+            for i in range(min(len(self._pixels), len(transition.live))):
+                self._pixels[i] = transition.live[i]
+
+    def _draw_transition(self):
+        """
+        Keeps what the frame drew (the new animations, the Hidden Pixels dark, a locate() pulse) and puts the blend
+        from the frozen colors on the strip in its place. At the end it leaves the frame as drawn, and ends.
+        """
+        transition = self._transition
+        if transition is None:
+            return
+        transition.live = [rgb(self._pixels[i]) for i in range(len(self._pixels))]
+        t = max(0.0, (self._clock.monotonic() - transition.started) / TRANSITION_SECONDS)
+        if t >= 1:
+            self._transition = None
+            return
+        for i in range(min(len(self._pixels), len(transition.frozen))):
+            self._pixels[i] = transition.color(i, t)
+
+    @property
+    def transitioning(self):
+        """Whether the LEDs are changing to another visualizer now (visualizer.transition)."""
+        return self._transition is not None
 
     @property
     def looks(self):
@@ -325,14 +417,21 @@ class Renderer:
         """
         try:
             with self._lock:
-                self._under_pulses()
-                for animation in self._animations:
-                    animation.animate(show=False)
-                self._darken_hidden()
-                self._draw_pulses()
-                self._pixels.show()
+                self._draw(self._animations)
         except Exception as e:
             log.warning("draw_frame error: " + str(e))
+
+    def _draw(self, animations):
+        """One frame of `animations` (in the lock), sent to the strip once."""
+        self._under_transition()  # the new visualizer's own colors back in the buffer, not the blend...
+        self._under_pulses()  # ...and a located LED's own color, for its animation...
+        for animation in animations:  # ...each animation draws into the strip's buffer if it's due...
+            animation.animate(show=False)
+        self._darken_hidden()  # ...a whole-strip look leaves the Hidden Pixels dark...
+        self._draw_pulses()  # ...a locate() pulse goes over its LED...
+        self._draw_transition()  # ...a change of visualizer blends it all from the old colors...
+        self._pixels.show()  # ...and the strip is sent once per frame
+        self._drawn = True
 
     def _darken_hidden(self):
         """
@@ -378,12 +477,7 @@ class Renderer:
                     if self._animations is not built:
                         break  # rebuilt: the main loop starts the new animations
                     self._wake.clear()
-                    self._under_pulses()  # a located LED's own color back in the buffer, for its animation...
-                    for animation in built:  # ...each animation draws into the strip's buffer if it's due...
-                        animation.animate(show=False)
-                    self._darken_hidden()  # ...a whole-strip look leaves the Hidden Pixels dark...
-                    self._draw_pulses()  # ...a locate() pulse goes over its LED...
-                    self._pixels.show()  # ...and the strip is sent once per frame
+                    self._draw(built)
                     self._next_frame = (built, self._next_frame_at(built, tick))
         except Exception as e:
             log.warning("render error: " + str(e))
@@ -427,6 +521,8 @@ class Renderer:
         settling = getattr(self._pixels, "settling", None)
         if callable(settling) and settling():
             at = min(at, soonest)
+        if self._transition is not None:  # each step of the blend, until it ends
+            at = min(at, now + min(tick, TRANSITION_FRAME_SECONDS) * 1000)
         return min(at, latest)
 
     def update_data(self, metars):
@@ -439,6 +535,7 @@ class Renderer:
         """Freezes the animations, e.g. while a startup sequence has the strip (a locate() pulse on now ends)."""
         with self._lock:
             self._end_pulses(lambda n: True)
+            self._transition = None  # the sequence writes the LEDs itself; the visualizer is shown as it is after it
             if self._frozen is None:
                 self._frozen = self._animations
                 for animation in self._frozen:
@@ -463,6 +560,7 @@ class Renderer:
         with self._lock:
             self._pixels.resize(count)
             self._pix = [PixelSubset(self._pixels, i, i + 1) for i in range(len(self._pixels))]
+            self._transition = None  # its colors are for the old length
             self._rebuild()
             self.clear()
         return True
@@ -517,8 +615,14 @@ class Renderer:
             if self._vis.exclusive or not 0 <= n < min(self._config.data.led.count, len(self._pixels)):
                 return None
             before = self._pulses.get(n)
-            # what's under it: the LED's own color, not the pulse it takes over from
-            under = before.under if before is not None else tuple(self._pixels[n])
+            # what's under it: the LED's own color, not the pulse it takes over from (nor a transition's blend)
+            transition = self._transition
+            if before is not None:
+                under = before.under
+            elif transition is not None and transition.live is not None and n < len(transition.live):
+                under = transition.live[n]
+            else:
+                under = tuple(self._pixels[n])
             located = _Located(under, monotonic_ms() + (LOCATE_SECONDS + LOCATE_GRACE) * 1000)
             self._pulses[n] = located
             if before is not None:
@@ -555,6 +659,9 @@ class Renderer:
         located = self._pulses.pop(n)
         if restore and n < len(self._pixels):
             self._pixels[n] = located.under
+            live = self._transition.live if self._transition is not None else None
+            if live is not None and n < len(live):
+                live[n] = rgb(located.under)  # what a transition on now puts back before the next frame, not the pulse
         located.done.set()
 
     def _end_pulses(self, which, restore=True):
@@ -580,7 +687,7 @@ class Renderer:
         changed = number != self.active_visualizer
         self._vis = self._visualizers[number]
         self.active_visualizer = number
-        self._rebuild()
+        self._rebuild(transition=changed)  # refresh() rebuilds the same one: no transition
         if changed:
             for callback in list(self._subscribers):
                 callback()

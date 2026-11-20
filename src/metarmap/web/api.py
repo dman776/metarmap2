@@ -115,6 +115,7 @@ def _status_config(cfg):
         "visualizer.auto_rotate.delay_seconds": cfg.visualizer.auto_rotate.delay_seconds,
         "visualizer.auto_rotate.skip": cfg.visualizer.auto_rotate.skip,
         "visualizer.auto_rotate.skip_dark": cfg.visualizer.auto_rotate.skip_dark,
+        "visualizer.transition": cfg.visualizer.transition,
         "visualizer.missing_data_blink": cfg.visualizer.missing_data_blink,
         "visualizer.estimated_category_breathing": cfg.visualizer.estimated_category_breathing,
         "visualizer.forecast_step_seconds": cfg.visualizer.forecast_step_seconds,

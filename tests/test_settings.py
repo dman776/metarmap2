@@ -31,6 +31,17 @@ def test_missing_keys_get_defaults():
     assert s.display_screen.delay == 5.0
 
 
+def test_visualizer_transition_is_cut_unless_set():
+    """An older file has no visualizer.transition: the LEDs change at once, as before."""
+    assert Settings().visualizer.transition == "cut"
+    assert Settings.from_dict({"visualizer": {"active": "wind"}}).visualizer.transition == "cut"
+    for style in ("cut", "dissolve", "dip"):
+        s = Settings()
+        s.set("visualizer.transition", style)
+        assert s.visualizer.transition == style
+        assert Settings.from_dict(s.to_dict()).visualizer.transition == style
+
+
 def test_an_older_files_colors_are_dropped():
     """The LED colors live in the code now; a color section from before isn't kept."""
     s = Settings.from_dict({"color": {"cat": {"vfr": [255, 0, 0]}}, "led": {"count": 3}})
@@ -224,6 +235,7 @@ def test_every_numbered_visualizer_still_exists():
         ("update.channel", "nightly", "update.channel: 'nightly' is not one of releases, latest, branch"),
         ("update.channel", "branch", "update.channel: branch needs dev_mode in config.json"),
         ("display_screen.shows", "both", "display_screen.shows: 'both' is not one of airports, visualizer"),
+        ("visualizer.transition", "wipe", "visualizer.transition: 'wipe' is not one of cut, dissolve, dip"),
         ("speech.timeout", "4", "speech.timeout: '4' is not between 5 and 300 s"),
         ("speech.timeout", "301", "speech.timeout: '301' is not between 5 and 300 s"),
     ],

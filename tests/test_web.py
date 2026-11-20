@@ -2969,6 +2969,7 @@ def test_config_visualizers_tab_has_a_card_for_each_visualizer_with_settings(cli
         "visualizer.auto_rotate.enabled",
         "visualizer.auto_rotate.delay_seconds",
         "visualizer.auto_rotate.skip_dark",
+        "visualizer.transition",
     }
     assert found["Flight Category"] == {"visualizer.estimated_category_breathing"}
     assert found["Forecast"] == {
@@ -3203,3 +3204,15 @@ def test_update_routes_wire_the_updates_to_the_config():
     assert releases.installed == "v9.9.9" and len(checks) == 1
     updates.on_done(SimpleNamespace(changed=False, target="v10.0.0"))  # nothing installed: no new version to show
     assert releases.installed == "v9.9.9" and len(checks) == 2
+
+
+def test_transition_select_on_the_config_page(client):
+    body = client("/config")[1]
+    assert 'data-key="visualizer.transition"' in body
+    assert '<option value="cut" selected>Cut</option>' in body
+    assert '<option value="dip">Dip to black</option>' in body
+    assert client.json("/api/status", auth=False)["config"]["visualizer.transition"] == "cut"
+    assert client("/config/edit/visualizer.transition/dissolve")[0] == 200
+    assert client.json("/api/status", auth=False)["config"]["visualizer.transition"] == "dissolve"
+    assert '<option value="dissolve" selected>Dissolve</option>' in client("/config")[1]
+    assert client("/config/edit/visualizer.transition/fade")[0] == 400
