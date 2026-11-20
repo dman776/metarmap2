@@ -701,7 +701,10 @@ def test_virtual_airports_page(client):
     assert 'data-led="50" data-field="display" checked>' in body
     assert 'data-led="51" data-field="display" disabled>' in body  # no airport yet
     assert 'id="led-count" class="led-count" type="number" inputmode="numeric" min="0" max="998"' in body
-    assert len(app.renderer.looks) == 52 and len(app.renderer.animations) == 50
+    # the virtual airports get looks for the web map but no animation: one per distinct look of the 50 LEDs
+    looks = app.renderer.looks
+    assert len(looks) == 52 and len(app.renderer.animations) == len(set(looks[:50]))
+    assert sum(len(a.pixel_object) for a in app.renderer.animations) == 50
 
     assert client("/config/edit/led.count/3")[0] == 200  # the virtual airports stay, after the strip
     assert [a.code for a in app.config.airports[3:]] == ["KDWH", ""]

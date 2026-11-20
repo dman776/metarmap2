@@ -43,7 +43,8 @@ def look_interval(look: Look):
 
 def animation_for(look: Look, pixel_object):
     """
-    pixel_object is one LED (a PixelSubset) for per-airport looks, or the whole strip for rainbow/chase.
+    pixel_object is one LED (a PixelSubset) for per-airport looks, every LED with the same look (a
+    leds.strip.PixelGroup: the renderer shares one animation between them), or the whole strip for rainbow/chase.
     """
     if look.effect == "solid":
         return Solid(pixel_object, color=look.color)

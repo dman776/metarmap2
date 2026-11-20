@@ -108,6 +108,52 @@ class FakeStrip(list):
         return list(self)
 
 
+class PixelGroup:
+    """
+    Some LEDs of a strip, anywhere along it, as one pixel object: the renderer draws one animation into it for every
+    LED with the same look (Renderer._rebuild), so it runs once a frame instead of once per LED. Writes go straight to
+    the strip (like adafruit_led_animation's PixelSubset, for LEDs that need not be next to each other); item i is the
+    i-th LED in `leds`. What the per-airport animations use: fill(), indexing, len(), show() and auto_write.
+    """
+
+    def __init__(self, strip, leds: Sequence[int]):
+        if not leds:
+            raise ValueError("a PixelGroup needs at least one LED")
+        self._strip = strip
+        self.leds = tuple(leds)  # the LED numbers on the strip, in order
+        self.n = len(self.leds)
+        self.auto_write = False  # the renderer sends the strip once a frame
+
+    def __len__(self) -> int:
+        return self.n
+
+    def __getitem__(self, i):
+        if isinstance(i, slice):
+            return [self._strip[n] for n in self.leds[i]]
+        return self._strip[self.leds[i]]
+
+    def __setitem__(self, i, color) -> None:
+        if isinstance(i, slice):
+            leds = self.leds[i]
+            if len(color) != len(leds):
+                raise ValueError("slice and colors differ in length")
+            for n, c in zip(leds, color):
+                self._strip[n] = c
+        else:
+            self._strip[self.leds[i]] = color
+
+    def fill(self, color) -> None:
+        strip = self._strip
+        for n in self.leds:
+            strip[n] = color
+
+    def show(self) -> None:
+        self._strip.show()
+
+    def __repr__(self) -> str:
+        return f"PixelGroup({list(self.leds)})"
+
+
 class UnopenedStrip(FakeStrip):
     """The strip of a Pi with led.count 0: no NeoPixel is made, and it can't change length (a restart is needed)."""
 
