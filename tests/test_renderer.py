@@ -1405,6 +1405,22 @@ def test_render_rests_after_an_error(config, clock, ticks):
     assert ticks.sleeps == [renderer.FRAME_SECONDS]
 
 
+def test_a_repeating_render_error_logs_its_traceback_once(config, clock, ticks, caplog):
+    class Broken:
+        def animate(self, show=True):
+            raise RuntimeError("no such animation")
+
+    r, _ = make(config, clock)
+    r._animations = [Broken()]
+    with caplog.at_level("WARNING"):
+        r.render()
+        r.render()
+    records = [rec for rec in caplog.records if "render error" in rec.getMessage()]
+    assert len(records) == 2
+    assert records[0].exc_info is not None
+    assert not records[1].exc_info
+
+
 def test_no_leds_is_no_error(config, clock, ticks):
     """An empty airport list: nothing to animate, but render() still rests and returns."""
 

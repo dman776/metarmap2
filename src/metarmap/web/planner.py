@@ -404,7 +404,7 @@ class Planner:
                     job["label"] = label
                     job["_downloaded"] = True
             except Exception:  # a progress report must never break the fetch
-                pass
+                log.debug("progress report failed", exc_info=True)
 
         return progress
 

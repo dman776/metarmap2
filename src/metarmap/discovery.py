@@ -35,7 +35,7 @@ def load_zeroconf():
     except ImportError:
         return None
     except Exception as e:
-        log.warning(f"{PACKAGE} is installed but doesn't load ({type(e).__name__}: {e})")
+        log.warning(f"{PACKAGE} is installed but doesn't load ({type(e).__name__}: {e})", exc_info=True)
         return None
 
 
@@ -172,7 +172,7 @@ class Discovery:
                 self.announcing = True
                 log.info(f"announcing {self.registered_name!r} on the network (port {self.port})")
             except Exception as e:
-                log.warning(f"can't announce the map on the network: {type(e).__name__}: {e}")
+                log.warning(f"can't announce the map on the network: {type(e).__name__}: {e}", exc_info=True)
                 self._stop()
 
     def stop(self):
@@ -190,7 +190,7 @@ class Discovery:
                 zc.unregister_service(info)
             zc.close()
         except Exception as e:
-            log.warning(f"stopping the announcement: {type(e).__name__}: {e}")
+            log.warning(f"stopping the announcement: {type(e).__name__}: {e}", exc_info=True)
 
 
 # pip's lines that say where it is -> (how far along, what the dialog says); the first match in a line wins

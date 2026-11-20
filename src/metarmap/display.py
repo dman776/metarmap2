@@ -236,7 +236,7 @@ class Display:
             try:
                 self._device.clear()
             except Exception as e:
-                log.warning(f"clear for quiet hours: {e}")
+                log.warning(f"clear for quiet hours: {e}", exc_info=True)
             self._screen = None
         while self.quiet():
             self.last_change = self._clock.time()  # waiting on purpose, not stuck: the watchdog leaves it be
@@ -249,7 +249,7 @@ class Display:
             self._renderer.locate(pixel)  # a virtual airport: on the web map only
         except Exception as e:
             # a failed LED pulse shouldn't cost the airport its pages
-            log.warning(f"locate {airport}: {e}")
+            log.warning(f"locate {airport}: {e}", exc_info=True)
 
     def _locate_later(self, pixel, airport, delay, event):
         """The pulse after `delay` seconds on its own thread, while the loop goes on to the airport's pages."""
@@ -300,4 +300,4 @@ class Display:
             self._screen = screen
         except Exception as e:
             # e.g. an I2C error; keep going with the next page
-            log.warning(f"draw {screen.get('title')}: {e}")
+            log.warning(f"draw {screen.get('title')}: {e}", exc_info=True)

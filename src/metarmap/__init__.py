@@ -27,7 +27,9 @@ def _read_version():
         if done.returncode == 0 and done.stdout.strip().startswith("v"):
             return done.stdout.strip()[1:]
     except Exception:  # no git, not a checkout, a timeout, a folder git can't read
-        pass
+        import logging
+
+        logging.getLogger(__name__).debug("no version from git", exc_info=True)
     try:
         from importlib.metadata import version
 

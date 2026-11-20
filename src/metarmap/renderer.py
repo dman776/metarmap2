@@ -239,6 +239,7 @@ class Renderer:
         self._next_frame = (None, 0)
         # set (never waited on) when the strip must be drawn at once: a brightness change, a locate() pulse, resume()
         self._wake = threading.Event()
+        self._last_render_error = None  # the traceback is logged once per distinct error, not every retry
         self._warned = False  # logged that the animations don't say when they're next due
         self.last_locate = None  # {"pixel": n, "at": epoch seconds} of the last locate() pulse
         self._subscribers = []  # called when the visualizer changes: see subscribe()
@@ -456,7 +457,7 @@ class Renderer:
             with self._lock:
                 self._draw(self._animations)
         except Exception as e:
-            log.warning("draw_frame error: " + str(e))
+            log.warning("draw_frame error: " + str(e), exc_info=True)
 
     def _draw(self, animations):
         """One frame of `animations` (in the lock), sent to the strip once."""
@@ -518,7 +519,9 @@ class Renderer:
                     self._draw(built)
                     self._next_frame = (built, self._next_frame_at(built, tick))
         except Exception as e:
-            log.warning("render error: " + str(e))
+            first = self._last_render_error != repr(e)
+            self._last_render_error = repr(e)
+            log.warning("render error: " + str(e), exc_info=first)
             time.sleep(FRAME_SECONDS)  # the main loop calls render() again at once: no hot loop of errors
 
     def _rest(self, built, until):
