@@ -19,8 +19,8 @@ import queue
 import re
 import tempfile
 import threading
-from collections import namedtuple
 from datetime import datetime, timedelta
+from typing import Any, NamedTuple
 
 import requests
 
@@ -78,9 +78,24 @@ MOST_PASSENGERS = 10**6
 LONGEST_RUNWAY = 30000
 MOST_RUNWAYS = 10
 
-Station = namedtuple("Station", "code name lat lon")
-Fetched = namedtuple("Fetched", "items failed")  # what a fetch got, and how many of its requests could not be made
-Result = namedtuple("Result", "airports stale fetched_at error")
+
+class Station(NamedTuple):
+    code: str
+    name: str
+    lat: float
+    lon: float
+
+
+class Fetched(NamedTuple):
+    items: Any
+    failed: int  # how many of the requests could not be made
+
+
+class Result(NamedTuple):
+    airports: list
+    stale: bool
+    fetched_at: Any
+    error: Any
 
 
 def candidates(west, south, east, north, timeout=30, clock=None, budget=None, progress=None, workers=None):
