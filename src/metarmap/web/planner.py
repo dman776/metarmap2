@@ -15,7 +15,7 @@ import re
 import threading
 import time
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
 import bottle
 
@@ -284,9 +284,10 @@ class Planner:
         self.services = services
         self._load = load or live_airports.load
         self._lock = threading.Lock()
-        self.job = None
+        self.job: Optional[Dict[str, Any]] = None
         self._cancel = threading.Event()
-        self._started = self._ended = 0.0
+        self._started = 0.0
+        self._ended: Optional[float] = 0.0
         self._count = 0
 
     def start(self, params):
@@ -660,7 +661,7 @@ class Planner:
         the plan already made, so it is not planned again.
         """
         widths = [board_w * step for step in SWEEP_STEPS if abs(step - 1.0) > 1e-9]
-        done = []
+        done: List[float] = []
 
         def make_pins(width):
             self._step(

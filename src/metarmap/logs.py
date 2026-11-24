@@ -34,7 +34,7 @@ def configure(path=LOG_FILE, console=None, level=logging.INFO) -> logging.Logger
     to_console.setLevel(logging.WARNING)
     for handler in (to_file, to_console):
         handler.setFormatter(formatter)
-        handler._metarmap = True
+        handler._metarmap = True  # type: ignore[union-attr]  # marks our handlers, so a re-run replaces them
         logger.addHandler(handler)
 
     logger.setLevel(level)

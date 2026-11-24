@@ -33,6 +33,7 @@ import threading
 import time
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
+from typing import Any, Dict, List, Set
 
 import requests
 
@@ -194,7 +195,7 @@ def parse(xml_text, unknown=None):
     if root.tag != "AIRPORT_STATUS_INFORMATION":
         raise ValueError(f"not the airport status: <{root.tag}>")
     updated = update_time(text(root, "Update_Time"))
-    airports = {}
+    airports: Dict[str, List[Dict[str, Any]]] = {}
     for delay_type in root.iter("Delay_type"):
         name = text(delay_type, "Name")
         kind = kind_of(name)
@@ -231,7 +232,7 @@ def worst(entries, now):
     The worst of an airport's entries in effect at `now`: {"kind", "minutes", "reason", "until"} ("until": epoch
     seconds, FOREVER if not known, None for what isn't a closure); {"kind": NORMAL, "minutes": None} if none are.
     """
-    best = {"kind": NORMAL, "minutes": None}
+    best: Dict[str, Any] = {"kind": NORMAL, "minutes": None}
     for entry in entries or ():
         if entry["kind"] == CLOSED:
             starts = entry["from"] if entry["from"] is not None else now
@@ -309,7 +310,7 @@ class Delays:
         threading.Thread(target=run, name="delays-fetch", daemon=True).start()
 
     def _fetch(self):
-        unknown = set()
+        unknown: Set[str] = set()
         try:
             response = self._get(STATUS_URL, timeout=TIMEOUT, headers={"User-Agent": USER_AGENT})
             response.raise_for_status()

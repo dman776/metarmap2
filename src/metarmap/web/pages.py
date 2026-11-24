@@ -4,6 +4,7 @@ The web UI's pages. Each page function gathers its template's data from the map'
 
 import io
 import pprint
+from typing import Dict, List
 
 import bottle
 
@@ -205,10 +206,14 @@ def pronunciation(services: Services, site):
     codes = [a.code for a in services.config.airports if a.code]
     with_atis = [c for c in codes if c in api.atis_airports(services)]
     tuned = {(t.text, t.airport) for t in speech.tunings}
-    suggestions, problem = {}, None  # {word: [the airports whose ATIS has it]}
+    suggestions: Dict[str, List[str]] = {}  # {word: [the airports whose ATIS has it]}
+    problem = None
+    atis = services.atis
     for code in with_atis:
+        if atis is None:
+            break  # with_atis is empty without one
         try:
-            entries = services.atis.entries(code)
+            entries = atis.entries(code)
         except AtisError as e:
             problem = str(e)
             continue

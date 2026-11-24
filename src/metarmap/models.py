@@ -67,8 +67,8 @@ class Report:
     longitude: Optional[float] = None
     # added by the map, not the report:
     mock: bool = False  # a mock METAR (dev_mode) in place of the fetched one
-    airmets: Optional[List[dict]] = None  # G-AIRMET hazards over the airport (metar.with_advisories)
-    sigmets: Optional[List[dict]] = None
+    airmets: Optional[List[str]] = None  # G-AIRMET hazards over the airport (metar.with_advisories)
+    sigmets: Optional[List[str]] = None
     tfrs: Optional[List[dict]] = None  # TFRs at or near it (metar.with_tfrs)
     # its worst FAA status now, {"kind": "closed" | "ground_stop" | "delay" | "normal", "minutes"} (metar.with_delays;
     # metarmap.delays); None before the first FAA status ("normal" for an airport with no FAA id)
@@ -178,8 +178,8 @@ class Look:
     low: float = 0.0
     legend: Tuple[str, ...] = field(default=(), compare=False)
 
-    def tagged(self, *keys: str) -> "Look":
-        """The same look, also showing the legend entries `keys` (each once, in order)."""
+    def tagged(self, *keys: Optional[str]) -> "Look":
+        """The same look, also showing the legend entries `keys` (each once, in order; an empty one is skipped)."""
         return replace(self, legend=tuple(dict.fromkeys(self.legend + tuple(k for k in keys if k))))
 
     @classmethod

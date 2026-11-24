@@ -18,7 +18,7 @@ import logging
 import re
 from dataclasses import dataclass
 from fractions import Fraction
-from typing import Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 log = logging.getLogger(__name__)
 
@@ -215,7 +215,7 @@ class Remarks:
     other: Tuple[str, ...] = ()  # what isn't read, as reported: each run of groups between ones that are
 
 
-_LOGGED = set()  # the raw remarks a parse failure was logged for: once each
+_LOGGED: Set[str] = set()  # the raw remarks a parse failure was logged for: once each
 
 
 def parse(raw) -> Remarks:
@@ -268,7 +268,8 @@ def _fields(name, g, obs) -> dict:
     if name == "peak_wind":
         return {"peak_wind": PeakWind(int(g[0]), int(g[1]), *_clock(g[2], g[3], obs))}
     if name == "wind_shift":
-        return {"wind_shift": WindShift(*_clock(g[0], g[1], obs), frontal_passage=bool(g[2]))}
+        hour, minute = _clock(g[0], g[1], obs)
+        return {"wind_shift": WindShift(hour, minute, frontal_passage=bool(g[2]))}
     if name == "vis_at":
         return {("tower_visibility_sm" if g[0] == "TWR" else "surface_visibility_sm"): _miles(g[1])}
     if name == "vis_varies":
@@ -367,7 +368,8 @@ def _lightning(g) -> Lightning:
     """A Lightning of the lightning pattern's groups: frequency, types (ICCG) and places."""
     frequency, types, text = g
     kinds = tuple(dict.fromkeys(types[i : i + 2] for i in range(0, len(types), 2)))  # LTGICIC: in-cloud, once
-    places, through = [], False
+    places: List[Dict[str, Any]] = []
+    through = False
     for token in (text or "").split():
         head, _, rest = token.partition("-")  # OHD-S-SW: overhead, and south through southwest
         if head in DISTANCES or not places:

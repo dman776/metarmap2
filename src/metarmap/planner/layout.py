@@ -10,7 +10,7 @@ import heapq
 import math
 import random
 from dataclasses import dataclass, field, replace
-from typing import Callable, List, NamedTuple, Optional, Sequence
+from typing import Any, Callable, Dict, List, NamedTuple, Optional, Sequence, Set, Tuple
 
 
 class Cancelled(Exception):
@@ -364,7 +364,7 @@ def _close_pairs(xs, ys, min_gap):
     """(distance, i, j) of every pair closer than min_gap, closest first. A grid keeps it from comparing every pair."""
     if min_gap <= 0:
         return []
-    cells = {}
+    cells: Dict[Tuple[int, int], List[int]] = {}
     for k in range(len(xs)):
         cells.setdefault((int(xs[k] // min_gap), int(ys[k] // min_gap)), []).append(k)
     pairs = []
@@ -452,7 +452,7 @@ def _clusters(pins, close):
 
     for _d, i, j in close:
         parent[find(i)] = find(j)
-    groups = {}
+    groups: Dict[int, Set[str]] = {}
     for _d, i, j in close:
         for k in (i, j):
             groups.setdefault(find(k), set()).add(pins[k].code)
@@ -526,13 +526,11 @@ def _neighbours(xs, ys, k, cancel=None):
     result = []
     for a in range(len(xs)):
         _stop_every(cancel, a, 32)
-        result.append(
-            heapq.nsmallest(
-                k,
-                (b for b in range(len(xs)) if b != a),
-                key=lambda b, a=a: (xs[a] - xs[b]) ** 2 + (ys[a] - ys[b]) ** 2,
-            )
-        )
+
+        def squared(b: int, a: int = a) -> float:
+            return (xs[a] - xs[b]) ** 2 + (ys[a] - ys[b]) ** 2
+
+        result.append(heapq.nsmallest(k, (b for b in range(len(xs)) if b != a), key=squared))
     return result
 
 
@@ -797,7 +795,7 @@ def _bridge(a, b, items, settings):
     d = math.hypot(b.x - a.x, b.y - a.y)
     count = math.ceil(d / limit) - 1
     ux, uy = (b.x - a.x) / d, (b.y - a.y) / d
-    placed = []
+    placed: List[Any] = []
     for j in range(1, count + 1):
         spot = None
         for side in (0, 10, -10, 20, -20, 30, -30):

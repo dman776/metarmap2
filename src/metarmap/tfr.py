@@ -21,6 +21,7 @@ import time
 import xml.etree.ElementTree as ET
 from collections import OrderedDict
 from datetime import datetime, timezone
+from typing import Any, Dict
 
 import requests
 
@@ -312,7 +313,7 @@ class Tfrs:
         reach = self.nearby_nm()
         now = self._clock()
         place = (lat, lon) if real(lat) and real(lon) else None  # anything else goes the long way, as it always did
-        found = {}
+        found: Dict[Any, Any] = {}
         with self._known_lock:  # the main thread and the tfr-fetch thread both ask
             boxes, places = self._known_for(tfrs, reach)
             known = None

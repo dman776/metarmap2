@@ -61,6 +61,8 @@ def look(metar: Optional[Report], settings: Settings) -> Look:
     if not metar.altimeter_inhg or metar.elevation_m is None or metar.temp_c is None:
         return style.missing()
     density_altitude = calculate_density_altitude(metar.altimeter_inhg, metar.elevation_m, metar.temp_c)
+    if density_altitude is None:
+        return style.missing()
     above = density_altitude - meters_to_feet(metar.elevation_m)
     return style.band_look(above, BANDS, settings)
 
