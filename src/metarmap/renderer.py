@@ -7,6 +7,7 @@ import threading
 import time
 from contextlib import contextmanager
 from dataclasses import replace
+from typing import Optional
 
 from adafruit_led_animation.animation.pulse import Pulse
 from adafruit_led_animation.animation.rainbowcomet import RainbowComet
@@ -207,7 +208,7 @@ class Renderer:
     sun: today's sun times, for the scheduled brightness
     """
 
-    def __init__(self, strip, metars, config, visualizers, sun: SunTimes, clock: Clock = None):
+    def __init__(self, strip, metars, config, visualizers, sun: SunTimes, clock: Optional[Clock] = None):
         self._pixels = strip
         # one addressable subset per LED, for an airport whose look no other LED has (else a PixelGroup: _rebuild)
         self._pix = [PixelSubset(strip, i, i + 1) for i in range(len(strip))]
@@ -717,10 +718,6 @@ class Renderer:
         """(number, Visualizer) of the one running now."""
         return self.active_visualizer, self._visualizers[self.active_visualizer]
 
-    @property
-    def visualizers(self):
-        return self._visualizers
-
     @visualizer.setter
     def visualizer(self, key):
         """Switches to a visualizer by its id ("wind") or number (3, "3"). Raises LookupError if there's none."""
@@ -732,6 +729,10 @@ class Renderer:
         if changed:
             for callback in list(self._subscribers):
                 callback()
+
+    @property
+    def visualizers(self):
+        return self._visualizers
 
     def subscribe(self, callback):
         """

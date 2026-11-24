@@ -63,6 +63,8 @@ def missing() -> Look:
 
 def has_position(metar: Report) -> bool:
     """Whether the airport's latitude and longitude are known (what a feed's areas are matched against)."""
+    if metar.latitude is None or metar.longitude is None:
+        return False
     try:
         return math.isfinite(float(metar.latitude)) and math.isfinite(float(metar.longitude))
     except (TypeError, ValueError):
@@ -149,12 +151,15 @@ def color_at(look: Look, t: float):
     """The color an LED with `look` shows t seconds in (as the renderer and the web map draw it)."""
     black = colors_lib.color(colors_lib.OFF)
     if look.effect == "blink":
+        assert look.period is not None  # a blink always has its period
         first = math.floor(t / (look.period / 2)) % 2 == 0
         return look.colors[0] if first else (look.colors[1] if len(look.colors) > 1 else black)
     if look.effect == "pulse":
+        assert look.period is not None
         level = look.low + (1 - look.low) * (0.5 - 0.5 * math.cos(2 * math.pi * t / look.period))
         return dim(look.colors[0], level)
     if look.effect == "cycle":
+        assert look.step is not None  # a cycle always has its step
         return look.colors[int(round(t / look.step)) % len(look.colors)]
     return look.colors[0] if look.effect != "off" and look.colors else black
 
@@ -169,6 +174,7 @@ def with_lightning(look: Look, settings: Settings) -> Look:
     frames = []
     cycle = LIGHTNING_CYCLE
     if look.effect == "cycle":  # a look that steps through colors (Flight Category Forecast): all of its steps
+        assert look.step is not None
         cycle = max(cycle, math.ceil(len(look.colors) * look.step / LIGHTNING_CYCLE) * LIGHTNING_CYCLE)
     for n in range(round(cycle / LIGHTNING_STEP)):
         i = n % every

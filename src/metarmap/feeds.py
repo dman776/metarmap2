@@ -9,7 +9,7 @@ metarmap.app.
 import logging
 import threading
 import time
-from typing import List, Optional
+from typing import Any, List, Optional, Set
 
 import schedule
 
@@ -53,7 +53,7 @@ class Feeds:
         self.fetching = threading.Lock()
         # set when an airport code changed: its METAR is fetched now, or right after the fetch under way (refetch_soon)
         self.refetch_due = threading.Event()
-        self._retrying = set()  # the feeds retry_feeds() has said it is trying again, so it says so once
+        self._retrying: Set[str] = set()  # the feeds retry_feeds() has said it is trying again, so it says so once
         # retry_soon() runs on the scheduler's thread and the startup lookup's
         self._retry_lock = threading.Lock()
 
@@ -73,7 +73,9 @@ class Feeds:
         regular fetch, or a retry after a failed one if that comes first. With when they were last fetched, for the
         Home page's countdown.
         """
-        jobs = [j for tag in ("fetch", "retry") for j in self.scheduler.get_jobs(tag) if j.next_run is not None]
+        jobs: List[Any] = [
+            j for tag in ("fetch", "retry") for j in self.scheduler.get_jobs(tag) if j.next_run is not None
+        ]
         soonest = min(jobs, key=lambda j: j.next_run, default=None)
         fetched = self.metars.lastFetchTime
         return {
@@ -214,7 +216,7 @@ class Feeds:
 
         def fetch():
             started = time.monotonic()
-            if self.advisories.fetch():
+            if self.advisories is not None and self.advisories.fetch():
                 log.info(f"advisories fetched in {time.monotonic() - started:.1f}s")
                 self.show_areas()
 
@@ -300,9 +302,17 @@ class Feeds:
             self._retrying.clear()
             return schedule.CancelJob
         for name, failed, fetch in (
-            ("advisories", "advisories" in waiting and self.advisories.failed(), self.fetch_advisories_soon),
-            ("TFR", "TFR" in waiting and self.tfrs.error is not None, self.fetch_tfrs),
-            ("FAA status", "FAA status" in waiting and self.delays.error is not None, self.fetch_delays),
+            (
+                "advisories",
+                "advisories" in waiting and self.advisories is not None and self.advisories.failed(),
+                self.fetch_advisories_soon,
+            ),
+            ("TFR", "TFR" in waiting and self.tfrs is not None and self.tfrs.error is not None, self.fetch_tfrs),
+            (
+                "FAA status",
+                "FAA status" in waiting and self.delays is not None and self.delays.error is not None,
+                self.fetch_delays,
+            ),
         ):
             if failed:
                 # said once per feed, not every minute for as long as the network is down

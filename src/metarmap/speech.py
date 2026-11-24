@@ -31,7 +31,7 @@ import threading
 import time
 import wave
 from collections import OrderedDict
-from typing import Callable, Dict, Optional, Tuple
+from typing import Any, Callable, Dict, Optional, Tuple
 
 import requests
 from urllib3.exceptions import ReadTimeoutError
@@ -215,7 +215,7 @@ class Speech:
                 raise SpeechError(waiting, 503)
             render = self._rendering.get(name)
             mine = render is None
-            if mine:
+            if render is None:
                 render = self._rendering[name] = _Render(now + s.timeout, s.timeout)
         if not mine:
             return self._wait(render, s)
@@ -287,7 +287,7 @@ class Speech:
         the socket's timeout, set to what's left of it before each event, checked between them, and _Cutoff's.
         """
         where = f"{s.wyoming_host}:{s.wyoming_port}"
-        data = {"text": text}
+        data: Dict[str, Any] = {"text": text}
         if s.wyoming_voice:
             data["voice"] = {"name": s.wyoming_voice}
         try:
@@ -433,7 +433,7 @@ def _kokoro_detail(response) -> str:
 
 
 def wyoming_event(kind: str, data: Optional[dict] = None, payload: bytes = b"") -> bytes:
-    header = {"type": kind, "version": WYOMING_VERSION}
+    header: Dict[str, Any] = {"type": kind, "version": WYOMING_VERSION}
     body = json.dumps(data).encode() if data else b""
     if body:
         header["data_length"] = len(body)

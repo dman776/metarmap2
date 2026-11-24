@@ -289,7 +289,7 @@ class Reports:
         self,
         cfg,
         fetch=False,
-        clock: Clock = None,
+        clock: Optional[Clock] = None,
         advisories=None,
         tfrs=None,
         locate_now=True,

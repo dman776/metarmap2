@@ -20,7 +20,7 @@ import re
 import tempfile
 import threading
 from datetime import datetime, timedelta
-from typing import Any, NamedTuple
+from typing import Any, Dict, NamedTuple
 
 import requests
 
@@ -140,7 +140,7 @@ def candidates(west, south, east, north, timeout=30, clock=None, budget=None, pr
         tally.finish(failed)
 
     _run(tiles, fetch, _workers(workers))
-    found = {}
+    found: Dict[str, Any] = {}
     for tile in sorted(results):
         for station in results[tile]:
             found.setdefault(station.code, station)
@@ -251,7 +251,15 @@ def load(
 
     budget = _Budget(clock, deadline)
     stations, failed = candidates(
-        *box, timeout=timeout, clock=clock, budget=budget, progress=phase("stations"), workers=workers
+        box[0],
+        box[1],
+        box[2],
+        box[3],
+        timeout=timeout,
+        clock=clock,
+        budget=budget,
+        progress=phase("stations"),
+        workers=workers,
     )
     extra = {}
     if stations:
@@ -420,7 +428,7 @@ def _run(items, handler, workers):
             except Exception:
                 log.exception("An airport request failed")
         return
-    work = queue.LifoQueue()
+    work: queue.LifoQueue[Any] = queue.LifoQueue()
     for item in items:
         work.put(item)
 

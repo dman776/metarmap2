@@ -105,7 +105,7 @@ class App:
 # ---- building ------------------------------------------------------------------------------------------------
 
 
-def build(config_file=CONFIG_FILE, strip=None, screen=None, clock: Clock = None, fetch=True) -> App:
+def build(config_file=CONFIG_FILE, strip=None, screen=None, clock: Optional[Clock] = None, fetch=True) -> App:
     """
     Builds the map from config_file, with its jobs scheduled but nothing running yet.
     The LED strip and OLED screen are opened unless given; METARs are fetched unless fetch=False.
@@ -241,15 +241,13 @@ def wire_config(app: App):
         "visualizer.auto_rotate.*",
         lambda keys: app.rotation.schedule() if any(k != "visualizer.auto_rotate.skip" for k in keys) else None,
     )
-    on(
-        "led.quiet_hours.*",
-        # the OLED loop starts over: blank now, or showing again now
-        lambda keys: (
-            app.lighting.schedule_quiet_hours(),
-            renderer.adjust_brightness_for_time(),
-            app.display.restart(timeout=15),
-        ),
-    )
+
+    def quiet_hours_changed(keys):
+        app.lighting.schedule_quiet_hours()
+        renderer.adjust_brightness_for_time()
+        app.display.restart(timeout=15)  # the OLED loop starts over: blank now, or showing again now
+
+    on("led.quiet_hours.*", quiet_hours_changed)
     # the level in use now changes now; the others at their time
     on("led.brightness.*", lambda keys: app.lighting.brightness_changed(keys))
     # shows what it looks like, without a restart

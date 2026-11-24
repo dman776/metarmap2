@@ -23,7 +23,7 @@ worded as the Decoded tab words them (metarmap.decode), and one that can't be sa
 import logging
 import re
 from fractions import Fraction
-from typing import Callable, Optional, Sequence
+from typing import Any, Callable, List, Optional, Sequence, Set, Tuple
 
 from metarmap import decode
 from metarmap.body import SIDES
@@ -91,7 +91,7 @@ def _spoken(metar: Optional[Report], name: str, code: str) -> str:
     place = airport_name(name or (metar.name if metar else ""), code)
     if not metar:
         return f"{place}. No weather report is available."
-    sentences = [place + "."]
+    sentences: List[Optional[str]] = [place + "."]
     if metar.obs_time:
         sentences.append(f"Weather at {digits(metar.obs_time.strftime('%H%M'))} Zulu.")
     sentences += [
@@ -111,7 +111,7 @@ def _spoken(metar: Optional[Report], name: str, code: str) -> str:
     return " ".join(s for s in sentences if s)
 
 
-_LOGGED = set()  # the raw reports a sentence's failure was logged for: once each
+_LOGGED: Set[Tuple[Any, Any]] = set()  # the raw reports a sentence's failure was logged for: once each
 
 
 def guarded(sentence: Callable[[Report], Optional[str]], metar: Report) -> Optional[str]:
@@ -148,7 +148,7 @@ def tune(text: str, tunings: Sequence) -> str:
         return text
     words = [r"\s+".join(re.escape(w) for w in t.text.split()) for t in found]
     pattern = re.compile(r"(?<![A-Za-z0-9])(?:" + "|".join(f"({w})" for w in words) + r")(?![A-Za-z0-9])", re.I)
-    return pattern.sub(lambda m: found[m.lastindex - 1].say, text)
+    return pattern.sub(lambda m: found[(m.lastindex or 1) - 1].say, text)
 
 
 # ---- numbers as words ---------------------------------------------------------------------------------------------
