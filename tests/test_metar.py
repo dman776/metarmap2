@@ -373,14 +373,17 @@ def test_a_stale_apply_mocks_cannot_overwrite_newer_reports(monkeypatch, make_co
     monkeypatch.setattr(metar, "with_tfrs", slow_with_tfrs)
     stale = threading.Thread(target=m.apply_mocks)
     fresh = threading.Thread(target=m._process, args=(response(report("KTST", **{**GOOD, "rawOb": "new"})),))
-    stale.start()
-    assert inside.wait(5)
-    fresh.start()
-    fresh.join(0.5)  # without the lock, the fetch would finish here, before the stale call
-    assert fresh.is_alive()  # it waits for the stale call
-    release.set()
-    stale.join(5)
-    fresh.join(5)
+    try:
+        stale.start()
+        assert inside.wait(5)
+        fresh.start()
+        fresh.join(0.5)  # without the lock, the fetch would finish here, before the stale call
+        assert fresh.is_alive()  # it waits for the stale call
+    finally:  # a failed assert doesn't wait out the stale call's 5 s
+        release.set()
+        for thread in (stale, fresh):
+            if thread.is_alive():
+                thread.join(5)
     assert calls == ["old", "new"]
     assert m.data["KTST"].raw == "new"
 

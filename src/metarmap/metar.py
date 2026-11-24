@@ -324,8 +324,10 @@ class Reports:
         # them: a lock, because copying a dict another thread is adding to is not safe even as one expression
         self._positions_lock = threading.Lock()
         self.locate_failed = False  # whether the last position lookup failed (e.g. a 502); locate() tries again
-        # apply_mocks runs on several threads (the METAR fetch, the advisory, TFR, FAA and TAF fetches): a lock across
-        # reading _real and writing data, so a call that read older reports can't finish last and put them back.
+        # apply_mocks runs on several threads (the METAR fetch; the advisory, TFR, FAA and TAF fetches; the startup
+        # stations lookup; a web request whose config change (airports.mock, tfr.nearby_nm,
+        # visualizer.forecast_include_tempo) reapplies it): a lock across reading _real and writing data, so a call that
+        # read older reports can't finish last and put them back.
         # Reentrant: _process holds it across its swap and the apply_mocks after it.
         self._apply_lock = threading.RLock()
         self.apply_mocks()  # mocks show before the first fetch, and without a network
