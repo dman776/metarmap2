@@ -31,9 +31,13 @@ def pulse_colors(color, low):
 def look_interval(look: Look):
     """The seconds between changes of what an LED with `look` shows, or None for one that never changes (solid, off)."""
     if look.effect == "blink":
+        assert look.period is not None  # a blink always has its period
         return look.period / 2
     if look.effect == "pulse":
-        return look.period / PULSE_STEPS if look.low else PULSE_SPEED
+        if not look.low:
+            return PULSE_SPEED
+        assert look.period is not None
+        return look.period / PULSE_STEPS
     if look.effect == "cycle" or look.effect == "chase":
         return look.step
     if look.effect == "rainbow":
@@ -49,11 +53,13 @@ def animation_for(look: Look, pixel_object):
     if look.effect == "solid":
         return Solid(pixel_object, color=look.color)
     if look.effect == "blink":
+        assert look.period is not None
         if len(look.colors) > 1:  # alternating with a second color instead of off
             return ColorCycle(pixel_object, speed=look.period / 2, colors=list(look.colors[:2]))
         # Blink's speed is the time each of on/off lasts
         return Blink(pixel_object, speed=look.period / 2, color=look.color)
     if look.effect == "pulse":
+        assert look.period is not None
         if look.low:  # never fully dark
             return ColorCycle(pixel_object, speed=look.period / PULSE_STEPS, colors=pulse_colors(look.color, look.low))
         return Pulse(pixel_object, speed=PULSE_SPEED, period=look.period, color=look.color)

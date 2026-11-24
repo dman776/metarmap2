@@ -22,7 +22,7 @@ The digits are said as pilots say them ("tree", "niner"), as in metarmap.spoken.
 """
 
 import re
-from typing import Iterable, List, Sequence, Set, Tuple
+from typing import AbstractSet, Iterable, List, Sequence, Set, Tuple
 
 from metarmap import metar, spoken
 
@@ -349,7 +349,7 @@ def lines(
     order = {"arr": 0, "combined": 1, "dep": 2}
     known = identifiers(list(ids) + [code])
     found: List[Line] = []
-    for entry in sorted(entries, key=lambda e: order.get(e.get("type"), 1)):
+    for entry in sorted(entries, key=lambda e: order.get(e.get("type") or "", 1)):
         found += expand_lines(entry["datis"], place, known, mine)
     return found or [("", f"{place}. No ATIS is available.")]
 
@@ -389,12 +389,12 @@ def identifiers(codes: Iterable[str]) -> Set[str]:
     return found
 
 
-def expand(text: str, place: str = "", ids: Set[str] = frozenset(), tunings: Sequence = ()) -> str:
+def expand(text: str, place: str = "", ids: AbstractSet[str] = frozenset(), tunings: Sequence = ()) -> str:
     """One ATIS text as words (see expand_lines())."""
     return " ".join(said for _, said in expand_lines(text, place, ids, tunings))
 
 
-def expand_lines(text: str, place: str = "", ids: Set[str] = frozenset(), tunings: Sequence = ()) -> List[Line]:
+def expand_lines(text: str, place: str = "", ids: AbstractSet[str] = frozenset(), tunings: Sequence = ()) -> List[Line]:
     """
     One ATIS text line by line (see the module's notes): the header, the weather, then each sentence. place: the
     airport's name to say in the header; ids: airport identifiers to spell; tunings: for_airport()'s, applied to the
@@ -491,7 +491,7 @@ def weather_sentences(words: List[str]) -> List[str]:
     ]
 
 
-def sentence(words: List[str], ids: Set[str] = frozenset(), tunings: Sequence = ()) -> str:
+def sentence(words: List[str], ids: AbstractSet[str] = frozenset(), tunings: Sequence = ()) -> str:
     """One sentence of the rest of the ATIS, word by word."""
     out: List[str] = []
     context = ""  # "runway", "taxiway", "approach", "information": what a bare number or letter belongs to
@@ -510,7 +510,7 @@ def sentence(words: List[str], ids: Set[str] = frozenset(), tunings: Sequence = 
     return (text[0].upper() + text[1:] + ".") if text else ""
 
 
-def say(word: str, context: str, following: str, ids: Set[str] = frozenset()) -> Tuple[str, str]:
+def say(word: str, context: str, following: str, ids: AbstractSet[str] = frozenset()) -> Tuple[str, str]:
     """A word as it's spoken, and the context it leaves for the next one."""
     if m := GLUED_RUNWAY.match(word):
         return f"runway {say(m['designator'], 'runway', following, ids)[0]}", "runway"

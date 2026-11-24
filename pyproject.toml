@@ -72,18 +72,10 @@ ignore_missing_imports = true
 # The ratchet: modules that still have mypy errors. Fix one, delete it from the list, and CI keeps it clean.
 [[tool.mypy.overrides]]
 module = [
-    "metarmap.app",
-    "metarmap.atis_spoken",
     "metarmap.body",
     "metarmap.decode",
-    "metarmap.feeds",
-    "metarmap.leds.animations",
     "metarmap.metar",
-    "metarmap.planner.airports",
     "metarmap.renderer",
-    "metarmap.speech",
-    "metarmap.spoken",
-    "metarmap.visualizers.style",
 ]
 ignore_errors = true
 
