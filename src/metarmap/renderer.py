@@ -7,7 +7,7 @@ import threading
 import time
 from contextlib import contextmanager
 from dataclasses import replace
-from typing import Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from adafruit_led_animation.animation.pulse import Pulse
 from adafruit_led_animation.animation.rainbowcomet import RainbowComet
@@ -83,7 +83,7 @@ def look_groups(looks):
     LED. A look whose effect isn't in SHARED_EFFECTS (or that can't be compared by hash) has a group of its own.
     """
     groups = []
-    shared = {}  # look -> its group's LEDs
+    shared: Dict[Any, List[int]] = {}  # look -> its group's LEDs
     for i, look in enumerate(looks):
         members = None
         if look.effect in SHARED_EFFECTS:
@@ -165,10 +165,12 @@ class _Transition:
         self.style = style  # "dissolve" or "dip"
         self.frozen = frozen  # each LED's color at the switch
         self.started = started  # Clock.monotonic()
-        self.live = None  # each LED's color as the new animations last drew it; None until their first frame
+        # each LED's color as the new animations last drew it; None until their first frame
+        self.live: Optional[List[Any]] = None
 
     def color(self, i, t):
         """LED i's color `t` (0 to 1) of the way through."""
+        assert self.live is not None  # the render loop sets it after the first frame, before it blends
         frozen, live = self.frozen[i], self.live[i]
         if self.style == "dip":  # down to dark, then up to the new color
             off = (0,) * len(live)
@@ -227,23 +229,25 @@ class Renderer:
         self.active_visualizer: int = 0
         # counts the rebuilds of the looks: what's made from led_states() (the web's leds[]) is kept until it changes
         self.revision = 0
-        self._looks = []  # one Look per airport, in LED order
-        self._strip_look = None  # set instead when one look drives the whole strip
-        self._hidden = ()  # the Hidden Pixels a whole-strip look must leave dark (see _darken_hidden)
-        self._animations = []
-        self._frozen = None  # the animations stop() froze, until resume()
+        self._looks: List[Any] = []  # one Look per airport, in LED order
+        self._strip_look: Optional[Look] = None  # set instead when one look drives the whole strip
+        self._hidden: Tuple[int, ...] = ()  # the Hidden Pixels a whole-strip look must leave dark (see _darken_hidden)
+        self._animations: List[Any] = []
+        self._frozen: Optional[List[Any]] = None  # the animations stop() froze, until resume()
         # LED number -> _Located: the locate() pulses on now, drawn by render() over those LEDs' own animations
-        self._pulses = {}
-        self._transition = None  # a _Transition to the visualizer just picked, while it's on
+        self._pulses: Dict[int, _Located] = {}
+        self._transition: Optional[_Transition] = None  # a _Transition to the visualizer just picked, while it's on
         self._drawn = False  # a frame has been drawn: no transition into the first visualizer (startup)
         # (animations, monotonic_ms) when render() draws the next frame of those animations; other ones draw at once
-        self._next_frame = (None, 0)
+        self._next_frame: Tuple[Optional[List[Any]], int] = (None, 0)
         # set (never waited on) when the strip must be drawn at once: a brightness change, a locate() pulse, resume()
         self._wake = threading.Event()
-        self._last_render_error = None  # the traceback is logged once per distinct error, not every retry
+        # the traceback is logged once per distinct error, not every retry
+        self._last_render_error: Optional[str] = None
         self._warned = False  # logged that the animations don't say when they're next due
-        self.last_locate = None  # {"pixel": n, "at": epoch seconds} of the last locate() pulse
-        self._subscribers = []  # called when the visualizer changes: see subscribe()
+        # {"pixel": n, "at": epoch seconds} of the last locate() pulse
+        self.last_locate: Optional[Dict[str, Any]] = None
+        self._subscribers: List[Any] = []  # called when the visualizer changes: see subscribe()
         # the main loop and other threads (OLED locate, web) both drive the LEDs; only one at a time
         self._lock = threading.RLock()
         self.adjust_brightness_for_time()

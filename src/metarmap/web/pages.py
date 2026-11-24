@@ -237,13 +237,14 @@ def pronunciation(services: Services, site):
 def raw(services: Services):
     data = services.metars.data
     buf = io.StringIO()
-    buf.write("".join(f"<b>{s}</b>: {data[s].raw if data[s] else 'N/A'}<br />" for s in data))
+    buf.write("".join(f"<b>{s}</b>: {m.raw if m else 'N/A'}<br />" for s, m in data.items()))
     buf.write(f"<pre><code>{pprint.pformat(data, indent=4)}</code></pre>")
     return buf.getvalue()
 
 
 def raw_code(services: Services, code):
-    return "<b>" + code + "</b>: " + services.metars.data[code].raw + "<br />"
+    report = services.metars.data[code]
+    return "<b>" + code + "</b>: " + (report.raw if report else "N/A") + "<br />"
 
 
 def add_routes(app, services: Services, site, auth):
