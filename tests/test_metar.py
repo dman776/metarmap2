@@ -472,6 +472,25 @@ def test_a_day_still_ahead_is_last_month():
     )
 
 
+def test_parse_raw_without_a_time_skips_the_time_group():
+    # the AWOS's words have no `now` (B118): a DDHHMMZ is read past, not dated, and the rest still decodes
+    m = rawparse.parse_raw("ATIS 251953Z 11007KT 10SM SCT080 23/13 A3013", None)
+    assert m.obs_time is None
+    assert m.wind_dir == "110" and m.wind_speed == 7 and m.visibility_sm == 10.0
+    assert m.sky_conditions == (SkyLayer("SCT", 8000),) and m.temp_c == 23 and m.altimeter_inhg == 30.13
+
+
+def test_parse_raw_without_a_time_or_a_time_group():
+    m = rawparse.parse_raw("ATIS 11007KT 10SM SCT080 23/13 A3013", None)
+    assert m.obs_time is None and m.wind_speed == 7 and m.altimeter_inhg == 30.13
+
+
+def test_parse_raw_with_a_time_still_dates_the_report():
+    m = rawparse.parse_raw("ATIS 251953Z 11007KT 10SM SCT080 23/13 A3013", NOW)
+    assert m.obs_time == datetime(2026, 10, 25, 19, 53, tzinfo=timezone.utc)
+    assert m.wind_speed == 7
+
+
 @pytest.mark.parametrize(
     "text",
     [

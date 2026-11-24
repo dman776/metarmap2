@@ -74,6 +74,16 @@ def test_the_weather_as_the_awos_says_it(atis, said):
     assert said in atis_spoken.expand(atis, "Here")
 
 
+def test_a_time_group_in_the_weather_is_skipped():
+    # B118: a DDHHMMZ before the weather used to raise AttributeError (no `now` for the AWOS's words)
+    lines = atis_spoken.expand_lines("KHOU ATIS INFO B 1953Z. 251953Z 11007KT 10SM SCT080 23/13 A3013. ...")
+    assert lines[1] == (
+        "251953Z 11007KT 10SM SCT080 23/13 A3013.",
+        "Wind one one zero at seven. Visibility one zero. Sky condition scattered at eight thousand. "
+        "Temperature two tree, dew point one tree. Altimeter tree zero one tree.",
+    )
+
+
 @pytest.mark.parametrize(
     "words, said",
     [
