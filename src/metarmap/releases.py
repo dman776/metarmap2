@@ -15,6 +15,7 @@ import subprocess
 import threading
 import time
 from datetime import datetime, timezone
+from typing import Any, Dict
 
 from metarmap import __version__, update
 from metarmap.lib import versions
@@ -134,7 +135,13 @@ class ReleaseCheck:
         self._clock = clock
         self._lock = threading.Lock()
         self._check_lock = threading.Lock()  # one check at a time, so the newest settings win
-        self._found = {"releases": [], "branches": [], "available": None, "checked": None, "error": None}
+        self._found: Dict[str, Any] = {
+            "releases": [],
+            "branches": [],
+            "available": None,
+            "checked": None,
+            "error": None,
+        }
         self.installed = None  # what an update installed: it runs after the next restart
         self.build = None  # what's running: load_build() reads it once, when the map starts
 

@@ -254,8 +254,9 @@ def live(services: Services, now=None, leds=None):
     """
     renderer = services.renderer
     led_looks, strip = renderer.led_states()
-    speaks = services.speech is not None and configured(services.config.data.speech)
-    speech_ok, speech_error = services.speech.health() if speaks else (None, "")
+    speech = services.speech
+    speaks = speech is not None and configured(services.config.data.speech)
+    speech_ok, speech_error = speech.health() if speech is not None and speaks else (None, "")
     active_num, active_vis = renderer.visualizer
     display = services.display if services.config.data.display_screen.enabled else None
     if leds is None:
@@ -564,7 +565,7 @@ def as_audio(services: Services, code, force=False):
         bottle.abort(404, f"{code} isn't on the map")
     speech = services.speech
     if speech is None:
-        bottle.abort(503, "This map has no speech")
+        raise bottle.HTTPError(503, "This map has no speech")  # what bottle.abort raises; this shows mypy it ends here
     try:
         clip = speech.audio(text, force=force)
     except SpeechError as e:
@@ -591,7 +592,7 @@ def as_said_audio(services: Services, text: str):
         bottle.abort(400, f"At most {SAY_MAX} characters")
     speech = services.speech
     if speech is None:
-        bottle.abort(503, "This map has no speech")
+        raise bottle.HTTPError(503, "This map has no speech")  # what bottle.abort raises; this shows mypy it ends here
     try:
         clip = speech.audio(text, force=True)
     except SpeechError as e:
@@ -622,7 +623,7 @@ def as_atis_audio(services: Services, code):
     atis.info or the speech server failed. Errors are plain text."""
     speech = services.speech
     if speech is None:
-        bottle.abort(503, "This map has no speech")
+        raise bottle.HTTPError(503, "This map has no speech")  # what bottle.abort raises; this shows mypy it ends here
     try:
         clip = speech.audio(atis_report(services, code))
     except (AtisError, SpeechError) as e:

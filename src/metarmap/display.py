@@ -53,7 +53,7 @@ class Display:
               for Visualizer mode; None for neither
     """
 
-    def __init__(self, config: Config, data, screen, renderer=None, clock: Clock = None, tz=None):
+    def __init__(self, config: Config, data, screen, renderer=None, clock: Optional[Clock] = None, tz=None):
         self._config = config
         self._data = data
         self._device = screen

@@ -53,7 +53,7 @@ class SkipUnchangedShow:
             if not self._warned:
                 self._warned = True
                 log.warning("the LED library has no _post_brightness_buffer: sending the strip at every frame")
-            return super().show()
+            return super().show()  # type: ignore[misc]  # a mixin: the NeoPixel after it in the bases has show()
         now = self._monotonic()
         same = self._sent is not None and buffer == self._sent
         settled = self._resent and now - self._changed_at >= SETTLE_SECONDS
@@ -61,7 +61,7 @@ class SkipUnchangedShow:
             return None
         # copied before it's sent: if another thread changes the buffer meanwhile, the next show() sees a difference
         sent = bytes(buffer)
-        result = super().show()
+        result = super().show()  # type: ignore[misc]
         if same:
             self._resent = True
         else:
@@ -157,7 +157,7 @@ class PixelGroup:
 class UnopenedStrip(FakeStrip):
     """The strip of a Pi with led.count 0: no NeoPixel is made, and it can't change length (a restart is needed)."""
 
-    resize = None
+    resize = None  # type: ignore[assignment]  # FakeStrip.resize is a method; here it is switched off
 
 
 def open_strip(led):

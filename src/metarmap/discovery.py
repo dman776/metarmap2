@@ -14,6 +14,7 @@ import sys
 import threading
 import time
 import uuid
+from typing import List, Optional
 
 from metarmap import __version__
 from metarmap.lib import versions
@@ -218,7 +219,8 @@ class PackageInstall:
         self._lock = threading.Lock()
         self.job = None
         self._stage = ""  # the label for the stage pip is at, without the elapsed time
-        self._started = self._ended = 0.0  # monotonic times of the job now, for "elapsed"
+        self._started = 0.0  # monotonic times of the job now, for "elapsed"
+        self._ended: Optional[float] = 0.0
 
     def start(self):
         with self._lock:
@@ -267,7 +269,7 @@ class PackageInstall:
             threading.Thread(
                 target=self._watch, args=(job, process, started, finished), name="install-watch", daemon=True
             ).start()
-            tail = []
+            tail: List[str] = []
             for line in process.stdout:
                 line = line.rstrip()
                 if not line:

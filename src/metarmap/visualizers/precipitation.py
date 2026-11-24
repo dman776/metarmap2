@@ -65,7 +65,7 @@ def kinds_in(group):
             found.add("ice")
         else:
             found.update(kind for kind, codes, _ in KINDS if code in codes)
-    return sorted(found, key=RANK.get)
+    return sorted(found, key=RANK.__getitem__)
 
 
 def intensity_of(group):

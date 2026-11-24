@@ -103,7 +103,7 @@ def migrate(paths=INSTALLED, repo=REPO, run=subprocess.run, root=None) -> List[P
     if not root or not (Path(repo) / "metarmap.service").exists():
         return []
     new = render(repo)
-    replaced = []
+    replaced: List[Path] = []
     for path in map(Path, paths):
         if path.is_symlink() or not path.is_file():
             continue

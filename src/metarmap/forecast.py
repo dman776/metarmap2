@@ -118,7 +118,10 @@ def _prevailing(taf: Taf, when: float):
     weather): a BECMG group changes only what it names, an FM group (or the base forecast) says everything, so a
     weather it leaves out is no weather.
     """
-    vis, layers, vert, wx = None, (), None, ""
+    vis: Optional[float] = None
+    layers: Tuple[SkyLayer, ...] = ()
+    vert: Optional[int] = None
+    wx = ""
     for g in sorted((g for g in taf.groups if g.kind not in TEMPORARY), key=lambda g: g.start):
         if g.start > when:
             break

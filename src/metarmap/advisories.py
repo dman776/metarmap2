@@ -19,6 +19,7 @@ import logging
 import math
 import threading
 import time
+from typing import Dict, List, Optional
 
 import requests
 
@@ -210,7 +211,7 @@ class Hazards:
         {"airmets": [...], "sigmets": [...]}: the hazards over a place, most important first, each once. Either is None
         before its feed's first fetch that worked. Areas whose box the place is outside aren't ray cast.
         """
-        found = {}
+        found: Dict[str, Optional[List[str]]] = {}
         for kind, order in (("airmet", AIRMETS), ("sigmet", SIGMETS)):
             pairs = self._in_effect[kind]
             if pairs is None:

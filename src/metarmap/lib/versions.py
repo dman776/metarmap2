@@ -25,7 +25,7 @@ def parse(text) -> Optional[Tuple[int, ...]]:
 
 def releases(tags: Iterable[str]) -> List[str]:
     """The release tags among `tags`, newest first (by version, not by date)."""
-    return sorted((tag for tag in tags if parse(tag)), key=parse, reverse=True)
+    return sorted((tag for tag in tags if parse(tag)), key=lambda tag: parse(tag) or (), reverse=True)
 
 
 def is_newer(tag, current) -> bool:

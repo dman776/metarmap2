@@ -504,7 +504,7 @@ class Settings(_Section):
     def _field(self, key):
         """The section holding a single setting, its dataclass field and its type. KeyError if there isn't one."""
         *path, name = key.split(".")
-        section = self
+        section: Any = self
         for part in path:
             section = getattr(section, part, None)
             if not dataclasses.is_dataclass(section) or part.startswith("_"):
@@ -520,7 +520,7 @@ class Settings(_Section):
 
 def _usable_tunings(tunings):
     """Loading: the hand-edited tunings parse_tunings() takes; one it doesn't is logged and left out."""
-    found = {}
+    found: Dict[Tuple[str, str], Any] = {}
     for t in tunings:
         try:
             (tuning,) = parse_tunings([{"text": t.text, "say": t.say, "airport": t.airport}])
