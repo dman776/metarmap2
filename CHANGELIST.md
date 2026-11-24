@@ -1,5 +1,7 @@
 ### Unreleased
 
+- **Reading a typed METAR has its own module (B114).** `parse_raw()` and its helpers, which read a METAR typed by hand (the mock METARs and the AWOS's spoken weather), moved from `metar.py` to a new `rawparse.py`, which mypy checks in full; `metar.py` keeps fetching, the JSON reports, the mocks and the cache, and `metarmap.metar.parse_raw` still works. Development only; nothing on the Chart changes. No API change.
+
 - **Type checking with mypy in CI (B107).** The visualizers now declare their `settings` argument as `Settings` instead of leaving it untyped, and CI runs mypy on Python 3.9 (`check_untyped_defs` on). Modules that still have type errors are listed under `[[tool.mypy.overrides]]` in `pyproject.toml`; fixing one and deleting it from the list keeps it clean from then on. Development only: mypy 1.19.1 and `types-requests` join the dev dependencies. No API change.
 
 - **Errors in the display, the LEDs and the network announcement now log their traceback (B111).** Warnings such as "render error", "draw ...", "locate ..." and "can't announce the map on the network" used to log one line; they now include the traceback in `metarmap.log` and the journal, so a failure shows where it was raised (a render error that repeats logs its traceback once, not every retry). Development only: two silent best-effort fallbacks (the version lookup and the planner's progress report) now log at debug level. No API change.
