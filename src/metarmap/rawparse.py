@@ -45,8 +45,9 @@ def _split_header(raw: Any, now: Optional[datetime]) -> Tuple[str, Optional[date
     tokens = tokens[1:]
     obs_time = None
     if tokens and re.fullmatch(r"\d{6}Z", tokens[0]):
-        # `now` is None only for the AWOS's words, which have no DDHHMMZ
-        obs_time = observed(int(tokens[0][:2]), int(tokens[0][2:4]), int(tokens[0][4:6]), now)  # type: ignore[arg-type]
+        # `now` is None only for the AWOS's words: a time there is skipped, and the report has no obs_time
+        if now is not None:
+            obs_time = observed(int(tokens[0][:2]), int(tokens[0][2:4]), int(tokens[0][4:6]), now)
         tokens = tokens[1:]
     return raw, obs_time, tokens
 

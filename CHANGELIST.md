@@ -1,5 +1,7 @@
 ### Unreleased
 
+- **A time in an ATIS's weather no longer stops it being read out (B118).** The AWOS's spoken weather is read with `parse_raw()` without a time to date it against, so a DDHHMMZ at the start of an ATIS's weather sentence (e.g. `251953Z 11007KT 10SM ...`) raised an error instead of being read. That time is now skipped and the rest of the weather is read as before; the report it gives has no observation time, which the spoken weather doesn't use. Mock METARs, which are read with the current time, are unchanged. No API change.
+
 - **Reading a typed METAR has its own module (B114).** `parse_raw()` and its helpers, which read a METAR typed by hand (the mock METARs and the AWOS's spoken weather), moved from `metar.py` to a new `rawparse.py`, which mypy checks in full; `metar.py` keeps fetching, the JSON reports, the mocks and the cache, and `metarmap.metar.parse_raw` still works. Development only; nothing on the Chart changes. No API change.
 
 - **Type checking with mypy in CI (B107).** The visualizers now declare their `settings` argument as `Settings` instead of leaving it untyped, and CI runs mypy on Python 3.9 (`check_untyped_defs` on). Modules that still have type errors are listed under `[[tool.mypy.overrides]]` in `pyproject.toml`; fixing one and deleting it from the list keeps it clean from then on. Development only: mypy 1.19.1 and `types-requests` join the dev dependencies. No API change.
