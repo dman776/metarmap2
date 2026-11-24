@@ -1,4 +1,4 @@
-"""Tests for METAR fetching and parsing (metar.py)."""
+"""Tests for METAR fetching and parsing (metar.py) and for reading a typed METAR (rawparse.py)."""
 
 import json
 import threading
@@ -8,7 +8,7 @@ from types import SimpleNamespace
 import pytest
 import requests
 
-from metarmap import metar
+from metarmap import metar, rawparse
 from metarmap.clock import FakeClock
 from metarmap.models import Report, SkyLayer
 
@@ -486,6 +486,24 @@ def test_a_day_still_ahead_is_last_month():
 def test_parse_raw_rejects_what_isnt_a_metar(text):
     with pytest.raises(ValueError):
         metar.parse_raw(text, NOW)
+
+
+def test_parse_raw_lives_in_rawparse_and_is_still_importable_from_metar():
+    assert metar.parse_raw is rawparse.parse_raw
+    assert metar.HPA_PER_INHG == rawparse.HPA_PER_INHG
+
+
+def test_parse_raw_with_no_time_and_no_clock():
+    """The AWOS's words have no DDHHMMZ and no `now`: the body is read, with no observation time."""
+    m = rawparse.parse_raw("ATIS 11007KT 10SM SCT080 23/13 A3013", None)
+    assert m.obs_time is None and (m.wind_dir, m.wind_speed, m.altimeter_inhg) == ("110", 7, 30.13)
+
+
+def test_observed_is_this_month_or_the_last():
+    assert rawparse.observed(27, 23, 53, NOW) == datetime(2026, 10, 27, 23, 53, tzinfo=timezone.utc)
+    assert rawparse.observed(29, 12, 0, NOW) == datetime(2026, 9, 29, 12, 0, tzinfo=timezone.utc)  # still ahead
+    with pytest.raises(ValueError):  # the 31st is still ahead in October, and September has none
+        rawparse.observed(31, 23, 53, NOW)
 
 
 def mocked(make_config, dev_mode=True, mock=KDWH, code="KDWH"):

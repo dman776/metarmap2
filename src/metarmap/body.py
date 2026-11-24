@@ -3,7 +3,7 @@ The body of a METAR (everything before RMK), read from the raw text, for what av
 the report type and modifiers (SPECI, AUTO, COR), the wind's variable direction, the lowest visibility, runway visual
 range, CAVOK / NSC / NCD, cloud types (CB, TCU), recent weather, wind shear, runway state and the trend forecast
 (NOSIG, BECMG, TEMPO). The wind, visibility, weather, clouds, temperatures and altimeter still come from the JSON (or
-metar.parse_raw for a mock): they're only recognized here. No I/O: parse() is a pure function of the raw METAR.
+rawparse.parse_raw for a mock): they're only recognized here. No I/O: parse() is a pure function of the raw METAR.
 
 Groups it doesn't know (military color states like BLU or YLO1, sea temperature like W12/S2) are in Body.unread, and
 not shown, as before. In a trend, color states are left out too (COLOR_STATE), and any other code it can't read is in

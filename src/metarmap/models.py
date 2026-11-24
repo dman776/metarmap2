@@ -39,7 +39,7 @@ class SkyLayer:
 @dataclass(frozen=True)
 class Report:
     """
-    One airport's parsed METAR (metar.parse_report, or metar.parse_raw for a mock). An airport with no report has
+    One airport's parsed METAR (metar.parse_report, or rawparse.parse_raw for a mock). An airport with no report has
     None instead. Values a report leaves out are None (the OLED shows "--"), except the text ones ("" for no wind
     direction or weather); the API (to_api) still sends 0 for a missing wind speed, visibility or altimeter.
     """

@@ -560,8 +560,9 @@ The code is the `metarmap` package in `src/metarmap/`:
   `feeds.py` fetches the feeds and retries a failed one, `rotation.py` is auto-rotate, `lighting.py` is brightness by
   the sun and quiet hours
 - `config.py` and `settings.py`: `config.json`, including the airport on each pixel
-- `metar.py`: reading METARs (`process()`, `parse_report()`) and fetching them (`METAR`); `decode.py`: a METAR in
-  plain English; `renderer.py` and `leds/`: the LEDs; `display.py` and `oled/`: the OLED screen
+- `metar.py`: reading METARs (`process()`, `parse_report()`) and fetching them (`METAR`); `rawparse.py`: a METAR
+  typed by hand (the mocks, `parse_raw()`); `decode.py`: a METAR in plain English; `renderer.py` and `leds/`: the
+  LEDs; `display.py` and `oled/`: the OLED screen
 - `visualizers/`: how each visualizer colors the pixels. Each is a module of functions (`legend()`, and `look()` or
   `strip_look()`) that ends by declaring itself, `VISUALIZER = Visualizer(id=..., name=..., ...)`, which checks it
   (`visualizers/visualizer.py`; `visualizers/legend.py` builds the legend entries); `visualizers.ALL` lists them in the web UI's order
