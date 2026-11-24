@@ -95,6 +95,13 @@ def test_wyoming_asks_for_the_text_and_makes_a_wav():
         assert w.readframes(w.getnframes()) == pcm  # every chunk, in order
 
 
+def test_wyoming_text_is_sent_as_it_is_for_atis():
+    speech, fake, _ = make_wyoming(FakeWyoming(wyoming_reply(bytes(range(256)) * 10)))
+    speech.audio("Hooks ATIS information Alpha.")
+    ((kind, data),) = sent_events(fake)
+    assert data["text"] == "Hooks ATIS information Alpha."
+
+
 def test_wyoming_voice_and_port():
     speech, fake, _ = make_wyoming(wyoming_port=10201, wyoming_voice="en_US-lessac-medium")
     speech.audio("Hooks.")
@@ -242,6 +249,16 @@ def test_kokoro_asks_for_raw_audio_and_makes_a_wav():
     with wave.open(io.BytesIO(clip)) as w:
         assert (w.getframerate(), w.getsampwidth(), w.getnchannels()) == (24000, 2, 1)
         assert w.readframes(w.getnframes()) == pcm
+
+
+def test_kokoro_says_atis_with_its_phonemes():
+    speech, fake, _ = make_kokoro()
+    speech.audio("Hooks ATIS information Alpha. Atis again, [ATIS](/x/), [the ATIS now](/y/), DATIS, ATIS's.")
+    (call,) = fake.calls
+    assert call.json["input"] == (
+        "Hooks [ATIS](/ˈAtɪs/) information Alpha. [ATIS](/ˈAtɪs/) again, [ATIS](/x/), [the ATIS now](/y/), DATIS, "
+        "[ATIS](/ˈAtɪs/)'s."
+    )
 
 
 def test_kokoro_asks_on_a_new_connection_each_time():
