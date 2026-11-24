@@ -324,6 +324,10 @@ class Reports:
         # them: a lock, because copying a dict another thread is adding to is not safe even as one expression
         self._positions_lock = threading.Lock()
         self.locate_failed = False  # whether the last position lookup failed (e.g. a 502); locate() tries again
+        # apply_mocks runs on several threads (the METAR fetch, the advisory, TFR, FAA and TAF fetches): a lock across
+        # reading _real and writing data, so a call that read older reports can't finish last and put them back.
+        # Reentrant: _process holds it across its swap and the apply_mocks after it.
+        self._apply_lock = threading.RLock()
         self.apply_mocks()  # mocks show before the first fetch, and without a network
         if fetch:
             self.fetch(locate=locate_now)
@@ -435,11 +439,12 @@ class Reports:
 
     def _process(self, content):
         log.info("Processing...")
-        # built separately, then swapped in, so readers never see half-filled data
-        self._real, self._stations, self._missing_stations = process(
-            content, airport_codes(self._config.airports), self._clock.now()
-        )
-        self.apply_mocks()
+        # built separately (outside the lock: the parse is the slow part), then swapped in, so readers never see
+        # half-filled data
+        real, stations, missing = process(content, airport_codes(self._config.airports), self._clock.now())
+        with self._apply_lock:  # an apply_mocks on another thread finishes before the swap, not after it
+            self._real, self._stations, self._missing_stations = real, stations, missing
+            self.apply_mocks()
         log.info(f"Missing stations: {self._missing_stations}")
         log.info("Processing complete.")
 
@@ -449,20 +454,21 @@ class Reports:
         away, and adds each airport's G-AIRMET and SIGMET hazards and TFRs. Called after each fetch (METARs, advisories
         or TFRs), and when a mock or the TFR nearby distance changes.
         """
-        dev_mode = getattr(getattr(self._config, "data", None), "dev_mode", False)
-        airports = self._config.airports if dev_mode is True else []
-        data = with_mocks(self._real, airports, self.positions, self._clock.now())
-        if self.advisories is not None:
-            data = with_advisories(data, self.advisories)
-        if self.tfrs is not None:
-            data = with_tfrs(data, self.tfrs)
-        if self.delays is not None:
-            with self._positions_lock:  # copied once: the Chart Planner's lookup may be adding codes
-                known = dict(self.positions)
-            data = with_delays(data, self.delays, known)
-        if self.forecasts is not None:
-            data = with_forecast(data, self.forecasts, self._include_temporary())
-        self.data = data
+        with self._apply_lock:  # from reading _real to writing data: see __init__
+            dev_mode = getattr(getattr(self._config, "data", None), "dev_mode", False)
+            airports = self._config.airports if dev_mode is True else []
+            data = with_mocks(self._real, airports, self.positions, self._clock.now())
+            if self.advisories is not None:
+                data = with_advisories(data, self.advisories)
+            if self.tfrs is not None:
+                data = with_tfrs(data, self.tfrs)
+            if self.delays is not None:
+                with self._positions_lock:  # copied once: the Chart Planner's lookup may be adding codes
+                    known = dict(self.positions)
+                data = with_delays(data, self.delays, known)
+            if self.forecasts is not None:
+                data = with_forecast(data, self.forecasts, self._include_temporary())
+            self.data = data
 
     def _include_temporary(self):
         """Whether the forecast counts TEMPO and PROB groups (visualizer.forecast_include_tempo; yes without it)."""
