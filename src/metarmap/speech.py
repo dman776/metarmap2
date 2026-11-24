@@ -26,6 +26,7 @@ import io
 import json
 import logging
 import math
+import re
 import socket
 import threading
 import time
@@ -39,6 +40,17 @@ from urllib3.exceptions import ReadTimeoutError
 from metarmap import USER_AGENT, http
 
 log = logging.getLogger(__name__)
+
+# Kokoro says "ATIS" wrong, so it's sent with its phonemes (Kokoro's [word](/phonemes/) override). Markup already in the
+# text, "[...](...)", is matched first and kept as it is
+ATIS_WORD = re.compile(r"\[[^\]]*\]\([^)]*\)|(?<!\w)ATIS(?!\w)", re.IGNORECASE)
+ATIS_PHONEMES = "[ATIS](/ˈAtɪs/)"
+
+
+def say_atis(text: str) -> str:
+    """`text` with each ATIS given its phonemes, for Kokoro."""
+    return ATIS_WORD.sub(lambda m: ATIS_PHONEMES if m.group(0).isalpha() else m.group(0), text)
+
 
 CACHE_BYTES = 32 * 1024 * 1024  # the clips kept in memory: a METAR is about 500 KB (15 s), an ATIS a few MB
 WYOMING_VERSION = "1.5.0"  # the protocol version the map speaks (wyoming 1.5 and later understand it)
@@ -343,7 +355,7 @@ class Speech:
         url = s.kokoro_url.rstrip("/") + "/v1/audio/speech"
         body = {
             "model": "kokoro",
-            "input": text,
+            "input": say_atis(text),
             "voice": s.kokoro_voice,
             "speed": s.kokoro_speed,
             "response_format": "pcm",
