@@ -567,6 +567,39 @@ def test_a_new_airport_during_a_fetch_gets_its_metar_after_it(slow_fetch):
     assert not app.feeds.refetch_due.is_set() and not app.feeds.fetching.locked()
 
 
+class HandOverLock:
+    """app.feeds.fetching, taken again the moment it is let go: as GET /fetch does when it was waiting for it."""
+
+    def __init__(self, lock):
+        self._lock = lock
+
+    def acquire(self, blocking=True, timeout=-1):
+        return self._lock.acquire(blocking, timeout)
+
+    def release(self):
+        self._lock.release()
+        assert self._lock.acquire(blocking=False)  # the waiting fetch has it now
+
+    def locked(self):
+        return self._lock.locked()
+
+
+def test_an_airport_change_put_off_twice_is_logged_once(make_app, caplog):
+    """Its fetch put off again (another fetch got the lock first) says nothing more: one change, one line."""
+    app = make_app()
+    app.feeds.fetching = HandOverLock(app.feeds.fetching)
+    assert app.feeds.fetching.acquire(blocking=False)  # a fetch under way
+    try:
+        with caplog.at_level("INFO", logger=feeds_module.log.name):
+            assert app.feeds.refetch_soon() is None  # put off: said once
+            app.feeds._run_fetch(lambda: None, "METAR fetch")  # it ends, and GET /fetch takes the lock at once
+        said = [r for r in caplog.records if "an airport changed" in r.getMessage()]
+        assert len(said) == 1
+        assert app.feeds.refetch_due.is_set()  # still due: the fetch holding the lock now fetches it at its end
+    finally:
+        app.feeds.fetching._lock.release()
+
+
 class WaitingLock:
     """app.feeds.fetching, saying (`waiting`) when someone waits for it: GET /fetch, not the background fetches."""
 

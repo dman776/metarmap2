@@ -108,15 +108,15 @@ class Feeds:
         self.refetch_soon()
         self.fetch_forecasts()  # fetches only if the airports differ from the last TAF fetch's
 
-    def refetch_soon(self) -> Optional[threading.Thread]:
+    def refetch_soon(self, again=False) -> Optional[threading.Thread]:
         """
         An airport changed: only the METARs (not the advisories and TFRs that update_data() also fetches), in the
         background; right after the fetch under way if there is one, which may have asked for the old airports.
+        again: the put-off fetch (_run_fetch), which says nothing if put off once more: the change was logged already.
         """
         self.refetch_due.set()  # first: a fetch letting go of the lock now still sees it (_run_fetch)
-        return self.start_fetch(
-            self.fetch_metars_only, "METAR fetch", busy="an airport changed: its METAR comes after the fetch under way"
-        )
+        busy = None if again else "an airport changed: its METAR comes after the fetch under way"
+        return self.start_fetch(self.fetch_metars_only, "METAR fetch", busy=busy)
 
     def refetch_metars(self) -> bool:
         """
@@ -143,10 +143,12 @@ class Feeds:
         """
         Runs job() in a thread holding `fetching`, so the LEDs keep going while aviationweather.gov answers (it has
         taken 20 s), and one at a time: two at once would fade the LEDs over each other and could leave them half dim.
-        Returns the thread (tests join it), or None with `busy` logged when a fetch is under way: this one is skipped.
+        Returns the thread (tests join it), or None with `busy` logged (if given) when a fetch is under way: this one
+        is skipped.
         """
         if not self.fetching.acquire(blocking=False):
-            log.info(busy)  # at most every RETRY_SECONDS (a retry), so no flood
+            if busy:
+                log.info(busy)  # at most every RETRY_SECONDS (a retry), so no flood
             return None
         thread = threading.Thread(target=self._run_fetch, args=(job, what), name="metars", daemon=True)
         try:
@@ -174,7 +176,7 @@ class Feeds:
         finally:
             self.fetching.release()
         if self.refetch_due.is_set():  # an airport changed while this ran, and its fetch was put off
-            self.refetch_soon()
+            self.refetch_soon(again=True)  # another fetch may have the lock already (GET /fetch was waiting)
         return error
 
     def fetch_reports(self):
