@@ -151,6 +151,13 @@ def test_pages(client, path):
     assert status == 200, body
 
 
+def test_raw_code_without_a_report_says_na(client):
+    client.services.metars.data["KSAN"] = None
+    status, body = client("/raw/KSAN")
+    assert status == 200, body
+    assert "<b>KSAN</b>: N/A" in body
+
+
 # the exact guards in each polling script: a hidden tab asks nothing, and its return asks at once
 POLL_GUARDS = {
     "map.js": [

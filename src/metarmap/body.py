@@ -20,7 +20,7 @@ import logging
 import re
 from dataclasses import dataclass
 from fractions import Fraction
-from typing import Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 log = logging.getLogger(__name__)
 
@@ -205,7 +205,7 @@ class Body:
     unread: Tuple[str, ...] = ()  # the groups it doesn't know, as reported (not shown)
 
 
-_LOGGED = set()  # the raw bodies a parse failure was logged for: once each
+_LOGGED: Set[str] = set()  # the raw bodies a parse failure was logged for: once each
 
 
 def parse(raw) -> Body:
@@ -255,7 +255,8 @@ def _cloud(match) -> Cloud:
 
 def _parse(tokens, text) -> Body:
     found = {"text": text}
-    modifiers, ranges, clouds, recent, shear, states, trends, unread = [], [], [], [], [], [], [], []
+    modifiers: List[str] = []
+    ranges, clouds, recent, shear, states, trends, unread = [], [], [], [], [], [], []
     i = _skip_header(tokens, found, modifiers)
 
     previous = None  # what the token before was: "wind", "visibility"
@@ -279,9 +280,8 @@ def _parse(tokens, text) -> Body:
             kind = "visibility"
             if t.endswith("NDV"):
                 found["no_directional_variation"] = True
-        elif _LOWEST.fullmatch(t) and previous == "visibility":
+        elif (match := _LOWEST.fullmatch(t)) and previous == "visibility":
             kind = "lowest"
-            match = _LOWEST.fullmatch(t)
             found["lowest_visibility_m"] = int(match.group(1))
             found["lowest_visibility_toward"] = match.group(2) if match.group(2) in COMPASS_POINTS else None
         elif t in ("////", "////SM") and previous != "visibility":  # visibility not reported (automated)
@@ -293,8 +293,8 @@ def _parse(tokens, text) -> Body:
             kind = "visibility"
         elif t == "CAVOK":
             found["sky"] = t
-        elif _RVR.fullmatch(t) and _runway(_RVR.fullmatch(t).group(1)):
-            ranges.append(_range(_RVR.fullmatch(t)))
+        elif (rvr := _RVR.fullmatch(t)) and _runway(rvr.group(1)):
+            ranges.append(_range(rvr))
         elif _STATE.fullmatch(t) or t in ("R/SNOCLO", "SNOCLO"):
             states.append(_state(t))
         elif t in ("//", "RE//") or _weather_group(t):  # //: weather not observed (automated), RE//: recent weather
@@ -342,7 +342,7 @@ def _weather_group(code):
 def _recent(code):
     """Whether code (after RE) is a recent weather: a weather group with no intensity and not in the vicinity."""
     group = _weather_group(code) if code[:1] not in "+-" else None
-    return bool(group) and not group.vicinity
+    return group is not None and not group.vicinity
 
 
 def _varies(text) -> Optional[Tuple[int, int]]:
@@ -375,6 +375,7 @@ def _state(text) -> RunwayState:
     if text in ("R/SNOCLO", "SNOCLO"):
         return RunwayState(text, None, closed=True)
     match = _STATE.fullmatch(text)
+    assert match is not None  # the caller matched _STATE already
     runway, deposit, extent, depth, braking, cleared = match.groups()
     if cleared is not None:
         return RunwayState(text, runway, braking=cleared, cleared=True)
@@ -397,8 +398,9 @@ def _shear(tokens, i):
 
 def _trend(kind, tokens, i) -> Trend:
     """The trend group `kind` (NOSIG, BECMG, TEMPO) with the tokens from i up to the next one."""
-    found = {}
-    times, weather, clouds, other = [], [], [], []
+    found: Dict[str, Any] = {}
+    times: List[Tuple[str, str]] = []
+    weather, clouds, other = [], [], []
     while i < len(tokens) and tokens[i] not in TREND_KINDS:
         t = tokens[i]
         nxt = tokens[i + 1] if i + 1 < len(tokens) else ""

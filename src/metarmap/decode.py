@@ -11,7 +11,7 @@ import re
 from collections import Counter
 from dataclasses import dataclass
 from fractions import Fraction
-from typing import TYPE_CHECKING, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple
 
 from metarmap.body import BRAKING, COMPASS_POINTS, DEPOSITS, DEPTHS, EXTENTS, SIDES
 from metarmap.lib.units import celsius_to_fahrenheit
@@ -119,7 +119,7 @@ def summary(metar: Optional["Report"]):
         return []
     temp = metar.temp_c
     lines = [
-        CATEGORY_TEXT.get(metar.flight_category),
+        CATEGORY_TEXT.get(metar.flight_category or ""),
         weather(metar.weather),
         *lightning_summary(metar),
         wind_sentence(metar),
@@ -217,6 +217,8 @@ def density_altitude_sentence(metar: "Report"):
     if not metar.altimeter_inhg or metar.elevation_m is None or metar.temp_c is None:
         return None
     feet = calculate_density_altitude(metar.altimeter_inhg, metar.elevation_m, metar.temp_c)
+    if feet is None:
+        return None
     field = meters_to_feet(metar.elevation_m)
     return f"Density altitude {round(feet, -2):,.0f} ft (field elevation {field:,.0f} ft)"
 
@@ -381,7 +383,7 @@ def report_type(body: "Body"):
     corrected = any(code == "COR" or code.startswith("CC") for code in body.modifiers)
     if body.report_type != "SPECI" and not corrected:
         return None
-    parts = [REPORT_TYPES.get(body.report_type)] + [modifier(code) for code in body.modifiers]
+    parts = [REPORT_TYPES.get(body.report_type or "")] + [modifier(code) for code in body.modifiers]
     text = ", ".join(part for part in parts if part)
     return text[:1].upper() + text[1:]
 
@@ -410,7 +412,7 @@ def body_visibility(body: "Body", shown=True):
     if body.no_directional_variation:
         found.append(("" if shown else "Visibility", "Directional variation not available"))
     if body.lowest_visibility_m is not None:
-        toward = COMPASS_POINTS.get(body.lowest_visibility_toward)
+        toward = COMPASS_POINTS.get(body.lowest_visibility_toward or "")
         found.append(("Lowest visibility", f"{body.lowest_visibility_m:,} m" + (f" to the {toward}" if toward else "")))
     ranges = reported_ranges(body)
     found.extend(("Runway visual range" if n == 0 else "", runway_range(r)) for n, r in enumerate(ranges))
@@ -438,7 +440,7 @@ def runway_range(found: "RunwayRange"):
         text = f"varying {low} to {RVR_BOUNDS.get(found.high_bound, '')}{found.high:,} {unit}"
     else:
         text = f"{low} {unit}"
-    trend = RVR_TRENDS.get(found.trend)
+    trend = RVR_TRENDS.get(found.trend or "")
     return f"{where}: {text}" + (f", {trend}" if trend else "")
 
 
@@ -498,7 +500,7 @@ def cloud_kinds(layers: Sequence["SkyLayer"], groups: Sequence["Cloud"]):
     for n, group in zip(at, groups):
         if group.cover != layers[n].cover or (group.base_ft is not None and group.base_ft != layers[n].base_ft):
             return ()
-    kinds = [None] * len(layers)
+    kinds: List[Optional[str]] = [None] * len(layers)
     for n, group in zip(at, groups):
         kinds[n] = group.kind
     return kinds
@@ -506,7 +508,7 @@ def cloud_kinds(layers: Sequence["SkyLayer"], groups: Sequence["Cloud"]):
 
 def body_after_altimeter(body: "Body"):
     """(label, text) for the groups after the altimeter, in the report's order: RE, WS, runway state and trend."""
-    found = []
+    found: List[Tuple[str, str]] = []
 
     def add(label, texts):
         found.extend((label if n == 0 else "", text) for n, text in enumerate(texts))
@@ -538,8 +540,8 @@ def runway_state(found: "RunwayState"):
         braking = _braking(found.braking)
         return found.code if braking is False else f"{where}: cleared" + (f", {braking}" if braking else "")
     parts = [
-        DEPOSITS.get(found.deposit, False),
-        EXTENTS.get(found.extent, False),
+        DEPOSITS.get(found.deposit or "", False),
+        EXTENTS.get(found.extent or "", False),
         _depth(found.depth),
         _braking(found.braking),
     ]
@@ -630,11 +632,11 @@ def remarks(rmk: "Remarks"):
     (label, text) for each thing the remarks say, in a fixed order (not the report's); a label continued on the
     next line is "". Groups it doesn't read are one "Other remarks" line, as reported.
     """
-    found = []
+    found: List[Tuple[str, str]] = []
 
     def add(label, *texts):
-        texts = [t for t in texts if t]
-        found.extend((label if n == 0 else "", t) for n, t in enumerate(texts))
+        shown = [t for t in texts if t]
+        found.extend((label if n == 0 else "", t) for n, t in enumerate(shown))
 
     if rmk.station_type:
         augmented = ", augmented by an observer" if rmk.station_type.endswith("A") else ""
@@ -664,7 +666,7 @@ def remarks(rmk: "Remarks"):
         add("Variable ceiling", "{:,} to {:,} ft".format(*rmk.variable_ceiling_ft))
     for amount in rmk.precipitation:
         hours = amount.hours
-        label = PRECIPITATION_LABELS.get(hours) or f"Precipitation (last {hours or '3 or 6'} hours)"
+        label = PRECIPITATION_LABELS.get(hours or 0) or f"Precipitation (last {hours or '3 or 6'} hours)"
         add(label, inches(amount.inches))
     for amount in rmk.ice_accretion:
         when = "since the last hourly report" if amount.hours == 1 else f"last {amount.hours} hours"
@@ -733,7 +735,7 @@ def began_ended(events, said=None):
     clock() by default (the spoken weather passes its own, so it groups the events as this does).
     """
     said = said or clock
-    by_weather = {}
+    by_weather: Dict[str, List[str]] = {}
     for event in events:
         when = f"{'began' if event.began else 'ended'} {said(event.hour, event.minute)}"
         by_weather.setdefault(event.weather, []).append(when)
@@ -759,7 +761,7 @@ def lightning(group: "Lightning"):
     "Lightning observed" for an LTG alone.
     """
     kinds = _listed([LIGHTNING_TYPES[kind] for kind in group.types])
-    what = " ".join(t for t in (FREQUENCIES.get(group.frequency, ""), kinds) if t)
+    what = " ".join(t for t in (FREQUENCIES.get(group.frequency or "", ""), kinds) if t)
     text = ", ".join(t for t in (what, lightning_where(group)) if t)
     return text[:1].upper() + text[1:] if text else "Lightning observed"
 
@@ -778,7 +780,7 @@ def place_text(place: "Place"):
         toward = "in all quadrants"
     else:
         toward = _listed([_points(item) for item in place.directions])
-    distance = DISTANCES.get(place.distance, "")
+    distance = DISTANCES.get(place.distance or "", "")
     if not distance or not toward:
         return distance or toward
     if place.distance == "DSNT" or place.all_quadrants:
@@ -805,7 +807,7 @@ def lightning_sentence(group: "Lightning", plain="Lightning observed"):
     station); `plain` for an LTG alone. For the Map popup (summary) and the spoken weather (spoken.py).
     """
     where = lightning_where(group)
-    frequency = FREQUENCIES.get(group.frequency)
+    frequency = FREQUENCIES.get(group.frequency or "")
     if not where and not frequency:
         return plain
     text = f"{frequency} lightning" if frequency else "lightning"

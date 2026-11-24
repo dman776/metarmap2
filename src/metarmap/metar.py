@@ -9,7 +9,7 @@ import threading
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from fractions import Fraction
-from typing import Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import requests
 
@@ -53,7 +53,7 @@ def latest_reports(content):
     """
     text = content.decode() if isinstance(content, bytes) else (content or "")
     reports = json.loads(text) if text.strip() else []
-    by_station = {}
+    by_station: Dict[str, Dict[str, Any]] = {}
     for m in reports if isinstance(reports, list) else []:
         if isinstance(m, dict) and m.get("icaoId"):
             current = by_station.get(m["icaoId"])
@@ -198,7 +198,7 @@ def with_advisories(data, advisories):
     that worked) or the airport has no position. The areas in effect are worked out once, for all the airports.
     """
     in_effect = advisories.hazards()
-    result = {}
+    result: Dict[str, Optional[Report]] = {}
     for code, m in data.items():
         if m is None:  # no report: stays None, so every visualizer still shows it as "METAR not available"
             result[code] = m
@@ -218,7 +218,7 @@ def with_tfrs(data, tfrs):
     The METARs, each with tfrs: the TFRs at or near the airport (metarmap.tfr.Tfrs.at), most important first, or None
     while there's no TFR list to go by or the airport has no position. Airports with no report stay None.
     """
-    result = {}
+    result: Dict[str, Optional[Report]] = {}
     for code, m in data.items():
         if m is None:
             result[code] = m
@@ -253,7 +253,7 @@ def with_delays(data, delays, known):
     FAA's status, so it has no delay. known: code -> what the station lookup found.
     Airports with no report stay None.
     """
-    result = {}
+    result: Dict[str, Optional[Report]] = {}
     for code, m in data.items():
         if m is None:
             result[code] = m
@@ -311,15 +311,16 @@ class Reports:
         self.forecasts = forecasts
         self._clock = clock or Clock()
         self._is_fetching = False
-        self._missing_stations = []
-        self._stations = []
-        self.data = {}  # what the map shows: the fetched reports, with mock METARs in their place (dev_mode)
-        self._real = {}  # the fetched reports
-        self.lastFetchTime = None
-        self.last_fetch_ok = None  # None until the first fetch, then whether the last one worked
+        self._missing_stations: List[str] = []
+        self._stations: List[str] = []
+        # what the map shows: the fetched reports, with mock METARs in their place (dev_mode)
+        self.data: Dict[str, Optional[Report]] = {}
+        self._real: Dict[str, Optional[Report]] = {}  # the fetched reports
+        self.lastFetchTime: Optional[datetime] = None
+        self.last_fetch_ok: Optional[bool] = None  # None until the first fetch, then whether the last one worked
         # code -> {"lat", "lon", "name", "faa"} from STATION_URL, or None if it doesn't know the code; "faa" is its
         # FAA id (KSAN: SAN, PHNL: HNL), "" for a station without one
-        self.positions = {}
+        self.positions: Dict[str, Optional[Dict[str, Any]]] = {}
         # _look_up adds codes from several threads (the fetch, the Chart Planner's lookup) while station_names() lists
         # them: a lock, because copying a dict another thread is adding to is not safe even as one expression
         self._positions_lock = threading.Lock()
