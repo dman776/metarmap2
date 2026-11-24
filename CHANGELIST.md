@@ -1,6 +1,6 @@
 ### Unreleased
 
-- **21 more modules pass mypy (B107).** Their type errors are fixed and they are off the `[[tool.mypy.overrides]]` list in `pyproject.toml`, so CI keeps them clean; 12 modules are left. The fixes are annotations (`Report.airmets` and `sigmets` are lists of hazard names, not dicts; `Look.tagged()` takes the possibly empty keys it already skipped; `display` takes `clock=None`) and None guards: a density altitude that can't be worked out shows as missing, and the Pronunciation page asks nothing when there is no ATIS. Nothing else changes on the Chart. No API change.
+- **21 more modules pass mypy (B107).** Their type errors are fixed and they are off the `[[tool.mypy.overrides]]` list in `pyproject.toml`, so CI keeps them clean; 12 modules are left. The fixes are annotations (`Report.airmets` and `sigmets` are lists of hazard names, not dicts; `Look.tagged()` takes the possibly empty keys it already skipped; `display` takes `clock=None`) and None guards that never fire today. Development only; nothing on the Chart changes. No API change.
 
 - **A new airport's put-off fetch logs one line, not two (B98).** When an airport is added while a METAR fetch is under way, its fetch waits for that one and the log says "an airport changed: its METAR comes after the fetch under way". If another fetch (e.g. a Fetch METARs that was waiting) got in first when that one ended, the same line was logged a second time for the same change; now it is logged once. Its METAR is still fetched right after. Log only. No API change.
 
