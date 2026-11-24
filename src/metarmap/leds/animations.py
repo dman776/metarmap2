@@ -34,8 +34,10 @@ def look_interval(look: Look):
         assert look.period is not None  # a blink always has its period
         return look.period / 2
     if look.effect == "pulse":
+        if not look.low:
+            return PULSE_SPEED
         assert look.period is not None
-        return look.period / PULSE_STEPS if look.low else PULSE_SPEED
+        return look.period / PULSE_STEPS
     if look.effect == "cycle" or look.effect == "chase":
         return look.step
     if look.effect == "rainbow":
