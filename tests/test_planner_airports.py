@@ -2,6 +2,7 @@
 
 import json
 import random
+import shutil
 import threading
 import time
 from datetime import timedelta
@@ -149,10 +150,10 @@ def api(monkeypatch):
 # ---- candidates --------------------------------------------------------------------------------------------
 
 
-def test_a_small_box_is_one_request_with_its_own_bounds(api, clock):
+def test_a_small_box_is_one_request_for_the_grid_tile_around_it(api, clock):
     fake = api(stations=lambda bbox: [report("KHOU")])
     got = airports.candidates(-96, 29, -95, 30, clock=clock)
-    assert fake.metar_boxes == [(29.0, -96.0, 30.0, -95.0)]
+    assert fake.metar_boxes == [(27.5, -97.5, 30.0, -95.0)]  # the tile of the global 2.5 degree grid
     assert [s.code for s in got.items] == ["KHOU"] and got.failed == 0
 
 
@@ -163,7 +164,8 @@ def test_the_bbox_sent_has_no_float_noise(api, clock):
     assert fake.bbox_texts and all(
         len(part.partition(".")[2]) <= 4 for text in fake.bbox_texts for part in text.split(",")
     )
-    assert "31.52,-95.7306,34.02,-94.7655" in fake.bbox_texts
+    wanted = ["30,-97.5,32.5,-95", "30,-95,32.5,-92.5", "32.5,-97.5,35,-95", "32.5,-95,35,-92.5"]  # the grid tiles
+    assert sorted(fake.bbox_texts) == sorted(wanted)
 
 
 @pytest.mark.parametrize(
@@ -190,10 +192,10 @@ def test_a_big_box_is_fetched_in_tiles_that_cover_it(api, clock):
     assert all(b[2] - b[0] <= airports.TILE_DEGREES and b[3] - b[1] <= airports.TILE_DEGREES for b in fake.metar_boxes)
 
 
-def test_the_last_tile_stops_at_the_box_edge(api, clock):
+def test_the_tiles_are_on_the_global_grid_and_reach_past_the_box(api, clock):
     fake = api()
-    airports.candidates(-96, 29, -92, 30, clock=clock)  # 4 degrees wide: tiles of 2.5 and 1.5
-    assert sorted(fake.metar_boxes) == [(29.0, -96.0, 30.0, -93.5), (29.0, -93.5, 30.0, -92.0)]
+    airports.candidates(-96, 29, -93, 30, clock=clock)  # 3 degrees wide, across the grid line at -95
+    assert sorted(fake.metar_boxes) == [(27.5, -97.5, 30.0, -95.0), (27.5, -95.0, 30.0, -92.5)]
 
 
 def test_an_airport_on_a_tile_edge_is_listed_once(api, clock):
@@ -231,14 +233,14 @@ def test_a_dense_tile_is_fetched_again_as_four_smaller_ones(api, clock):
         return [report(f"K{int(bbox[1] * 10) % 100:02d}{int(bbox[0]) % 10}")]
 
     fake = api(stations=stations)
-    airports.candidates(-96, 29, -93.5, 31.5, clock=clock)
+    airports.candidates(-97.5, 27.5, -95, 30, clock=clock)  # one tile of the grid
     sizes = sorted({round(b[2] - b[0], 2) for b in fake.metar_boxes})
     assert sizes == [1.25, 2.5] and len(fake.metar_boxes) == 5
 
 
 def test_a_tile_is_never_split_below_the_smallest(api, clock):
     fake = api(stations=lambda bbox: [report(f"K{i:03d}") for i in range(airports.SPLIT_AT)])
-    airports.candidates(-96, 29, -93.5, 31.5, clock=clock)
+    airports.candidates(-97.5, 27.5, -95, 30, clock=clock)
     assert len(fake.metar_boxes) == 5  # the tile, then its four 1.25 degree ones, which stay as they are
 
 
@@ -353,7 +355,7 @@ def path_text(path):
 
 def houston(api):
     return api(
-        stations=lambda bbox: [report("KHOU", 29.6, -95.3), report("KIAH", 30.0, -95.3), report("K11R", 30.9, -96.0)],
+        stations=lambda bbox: [report("KHOU", 29.6, -95.3), report("KIAH", 30.0, -95.3), report("K11R", 29.9, -95.9)],
         known={
             "KHOU": detail("KHOU", "T", "13110", "3", ["7602x150"]),
             "KIAH": detail("KIAH", "T", "40970", "5", ["12001x150"]),
@@ -396,6 +398,8 @@ def test_load_fetches_again_after_the_cache_is_a_day_old(api, clock, tmp_path):
 
 def test_each_box_has_its_own_cache_entry(api, clock, tmp_path):
     fake = houston(api)
+    houston_stations = fake.stations
+    fake.stations = lambda bbox: houston_stations(bbox) + [report("KAAA", 25.5, -99.5)]  # in the second box
     path = str(tmp_path / "a.json")
     airports.load(BOX, cache_path=path, clock=clock)
     airports.load((-100, 25, -99, 26), cache_path=path, clock=clock)
@@ -519,6 +523,7 @@ def test_a_partial_fetch_does_not_replace_a_whole_old_cache(api, monkeypatch, cl
         return fake.get(url, params=params, **kwargs)
 
     monkeypatch.setattr(airports.http, "get", metar_only)
+    (tmp_path / "details.json").unlink()  # the details are kept for 30 days: make them be asked for again
     result = airports.load(BOX, cache_path=path, clock=clock)
     assert result.stale is True and result.airports == first.airports and result.fetched_at == first.fetched_at
     assert "failed" in result.error and "using the cache from" in result.error
@@ -540,8 +545,8 @@ def test_a_box_across_the_antimeridian_never_asks_for_a_longitude_the_api_reject
     assert fake.metar_boxes and all(-180 <= b[1] < b[3] <= 180 for b in fake.metar_boxes)
     west = [b for b in fake.metar_boxes if b[1] > 0]  # the part up to 180
     east = [b for b in fake.metar_boxes if b[1] < 0]  # the part from -180
-    assert min(b[1] for b in west) == pytest.approx(168.1678) and max(b[3] for b in west) == 180
-    assert min(b[1] for b in east) == -180 and max(b[3] for b in east) == pytest.approx(187.6496 - 360)
+    assert min(b[1] for b in west) == 167.5 and max(b[3] for b in west) == 180  # the grid tiles that cover it
+    assert min(b[1] for b in east) == -180 and max(b[3] for b in east) == -170
 
 
 def test_load_gets_the_airports_on_both_sides_of_the_antimeridian(api, clock, tmp_path):
@@ -1029,3 +1034,371 @@ def test_load_does_not_report_a_cache_it_uses_as_it_is(api, clock, tmp_path):
     calls = []
     airports.load(BIG_BOX, cache_path=path, clock=clock, progress=lambda *args: calls.append(args))
     assert calls == []
+
+
+# ---- the tile cache: a fixed global grid, each tile's stations kept for TILE_MAX_AGE ----------------------------
+
+
+def spread(bbox):
+    """A station at the middle of every tile asked for, and one on its southwest corner, as the API would answer."""
+    south, west, north, east = bbox
+    middle = report("K" + f"{abs(int(south * 4)) % 1000:03d}"[:3], (south + north) / 2, (west + east) / 2)
+    corner = report("P" + f"{abs(int(west * 4)) % 1000:03d}"[:3], south, west)
+    return [middle, corner]
+
+
+def test_two_boxes_that_overlap_share_their_tiles(api, clock, tmp_path):
+    fake = api(stations=spread)
+    tiles = str(tmp_path / "tiles.json")
+    airports.candidates(-100, 30, -95, 35, clock=clock, cache_path=tiles)  # 2 x 2 tiles
+    assert len(fake.metar_boxes) == 4
+    airports.candidates(-98, 31, -93, 34, clock=clock, cache_path=tiles)  # 2 rows x 3 columns, 4 of them cached
+    assert len(fake.metar_boxes) == 4 + 2
+    assert sorted(fake.metar_boxes[4:]) == [(30.0, -95.0, 32.5, -92.5), (32.5, -95.0, 35.0, -92.5)]
+
+
+def test_a_cached_tile_gives_the_same_answer_as_a_fetched_one(api, clock, tmp_path):
+    api(stations=tile_stations)
+    tiles = str(tmp_path / "tiles.json")
+    fetched = airports.candidates(*BIG_BOX, clock=clock, cache_path=tiles)
+    fake = api(stations=tile_stations)
+    cached = airports.candidates(*BIG_BOX, clock=clock, cache_path=tiles)
+    assert fake.metar_boxes == [] and cached[:2] == fetched[:2]  # the dense tile's quarters came from the cache too
+    assert cached[:2] == airports.candidates(*BIG_BOX, clock=clock)[:2]  # and it is what no cache gives
+    assert fetched.fetched_at is None and cached.fetched_at == WHEN  # the oldest cached tile's time
+
+
+def test_only_the_stations_inside_the_box_are_kept_from_a_tile_that_reaches_past_it(api, clock, tmp_path):
+    inside, edge, outside = report("KHOU", 29.6, -95.3), report("KIAH", 30.0, -95.5), report("KCLL", 28.5, -96.5)
+    api(stations=lambda bbox: [inside, edge, outside])  # the tile 27.5..30, -97.5..-95 has all three
+    tiles = str(tmp_path / "tiles.json")
+    for _ in range(2):  # fetched, then from the cache
+        got = airports.candidates(-96, 29, -95, 30, clock=clock, cache_path=tiles)
+        assert [s.code for s in got.items] == ["KHOU", "KIAH"]  # the box edge counts as inside
+    saved = json.loads(path_text(tiles))["27.5,-97.5,30,-95"]["stations"]
+    assert sorted(s["code"] for s in saved) == ["KCLL", "KHOU", "KIAH"]  # the tile is kept whole, for other boxes
+
+
+def test_a_failed_tile_is_not_cached(api, clock, tmp_path):
+    fake = api(stations=spread, fail=[504, 504])  # the first tile asked for fails both tries
+    tiles = str(tmp_path / "tiles.json")
+    got = airports.candidates(-100, 30, -95, 35, clock=clock, cache_path=tiles)
+    assert got.failed == 1 and len(json.loads(path_text(tiles))) == 3
+    airports.candidates(-100, 30, -95, 35, clock=clock, cache_path=tiles)
+    assert len(fake.metar_boxes) == 3 + 1  # only the failed one is asked for again
+
+
+def test_a_tile_cut_by_the_budget_is_not_cached(api, tmp_path):
+    clock = SafeClock()
+    fake = api()
+    tiles = tmp_path / "tiles.json"
+    got = airports.candidates(*US_BOX, clock=clock, budget=airports._Budget(clock, deadline=5), cache_path=str(tiles))
+    assert got.failed > 0 and len(json.loads(tiles.read_text())) == len(fake.metar_boxes) < 264
+
+
+def test_an_empty_tile_is_cached(api, clock, tmp_path):
+    fake = api()  # the sea: no station anywhere
+    tiles = str(tmp_path / "tiles.json")
+    assert airports.candidates(-70, 35, -65, 40, clock=clock, cache_path=tiles)[:2] == ([], 0)
+    assert all(entry["stations"] == [] for entry in json.loads(path_text(tiles)).values())
+    airports.candidates(-70, 35, -65, 40, clock=clock, cache_path=tiles)
+    assert len(fake.metar_boxes) == 4  # the second time, none
+
+
+def test_an_expired_tile_is_fetched_again(api, clock, tmp_path):
+    fake = api(stations=spread)
+    tiles = str(tmp_path / "tiles.json")
+    airports.candidates(-96, 29, -95, 30, clock=clock, cache_path=tiles)
+    clock.advance(airports.TILE_MAX_AGE.total_seconds() - 60)
+    airports.candidates(-96, 29, -95, 30, clock=clock, cache_path=tiles)
+    assert len(fake.metar_boxes) == 1
+    clock.advance(120)
+    airports.candidates(-96, 29, -95, 30, clock=clock, cache_path=tiles)
+    assert len(fake.metar_boxes) == 2
+    when = json.loads(path_text(tiles))["27.5,-97.5,30,-95"]["fetched_at"]
+    assert when == clock.now().isoformat()  # replaced by the new one
+
+
+def test_a_tile_is_used_for_at_most_max_age(api, clock, tmp_path):
+    fake = api(stations=spread)
+    tiles = str(tmp_path / "tiles.json")
+    airports.candidates(-96, 29, -95, 30, clock=clock, cache_path=tiles)
+    clock.advance(3600)
+    airports.candidates(-96, 29, -95, 30, clock=clock, cache_path=tiles, max_age=timedelta(minutes=30))
+    assert len(fake.metar_boxes) == 2
+
+
+def test_expired_tiles_are_dropped_from_the_file_when_it_is_saved(api, clock, tmp_path):
+    api(stations=spread)
+    tiles = str(tmp_path / "tiles.json")
+    airports.candidates(-96, 29, -95, 30, clock=clock, cache_path=tiles)
+    clock.advance(airports.TILE_MAX_AGE.total_seconds() + 60)
+    airports.candidates(-91, 36, -90, 37, clock=clock, cache_path=tiles)  # another tile
+    assert list(json.loads(path_text(tiles))) == ["35,-92.5,37.5,-90"]
+
+
+TILE = "27.5,-97.5,30,-95"
+STATION = {"code": "KHOU", "name": "Hobby", "lat": 29.6, "lon": -95.3}
+MALFORMED_TILES = [
+    [],
+    {TILE: []},
+    {TILE: None},
+    {TILE: {"stations": []}},
+    {TILE: {"fetched_at": 5, "stations": []}},
+    {TILE: {"fetched_at": "yesterday", "stations": []}},
+    {TILE: {"fetched_at": "2026-10-24T12:00:00", "stations": []}},  # no time zone
+    {TILE: {"fetched_at": "2999-01-01T00:00:00+00:00", "stations": [STATION]}},  # from the future
+    {TILE: {"fetched_at": WHEN}},  # neither stations nor split
+    {TILE: {"fetched_at": WHEN, "split": "yes"}},
+    {TILE: {"fetched_at": WHEN, "stations": "none"}},
+    {TILE: {"fetched_at": WHEN, "stations": [1]}},
+    {TILE: {"fetched_at": WHEN, "stations": [{**STATION, "lat": "29.6"}]}},
+    {TILE: {"fetched_at": WHEN, "stations": [{**STATION, "lat": float("nan")}]}},
+    {TILE: {"fetched_at": WHEN, "stations": [{**STATION, "lat": 95}]}},
+    {TILE: {"fetched_at": WHEN, "stations": [{**STATION, "code": "42019"}]}},  # not an airport
+    {TILE: {"fetched_at": WHEN, "stations": [{**STATION, "name": None}]}},
+    {TILE: {"fetched_at": WHEN, "stations": [STATION, {"code": "KIAH"}]}},  # one bad station spoils the tile
+]
+
+
+@pytest.mark.parametrize("content", MALFORMED_TILES)
+def test_a_malformed_or_future_tile_entry_is_fetched_again(api, clock, tmp_path, content):
+    fake = api(stations=lambda bbox: [report("KIAH", 30.0, -95.3)])
+    tiles = tmp_path / "tiles.json"
+    tiles.write_text(json.dumps(content))
+    got = airports.candidates(-96, 29, -95, 30, clock=clock, cache_path=str(tiles))
+    assert len(fake.metar_boxes) == 1 and [s.code for s in got.items] == ["KIAH"]
+    assert [s["code"] for s in json.loads(tiles.read_text())[TILE]["stations"]] == ["KIAH"]  # and replaced
+
+
+def test_a_valid_tile_entry_written_by_hand_is_used(api, clock, tmp_path):
+    fake = api()
+    tiles = tmp_path / "tiles.json"
+    tiles.write_text(json.dumps({TILE: {"fetched_at": clock.now().isoformat(), "stations": [STATION]}}))
+    got = airports.candidates(-96, 29, -95, 30, clock=clock, cache_path=str(tiles))
+    assert fake.metar_boxes == [] and got.items == [airports.Station("KHOU", "Hobby", 29.6, -95.3)]
+
+
+def test_a_split_mark_on_a_tile_too_small_to_split_is_ignored(api, clock, tmp_path):
+    fake = api()
+    tiles = tmp_path / "tiles.json"
+    now = clock.now().isoformat()
+    small = "27.5,-97.5,28.75,-96.25"  # a quarter: its own quarters would be under MIN_TILE
+    tiles.write_text(json.dumps({TILE: {"fetched_at": now, "split": True}, small: {"fetched_at": now, "split": True}}))
+    got = airports.candidates(-97.5, 27.5, -95, 30, clock=clock, cache_path=str(tiles))
+    assert got.failed == 0 and (27.5, -97.5, 28.75, -96.25) in fake.metar_boxes and len(fake.metar_boxes) == 4
+
+
+def test_progress_counts_the_cached_tiles_as_done_at_once(api, clock, tmp_path):
+    api(stations=tile_stations)
+    half = tmp_path / "half.json"
+    airports.candidates(-100, 30, -95, 40, clock=clock, cache_path=str(half))  # the west half, with the dense tile
+    for workers in (1, 3):
+        tiles = str(tmp_path / f"tiles-{workers}.json")
+        shutil.copy(half, tiles)
+        calls = []
+        got = airports.candidates(
+            *BIG_BOX,
+            clock=SafeClock() if workers > 1 else clock,
+            workers=workers,
+            cache_path=tiles,
+            progress=lambda done, total, calls=calls: calls.append((done, total)),
+        )
+        # the 8 tiles of the west half are done before any request, and the dense one's four quarters too
+        assert calls[0] == (8 + 4, 16 + 4) and calls[-1] == (20, 20) and got.failed == 0
+        assert [done for done, _ in calls] == list(range(12, 21))  # then one call per request
+
+
+def test_progress_of_a_box_the_cache_has_whole_is_done_at_once(api, clock, tmp_path):
+    api(stations=tile_stations)
+    tiles = str(tmp_path / "tiles.json")
+    airports.candidates(*BIG_BOX, clock=clock, cache_path=tiles)
+    calls = []
+    airports.candidates(
+        *BIG_BOX, clock=clock, cache_path=tiles, progress=lambda done, total: calls.append((done, total))
+    )
+    assert calls == [(20, 20)]
+
+
+def test_the_tiles_across_the_antimeridian_are_cached_with_longitudes_the_api_takes(api, clock, tmp_path):
+    aleutians = (168.1678, 50.7546, 187.6496, 53.2873)
+    fake = api(
+        stations=lambda b: (
+            [report("PASY", 52.72, 174.11)] * (b[1] <= 174.11 <= b[3])
+            + [report("PADK", 51.88, -176.65)] * (b[1] <= -176.65 <= b[3])
+        )
+    )
+    tiles = tmp_path / "tiles.json"
+    first = airports.candidates(*aleutians, clock=clock, cache_path=str(tiles))
+    keys = [tuple(float(x) for x in key.split(",")) for key in json.loads(tiles.read_text())]
+    assert keys and all(-180 <= k[1] < k[3] <= 180 for k in keys)
+    asked = len(fake.metar_boxes)
+    again = airports.candidates(*aleutians, clock=clock, cache_path=str(tiles))
+    assert (
+        len(fake.metar_boxes) == asked and again[:2] == first[:2] and [s.code for s in again.items] == ["PADK", "PASY"]
+    )
+
+
+# ---- the details cache: each airport's details kept for DETAIL_MAX_AGE ------------------------------------------
+
+
+def numbered(count):
+    codes = [f"K{i:03d}" for i in range(count)]
+    return codes, {c: detail(c, tower="T" if i % 2 else "", passengers=str(i)) for i, c in enumerate(codes)}
+
+
+def test_cached_details_are_not_asked_for_again(api, clock, tmp_path):
+    codes, known = numbered(150)
+    fake = api(known=known)
+    cache = str(tmp_path / "details.json")
+    first = airports.details(codes, clock=clock, cache_path=cache)
+    assert len(fake.airport_ids) == 2
+    calls = []
+    again = airports.details(codes, clock=clock, cache_path=cache, progress=lambda d, t: calls.append((d, t)))
+    assert len(fake.airport_ids) == 2 and again == first and calls == [(0, 0)]
+
+
+def test_only_the_codes_not_cached_are_asked_for_and_counted(api, clock, tmp_path):
+    codes, known = numbered(250)
+    fake = api(known=known)
+    cache = str(tmp_path / "details.json")
+    airports.details(codes[:120], clock=clock, cache_path=cache)
+    fake.airport_ids.clear()
+    calls = []
+    got = airports.details(codes, clock=clock, cache_path=cache, progress=lambda d, t: calls.append((d, t)))
+    assert [len(ids) for ids in fake.airport_ids] == [100, 30] and sum(fake.airport_ids, []) == codes[120:]
+    assert calls == [(0, 2), (1, 2), (2, 2)]  # the batches of the 130 missing, not of all 250
+    assert got == airports.details(codes, clock=clock) and len(got.items) == 250
+
+
+def test_a_failed_batch_of_details_is_not_cached(api, clock, tmp_path):
+    codes, known = numbered(150)
+    fake = api(known=known, fail=[500, 500])  # batch 0 fails both tries
+    cache = tmp_path / "details.json"
+    got = airports.details(codes, clock=clock, cache_path=str(cache))
+    assert got.failed == 1 and sorted(json.loads(cache.read_text())) == codes[100:]
+    fake.airport_ids.clear()
+    airports.details(codes, clock=clock, cache_path=str(cache))
+    assert fake.airport_ids == [codes[:100]]
+
+
+def test_a_code_the_api_does_not_know_is_asked_for_again(api, clock, tmp_path):
+    fake = api(known={"KHOU": detail("KHOU", "T")})
+    cache = str(tmp_path / "details.json")
+    airports.details(["KHOU", "KXXX"], clock=clock, cache_path=cache)
+    airports.details(["KHOU", "KXXX"], clock=clock, cache_path=cache)
+    assert fake.airport_ids == [["KHOU", "KXXX"], ["KXXX"]]
+
+
+def test_expired_details_are_asked_for_again(api, clock, tmp_path):
+    fake = api(known={"KHOU": detail("KHOU", "T")})
+    cache = str(tmp_path / "details.json")
+    airports.details(["KHOU"], clock=clock, cache_path=cache)
+    clock.advance(airports.DETAIL_MAX_AGE.total_seconds() - 60)
+    airports.details(["KHOU"], clock=clock, cache_path=cache)
+    assert len(fake.airport_ids) == 1
+    clock.advance(120)
+    airports.details(["KHOU"], clock=clock, cache_path=cache)
+    assert len(fake.airport_ids) == 2
+
+
+GOOD_DETAIL = {"tower": True, "passengers": 13110, "rwyNum": 3, "rwyLength": 7602}
+
+
+@pytest.mark.parametrize(
+    "entry",
+    [
+        None,
+        [],
+        {"detail": GOOD_DETAIL},
+        {"fetched_at": "2026-10-24T12:00:00", "detail": GOOD_DETAIL},  # no time zone
+        {"fetched_at": "2999-01-01T00:00:00+00:00", "detail": GOOD_DETAIL},  # from the future
+        {"fetched_at": WHEN, "detail": "T"},
+        {"fetched_at": WHEN, "detail": {**GOOD_DETAIL, "tower": "T"}},
+        {"fetched_at": WHEN, "detail": {**GOOD_DETAIL, "passengers": "13110"}},
+        {"fetched_at": WHEN, "detail": {**GOOD_DETAIL, "rwyNum": True}},
+        {"fetched_at": WHEN, "detail": {"tower": True, "passengers": 1, "rwyNum": 1}},  # no rwyLength
+    ],
+)
+def test_a_malformed_or_future_details_entry_is_asked_for_again(api, clock, tmp_path, entry):
+    fake = api(known={"KHOU": detail("KHOU", "T", "13110", "3", ["7602x150"])})
+    cache = tmp_path / "details.json"
+    cache.write_text(json.dumps({"KHOU": entry}))
+    got = airports.details(["KHOU"], clock=clock, cache_path=str(cache))
+    assert fake.airport_ids == [["KHOU"]] and got.items == {"KHOU": GOOD_DETAIL}
+    assert json.loads(cache.read_text())["KHOU"]["detail"] == GOOD_DETAIL
+
+
+def test_a_valid_details_entry_written_by_hand_is_used(api, clock, tmp_path):
+    fake = api()
+    cache = tmp_path / "details.json"
+    cache.write_text(json.dumps({"KHOU": {"fetched_at": clock.now().isoformat(), "detail": GOOD_DETAIL}}))
+    assert airports.details(["KHOU"], clock=clock, cache_path=str(cache)) == airports.Fetched({"KHOU": GOOD_DETAIL}, 0)
+    assert fake.airport_ids == []
+
+
+# ---- load with the tile and details caches ----------------------------------------------------------------------
+
+
+def test_load_keeps_its_tile_and_details_caches_next_to_its_cache_file(api, clock, tmp_path):
+    houston(api)
+    airports.load(BOX, cache_path=str(tmp_path / "planner-cache" / "airports.json"), clock=clock)
+    assert sorted(p.name for p in (tmp_path / "planner-cache").iterdir()) == [
+        "airports.json",
+        "details.json",
+        "tiles.json",
+    ]
+    assert airports._beside(airports.CACHE_FILE, airports.TILE_CACHE_FILE) == airports.TILE_CACHE_FILE
+    assert airports._beside(airports.CACHE_FILE, airports.DETAIL_CACHE_FILE) == airports.DETAIL_CACHE_FILE
+
+
+class EveryAirport(dict):
+    """The airport API's details for any code."""
+
+    def __bool__(self):  # empty, but not nothing
+        return True
+
+    def __contains__(self, code):
+        return True
+
+    def __getitem__(self, code):
+        return detail(code, tower="T")
+
+
+def test_a_changed_box_downloads_only_the_new_tiles_and_details(api, clock, tmp_path):
+    fake = api(stations=spread, known=EveryAirport())
+    path = str(tmp_path / "a.json")
+    first = airports.load((-100, 30, -95, 35), cache_path=path, clock=clock)
+    assert first.error is None and len(fake.metar_boxes) == 4 and len(fake.airport_ids) == 1
+    calls = []
+    moved = airports.load((-98, 31, -93, 34), cache_path=path, clock=clock, progress=lambda *a: calls.append(a))
+    assert moved.error is None and moved.stale is False
+    assert len(fake.metar_boxes) == 4 + 2  # the two tiles of the new column
+    assert len(fake.airport_ids) == 2 and all(code not in sum(fake.airport_ids[:1], []) for code in fake.airport_ids[1])
+    assert calls[0] == ("stations", 4, 6) and ("stations", 6, 6) in calls and ("details", 1, 1) in calls
+    expected = airports.load((-98, 31, -93, 34), cache_path=str(tmp_path / "fresh" / "a.json"), clock=clock)
+    assert moved.airports == expected.airports  # the same answer as a download from nothing
+
+
+def test_load_with_a_short_max_age_fetches_the_tiles_again(api, clock, tmp_path):
+    fake = houston(api)
+    path = str(tmp_path / "a.json")
+    airports.load(BOX, cache_path=path, clock=clock)
+    clock.advance(3600)
+    airports.load(BOX, cache_path=path, clock=clock, max_age=timedelta(minutes=30))
+    assert len(fake.metar_boxes) == 2 and len(fake.airport_ids) == 1  # the details are kept for longer
+
+
+def test_an_answer_made_from_cached_tiles_is_as_old_as_its_oldest_tile(api, clock, tmp_path):
+    fake = api(stations=spread, known=EveryAirport())
+    path = str(tmp_path / "a.json")
+    first = airports.load((-100, 30, -97.5, 35), cache_path=path, clock=clock).fetched_at  # the west column
+    oldest = json.loads(path_text(tmp_path / "tiles.json"))
+    oldest = min(oldest.values(), key=lambda entry: entry["fetched_at"])["fetched_at"]  # its first tile
+    clock.advance(6 * 3600)
+    result = airports.load((-100, 30, -95, 35), cache_path=path, clock=clock)  # and the east column, fetched now
+    assert len(fake.metar_boxes) == 4 and result.error is None and result.fetched_at == oldest <= first
+    assert json.loads(path_text(path))["-100,30,-95,35"]["fetched_at"] == oldest
+    clock.advance(19 * 3600)  # the west column's tiles and the whole answer have both expired
+    airports.load((-100, 30, -95, 35), cache_path=path, clock=clock)
+    assert len(fake.metar_boxes) == 4 + 2  # the west column again; the east one is 19 hours old
