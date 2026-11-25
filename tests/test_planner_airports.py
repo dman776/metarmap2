@@ -1472,3 +1472,32 @@ def test_a_split_mark_that_was_not_used_does_not_date_the_answer(api, clock, tmp
     assert len(fake.metar_boxes) == 5 and (27.5, -97.5, 28.75, -96.25) in fake.metar_boxes and got.failed == 0
     assert got.fetched_at is None  # nothing came from the cache, so the old mark's time is not the answer's
     assert json.loads(tiles.read_text())[small]["stations"]  # and the mark is replaced by what was fetched
+
+
+def test_details_the_api_gives_beyond_belief_are_stored_as_unknown_and_not_asked_for_again(api, clock, tmp_path):
+    odd = detail(
+        "KODD", tower="T", passengers="1e20", rwyNum="99999999999999999999", runways=["99999999999999999999x150"]
+    )
+    fake = api(known={"KODD": odd})
+    cache = tmp_path / "details.json"
+    first = airports.details(["KODD"], clock=clock, cache_path=str(cache))
+    assert first.items == {"KODD": {"tower": True, "passengers": 0, "rwyNum": 1, "rwyLength": 0}}  # like other junk
+    assert json.loads(cache.read_text())["KODD"]["detail"] == first.items["KODD"]
+    again = airports.details(["KODD"], clock=clock, cache_path=str(cache))
+    assert fake.airport_ids == [["KODD"]] and again.items == first.items  # the stored detail passes the read check
+
+
+@pytest.mark.parametrize(
+    "value, number",
+    [
+        ("13110", 13110),
+        (" 7 ", 7),
+        ("1e20", 0),
+        (str(2**53), 2**53),
+        (str(2**53 + 2), 0),
+        ("-1e300", 0),
+        ("9" * 6000, 0),
+    ],
+)
+def test_a_number_beyond_what_the_cache_keeps_is_zero(value, number):
+    assert airports._number(value) == number

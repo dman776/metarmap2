@@ -708,8 +708,7 @@ def _detail(airport):
     runways = [r for r in listed if isinstance(r, dict)] if isinstance(listed, list) else []
     longest = 0
     for runway in runways:
-        with contextlib.suppress(ValueError):
-            longest = max(longest, int(str(runway.get("dimension")).split("x")[0]))
+        longest = max(longest, _number(str(runway.get("dimension")).split("x")[0]))
     return {
         "tower": bool(str(airport.get("tower") or "").strip()),
         "passengers": _number(airport.get("passengers")),
@@ -719,12 +718,16 @@ def _detail(airport):
 
 
 def _number(value):
-    """An int from an API value that may be a string, a float, empty or nonsense; 0 if it isn't a finite number."""
+    """
+    An int from an API value that may be a string, a float, empty or nonsense; 0 if it isn't a finite number, or
+    is one bigger than MOST_CACHED (a runway of 99999999999999999999 ft, 1e20 passengers), which no airport has and
+    which the details cache would refuse on every read, asking for the airport again each time.
+    """
     try:
         number = float(str(value).strip())
-    except ValueError:
+    except (ValueError, OverflowError):
         return 0
-    return int(number) if math.isfinite(number) else 0
+    return int(number) if math.isfinite(number) and abs(number) <= MOST_CACHED else 0
 
 
 def _combine(stations, extra):
