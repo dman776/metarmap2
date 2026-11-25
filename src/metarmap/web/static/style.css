@@ -702,6 +702,22 @@ textarea { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--cont
 .pl-buttons .btn, .pl-confirm .btn { margin: 0 12px 8px 0; }
 .pl-undo-line .btn { margin-left: 8px; }
 .pl-bottom { height: 16px; }
+.pl-saves { list-style: none; margin: 8px 0 0; padding: 0; }
+.pl-saves li { padding: 12px 24px; border-bottom: 1px solid var(--line-soft); }
+.pl-saves li:last-child { border-bottom: 0; }
+.pl-save-main { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+.pl-save-info { flex: 1 1 220px; min-width: 0; margin: 0 12px 6px 0; }
+.pl-save-name { font-weight: 600; word-wrap: break-word; overflow-wrap: break-word; }
+.pl-save-meta { font-size: 13px; color: var(--muted); }
+.pl-save-btns .btn { margin: 0 8px 6px 0; }
+.pl-save-edit { margin-top: 8px; }
+.pl-save-edit input[type=text] { width: 100%; max-width: 360px; box-sizing: border-box; margin: 0 0 8px; }
+.pl-save-edit .btn { margin: 0 12px 6px 0; }
+.pl-save-edit p { margin: 0 0 8px; }
+.pl-save-row { display: flex; flex-wrap: wrap; align-items: center; }
+.pl-save-row label { margin: 0 12px 8px 0; }
+.pl-save-row input[type=text] { flex: 1 1 200px; min-width: 0; margin: 0 12px 8px 0; }
+.pl-save-row .btn { margin: 0 0 8px; }
 #pl-apply-status:empty, #pl-undo-status:empty { display: none; }
 #pl-apply-status.bad, #pl-undo-status.bad { color: var(--ifr); }
 #pl-undo-card { margin-bottom: 16px; }

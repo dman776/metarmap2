@@ -33,6 +33,11 @@
     let board = null;  // the last result's board, for the Board view's size
     let lastResult = null;
     let jobRunning = false;
+    const saveForm = $('pl-save-form');
+    const saveName = $('pl-save-name');
+    const saveBtn = $('pl-save-btn');
+    let savesBusy = false;  // a save, load, rename or delete is on its way
+    let savedNames = [];  // the names in the list now, to say a clash before the Chart does
     const currentCodes = Array.prototype.map.call($('pl-keep').querySelectorAll('input'), function (b) { return b.value; });
     const unlocated = Array.prototype.filter.call($('pl-keep').querySelectorAll('input'), function (b) { return b.dataset.unlocated; })
         .map(function (b) { return b.value; });
@@ -258,6 +263,7 @@
         setRunning(false);
         if (job.ok && job.result) {
             showError('');
+            showLoaded(job.loaded);
             renderResult(job.result);
         } else if (job.cancelled) {
             showError('Cancelled.');
@@ -355,6 +361,8 @@
         summary.appendChild(text);
 
         lastResult = r;
+        saveName.value = suggestName(r);
+        sayIn('pl-save-status', '');
         resetApply();
         applyChanged();
         // the lists and the snippet first: they need no Leaflet, so a map that cannot start leaves them on screen
@@ -890,6 +898,7 @@
         applyBtn.disabled = jobRunning || applyBusy || !lastResult || !applyPanel.hidden;
         applyGo.disabled = jobRunning || applyBusy || applyUnchanged || !applyWired.checked || !applyToken;
         undoBtn.disabled = jobRunning || applyBusy || !undoPanel.hidden;
+        if (typeof savesChanged === 'function') savesChanged();
     }
 
     // close the confirmation and the success message (the standing Undo card is left alone): a new plan starts clean
@@ -1130,6 +1139,200 @@
     loadUndo();  // the standing card shows on every load, with or without a plan on the page
 
     applyChanged();
+
+    // ---- saved plans ------------------------------------------------------------------------------------------
+
+    const SAVES = '/config/planner/saves';
+
+    function whenText(iso) {
+        const t = new Date(iso);
+        return isNaN(t.getTime()) ? String(iso || '') : t.toLocaleString();
+    }
+
+    function sayIn(id, text, bad) {  // a polite status line: set only when something happened
+        const box = $(id);
+        box.textContent = text || '';
+        box.className = 'pl-pad' + (bad ? ' bad' : '');
+    }
+
+    function savesChanged() {
+        saveBtn.disabled = savesBusy || jobRunning || !lastResult;
+        saveName.disabled = savesBusy;
+        Array.prototype.forEach.call($('pl-saves-list').querySelectorAll('button, input'), function (b) {
+            b.disabled = savesBusy || (jobRunning && b.dataset.load === '1');
+        });
+    }
+
+    function suggestName(r) {
+        const d = new Date();
+        const two = function (n) { return ('0' + n).slice(-2); };
+        const name = (r && r.chart && r.chart.name) || 'Plan';
+        return name + ' ' + d.getFullYear() + '-' + two(d.getMonth() + 1) + '-' + two(d.getDate());
+    }
+
+    // the note over a loaded plan; a plan that was just made has none
+    function showLoaded(loaded) {
+        const box = $('pl-loaded');
+        box.hidden = !loaded;
+        box.textContent = loaded ? 'Loaded from saved plan ' + loaded.name + ', saved ' + whenText(loaded.saved_at) + '.' : '';
+    }
+
+    function saveInfo(item) {
+        const s = item.summary || {};
+        const bits = [];
+        if (s.chart) bits.push(s.chart);
+        if (typeof s.airports === 'number') bits.push(plural(s.airports, 'airport'));
+        if (s.strings) bits.push(plural(s.strings, 'string'));
+        if (s.board_in && s.board_in[0] && s.board_in[1]) bits.push(s.board_in[0] + ' x ' + s.board_in[1] + ' in');
+        bits.push('saved ' + whenText(item.saved_at));
+        return bits.join(', ');
+    }
+
+    function closeEdit(li, button) {
+        const edit = li.querySelector('.pl-save-edit');
+        if (edit) li.removeChild(edit);
+        if (button) button.focus();
+    }
+
+    // an inline panel under a row (the page's confirm pattern: no browser dialog): a rename field or a delete question
+    function openEdit(li, kind, item, button) {
+        closeEdit(li);
+        sayIn('pl-saves-status', '');
+        const box = el('div', {'class': 'pl-save-edit'});
+        const go = el('button', {'class': 'btn sm' + (kind === 'delete' ? ' danger' : ' primary'), type: 'button'}, kind === 'delete' ? 'Delete' : 'Rename');
+        const cancel = el('button', {'class': 'btn sm', type: 'button'}, kind === 'delete' ? 'Keep it' : 'Cancel');
+        let input = null;
+        let head;
+        if (kind === 'delete') {
+            head = el('p', {tabindex: '-1'});
+            head.appendChild(el('strong', null, 'Delete ' + item.name + '? '));
+            head.appendChild(document.createTextNode('The saved plan is removed from this Chart. This cannot be undone.'));
+            box.appendChild(head);
+        } else {
+            const id = 'pl-rename-' + item.id;
+            head = el('label', {'for': id, 'class': 't'}, 'New name for ' + item.name);
+            input = el('input', {type: 'text', id: id, maxlength: '60', spellcheck: 'false', value: item.name});
+            add(box, [head, input]);
+        }
+        add(box, [go, cancel]);
+        li.appendChild(box);
+        cancel.addEventListener('click', function () { closeEdit(li, button); });
+        go.addEventListener('click', function () {
+            if (kind === 'delete') doDelete(item); else doRename(item, input.value);
+        });
+        if (input) {
+            input.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') { e.preventDefault(); go.click(); }
+                if (e.key === 'Escape') closeEdit(li, button);
+            });
+            input.focus();
+            input.select();
+        } else {
+            head.focus();
+        }
+    }
+
+    function renderSaves(list) {
+        const ul = $('pl-saves-list');
+        while (ul.firstChild) ul.removeChild(ul.firstChild);
+        savedNames = list.map(function (i) { return i.name; });
+        $('pl-saves-empty').hidden = list.length > 0;
+        list.forEach(function (item) {
+            const li = el('li');
+            const main = el('div', {'class': 'pl-save-main'});
+            const info = el('div', {'class': 'pl-save-info'});
+            info.appendChild(el('div', {'class': 'pl-save-name'}, item.name));
+            info.appendChild(el('div', {'class': 'pl-save-meta'}, saveInfo(item)));
+            const btns = el('div', {'class': 'pl-save-btns'});
+            const load = el('button', {'class': 'btn sm primary', type: 'button', 'data-load': '1', 'aria-label': 'Load ' + item.name}, 'Load');
+            const rename = el('button', {'class': 'btn sm', type: 'button', 'aria-label': 'Rename ' + item.name}, 'Rename');
+            const del = el('button', {'class': 'btn sm', type: 'button', 'aria-label': 'Delete ' + item.name}, 'Delete');
+            add(btns, [load, rename, del]);
+            add(main, [info, btns]);
+            li.appendChild(main);
+            ul.appendChild(li);
+            load.addEventListener('click', function () { doLoad(item); });
+            rename.addEventListener('click', function () { openEdit(li, 'rename', item, rename); });
+            del.addEventListener('click', function () { openEdit(li, 'delete', item, del); });
+        });
+        savesChanged();
+    }
+
+    async function refreshSaves() {
+        try {
+            const reply = await send(SAVES, 'GET');
+            if (reply.status === 200 && reply.data) renderSaves(reply.data.saves || []);
+            else sayIn('pl-saves-status', errorText(reply, 'Could not read the saved plans.'), true);
+        } catch (e) {
+            sayIn('pl-saves-status', 'Could not reach the Chart: ' + e, true);
+        }
+    }
+
+    // one request of the Saved plans: returns {ok, reply}; says what went wrong in `statusId`
+    async function savesCall(url, body, statusId, doing) {
+        savesBusy = true;
+        savesChanged();
+        sayIn(statusId, doing);
+        let result = {ok: false, reply: null};
+        try {
+            const reply = await send(url, 'POST', body || {});
+            result = {ok: reply.status >= 200 && reply.status < 300 && !!reply.data && !!reply.data.ok, reply: reply};
+            if (!result.ok) sayIn(statusId, errorText(reply), true);
+        } catch (e) {
+            sayIn(statusId, 'Could not reach the Chart: ' + e, true);
+        }
+        savesBusy = false;
+        savesChanged();
+        return result;
+    }
+
+    saveForm.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const name = saveName.value.trim();
+        if (!name) { sayIn('pl-save-status', 'Type a name for the plan.', true); saveName.focus(); return; }
+        if (savedNames.some(function (n) { return n.toLowerCase() === name.toLowerCase(); })) {
+            sayIn('pl-save-status', 'A saved plan called ' + name + ' already exists: pick another name.', true);
+            saveName.focus();
+            return;
+        }
+        const done = await savesCall(SAVES, {name: name}, 'pl-save-status', 'Saving...');
+        if (done.ok) {
+            sayIn('pl-save-status', 'Saved as ' + done.reply.data.save.name + '.');
+            await refreshSaves();
+        }
+    });
+
+    async function doLoad(item) {
+        const done = await savesCall(SAVES + '/' + item.id + '/load', {}, 'pl-saves-status', 'Loading ' + item.name + '...');
+        if (!done.ok) return;
+        const job = done.reply.data.job;
+        try {
+            stopPolling();
+            restoreForm(job.params);
+            finished(job);
+            sayIn('pl-saves-status', 'Loaded ' + item.name + '.');
+        } catch (e) {
+            sayIn('pl-saves-status', 'That saved plan could not be shown: ' + e, true);
+        }
+    }
+
+    async function doRename(item, name) {
+        const done = await savesCall(SAVES + '/' + item.id + '/rename', {name: name}, 'pl-saves-status', 'Renaming...');
+        if (done.ok) {
+            await refreshSaves();
+            sayIn('pl-saves-status', 'Renamed to ' + done.reply.data.save.name + '.');
+        }
+    }
+
+    async function doDelete(item) {
+        const done = await savesCall(SAVES + '/' + item.id + '/delete', {}, 'pl-saves-status', 'Deleting...');
+        if (done.ok || (done.reply && done.reply.status === 404)) {
+            await refreshSaves();
+            sayIn('pl-saves-status', 'Deleted ' + item.name + '.');
+        }
+    }
+
+    refreshSaves();
 
     // ---- copy -------------------------------------------------------------------------------------------------
 
