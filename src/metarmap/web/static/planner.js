@@ -1326,7 +1326,7 @@
         try {
             const reply = await send('/config/planner/progress', 'GET');
             const job = reply.data;
-            if (job && job.done && job.ok && job.result) { stopPolling(); finished(job); }
+            if (job && job.done && job.ok && job.result) { stopPolling(); restoreForm(job.params); finished(job); }
         } catch (e) { /* the message says what happened */ }
     }
 

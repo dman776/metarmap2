@@ -11,6 +11,7 @@ import inspect
 import json
 import logging
 import math
+import random
 import re
 import threading
 import time
@@ -289,7 +290,9 @@ class Planner:
         self._cancel = threading.Event()
         self._started = 0.0
         self._ended: Optional[float] = 0.0
-        self._count = 0
+        # job ids start at a random number, not 1: after a restart a tab that still shows an old plan has an id no new
+        # job can match (Save and the Apply token both go by it)
+        self._count = random.getrandbits(31)
 
     def start(self, params):
         """Starts the planner. Returns (job, True), or (the job running now, False) if one already runs."""

@@ -174,8 +174,8 @@ def check_plan(params: Any, result: Any) -> Tuple[Dict[str, Any], Dict[str, Any]
     """
     (params, result) of a saved plan that the page can show and Apply can use: the params go through the same checks as
     the form's, and the result must have the shapes the page draws and Apply reads (RESULT), as many airports as
-    pixels, and strings x string_len pixels that fit the Chart (at least the pixels, at most MAX_LEDS), so nothing
-    big is ever built from a number in a file. Raises SaveError("unreadable").
+    pixels, and a number of strings that fits the pixels and string_len exactly, so nothing big is ever built from a
+    number in a file. Raises SaveError("unreadable").
     """
     try:
         params = parse(params)
@@ -184,12 +184,17 @@ def check_plan(params: Any, result: Any) -> Tuple[Dict[str, Any], Dict[str, Any]
     if not fits(result, RESULT):
         raise _unreadable()
     pixels, strings = result["sheet"]["pixels"], result["sheet"]["shopping"]["strings"]
+    length, count = params["string_len"], len(pixels)
+    # the plan's own shape: the last string is the only one that is not full, so (strings - 1) x length < pixels <=
+    # strings x length. A plan may have up to a string's spare pixels over MAX_LEDS (Apply's preview answers
+    # over_limit, as for a fresh plan). strings x length is then under MAX_LEDS + 2 x length, at most about 3000
+    # airports for plan_changes to build, whatever the file says; `strings` is also capped on its own
     if (
-        len(pixels) > MAX_LEDS
-        or len(result["airports"]) != len(pixels)
+        count > MAX_LEDS + length
+        or len(result["airports"]) != count
         or not 1 <= strings <= MAX_LEDS
-        or strings * params["string_len"] > MAX_LEDS
-        or strings * params["string_len"] < len(pixels)
+        or (strings - 1) * length >= max(count, 1)
+        or count > strings * length
     ):
         raise _unreadable()
     return params, result

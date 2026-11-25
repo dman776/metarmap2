@@ -13,7 +13,7 @@ import threading
 import pytest
 from test_planner_apply_web import APPLY, PREVIEW, UNDO, codes, config_dir, get, make, planned, post  # noqa: F401
 from test_web import AUTH, Client
-from test_web_planner import FakeLoad, run, wait
+from test_web_planner import FakeLoad, fake_airports, run, wait
 
 from metarmap.planner import saves
 from metarmap.web import create_app
@@ -760,3 +760,43 @@ def test_an_answer_that_cannot_be_json_is_a_json_500(make, monkeypatch):  # noqa
     monkeypatch.setattr(planner_web.Applier, "status", lambda self: (200, {"x": object()}))
     status, body = client("/config/planner/apply/status")
     assert status == 500 and json.loads(body)["reason"] == "failed"
+
+
+@pytest.mark.parametrize(
+    "target, string_len, skips",
+    [(900, 400, False), (990, 60, False), (990, 60, True), (60, 25, True), (1000, 1000, False)],
+)
+def test_big_real_plans_pass_the_shape_check_and_preview_answers_over_limit(make, target, string_len, skips):  # noqa: F811
+    """Strings x string_len may pass 1000 (3 x 400, 17 x 60): a real plan; only Apply's preview limits it."""
+    client = make(FakeLoad(fake_airports(1100)))
+    status, body = client(
+        "/config/planner/plan",
+        method="POST",
+        body={
+            "chart": "Houston",
+            "suggest_sizes": False,
+            "source": "recommended",
+            "start_fresh": True,
+            "target": target,
+            "string_len": string_len,
+            "width_in": 400,
+            "height_in": 300,
+            "pitch": 40,
+            "min_gap": 3,
+            "max_move": 20,
+            "allow_skips": skips,
+        },
+    )
+    assert status == 202, body
+    job = wait(client, 120)
+    assert job["ok"], job["error"]
+    strings = job["result"]["sheet"]["shopping"]["strings"]
+    pixels = len(job["result"]["sheet"]["pixels"])
+    assert (strings - 1) * string_len < pixels <= strings * string_len
+    if (target, string_len) in ((900, 400), (990, 60)):
+        assert strings * string_len > 1000  # the case the strings bound must not refuse
+    save = offer(client, "big")[1]["save"]
+    status, body = post(client, f"{SAVES}/{save['id']}/load", {})
+    assert status == 200, body
+    status, preview = get(client, PREVIEW)
+    assert status in (200, 409) and (status == 200 or preview["reason"] == "over_limit")
