@@ -402,7 +402,7 @@ class Planner:
                     if job["done"] or cancel.is_set():
                         return
                     job["fraction"] = max(fraction, job["fraction"] or 0.0)  # the total can grow: never go back
-                    if done < total:  # a real download reports a step not yet done; a cache answers at once
+                    if done < total or job.get("_downloaded"):  # a real download reports a step not yet done first
                         job["label"] = label
                         job["_downloaded"] = True
             except Exception:  # a progress report must never break the fetch

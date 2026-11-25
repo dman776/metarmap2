@@ -1011,6 +1011,14 @@ def test_a_real_download_is_still_a_download(make):
     assert not any("copy saved" in n for n in job["result"]["notes"])
 
 
+def test_a_real_download_shows_its_last_tile_and_batch(make):
+    client, load = reporting(make, [("stations", 0, 3), ("stations", 3, 3), ("details", 0, 1), ("details", 1, 1)])
+    job = run(client, source="recommended", target=30, start_fresh=True)
+    assert job["ok"], job
+    assert load.seen[1][0] == "Downloading stations: tile 3 of 3"
+    assert load.seen[3][0] == "Downloading airport details: batch 1 of 1"
+
+
 def test_cached_tiles_with_partly_downloaded_details_count_as_a_download(make):
     client, load = reporting(make, [("stations", 20, 20), ("details", 0, 3), ("details", 3, 3)])
     job = run(client, source="recommended", target=30, start_fresh=True)
