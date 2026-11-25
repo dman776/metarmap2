@@ -60,6 +60,7 @@ NO_JOB = {
     "elapsed": 0,
     "params": None,
     "result": None,
+    "loaded": None,  # {"id", "name", "saved_at"} of the saved plan this job was loaded from (see adopt())
 }
 
 
@@ -307,6 +308,32 @@ class Planner:
                 "params": params,
             }
             threading.Thread(target=self._run, args=(job, params, cancel), name="planner", daemon=True).start()
+            return self.progress(), True
+
+    def adopt(self, params, result, loaded):
+        """
+        Makes a saved plan the current finished job, as if it had just been planned: a new id (so a preview of the
+        plan before it is stale), `ok` true, the saved `params` and `result`, and `loaded` saying where it came from.
+        Under the same lock as start(), so it cannot land on a plan that is starting or running. Returns (the job,
+        True), or (the job running now, False) when a plan runs (a cancel that is still ending counts as running).
+        """
+        with self._lock:
+            if self.job is not None and not self.job["done"]:
+                return self.progress(), False
+            self._count += 1
+            self._started = self._ended = time.monotonic()
+            self.job = {
+                **NO_JOB,
+                "id": self._count,
+                "idle": False,
+                "fraction": 1.0,
+                "label": "Loaded",
+                "ok": True,
+                "message": result["message"],
+                "params": params,
+                "result": result,
+                "loaded": loaded,
+            }
             return self.progress(), True
 
     def cancel(self):
@@ -1045,4 +1072,9 @@ class PlannerRoutes:
 
 
 def add_routes(app, services: Services, site, auth, planner: Optional[Planner] = None):
-    PlannerRoutes(services, site, planner or Planner(services)).install(app, auth)
+    from metarmap.web import planner_saves  # it uses this module's Planner and parse()
+
+    planner = planner or Planner(services)
+    routes = PlannerRoutes(services, site, planner)
+    routes.install(app, auth)
+    planner_saves.install(routes, app, auth, planner)
