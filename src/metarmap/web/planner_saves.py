@@ -285,7 +285,9 @@ class SavedPlans:
             return self._fail(e)
         job = self.planner.job
         loaded = job.get("loaded") if job is not None else None
-        if loaded and loaded.get("id") == plan_id:  # the banner of a plan loaded from this file says its new name
+        if (
+            job is not None and loaded and loaded.get("id") == plan_id
+        ):  # the banner of a plan loaded from this file says its new name
             job["loaded"] = {**loaded, "name": saved["name"]}
         return 200, {"ok": True, "save": saved}
 
