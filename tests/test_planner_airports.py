@@ -1402,3 +1402,73 @@ def test_an_answer_made_from_cached_tiles_is_as_old_as_its_oldest_tile(api, cloc
     clock.advance(19 * 3600)  # the west column's tiles and the whole answer have both expired
     airports.load((-100, 30, -95, 35), cache_path=path, clock=clock)
     assert len(fake.metar_boxes) == 4 + 2  # the west column again; the east one is 19 hours old
+
+
+# ---- cache files that json can read but no float can hold, or that json cannot read at all --------------------
+
+HUGE = "1" + "0" * 400  # a JSON int too big for a float: math.isfinite() raises OverflowError on it
+DEEP = "[" * 100000 + "]" * 100000  # too deep for json: RecursionError, not ValueError
+
+
+def huge_files(clock):
+    now = clock.now().isoformat()
+    return {
+        "a.json": f'{{"{KEY}": {{"fetched_at": "{now}", "airports": '
+        f'[{{"code": "KHOU", "lat": {HUGE}, "lon": -95.3}}]}}}}',
+        "tiles.json": f'{{"{TILE}": {{"fetched_at": "{now}", "stations": '
+        f'[{{"code": "KHOU", "name": "Hobby", "lat": {HUGE}, "lon": -95.3}}]}}}}',
+        "details.json": f'{{"KHOU": {{"fetched_at": "{now}", "detail": '
+        f'{{"tower": true, "passengers": {HUGE}, "rwyNum": 3, "rwyLength": 7602}}}}}}',
+    }
+
+
+@pytest.mark.parametrize("kind", ["huge", "deep"])
+@pytest.mark.parametrize("name", ["a.json", "tiles.json", "details.json"])
+def test_a_cache_file_no_float_or_json_can_hold_is_ignored_and_fetched_again(api, clock, tmp_path, kind, name):
+    fake = houston(api)
+    (tmp_path / name).write_text(huge_files(clock)[name] if kind == "huge" else DEEP)
+    result = airports.load(BOX, cache_path=str(tmp_path / "a.json"), clock=clock)
+    assert len(result.airports) == 3 and result.error is None and result.stale is False
+    assert len(fake.metar_boxes) == 1 and fake.airport_ids == [["K11R", "KHOU", "KIAH"]]
+    assert json.loads((tmp_path / name).read_text())  # and replaced with one that reads
+
+
+def test_cache_files_no_float_can_hold_are_ignored_offline_too(api, clock, tmp_path):
+    api(fail=["network"] * 40)
+    for name, text in huge_files(clock).items():
+        (tmp_path / name).write_text(text)
+    result = airports.load(BOX, cache_path=str(tmp_path / "a.json"), clock=clock)
+    assert result.airports == [] and "did not answer" in result.error
+
+
+def test_a_box_with_a_number_no_float_can_hold_is_an_error_not_a_raise(clock, tmp_path):
+    result = airports.load((10**400, 29, -95, 30), cache_path=str(tmp_path / "a.json"), clock=clock)
+    assert result.airports == [] and "four numbers" in result.error
+
+
+def test_saving_next_to_entries_no_float_can_hold_drops_them(api, clock, tmp_path):
+    api(stations=spread, known={"KHOU": detail("KHOU", "T")})
+    files = huge_files(clock)
+    other = "35,-92.5,37.5,-90"  # a tile of another box, with a bad station
+    (tmp_path / "tiles.json").write_text(files["tiles.json"].replace(TILE, other))
+    airports.candidates(-96, 29, -95, 30, clock=clock, cache_path=str(tmp_path / "tiles.json"))
+    assert list(json.loads((tmp_path / "tiles.json").read_text())) == [TILE]
+    (tmp_path / "details.json").write_text(files["details.json"].replace("KHOU", "KIAH"))
+    airports.details(["KHOU"], clock=clock, cache_path=str(tmp_path / "details.json"))
+    assert list(json.loads((tmp_path / "details.json").read_text())) == ["KHOU"]
+
+
+def test_a_split_mark_that_was_not_used_does_not_date_the_answer(api, clock, tmp_path):
+    def stations(bbox):  # the tile is dense, its quarters are not
+        count = airports.SPLIT_AT if bbox[2] - bbox[0] > 2 else 1
+        return [report(f"K{i:03d}", 29.6, -95.3) for i in range(count)]
+
+    fake = api(stations=stations)
+    tiles = tmp_path / "tiles.json"
+    old = (clock.now() - timedelta(hours=20)).isoformat()  # fresh enough to be read, but older than anything used
+    small = "27.5,-97.5,28.75,-96.25"  # a quarter: too small to split, so the mark is ignored and it is fetched
+    tiles.write_text(json.dumps({small: {"fetched_at": old, "split": True}}))
+    got = airports.candidates(-97.5, 27.5, -95, 30, clock=clock, cache_path=str(tiles))
+    assert len(fake.metar_boxes) == 5 and (27.5, -97.5, 28.75, -96.25) in fake.metar_boxes and got.failed == 0
+    assert got.fetched_at is None  # nothing came from the cache, so the old mark's time is not the answer's
+    assert json.loads(tiles.read_text())[small]["stations"]  # and the mark is replaced by what was fetched

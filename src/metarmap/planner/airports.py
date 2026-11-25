@@ -55,6 +55,7 @@ TILE_CACHE_FILE = os.path.join("planner-cache", "tiles.json")
 DETAIL_CACHE_FILE = os.path.join("planner-cache", "details.json")
 TILE_MAX_AGE = timedelta(days=1)
 DETAIL_MAX_AGE = timedelta(days=30)
+MOST_CACHED = 2**53  # a cached detail bigger than this is not one _number() made (and may not fit a float)
 
 # aviationweather.gov: "All requests are rate limited to 100 requests per minute" (https://aviationweather.gov/data/api/),
 # so a request goes out at least REQUEST_SPACING seconds after the one before it, whichever worker sends it (100 a
@@ -143,8 +144,8 @@ def candidates(
     cached = _tile_cache(cache_path, clock.now(), max_age)
     results = {}  # tile -> its stations, merged in tile order below
     fetched = {}  # tile key -> the cache entry of a tile fetched now, saved at the end
-    used = set()  # the keys of the tiles the answer is made of, cached or fetched now (a dense one's too)
-    lock = threading.Lock()  # results, fetched and used, written by the worker threads
+    served = set()  # the keys of the tiles the cache answered (a dense one's too): how old the answer is
+    lock = threading.Lock()  # results, fetched and served, written by the worker threads
 
     def from_cache(tile, push):
         """Whether the cache answers for the tile: its stations, or that it is dense (its four quarters pushed)."""
@@ -158,7 +159,7 @@ def candidates(
             for child in _quarters(tile):
                 push(child)
         with lock:
-            used.add(_bbox_text(*tile))
+            served.add(_bbox_text(*tile))
             if not entry.get("split"):
                 results[tile] = entry["stations"]
         return True
@@ -188,7 +189,6 @@ def candidates(
             elif len(reports) >= SPLIT_AT and (n - s) / 2 >= MIN_TILE and (e - w) / 2 >= MIN_TILE:
                 with lock:
                     fetched[_bbox_text(*tile)] = {"fetched_at": clock.now().isoformat(), "split": True}
-                    used.add(_bbox_text(*tile))
                 children = _quarters(tile)
                 tally.add(len(children))  # counted before they can finish
                 for child in children:
@@ -197,7 +197,6 @@ def candidates(
                 stations = [station for station in map(_station, reports) if station]
                 with lock:
                     results[tile] = stations
-                    used.add(_bbox_text(*tile))
                     fetched[_bbox_text(*tile)] = {
                         "fetched_at": clock.now().isoformat(),
                         "stations": [station._asdict() for station in stations],
@@ -216,9 +215,10 @@ def candidates(
         for station in results[tile]:
             if south <= station.lat <= north and any(w <= station.lon <= e for w, e in ranges):
                 found.setdefault(station.code, station)
-    # how old the answer is: as old as the oldest cached tile it used (None when it used none, as without a cache: then
-    # it is as new as the fetch)
-    times = [entry["fetched_at"] for key, entry in cached.items() if key in used]
+    # how old the answer is: as old as the oldest tile the cache answered (None when it answered none, as without a
+    # cache: then it is as new as the fetch). A cached entry that was not used, such as a split mark on a tile too
+    # small to split, which was fetched again, does not count.
+    times = [cached[key]["fetched_at"] for key in served]
     oldest = min(times, key=datetime.fromisoformat) if times else None
     return Fetched(sorted(found.values()), tally.failed, oldest)
 
@@ -341,11 +341,7 @@ def load(
     whole one above. Never raises.
     """
     clock = clock or Clock()
-    if not (
-        isinstance(box, (tuple, list))
-        and len(box) == 4
-        and all(isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x) for x in box)
-    ):
+    if not (isinstance(box, (tuple, list)) and len(box) == 4 and all(_finite(x) for x in box)):
         return Result([], False, None, "the area is not four numbers (west, south, east, north)")
     box = tuple(float(x) for x in box)
     key = _key(box)
@@ -793,8 +789,6 @@ def _tile_entry(entry, now, max_age):
     for item in listed:
         if not (_airport_ok(item) and isinstance(item.get("name"), str) and AIRPORT_ID.match(item["code"])):
             return None
-        if not (-90 <= item["lat"] <= 90 and -180 <= item["lon"] <= 180):
-            return None
         stations.append(Station(item["code"], item["name"], float(item["lat"]), float(item["lon"])))
     return {"fetched_at": entry["fetched_at"], "stations": stations}
 
@@ -822,7 +816,10 @@ def _detail_entry(entry, now, max_age):
     if not (isinstance(detail, dict) and isinstance(detail.get("tower"), bool)):
         return None
     numbers = ("passengers", "rwyNum", "rwyLength")
-    if not all(isinstance(detail.get(k), int) and not isinstance(detail.get(k), bool) for k in numbers):
+    if not all(
+        isinstance(detail.get(k), int) and not isinstance(detail.get(k), bool) and abs(detail[k]) <= MOST_CACHED
+        for k in numbers
+    ):
         return None
     return {"tower": detail["tower"], **{k: detail[k] for k in numbers}}
 
@@ -867,14 +864,28 @@ def _entry(cache, key, now):
     return entry
 
 
+def _finite(value):
+    """
+    Whether a value is a finite number (not a bool). A JSON int can be too big for a float (10**400), and
+    math.isfinite() raises OverflowError on that instead of saying no.
+    """
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    try:
+        return math.isfinite(value)
+    except OverflowError:
+        return False
+
+
 def _airport_ok(airport):
-    """Whether a cached airport has what a caller needs of it: a code and a finite lat and lon."""
+    """Whether a cached airport has what a caller needs of it: a code and a real lat and lon (on the globe)."""
     if not (isinstance(airport, dict) and isinstance(airport.get("code"), str) and airport["code"]):
         return False
-    return all(
-        isinstance(airport.get(k), (int, float)) and not isinstance(airport.get(k), bool) and math.isfinite(airport[k])
-        for k in ("lat", "lon")
-    )
+    lat, lon = airport.get("lat"), airport.get("lon")
+    if not (_finite(lat) and _finite(lon)):
+        return False
+    assert lat is not None and lon is not None  # for mypy: _finite() said they are numbers
+    return -90 <= lat <= 90 and -180 <= lon <= 180
 
 
 def _read_cache(path):
@@ -882,7 +893,7 @@ def _read_cache(path):
     try:
         with open(path) as f:
             cache = json.load(f)
-    except (OSError, ValueError):
+    except (OSError, ValueError, RecursionError):  # RecursionError: a file of [[[[... too deep for json
         return {}
     return cache if isinstance(cache, dict) else {}
 
