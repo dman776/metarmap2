@@ -571,6 +571,10 @@ class Config:
             raise
         return keys
 
+    def folder(self):
+        """The folder of config.json: where the plan backups, planner-cache/ and planner-saves/ live."""
+        return os.path.dirname(os.path.abspath(self._file))
+
     def next_plan_backup_name(self):
         """The name the next backup would get (the time may differ by a second when it is made)."""
         return self._backups.next_name()
