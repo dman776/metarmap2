@@ -3,6 +3,9 @@ Live airport data for the Chart Planner (B90), from aviationweather.gov: the sta
 box (candidates), what each is (details: tower, passengers, runways) and how important it is (rank). load() does
 all three and keeps the answer in a cache file for a day, so a planner run offline can still use the last one.
 
+Under that whole answer are two smaller caches, so that moving or resizing the chart's box does not download it all
+again: the stations of each tile of a fixed global grid (TILE_MAX_AGE), and each airport's details (DETAIL_MAX_AGE).
+
 The requests of one fetch go out WORKERS at a time, through one gate that keeps their combined rate under the API's
 limit: a continental US fetch is about 280 requests of 1 to 3 seconds each (a 504 holds one for 20 to 30), so one at a
 time it took twelve minutes, and a few at a time it takes a few. Every fetch function takes an optional `progress`
@@ -20,7 +23,7 @@ import re
 import tempfile
 import threading
 from datetime import datetime, timedelta
-from typing import Any, Dict, NamedTuple
+from typing import Any, Dict, List, NamedTuple
 
 import requests
 
@@ -45,6 +48,14 @@ RETRY_SECONDS = 2
 MAX_AGE = timedelta(days=1)
 CLOCK_SLACK = timedelta(minutes=5)  # a cache written this far ahead of the clock is from the future, not fresh
 CACHE_FILE = os.path.join("planner-cache", "airports.json")  # next to config.json and metarmap.log: the working folder
+# The stations of each tile of the global grid, and each airport's details, cached on their own (load() keeps them next
+# to its cache file). Which stations send a METAR changes slowly, so a tile is kept as long as a whole answer; what an
+# airport is (its tower, passengers, runways) changes far more rarely.
+TILE_CACHE_FILE = os.path.join("planner-cache", "tiles.json")
+DETAIL_CACHE_FILE = os.path.join("planner-cache", "details.json")
+TILE_MAX_AGE = timedelta(days=1)
+DETAIL_MAX_AGE = timedelta(days=30)
+MOST_CACHED = 2**53  # a cached detail bigger than this is not one _number() made (and may not fit a float)
 
 # aviationweather.gov: "All requests are rate limited to 100 requests per minute" (https://aviationweather.gov/data/api/),
 # so a request goes out at least REQUEST_SPACING seconds after the one before it, whichever worker sends it (100 a
@@ -89,6 +100,8 @@ class Station(NamedTuple):
 class Fetched(NamedTuple):
     items: Any
     failed: int  # how many of the requests could not be made
+    # candidates(): when the oldest cached tile it used was fetched (an ISO time); None if it used none
+    fetched_at: Any = None
 
 
 class Result(NamedTuple):
@@ -98,67 +111,137 @@ class Result(NamedTuple):
     error: Any
 
 
-def candidates(west, south, east, north, timeout=30, clock=None, budget=None, progress=None, workers=None):
+def candidates(
+    west,
+    south,
+    east,
+    north,
+    timeout=30,
+    clock=None,
+    budget=None,
+    progress=None,
+    workers=None,
+    cache_path=None,
+    max_age=TILE_MAX_AGE,
+):
     """
     The stations with a current METAR inside the box, as Fetched([Station, ...], failed requests): the airports
-    only (K, P and T ids), once each. A box bigger than TILE_DEGREES is fetched in tiles, `workers` (WORKERS) at a
-    time through the budget's gate, which keeps them under the API's rate limit; a box across the antimeridian
+    only (K, P and T ids), once each. The box is fetched as the tiles of a fixed grid, TILE_DEGREES apart from 0, 0,
+    that cover it, `workers` (WORKERS) at a time through the budget's gate, which keeps them under the API's rate
+    limit. The grid is global so that two boxes that overlap ask for the same tiles, which `cache_path` (a tile cache
+    file; None for none) can then answer: a tile cached less than `max_age` ago is used instead of a request. As the
+    tiles reach past the box, their stations are kept only if they are inside it. A box across the antimeridian
     (east above 180, the Western Aleutians) is fetched as two, each with longitudes the API takes (-180 to 180);
     once the budget (the time limit, the failures in a row) is spent the tiles left count as failed. The answer
-    does not depend on which tile finished first. progress(done, total) is called when the tiles are known and after
-    each one finishes: total is the tiles known so far, and grows by four when a dense tile is fetched again as
-    four. Never raises; when it returns its threads are over.
+    does not depend on which tile finished first. progress(done, total) is called when the tiles are known (the
+    cached ones already done) and after each one finishes: total is the tiles known so far, and grows by four when a
+    dense tile is fetched again as four. Never raises; when it returns its threads are over.
     """
     clock = clock or Clock()
     budget = budget or _Budget(clock)
-    tiles = [
-        (s, w, min(s + TILE_DEGREES, north), min(w + TILE_DEGREES, e))
-        for w0, e in _longitudes(west, east)
-        for s, w in _grid(south, w0, north, e)
-    ]
-    tally = _Tally(len(tiles), progress)
+    ranges = _longitudes(west, east)
+    tiles = [tile for w0, e in ranges for tile in _tiles(south, w0, north, e)]
+    cached = _tile_cache(cache_path, clock.now(), max_age)
     results = {}  # tile -> its stations, merged in tile order below
+    fetched = {}  # tile key -> the cache entry of a tile fetched now, saved at the end
+    served = set()  # the keys of the tiles the cache answered (a dense one's too): how old the answer is
+    lock = threading.Lock()  # results, fetched and served, written by the worker threads
+
+    def from_cache(tile, push):
+        """Whether the cache answers for the tile: its stations, or that it is dense (its four quarters pushed)."""
+        entry = cached.get(_bbox_text(*tile))
+        if entry is None:
+            return False
+        if entry.get("split"):
+            s, w, n, e = tile
+            if (n - s) / 2 < MIN_TILE or (e - w) / 2 < MIN_TILE:  # never written for a tile this small
+                return False
+            for child in _quarters(tile):
+                push(child)
+        with lock:
+            served.add(_bbox_text(*tile))
+            if not entry.get("split"):
+                results[tile] = entry["stations"]
+        return True
+
+    # the cached tiles first, so the bar starts where the cache leaves it; their quarters are known tiles too
+    known, to_fetch, index = list(tiles), [], 0
+    while index < len(known):
+        if not from_cache(known[index], known.append):
+            to_fetch.append(known[index])
+        index += 1
+    tally = _Tally(len(known), progress, done=len(known) - len(to_fetch))
 
     def fetch(tile, push):
-        s, w, n, e = tile
         failed = False
         try:
+            children: List[Any] = []
+            if from_cache(tile, children.append):  # a quarter of a dense tile fetched now may be cached
+                tally.add(len(children))
+                for child in children:
+                    push(child)
+                tally.finish(False)
+                return
+            s, w, n, e = tile
             reports = _get(METAR_URL, {"format": "json", "bbox": _bbox_text(s, w, n, e)}, timeout, clock, budget)
             if reports is None:
                 failed = True
             elif len(reports) >= SPLIT_AT and (n - s) / 2 >= MIN_TILE and (e - w) / 2 >= MIN_TILE:
-                ms, mw = (s + n) / 2, (w + e) / 2
-                children = [(s, w, ms, mw), (s, mw, ms, e), (ms, w, n, mw), (ms, mw, n, e)]
+                with lock:
+                    fetched[_bbox_text(*tile)] = {"fetched_at": clock.now().isoformat(), "split": True}
+                children = _quarters(tile)
                 tally.add(len(children))  # counted before they can finish
                 for child in children:
                     push(child)
             else:
-                results[tile] = [station for station in map(_station, reports) if station]
+                stations = [station for station in map(_station, reports) if station]
+                with lock:
+                    results[tile] = stations
+                    fetched[_bbox_text(*tile)] = {
+                        "fetched_at": clock.now().isoformat(),
+                        "stations": [station._asdict() for station in stations],
+                    }
         except Exception:
             log.exception(f"Could not read the stations of tile {tile}")
             failed = True
         tally.finish(failed)
 
-    _run(tiles, fetch, _workers(workers))
+    _run(to_fetch, fetch, _workers(workers))
+    if cache_path and fetched:  # once at the end, not per tile: a national fetch is a few hundred tiles
+        now, keep_for = clock.now(), max(max_age, TILE_MAX_AGE)
+        _store_many(cache_path, fetched, keep=lambda key, entry: _tile_entry(entry, now, keep_for) is not None)
     found: Dict[str, Any] = {}
     for tile in sorted(results):
         for station in results[tile]:
-            found.setdefault(station.code, station)
-    return Fetched(sorted(found.values()), tally.failed)
+            if south <= station.lat <= north and any(w <= station.lon <= e for w, e in ranges):
+                found.setdefault(station.code, station)
+    # how old the answer is: as old as the oldest tile the cache answered (None when it answered none, as without a
+    # cache: then it is as new as the fetch). A cached entry that was not used, such as a split mark on a tile too
+    # small to split, which was fetched again, does not count.
+    times = [cached[key]["fetched_at"] for key in served]
+    oldest = min(times, key=datetime.fromisoformat) if times else None
+    return Fetched(sorted(found.values()), tally.failed, oldest)
 
 
-def details(codes, timeout=30, clock=None, budget=None, progress=None, workers=None):
+def details(codes, timeout=30, clock=None, budget=None, progress=None, workers=None, cache_path=None, max_age=None):
     """
     What the FAA has on each airport, as Fetched({code: {"tower", "passengers", "rwyNum", "rwyLength"}}, failed
     requests): tower is True or False, passengers (thousands a year) and rwyNum are ints, rwyLength is the longest
     runway in feet (0 if unknown). A code the API doesn't know isn't in the dict. Paced, limited and run like
-    candidates() (the same `budget` can be shared); progress(done, total) is called per batch of BATCH codes. Never
-    raises.
+    candidates() (the same `budget` can be shared); progress(done, total) is called per batch of BATCH codes.
+
+    With a `cache_path` (a details cache file), an airport's details saved there less than `max_age`
+    (DETAIL_MAX_AGE) ago are used as they are, and only the other codes are asked for, so total is the batches of
+    those alone (0 when the cache has them all). What a batch brings is saved; a batch that failed saves nothing,
+    and a code the API doesn't know is asked for again next time. Never raises.
     """
     clock = clock or Clock()
     budget = budget or _Budget(clock)
     codes = list(dict.fromkeys(codes))
-    batches = [codes[i : i + BATCH] for i in range(0, len(codes), BATCH)]
+    cached = _detail_cache(cache_path, clock.now(), DETAIL_MAX_AGE if max_age is None else max_age)
+    known = {code: cached[code] for code in codes if code in cached}
+    missing = [code for code in codes if code not in known]
+    batches = [missing[i : i + BATCH] for i in range(0, len(missing), BATCH)]
     tally = _Tally(len(batches), progress)
     results = {}  # batch number -> its details, merged in order below
 
@@ -183,7 +266,16 @@ def details(codes, timeout=30, clock=None, budget=None, progress=None, workers=N
     found = {}
     for index in sorted(results):
         found.update(results[index])
-    return Fetched(found, tally.failed)
+    if cache_path and found:
+        now = clock.now()
+        keep_for = max(DETAIL_MAX_AGE if max_age is None else max_age, DETAIL_MAX_AGE)
+        _store_many(
+            cache_path,
+            {code: {"fetched_at": now.isoformat(), "detail": detail} for code, detail in found.items()},
+            keep=lambda key, entry: _detail_entry(entry, now, keep_for) is not None,
+        )
+    known.update(found)
+    return Fetched(known, tally.failed)
 
 
 def rank(detail):
@@ -219,7 +311,16 @@ def rank(detail):
 
 
 def load(
-    box, cache_path=CACHE_FILE, max_age=MAX_AGE, clock=None, timeout=30, deadline=DEADLINE, progress=None, workers=None
+    box,
+    cache_path=CACHE_FILE,
+    max_age=MAX_AGE,
+    clock=None,
+    timeout=30,
+    deadline=DEADLINE,
+    progress=None,
+    workers=None,
+    tile_cache_path=None,
+    detail_cache_path=None,
 ):
     """
     The airports with a current METAR in the box (west, south, east, north), best first, as Result(airports, stale,
@@ -231,14 +332,16 @@ def load(
     answer is returned with its error and not cached; with nothing at all the airports are empty and error says why.
     progress(phase, done, total) is called while it fetches, phase "stations" (the METAR tiles) and then "details"
     (the airport batches), with the counts of candidates()/details(); it is not called for a cache that is used as
-    it is. Never raises.
+    it is.
+
+    A fetch goes through the tile cache (`tile_cache_path`, by default tiles.json next to `cache_path`; a tile is
+    used for at most the shorter of `max_age` and TILE_MAX_AGE) and the details cache (`detail_cache_path`, by
+    default details.json next to it), so only what they don't have is downloaded. A tile older than that is fetched
+    again, never used as a fallback: an answer pieced from old tiles would look fresh, so the stale answer is the
+    whole one above. Never raises.
     """
     clock = clock or Clock()
-    if not (
-        isinstance(box, (tuple, list))
-        and len(box) == 4
-        and all(isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x) for x in box)
-    ):
+    if not (isinstance(box, (tuple, list)) and len(box) == 4 and all(_finite(x) for x in box)):
         return Result([], False, None, "the area is not four numbers (west, south, east, north)")
     box = tuple(float(x) for x in box)
     key = _key(box)
@@ -250,7 +353,7 @@ def load(
         return (lambda done, total: progress(name, done, total)) if progress else None
 
     budget = _Budget(clock, deadline)
-    stations, failed = candidates(
+    stations, failed, oldest = candidates(
         box[0],
         box[1],
         box[2],
@@ -260,23 +363,29 @@ def load(
         budget=budget,
         progress=phase("stations"),
         workers=workers,
+        cache_path=tile_cache_path or _beside(cache_path, TILE_CACHE_FILE),
+        max_age=min(max_age, TILE_MAX_AGE),
     )
     extra = {}
     if stations:
-        extra, failed_details = details(
+        extra, failed_details, _ = details(
             [s.code for s in stations],
             timeout=timeout,
             clock=clock,
             budget=budget,
             progress=phase("details"),
             workers=workers,
+            cache_path=detail_cache_path or _beside(cache_path, DETAIL_CACHE_FILE),
         )
         failed += failed_details
     now = clock.now().isoformat()
     if stations and not failed:
+        # as old as the oldest tile it was made from, so a whole answer pieced from cached tiles is not kept a day
+        # longer than they would be
+        when = oldest or now
         airports = _combine(stations, extra)
-        _store(cache_path, key, {"fetched_at": now, "airports": airports})
-        return Result(airports, False, now, None)
+        _store(cache_path, key, {"fetched_at": when, "airports": airports})
+        return Result(airports, False, when, None)
     if not stations and not failed:
         return Result([], False, now, "aviationweather.gov has no airport with a METAR in this area")
     error = _why(stations, failed, budget)
@@ -373,9 +482,9 @@ class _Budget:
 class _Tally:
     """How far a fetch has got: requests finished and known, and failed. Shared by the worker threads."""
 
-    def __init__(self, total, progress):
+    def __init__(self, total, progress, done=0):
         self.total = total
-        self.done = 0
+        self.done = done  # some may be done before any request: the ones a cache answered
         self.failed = 0
         self.progress = progress
         self._lock = threading.Lock()
@@ -507,14 +616,37 @@ def _bbox_text(south, west, north, east):
 
 
 def _grid(south, west, north, east):
-    """The southwest corners of the TILE_DEGREES tiles that cover the box."""
+    """
+    The southwest corners of the tiles of the global grid (TILE_DEGREES apart, from 0, 0) that cover the box: the
+    same box always gets the same tiles, and two boxes that overlap share the tiles of the overlap, so a tile cached
+    for one serves the other. Each corner is a whole number of steps times TILE_DEGREES, not a sum of steps, so it is
+    exact (2.5 * 3 is 7.5, where adding 2.5 up leaves float noise in other steps).
+    """
     if north <= south or east <= west:
         return []
-    rows = math.ceil((north - south) / TILE_DEGREES - 1e-9)
-    columns = math.ceil((east - west) / TILE_DEGREES - 1e-9)
+    first_row = math.floor(max(south, -90.0) / TILE_DEGREES + 1e-9)
+    last_row = math.ceil(min(north, 90.0) / TILE_DEGREES - 1e-9)
+    first_column = math.floor(max(west, -180.0) / TILE_DEGREES + 1e-9)
+    last_column = math.ceil(min(east, 180.0) / TILE_DEGREES - 1e-9)
     return [
-        (south + row * TILE_DEGREES, west + column * TILE_DEGREES) for row in range(rows) for column in range(columns)
+        (row * TILE_DEGREES, column * TILE_DEGREES)
+        for row in range(first_row, last_row)
+        for column in range(first_column, last_column)
     ]
+
+
+def _tiles(south, west, north, east):
+    """The tiles (south, west, north, east) of the global grid that cover the box, kept inside -90..90, -180..180."""
+    return [
+        (s, w, min(s + TILE_DEGREES, 90.0), min(w + TILE_DEGREES, 180.0)) for s, w in _grid(south, west, north, east)
+    ]
+
+
+def _quarters(tile):
+    """The four tiles a dense tile is fetched again as."""
+    s, w, n, e = tile
+    ms, mw = (s + n) / 2, (w + e) / 2
+    return [(s, w, ms, mw), (s, mw, ms, e), (ms, w, n, mw), (ms, mw, n, e)]
 
 
 def _get(url, params, timeout, clock, budget):
@@ -576,8 +708,7 @@ def _detail(airport):
     runways = [r for r in listed if isinstance(r, dict)] if isinstance(listed, list) else []
     longest = 0
     for runway in runways:
-        with contextlib.suppress(ValueError):
-            longest = max(longest, int(str(runway.get("dimension")).split("x")[0]))
+        longest = max(longest, _number(str(runway.get("dimension")).split("x")[0]))
     return {
         "tower": bool(str(airport.get("tower") or "").strip()),
         "passengers": _number(airport.get("passengers")),
@@ -587,12 +718,16 @@ def _detail(airport):
 
 
 def _number(value):
-    """An int from an API value that may be a string, a float, empty or nonsense; 0 if it isn't a finite number."""
+    """
+    An int from an API value that may be a string, a float, empty or nonsense; 0 if it isn't a finite number, or
+    is one bigger than MOST_CACHED (a runway of 99999999999999999999 ft, 1e20 passengers), which no airport has and
+    which the details cache would refuse on every read, asking for the airport again each time.
+    """
     try:
         number = float(str(value).strip())
-    except ValueError:
+    except (ValueError, OverflowError):
         return 0
-    return int(number) if math.isfinite(number) else 0
+    return int(number) if math.isfinite(number) and abs(number) <= MOST_CACHED else 0
 
 
 def _combine(stations, extra):
@@ -616,6 +751,92 @@ def _combine(stations, extra):
 
 def _key(box):
     return ",".join(f"{float(x):g}" for x in box)
+
+
+def _beside(cache_path, default):
+    """The file named like `default`, in the folder of `cache_path`: load()'s caches live together."""
+    return os.path.join(os.path.dirname(cache_path or ""), os.path.basename(default))
+
+
+def _fresh(entry, now, max_age):
+    """
+    Whether a cache entry has a `fetched_at` this module could have written (an ISO time with a time zone, not more
+    than CLOCK_SLACK ahead of `now`) that is no more than `max_age` before `now`.
+    """
+    if not (isinstance(entry, dict) and isinstance(entry.get("fetched_at"), str)):
+        return False
+    try:
+        fetched = datetime.fromisoformat(entry["fetched_at"])
+        if fetched.tzinfo is None or fetched - now > CLOCK_SLACK:
+            return False
+        return now - fetched <= max_age
+    except (TypeError, ValueError, OverflowError):
+        return False
+
+
+def _tile_entry(entry, now, max_age):
+    """
+    A tile cache entry as candidates() uses it, if it is fresh and one this module could have written, else None:
+    {"fetched_at", "split": True} for a dense tile (its quarters have entries of their own), or {"fetched_at",
+    "stations": [Station, ...]}, which may be empty (a tile over the sea). A station that is not valid makes the
+    whole entry invalid, as a tile that is only partly right would be a short answer that looks whole.
+    """
+    if not _fresh(entry, now, max_age):
+        return None
+    if entry.get("split") is True:
+        return {"fetched_at": entry["fetched_at"], "split": True}
+    listed = entry.get("stations")
+    if not isinstance(listed, list):
+        return None
+    stations = []
+    for item in listed:
+        if not (_airport_ok(item) and isinstance(item.get("name"), str) and AIRPORT_ID.match(item["code"])):
+            return None
+        stations.append(Station(item["code"], item["name"], float(item["lat"]), float(item["lon"])))
+    return {"fetched_at": entry["fetched_at"], "stations": stations}
+
+
+def _tile_cache(path, now, max_age):
+    """The fresh, valid entries of the tile cache file at `path`, as {tile key: entry}; {} for no path."""
+    if not path:
+        return {}
+    found = {}
+    for key, entry in _read_cache(path).items():
+        tile = _tile_entry(entry, now, max_age)
+        if tile is not None:
+            found[key] = tile
+    return found
+
+
+def _detail_entry(entry, now, max_age):
+    """
+    The details in a details cache entry ({"fetched_at", "detail": {"tower", "passengers", "rwyNum",
+    "rwyLength"}}) if it is fresh and has them all, of the types details() gives, else None.
+    """
+    if not _fresh(entry, now, max_age):
+        return None
+    detail = entry.get("detail")
+    if not (isinstance(detail, dict) and isinstance(detail.get("tower"), bool)):
+        return None
+    numbers = ("passengers", "rwyNum", "rwyLength")
+    if not all(
+        isinstance(detail.get(k), int) and not isinstance(detail.get(k), bool) and abs(detail[k]) <= MOST_CACHED
+        for k in numbers
+    ):
+        return None
+    return {"tower": detail["tower"], **{k: detail[k] for k in numbers}}
+
+
+def _detail_cache(path, now, max_age):
+    """The fresh, valid details in the details cache file at `path`, as {code: detail}; {} for no path."""
+    if not path:
+        return {}
+    found = {}
+    for code, entry in _read_cache(path).items():
+        detail = _detail_entry(entry, now, max_age)
+        if detail is not None:
+            found[code] = detail
+    return found
 
 
 def _age(entry, clock):
@@ -646,14 +867,28 @@ def _entry(cache, key, now):
     return entry
 
 
+def _finite(value):
+    """
+    Whether a value is a finite number (not a bool). A JSON int can be too big for a float (10**400), and
+    math.isfinite() raises OverflowError on that instead of saying no.
+    """
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    try:
+        return math.isfinite(value)
+    except OverflowError:
+        return False
+
+
 def _airport_ok(airport):
-    """Whether a cached airport has what a caller needs of it: a code and a finite lat and lon."""
+    """Whether a cached airport has what a caller needs of it: a code and a real lat and lon (on the globe)."""
     if not (isinstance(airport, dict) and isinstance(airport.get("code"), str) and airport["code"]):
         return False
-    return all(
-        isinstance(airport.get(k), (int, float)) and not isinstance(airport.get(k), bool) and math.isfinite(airport[k])
-        for k in ("lat", "lon")
-    )
+    lat, lon = airport.get("lat"), airport.get("lon")
+    if not (_finite(lat) and _finite(lon)):
+        return False
+    assert lat is not None and lon is not None  # for mypy: _finite() said they are numbers
+    return -90 <= lat <= 90 and -180 <= lon <= 180
 
 
 def _read_cache(path):
@@ -661,7 +896,7 @@ def _read_cache(path):
     try:
         with open(path) as f:
             cache = json.load(f)
-    except (OSError, ValueError):
+    except (OSError, ValueError, RecursionError):  # RecursionError: a file of [[[[... too deep for json
         return {}
     return cache if isinstance(cache, dict) else {}
 
@@ -670,14 +905,23 @@ _cache_lock = threading.Lock()
 
 
 def _store(path, key, entry):
+    """Saves one box's entry (see _store_many)."""
+    _store_many(path, {key: entry})
+
+
+def _store_many(path, entries, keep=None):
     """
-    Saves one box's entry. The file is read again under the lock, so another box's entry saved meanwhile (by a
-    request on another thread) isn't lost, and the new file is written whole next to it and moved into place, so a
-    reader never sees half of one. A failure is logged, not raised.
+    Saves entries ({key: entry}) in a cache file. The file is read again under the lock, so another entry saved
+    meanwhile (by a request on another thread) isn't lost, and the new file is written whole next to it and moved
+    into place, so a reader never sees half of one. With `keep`, keep(key, entry) says which of the entries already
+    there stay (the tile and details caches drop the expired ones, so the file doesn't grow for ever). A failure is
+    logged, not raised.
     """
     with _cache_lock:
         cache = _read_cache(path)
-        cache[key] = entry
+        if keep is not None:
+            cache = {k: v for k, v in cache.items() if keep(k, v)}
+        cache.update(entries)
         temporary = None
         try:
             folder = os.path.dirname(path)

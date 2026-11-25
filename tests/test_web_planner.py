@@ -59,7 +59,9 @@ class FakeLoad:
     def __call__(self, box, clock=None, progress=None, **kwargs):
         self.boxes.append(box)
         if progress:  # a real download reports its tiles and batches; only a cache that answers as it is does not
+            progress("stations", 0, 1)
             progress("stations", 1, 1)
+            progress("details", 0, 1)
             progress("details", 1, 1)
         return live_airports.Result(self.airports, self.stale, "2026-11-12T10:00:00+00:00", self.error)
 
@@ -989,6 +991,40 @@ def test_the_progress_callback_sets_the_label_and_the_fraction(make):
     assert f2 == pytest.approx(0.6)
     assert l3 == "Downloading airport details: batch 5 of 25" and f3 == pytest.approx(0.62)
     assert job["fraction"] == 1.0 and "_downloaded" not in job
+
+
+def test_a_plan_answered_from_the_caches_is_not_a_download(make):
+    client, load = reporting(make, [("stations", 20, 20), ("details", 0, 0)])
+    job = run(client, source="recommended", target=30, start_fresh=True)
+    assert job["ok"], job
+    assert not any(label and label.startswith("Downloading") for label, _f in load.seen)
+    assert load.seen[0][1] == pytest.approx(0.6)  # the bar still moves
+    assert any("The airports came from the copy saved" in n for n in job["result"]["notes"])
+
+
+def test_a_real_download_is_still_a_download(make):
+    reports = [("stations", i, 20) for i in range(21)] + [("details", i, 3) for i in range(4)]
+    client, load = reporting(make, reports)
+    job = run(client, source="recommended", target=30, start_fresh=True)
+    assert job["ok"], job
+    assert load.seen[0][0] == "Downloading stations: tile 0 of 20"
+    assert not any("copy saved" in n for n in job["result"]["notes"])
+
+
+def test_a_real_download_shows_its_last_tile_and_batch(make):
+    client, load = reporting(make, [("stations", 0, 3), ("stations", 3, 3), ("details", 0, 1), ("details", 1, 1)])
+    job = run(client, source="recommended", target=30, start_fresh=True)
+    assert job["ok"], job
+    assert load.seen[1][0] == "Downloading stations: tile 3 of 3"
+    assert load.seen[3][0] == "Downloading airport details: batch 1 of 1"
+
+
+def test_cached_tiles_with_partly_downloaded_details_count_as_a_download(make):
+    client, load = reporting(make, [("stations", 20, 20), ("details", 0, 3), ("details", 3, 3)])
+    job = run(client, source="recommended", target=30, start_fresh=True)
+    assert job["ok"], job
+    assert load.seen[1][0] == "Downloading airport details: batch 0 of 3"
+    assert not any("copy saved" in n for n in job["result"]["notes"])
 
 
 def test_the_bar_never_goes_backwards_when_the_total_grows(make):
