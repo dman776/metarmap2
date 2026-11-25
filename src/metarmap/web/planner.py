@@ -11,6 +11,7 @@ import inspect
 import json
 import logging
 import math
+import random
 import re
 import threading
 import time
@@ -60,6 +61,7 @@ NO_JOB = {
     "elapsed": 0,
     "params": None,
     "result": None,
+    "loaded": None,  # {"id", "name", "saved_at"} of the saved plan this job was loaded from (see adopt())
 }
 
 
@@ -288,7 +290,9 @@ class Planner:
         self._cancel = threading.Event()
         self._started = 0.0
         self._ended: Optional[float] = 0.0
-        self._count = 0
+        # job ids start at a random number, not 1: after a restart a tab that still shows an old plan has an id no new
+        # job can match (Save and the Apply token both go by it)
+        self._count = random.getrandbits(31)
 
     def start(self, params):
         """Starts the planner. Returns (job, True), or (the job running now, False) if one already runs."""
@@ -307,6 +311,32 @@ class Planner:
                 "params": params,
             }
             threading.Thread(target=self._run, args=(job, params, cancel), name="planner", daemon=True).start()
+            return self.progress(), True
+
+    def adopt(self, params, result, loaded):
+        """
+        Makes a saved plan the current finished job, as if it had just been planned: a new id (so a preview of the
+        plan before it is stale), `ok` true, the saved `params` and `result`, and `loaded` saying where it came from.
+        Under the same lock as start(), so it cannot land on a plan that is starting or running. Returns (the job,
+        True), or (the job running now, False) when a plan runs (a cancel that is still ending counts as running).
+        """
+        with self._lock:
+            if self.job is not None and not self.job["done"]:
+                return self.progress(), False
+            self._count += 1
+            self._started = self._ended = time.monotonic()
+            self.job = {
+                **NO_JOB,
+                "id": self._count,
+                "idle": False,
+                "fraction": 1.0,
+                "label": "Loaded",
+                "ok": True,
+                "message": result["message"],
+                "params": params,
+                "result": result,
+                "loaded": loaded,
+            }
             return self.progress(), True
 
     def cancel(self):
@@ -752,8 +782,11 @@ class Applier:
         current, led_count, virtual_count = self.services.config.layout()
         try:
             change, token = self._change(job, current, led_count, virtual_count)
-        except ValueError as e:  # a plan that does not fit its own strip: a bug, keep the traceback
-            log.exception(f"the plan cannot be applied: {e}")
+        except ValueError as e:
+            if job.get("loaded"):  # a saved file that was edited by hand is not a bug: no traceback
+                log.warning(f"the loaded plan cannot be applied: {e}")
+            else:  # a plan that does not fit its own strip: a bug, keep the traceback
+                log.exception(f"the plan cannot be applied: {e}")
             return (
                 None,
                 None,
@@ -1003,10 +1036,10 @@ class PlannerRoutes:
         """as_json for an Applier's (status, body); a bug is logged and answered as JSON, never as a 500 page."""
         try:
             status, body = call()
+            return as_json(body, status)  # inside the try: a body that cannot be JSON is a JSON 500 too
         except Exception as e:
             log.exception(f"planner apply failed: {e}")
             return self.refuse("failed", "The Chart could not do that: its log has the details", 500)
-        return as_json(body, status)
 
     def apply_preview(self):
         return self.answer(self.applier.preview)
@@ -1045,4 +1078,9 @@ class PlannerRoutes:
 
 
 def add_routes(app, services: Services, site, auth, planner: Optional[Planner] = None):
-    PlannerRoutes(services, site, planner or Planner(services)).install(app, auth)
+    from metarmap.web import planner_saves  # it uses this module's Planner and parse()
+
+    planner = planner or Planner(services)
+    routes = PlannerRoutes(services, site, planner)
+    routes.install(app, auth)
+    planner_saves.install(routes, app, auth, planner)

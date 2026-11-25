@@ -30,6 +30,17 @@
     <div class="pl-bottom"></div>
 </div>
 
+<div class="card" id="pl-saves-card">
+    <div class="card-head">
+        <h2 id="pl-saves-title" tabindex="-1">Saved plans</h2>
+    </div>
+    <p class="muted pl-pad" id="pl-saves-help">Plans you saved on this Chart, newest first. Load shows a plan at once, with no download and no new plan, and fills the form with its settings.</p>
+    <p class="muted pl-pad" id="pl-saves-empty" hidden>No saved plans yet. Plan a chart, then save it from the result.</p>
+    <ul class="pl-saves" id="pl-saves-list" aria-label="Saved plans"></ul>
+    <p class="pl-pad" id="pl-saves-status" role="status"></p>
+    <div class="pl-bottom"></div>
+</div>
+
 <div class="planner" id="planner" data-boards="{{boards}}">
 <form class="planner-form" id="planner-form" autocomplete="off" novalidate>
     <section class="card settings">
@@ -216,6 +227,7 @@
 </section>
 
 <section id="pl-result" hidden>
+    <p class="banner" id="pl-loaded" hidden></p>
     <div class="banner" id="pl-summary" role="status"></div>
     <div class="planner-grid">
         <div class="card map-card">
@@ -257,6 +269,19 @@
             <ul class="pm-legend" id="pl-legend"></ul>
         </div>
         <div class="planner-side" id="pl-lists">
+            <div class="card" id="pl-save-card">
+                <div class="card-head">
+                    <h2>Save this plan</h2>
+                </div>
+                <p class="muted pl-pad">Keeps this plan and its settings on the Chart, under Saved plans above, so you can load it again later without planning it again.</p>
+                <form class="pl-pad pl-save-row" id="pl-save-form" autocomplete="off">
+                    <label class="t" for="pl-save-name">Name</label>
+                    <input id="pl-save-name" type="text" maxlength="60" spellcheck="false" aria-describedby="pl-save-status">
+                    <button class="btn primary sm" type="submit" id="pl-save-btn">Save plan</button>
+                </form>
+                <p class="pl-pad" id="pl-save-status" role="status"></p>
+                <div class="pl-bottom"></div>
+            </div>
             <div class="card" id="pl-apply-card">
                 <div class="card-head">
                     <h2>Apply to this Chart</h2>

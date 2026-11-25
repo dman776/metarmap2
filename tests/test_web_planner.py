@@ -279,7 +279,12 @@ def test_a_plan_of_the_current_airports(make):
     status, body = post(client)
     assert status == 202
     started = json.loads(body)
-    assert started["done"] is False and started["id"] == 1 and started["params"]["chart"] == "Houston"
+    assert (
+        started["done"] is False
+        and started["id"] == client.planner.job["id"]
+        and isinstance(started["id"], int)
+        and started["params"]["chart"] == "Houston"
+    )
     assert client.headers["Content-Type"] == "application/json"
     job = wait(client)
     assert job["ok"] is True and job["error"] == "" and job["fraction"] == 1.0
@@ -702,7 +707,9 @@ def test_a_second_plan_while_one_runs_is_refused(make):
     assert status == 409
     answer = json.loads(body)
     assert answer["reason"] == "running" and "already running" in answer["error"]
-    assert answer["id"] == 1 and answer["done"] is False  # and the running job's progress comes with it
+    assert (
+        answer["id"] == client.planner.job["id"] and answer["done"] is False
+    )  # and the running job's progress comes with it
     # a reloaded page asks for the progress and gets the job with the form's values
     job = client.json("/config/planner/progress")
     assert job["done"] is False and job["params"]["source"] == "recommended"
