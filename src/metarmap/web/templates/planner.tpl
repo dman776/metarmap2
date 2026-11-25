@@ -32,7 +32,7 @@
 
 <div class="card" id="pl-saves-card">
     <div class="card-head">
-        <h2>Saved plans</h2>
+        <h2 id="pl-saves-title" tabindex="-1">Saved plans</h2>
     </div>
     <p class="muted pl-pad" id="pl-saves-help">Plans you saved on this Chart, newest first. Load shows a plan at once, with no download and no new plan, and fills the form with its settings.</p>
     <p class="muted pl-pad" id="pl-saves-empty" hidden>No saved plans yet. Plan a chart, then save it from the result.</p>

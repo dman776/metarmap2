@@ -37,6 +37,8 @@
     const saveName = $('pl-save-name');
     const saveBtn = $('pl-save-btn');
     let savesBusy = false;  // a save, load, rename or delete is on its way
+    let shownJob = null;  // the id of the job whose plan is on the page: what Save sends, so a stale tab is refused
+    let loadedInfo = null;  // {id, name, saved_at} of the plan on the page when it was loaded
     let savedNames = [];  // the names in the list now, to say a clash before the Chart does
     const currentCodes = Array.prototype.map.call($('pl-keep').querySelectorAll('input'), function (b) { return b.value; });
     const unlocated = Array.prototype.filter.call($('pl-keep').querySelectorAll('input'), function (b) { return b.dataset.unlocated; })
@@ -263,8 +265,11 @@
         setRunning(false);
         if (job.ok && job.result) {
             showError('');
-            showLoaded(job.loaded);
+            shownJob = null;
+            loadedInfo = job.loaded || null;
+            showLoaded(loadedInfo);
             renderResult(job.result);
+            shownJob = job.id;  // only a plan that was drawn whole can be saved
         } else if (job.cancelled) {
             showError('Cancelled.');
         } else {
@@ -360,14 +365,16 @@
         r.left_out.forEach(function (l) { text.appendChild(el('div', {'class': 'muted'}, 'Left out ' + l.code + ': ' + l.reason + '.')); });
         summary.appendChild(text);
 
-        lastResult = r;
-        saveName.value = suggestName(r);
-        sayIn('pl-save-status', '');
+        lastResult = null;  // set only once the lists are drawn: a half-drawn plan can be neither saved nor applied
         resetApply();
         applyChanged();
         // the lists and the snippet first: they need no Leaflet, so a map that cannot start leaves them on screen
         drawLists(r);
         $('pl-snippet').value = snippet(r.airports, sheet.pixels);
+        lastResult = r;
+        saveName.value = suggestName(r);
+        sayIn('pl-save-status', '');
+        applyChanged();
         showView(view, true);
         $('pl-result').scrollIntoView({block: 'start'});
     }
@@ -1217,13 +1224,13 @@
         add(box, [go, cancel]);
         li.appendChild(box);
         cancel.addEventListener('click', function () { closeEdit(li, button); });
+        box.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeEdit(li, button); });
         go.addEventListener('click', function () {
             if (kind === 'delete') doDelete(item); else doRename(item, input.value);
         });
         if (input) {
             input.addEventListener('keydown', function (e) {
                 if (e.key === 'Enter') { e.preventDefault(); go.click(); }
-                if (e.key === 'Escape') closeEdit(li, button);
             });
             input.focus();
             input.select();
@@ -1232,13 +1239,20 @@
         }
     }
 
+    function focusRow(id, what) {
+        const li = $('pl-saves-list').querySelector('li[data-id="' + id + '"]');
+        const b = li && li.querySelector('button[aria-label^="' + what + '"]');
+        if (b) b.focus();
+        return !!b;
+    }
+
     function renderSaves(list) {
         const ul = $('pl-saves-list');
         while (ul.firstChild) ul.removeChild(ul.firstChild);
         savedNames = list.map(function (i) { return i.name; });
         $('pl-saves-empty').hidden = list.length > 0;
         list.forEach(function (item) {
-            const li = el('li');
+            const li = el('li', {'data-id': item.id});
             const main = el('div', {'class': 'pl-save-main'});
             const info = el('div', {'class': 'pl-save-info'});
             info.appendChild(el('div', {'class': 'pl-save-name'}, item.name));
@@ -1295,12 +1309,26 @@
             saveName.focus();
             return;
         }
-        const done = await savesCall(SAVES, {name: name}, 'pl-save-status', 'Saving...');
+        if (shownJob === null) { sayIn('pl-save-status', 'There is no finished plan on the page to save.', true); return; }
+        const done = await savesCall(SAVES, {name: name, job: shownJob}, 'pl-save-status', 'Saving...');
+        if (!done.ok && done.reply && done.reply.status === 409 && done.reply.data && done.reply.data.reason === 'stale') {
+            await showCurrentPlan();  // the page catches up with the Chart's current plan; the message stays
+            sayIn('pl-save-status', errorText(done.reply), true);
+        }
         if (done.ok) {
             sayIn('pl-save-status', 'Saved as ' + done.reply.data.save.name + '.');
             await refreshSaves();
         }
     });
+
+    // the Chart's current plan (another tab made or loaded one): show it, as a reloaded page does
+    async function showCurrentPlan() {
+        try {
+            const reply = await send('/config/planner/progress', 'GET');
+            const job = reply.data;
+            if (job && job.done && job.ok && job.result) { stopPolling(); finished(job); }
+        } catch (e) { /* the message says what happened */ }
+    }
 
     async function doLoad(item) {
         const done = await savesCall(SAVES + '/' + item.id + '/load', {}, 'pl-saves-status', 'Loading ' + item.name + '...');
@@ -1319,16 +1347,24 @@
     async function doRename(item, name) {
         const done = await savesCall(SAVES + '/' + item.id + '/rename', {name: name}, 'pl-saves-status', 'Renaming...');
         if (done.ok) {
+            const saved = done.reply.data.save;
+            if (loadedInfo && loadedInfo.id === saved.id) { loadedInfo = {id: saved.id, name: saved.name, saved_at: loadedInfo.saved_at}; showLoaded(loadedInfo); }
             await refreshSaves();
-            sayIn('pl-saves-status', 'Renamed to ' + done.reply.data.save.name + '.');
+            sayIn('pl-saves-status', 'Renamed to ' + saved.name + '.');
+            focusRow(saved.id, 'Rename');
         }
     }
 
     async function doDelete(item) {
         const done = await savesCall(SAVES + '/' + item.id + '/delete', {}, 'pl-saves-status', 'Deleting...');
         if (done.ok || (done.reply && done.reply.status === 404)) {
+            const rows = Array.prototype.slice.call($('pl-saves-list').children);
+            const at = rows.findIndex(function (li) { return li.dataset.id === item.id; });
+            const next = rows[at + 1] || rows[at - 1];  // the row that takes its place, else the one before
             await refreshSaves();
             sayIn('pl-saves-status', 'Deleted ' + item.name + '.');
+            if (next && focusRow(next.dataset.id, 'Load')) return;
+            $('pl-saves-title').focus();  // the list is empty now
         }
     }
 
