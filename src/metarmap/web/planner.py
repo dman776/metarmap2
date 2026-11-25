@@ -779,8 +779,11 @@ class Applier:
         current, led_count, virtual_count = self.services.config.layout()
         try:
             change, token = self._change(job, current, led_count, virtual_count)
-        except ValueError as e:  # a plan that does not fit its own strip: a bug, keep the traceback
-            log.exception(f"the plan cannot be applied: {e}")
+        except ValueError as e:
+            if job.get("loaded"):  # a saved file that was edited by hand is not a bug: no traceback
+                log.warning(f"the loaded plan cannot be applied: {e}")
+            else:  # a plan that does not fit its own strip: a bug, keep the traceback
+                log.exception(f"the plan cannot be applied: {e}")
             return (
                 None,
                 None,
@@ -1030,10 +1033,10 @@ class PlannerRoutes:
         """as_json for an Applier's (status, body); a bug is logged and answered as JSON, never as a 500 page."""
         try:
             status, body = call()
+            return as_json(body, status)  # inside the try: a body that cannot be JSON is a JSON 500 too
         except Exception as e:
             log.exception(f"planner apply failed: {e}")
             return self.refuse("failed", "The Chart could not do that: its log has the details", 500)
-        return as_json(body, status)
 
     def apply_preview(self):
         return self.answer(self.applier.preview)

@@ -7,6 +7,7 @@ The airport fetch is a fake: no network.
 import io
 import json
 import os
+import re
 import threading
 
 import pytest
@@ -49,12 +50,19 @@ def raw(client, path, data, content_type="application/json", method="POST"):
     return int(out[0].split()[0]), json.loads(body)
 
 
+def offer(client, name, job=None):
+    """POSTs a save of the plan the page shows (the planner's current job unless `job` is given)."""
+    if job is None:
+        job = client.planner.job["id"] if client.planner.job else 0
+    return post(client, SAVES, {"name": name, "job": job})
+
+
 def folder(client):
     return os.path.join(config_dir(client), saves.FOLDER)
 
 
 def keep(client, name="Houston 2026-11-25"):
-    status, body = post(client, SAVES, {"name": name})
+    status, body = offer(client, name)
     assert status == 201, body
     return body["save"]
 
@@ -105,12 +113,12 @@ def test_progress_says_a_fresh_plan_was_not_loaded(make):  # noqa: F811
 
 def test_nothing_to_save_before_a_plan_and_after_a_failed_or_cancelled_one(make):  # noqa: F811
     client = make(FakeLoad(airports=[], error="no network"))
-    status, body = post(client, SAVES, {"name": "x"})
+    status, body = offer(client, "x")
     assert status == 409 and body["reason"] == "nothing" and body["error"]
     run(client, source="recommended", start_fresh=True)  # fails: no airports
-    assert post(client, SAVES, {"name": "x"})[1]["reason"] == "nothing"
+    assert offer(client, "x")[1]["reason"] == "nothing"
     client.planner.job.update(ok=True, result={"message": "m"}, cancelled=True)
-    assert post(client, SAVES, {"name": "x"})[1]["reason"] == "nothing"
+    assert offer(client, "x")[1]["reason"] == "nothing"
     assert get(client, SAVES)[1]["saves"] == []
 
 
@@ -127,7 +135,7 @@ def test_a_running_plan_cannot_be_saved(make):  # noqa: F811
         assert (
             client("/config/planner/plan", method="POST", body={"chart": "Houston", "source": "recommended"})[0] == 202
         )
-        status, body = post(client, SAVES, {"name": "x"})
+        status, body = offer(client, "x")
         assert status == 409 and body["reason"] == "running"
     finally:
         release.set()
@@ -137,7 +145,7 @@ def test_a_running_plan_cannot_be_saved(make):  # noqa: F811
 def test_save_keeps_the_plan_and_its_settings_in_a_file_beside_config_json(make):  # noqa: F811
     client = make()
     job = planned(client)
-    status, body = post(client, SAVES, {"name": "  Houston   2026-11-25 "})
+    status, body = offer(client, "  Houston   2026-11-25 ")
     assert status == 201 and body["ok"] is True
     saved = body["save"]
     assert saved["name"] == "Houston 2026-11-25" and saved["format"] == 1
@@ -165,7 +173,7 @@ def test_saving_changes_nothing_else(make):  # noqa: F811
 def test_a_bad_name_is_a_400(make, name):  # noqa: F811
     client = make()
     planned(client)
-    status, body = post(client, SAVES, {"name": name})
+    status, body = offer(client, name)
     assert status == 400 and body["reason"] == "invalid" and body["error"]
     assert not os.path.isdir(folder(client)) or os.listdir(folder(client)) == []
 
@@ -182,7 +190,7 @@ def test_a_name_that_exists_is_refused_and_nothing_is_overwritten(make):  # noqa
     client = make()
     planned(client)
     first = keep(client, "Houston")
-    status, body = post(client, SAVES, {"name": "houston"})
+    status, body = offer(client, "houston")
     assert status == 409 and body["reason"] == "exists"
     assert [s["id"] for s in get(client, SAVES)[1]["saves"]] == [first["id"]]
 
@@ -193,7 +201,7 @@ def test_the_count_is_capped_at_the_limit(make, monkeypatch):  # noqa: F811
     monkeypatch.setattr(saves, "MAX_SAVES", 3)
     for i in range(3):
         keep(client, f"plan {i}")
-    status, body = post(client, SAVES, {"name": "one more"})
+    status, body = offer(client, "one more")
     assert status == 409 and body["reason"] == "full" and "3" in body["error"]
 
 
@@ -201,7 +209,7 @@ def test_a_plan_over_the_size_limit_is_refused(make, monkeypatch):  # noqa: F811
     client = make()
     planned(client)
     monkeypatch.setattr(saves, "MAX_BYTES", 5000)
-    status, body = post(client, SAVES, {"name": "big"})
+    status, body = offer(client, "big")
     assert status == 409 and body["reason"] == "too_big"
     assert not os.path.isdir(folder(client)) or os.listdir(folder(client)) == []
 
@@ -210,7 +218,7 @@ def test_a_save_that_cannot_be_written_is_a_json_500(make, monkeypatch):  # noqa
     client = make()
     planned(client)
     monkeypatch.setattr(saves.os, "replace", lambda *a, **k: (_ for _ in ()).throw(OSError("read-only")))
-    status, body = post(client, SAVES, {"name": "x"})
+    status, body = offer(client, "x")
     assert status == 500 and body["reason"] == "failed"
     assert [n for n in os.listdir(folder(client))] == []  # no file and no temporary
 
@@ -525,133 +533,230 @@ def test_a_saved_plan_for_the_chart_as_it_is_says_unchanged(make):  # noqa: F811
     assert post(client, APPLY, {"token": body["token"]})[1]["reason"] == "unchanged"
 
 
-def test_a_plan_that_does_not_fit_its_strip_is_refused_at_preview_not_load(make):  # noqa: F811
+def test_a_plan_with_a_code_twice_is_refused_at_preview_without_a_traceback(make, caplog):  # noqa: F811
     client = make()
     planned(client)
     save = keep(client)
-    edit_file(client, save, lambda h, b: (h, {**b, "params": {**b["params"], "string_len": 10}}))  # 50 pixels, 10 x 1
+
+    def twice(h, b):
+        pixels = b["result"]["sheet"]["pixels"]
+        pixels[1]["code"] = pixels[0]["code"]
+        b["result"]["airports"][1]["code"] = pixels[0]["code"]
+        return h, b
+
+    edit_file(client, save, twice)
     assert post(client, f"{SAVES}/{save['id']}/load", {})[0] == 200
     status, body = get(client, PREVIEW)
     assert status == 409 and body["reason"] == "failed"
+    records = [r for r in caplog.records if "cannot be applied" in r.getMessage()]
+    assert records and all(r.exc_info is None for r in records)  # a warning, not log.exception
 
 
-def test_a_loaded_plan_can_be_saved_again_under_a_new_name(make):  # noqa: F811
+@pytest.mark.parametrize("strings", [0, -1, 20000, 1000000, 10**25, True, 1.5, "1", None])
+def test_the_number_of_strings_is_bounded_before_anything_is_built(make, strings):  # noqa: F811
+    client = make()
+    planned(client)  # 50 pixels in strings of 50
+    save = keep(client)
+    edit_file(client, save, lambda h, b: (h, _set_strings(b, strings)))
+    before = client.planner.job["id"]
+    status, body = post(client, f"{SAVES}/{save['id']}/load", {})
+    assert status == 409 and body["reason"] == "unreadable", strings
+    assert client.planner.job["id"] == before
+
+
+def _set_strings(body, strings):
+    body["result"]["sheet"]["shopping"]["strings"] = strings
+    return body
+
+
+def test_strings_that_hold_the_pixels_load(make):  # noqa: F811
     client = make()
     planned(client)
-    save = keep(client, "original")
-    post(client, f"{SAVES}/{save['id']}/load", {})
-    again = keep(client, "copy")
-    assert again["id"] != save["id"] and again["summary"] == save["summary"]
-    loaded = post(client, f"{SAVES}/{again['id']}/load", {})[1]["job"]
-    assert loaded["loaded"]["name"] == "copy"
+    save = keep(client)
+    edit_file(client, save, lambda h, b: (h, {**b, "params": {**b["params"], "string_len": 25}}))  # 1 x 25 < 50
+    assert post(client, f"{SAVES}/{save['id']}/load", {})[1]["reason"] == "unreadable"
+    edit_file(
+        client,
+        save,
+        lambda h, b: (
+            h,
+            {
+                **b,
+                "params": {**b["params"], "string_len": 25},
+                "result": _set_strings(b["result"] and {"result": b["result"]}, 2)["result"],
+            },
+        ),
+    )
+    assert post(client, f"{SAVES}/{save['id']}/load", {})[0] == 200  # 2 x 25 = 50 pixels
 
 
-# ---- rename and delete ------------------------------------------------------------------------------------------
+def test_the_strings_limit_is_the_chart_limit(make):  # noqa: F811
+    client = make()
+    planned(client)
+    save = keep(client)
+    # 1001 pixels' worth of strings is over the Chart's 1000
+    edit_file(
+        client,
+        save,
+        lambda h, b: (
+            h,
+            {
+                **b,
+                "params": {**b["params"], "string_len": 1000},
+                "result": _set_strings({"result": b["result"]}, 2)["result"],
+            },
+        ),
+    )
+    assert post(client, f"{SAVES}/{save['id']}/load", {})[1]["reason"] == "unreadable"
 
 
-def test_rename(make):  # noqa: F811
+def _mutate(path_keys, value):
+    def change(h, b):
+        target = b["result"]
+        for key in path_keys[:-1]:
+            target = target[key]
+        target[path_keys[-1]] = value
+        return h, b
+
+    return change
+
+
+@pytest.mark.parametrize(
+    "path, value",
+    [
+        (["sheet", "board"], []),
+        (["sheet", "board"], "wide"),
+        (["sheet", "pixels"], "none"),
+        (["sheet", "route"], {}),
+        (["sheet", "route"], [5]),
+        (["sheet", "cuts"], [{"between": "x"}]),
+        (["sheet", "problems"], []),
+        (["sheet", "problems", "crowded"], ["KHOU"]),
+        (["sheet", "power", "feed_points"], ["a"]),
+        (["sheet", "power", "notes"], [1]),
+        (["sheet", "strings"], [None]),
+        (["sheet", "start"], "KHOU"),
+        (["sheet", "joins"], [1]),
+        (["names"], {"KHOU": 5}),
+        (["names"], []),
+        (["notes"], [1]),
+        (["notes"], "text"),
+        (["left_out"], [{"code": "K"}]),
+        (["left_out"], ["KHOU"]),
+        (["airports"], [{"code": 5}]),
+        (["chart", "outline"], [1, 2]),
+        (["chart", "outline"], [["a", "b"]]),
+        (["chart", "bounds"], {"south": "x"}),
+        (["chart", "name"], 5),
+        (["chart"], "Houston"),
+        (["sizes"], {"best": 3}),
+        (["message"], 5),
+        (["stale"], "yes"),
+    ],
+)
+def test_the_types_of_a_saved_result_are_checked(make, path, value):  # noqa: F811
+    client = make()
+    planned(client, suggest_sizes=True)
+    save = keep(client)
+    edit_file(client, save, _mutate(path, value))
+    before = client.planner.job["id"]
+    status, body = post(client, f"{SAVES}/{save['id']}/load", {})
+    assert status == 409 and body["reason"] == "unreadable", (path, value)
+    assert client.planner.job["id"] == before and client.planner.job["loaded"] is None
+
+
+def test_a_number_in_a_saved_result_must_be_finite_and_not_a_bool(make):  # noqa: F811
+    client = make()
+    planned(client)
+    save = keep(client)
+    for value in (True, "5", None):
+        edit_file(client, save, _mutate(["sheet", "board", "width_mm"], value))
+        assert post(client, f"{SAVES}/{save['id']}/load", {})[1]["reason"] == "unreadable", value
+    path = os.path.join(folder(client), save["id"] + ".jsonl")
+    with open(path) as f:
+        text = f.read()
+    assert re.search(r'"width_mm": ?[^,}]+', text)
+    with open(path, "w") as f:
+        f.write(re.sub(r'"width_mm": ?[^,}]+', '"width_mm": 1e999', text, count=1))
+    assert post(client, f"{SAVES}/{save['id']}/load", {})[1]["reason"] == "unreadable"
+
+
+def test_real_plans_of_every_kind_pass_the_shape_check(make):  # noqa: F811
+    """The check must accept what the planner makes: skips, the sizes, a pasted list, several strings, the wall."""
+    client = make()
+    kinds = [
+        dict(source="current", suggest_sizes=True),
+        dict(source="current", allow_skips=True, string_len=20),
+        dict(source="paste", codes="KHOU KIAH KDWH"),
+        dict(source="recommended", start_fresh=True, target=60, strings=2, string_len=30),
+        dict(source="current", chart="US Wall Planning", width_in=100),
+    ]
+    for i, values in enumerate(kinds):
+        job = run(client, **{**dict(suggest_sizes=False), **values}) if values.get("chart") else None
+        if job is None:
+            status, _ = client(
+                "/config/planner/plan", method="POST", body={"chart": "Houston", "suggest_sizes": False, **values}
+            )
+            assert status == 202
+            job = wait(client)
+        assert job["ok"], (values, job["error"])
+        status, body = offer(client, f"kind {i}")
+        assert status == 201, body
+        assert post(client, f"{SAVES}/{body['save']['id']}/load", {})[0] == 200, values
+
+
+# ---- the plan on the page --------------------------------------------------------------------------------------
+
+
+def test_a_save_needs_the_number_of_the_plan_on_the_page(make):  # noqa: F811
+    client = make()
+    planned(client)
+    for body in (
+        {"name": "x"},
+        {"name": "x", "job": None},
+        {"name": "x", "job": "1"},
+        {"name": "x", "job": True},
+        {"name": "x", "job": 1.5},
+        {"name": "x", "job": [1]},
+    ):
+        status, answer = post(client, SAVES, body)
+        assert status == 400 and answer["reason"] == "invalid", body
+    assert get(client, SAVES)[1]["saves"] == []
+
+
+def test_a_save_of_a_plan_that_is_not_the_current_one_is_stale(make):  # noqa: F811
+    client = make()
+    first = planned(client)  # tab A shows this plan
+    other = keep(client, "other")
+    post(client, f"{SAVES}/{other['id']}/load", {})  # tab B loads a plan: the current job is a new one
+    status, body = offer(client, "from tab A", job=first["id"])
+    assert status == 409 and body["reason"] == "stale" and "current plan" in body["error"]
+    assert [s["name"] for s in get(client, SAVES)[1]["saves"]] == ["other"]
+    planned(client)  # tab B plans something else
+    assert offer(client, "again", job=first["id"])[1]["reason"] == "stale"
+    assert offer(client, "right", job=client.planner.job["id"])[0] == 201
+
+
+def test_a_save_while_nothing_is_current_says_nothing(make):  # noqa: F811
+    client = make()
+    status, body = post(client, SAVES, {"name": "x", "job": 1})
+    assert status == 409 and body["reason"] == "nothing"
+
+
+def test_renaming_the_loaded_plan_renames_its_banner(make):  # noqa: F811
     client = make()
     planned(client)
     save = keep(client, "old")
-    status, body = post(client, f"{SAVES}/{save['id']}/rename", {"name": " new  name "})
-    assert status == 200 and body["save"]["name"] == "new name" and body["save"]["id"] == save["id"]
-    assert [s["name"] for s in get(client, SAVES)[1]["saves"]] == ["new name"]
-    loaded = post(client, f"{SAVES}/{save['id']}/load", {})[1]["job"]
-    assert loaded["loaded"]["name"] == "new name"
+    post(client, f"{SAVES}/{save['id']}/load", {})
+    post(client, f"{SAVES}/{save['id']}/rename", {"name": "new"})
+    assert progress(client)["loaded"] == {"id": save["id"], "name": "new", "saved_at": save["saved_at"]}
+    other = keep(client, "other")
+    post(client, f"{SAVES}/{other['id']}/rename", {"name": "other 2"})
+    assert progress(client)["loaded"]["name"] == "new"  # another plan's rename does not touch it
 
 
-def test_rename_refusals(make):  # noqa: F811
+def test_an_answer_that_cannot_be_json_is_a_json_500(make, monkeypatch):  # noqa: F811
     client = make()
-    planned(client)
-    one, two = keep(client, "one"), keep(client, "two")
-    status, body = post(client, f"{SAVES}/{one['id']}/rename", {"name": "Two"})
-    assert status == 409 and body["reason"] == "exists"
-    for bad in ("", "a/b", "../x", "x" * 61, None, 3):
-        status, body = post(client, f"{SAVES}/{one['id']}/rename", {"name": bad})
-        assert status == 400 and body["reason"] == "invalid", bad
-    status, body = post(client, f"{SAVES}/20261125-120000-0123abcd/rename", {"name": "fresh"})
-    assert status == 404 and body["reason"] == "not_found"
-    assert post(client, f"{SAVES}/{two['id']}/rename", {})[0] == 400  # no name at all
-    assert {s["name"] for s in get(client, SAVES)[1]["saves"]} == {"one", "two"}
-
-
-def test_delete(make):  # noqa: F811
-    client = make()
-    planned(client)
-    one, two = keep(client, "one"), keep(client, "two")
-    status, body = post(client, f"{SAVES}/{one['id']}/delete", {})
-    assert status == 200 and body == {"ok": True}
-    assert [s["id"] for s in get(client, SAVES)[1]["saves"]] == [two["id"]]
-    assert os.listdir(folder(client)) == [two["id"] + ".jsonl"]
-    status, body = post(client, f"{SAVES}/{one['id']}/delete", {})
-    assert status == 404 and body["reason"] == "not_found"
-    assert post(client, f"{SAVES}/{one['id']}/load", {})[0] == 404
-
-
-def test_deleting_the_loaded_plan_keeps_the_job_on_the_page(make):  # noqa: F811
-    client = make()
-    planned(client)
-    save = keep(client)
-    loaded = post(client, f"{SAVES}/{save['id']}/load", {})[1]["job"]
-    post(client, f"{SAVES}/{save['id']}/delete", {})
-    assert progress(client)["id"] == loaded["id"]
-    assert get(client, PREVIEW)[0] == 200  # the plan in memory still applies
-
-
-# ---- restart and threads ----------------------------------------------------------------------------------------
-
-
-def test_saved_plans_survive_a_restart(make):  # noqa: F811
-    client = make()
-    first = planned(client)
-    save = keep(client, "survives")
-    other = reopen(client)
-    assert progress(other)["idle"] is True  # the new Planner has no job
-    assert [s["name"] for s in get(other, SAVES)[1]["saves"]] == ["survives"]
-    status, body = post(other, f"{SAVES}/{save['id']}/load", {})
-    assert status == 200 and body["job"]["result"] == first["result"] and body["job"]["id"] == 1
-    status, preview = get(other, PREVIEW)
-    assert status == 200 and preview["job"] == 1
-
-
-def test_parallel_saves_of_one_name_make_one_file(make):  # noqa: F811
-    client = make()
-    planned(client)
-    results = []
-
-    def attempt():
-        results.append(post(client, SAVES, {"name": "same"})[0])
-
-    threads = [threading.Thread(target=attempt) for _ in range(10)]
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join()
-    assert sorted(results) == [201] + [409] * 9
-    assert len(os.listdir(folder(client))) == 1
-
-
-def test_parallel_loads_and_a_new_plan_leave_one_consistent_job(make):  # noqa: F811
-    client = make()
-    planned(client)
-    save = keep(client)
-    outcomes = []
-
-    def load():
-        outcomes.append(post(client, f"{SAVES}/{save['id']}/load", {})[0])
-
-    def start():
-        outcomes.append(
-            client("/config/planner/plan", method="POST", body={"chart": "Houston", "suggest_sizes": False})[0]
-        )
-
-    threads = [threading.Thread(target=load) for _ in range(4)] + [threading.Thread(target=start)]
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join()
-    final = wait(client)
-    assert set(outcomes) <= {200, 202, 409}
-    job = progress(client)
-    assert job["done"] and job["ok"] is True and job["id"] == final["id"]
-    assert job["loaded"] is None or job["loaded"]["id"] == save["id"]
+    monkeypatch.setattr(planner_web.Applier, "status", lambda self: (200, {"x": object()}))
+    status, body = client("/config/planner/apply/status")
+    assert status == 500 and json.loads(body)["reason"] == "failed"

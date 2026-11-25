@@ -276,7 +276,7 @@ def test_other_files_in_the_folder_are_ignored(store):
             f.write("{}")
     os.mkdir(os.path.join(store.folder, "20261125-120000-0123abcf.jsonl"))  # a folder with a good name
     assert [s["name"] for s in store.listing()] == ["mine"]
-    assert refusal(store.read, "20261125-120000-0123abcf").reason == "not_found"
+    assert refusal(store.read, "20261125-120000-0123abcf").reason == "unreadable"
 
 
 # ---- rename and delete ------------------------------------------------------------------------------------------
@@ -377,3 +377,93 @@ def test_parallel_saves_over_the_cap(store):
         t.join()
     assert results.count("ok") == saves.MAX_SAVES and results.count("full") == 20
     assert len(store.listing()) == saves.MAX_SAVES
+
+
+# ---- ids, links, and numbers ------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        "20261125-120000-0123abcd\n",  # a trailing newline
+        "20261125-120000-0123abcd ",
+        "\uff12\uff10261125-120000-0123abcd",  # fullwidth digits
+        "20261125-120000-0123ABCD",
+        "20261125-120000-0123abc",
+    ],
+)
+def test_an_id_must_be_exactly_ascii_digits_and_lower_case_hex(store, bad):
+    assert not saves.valid_id(bad)
+    assert refusal(store.read, bad).reason == "not_found"
+    assert refusal(store.delete, bad).reason == "not_found"
+    assert refusal(store.rename, bad, "x").reason == "not_found"
+    assert saves.valid_id("20261125-120000-0123abcd")
+
+
+def test_a_link_to_a_file_is_not_a_saved_plan(store, tmp_path):
+    saved = keep(store, "real")
+    outside = tmp_path / "elsewhere.jsonl"
+    path = os.path.join(store.folder, saved["id"] + ".jsonl")
+    os.replace(path, outside)
+    os.symlink(outside, path)
+    assert store.listing() == []
+    assert refusal(store.read, saved["id"]).reason == "unreadable"
+    assert refusal(store.rename, saved["id"], "other").reason == "unreadable"
+    assert outside.exists()
+    store.delete(saved["id"])  # removes the link, never what it points at
+    assert outside.exists() and not os.path.lexists(path)
+
+
+def test_deep_nesting_in_the_body_is_unreadable_not_a_crash(store):
+    saved = keep(store)
+    header = json.dumps({"format": 1, "id": saved["id"], "name": "n", "saved_at": "x", "summary": {}})
+    damage(store, saved, header + '\n{"params": ' + "[" * 200000 + "\n")
+    assert [s["name"] for s in store.listing()] == ["n"]
+    assert refusal(store.read, saved["id"]).reason == "unreadable"
+
+
+@pytest.mark.parametrize("bad", ["NaN", "Infinity", "-Infinity", "1e999", "-1e999"])
+def test_numbers_that_are_not_finite_make_a_file_unreadable(store, bad):
+    good = keep(store, "good")
+    other = keep(store, "other")
+
+    def header(summary):
+        return json.dumps({"format": 1, "id": other["id"], "name": "n", "saved_at": "x", "summary": summary})
+
+    body = '\n{"params": {}, "result": {}}\n'
+    # in the header: not listed, and the good plan still is
+    damage(store, other, header({"airports": 0}).replace("0}", bad + "}") + body)
+    assert [s["name"] for s in store.listing()] == ["good"]
+    assert refusal(store.read, other["id"]).reason == "unreadable"
+    store.delete(other["id"])  # a damaged file can still be removed by its id
+    # in the body: listed, cannot be loaded
+    damage(store, other, header({}) + '\n{"params": {}, "result": {"lat": ' + bad + "}}\n")
+    assert [s["name"] for s in store.listing()] == ["good", "n"] or [s["name"] for s in store.listing()] == [
+        "n",
+        "good",
+    ]
+    assert refusal(store.read, other["id"]).reason == "unreadable"
+    assert good["id"] in {s["id"] for s in store.listing()}
+
+
+def test_a_huge_integer_is_refused_quickly(store):
+    import time
+
+    saved = keep(store)
+    header = json.dumps({"format": 1, "id": saved["id"], "name": "n", "saved_at": "x", "summary": {}})
+    damage(store, saved, header + '\n{"params": {}, "result": {"n": ' + "9" * (5 * 1024 * 1024) + "}}\n")
+    started = time.monotonic()
+    assert refusal(store.read, saved["id"]).reason == "unreadable"
+    assert time.monotonic() - started < 2
+
+
+def test_the_size_limit_is_checked_before_the_file_is_read(store, monkeypatch):
+    saved = keep(store)
+    monkeypatch.setattr(saves, "MAX_BYTES", 100)
+
+    def never(*args, **kwargs):
+        raise AssertionError("a file over the limit was parsed")
+
+    monkeypatch.setattr(saves.json, "loads", never)
+    assert store.listing() == []
+    assert refusal(store.read, saved["id"]).reason == "unreadable"

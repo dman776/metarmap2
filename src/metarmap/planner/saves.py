@@ -17,9 +17,11 @@ wrong id) is ignored, never an error. Nothing here raises except SaveError, whic
 import contextlib
 import json
 import logging
+import math
 import os
 import re
 import secrets
+import stat
 import tempfile
 import threading
 import unicodedata
@@ -35,7 +37,7 @@ MAX_SAVES = 50  # plans kept: the folder never grows past this
 MAX_NAME = 60  # characters in a name
 MAX_BYTES = 8 * 1024 * 1024  # one file: a 1000-airport plan is about 1 MB; a bigger file is not one of ours
 MAX_HEADER = 8 * 1024  # the header line
-ID = re.compile(r"^\d{8}-\d{6}-[0-9a-f]{8}$")
+ID = re.compile(r"[0-9]{8}-[0-9]{6}-[0-9a-f]{8}", re.ASCII)  # used with fullmatch: no trailing newline
 
 
 class SaveError(Exception):
@@ -73,13 +75,24 @@ def name_key(name: str) -> str:
 
 
 def valid_id(plan_id: Any) -> bool:
-    return isinstance(plan_id, str) and bool(ID.match(plan_id))
+    return isinstance(plan_id, str) and bool(ID.fullmatch(plan_id))
+
+
+def _regular(path: str) -> bool:
+    """Whether path is a plain file of at most MAX_BYTES (a link, a folder or a device is not one of ours). Checked
+    before anything is read, so a huge file is never parsed."""
+    try:
+        info = os.lstat(path)
+    except OSError:
+        return False
+    return stat.S_ISREG(info.st_mode) and info.st_size <= MAX_BYTES
 
 
 def _read_line(path: str, limit: int) -> Optional[bytes]:
-    """The first line of a file, or None when it is missing, not a file, too big, or its line is longer than limit."""
+    """The first line of a file, or None when it is missing, not a plain file, too big, or its line is longer than
+    limit."""
     try:
-        if os.path.getsize(path) > MAX_BYTES or not os.path.isfile(path):
+        if not _regular(path):
             return None
         with open(path, "rb") as f:
             line = f.readline(limit + 1)
@@ -88,12 +101,44 @@ def _read_line(path: str, limit: int) -> Optional[bytes]:
     return line if len(line) <= limit else None
 
 
+MAX_DIGITS = 30  # an integer in a saved plan is a count or an index: a longer one is junk (and slow to read on 3.9)
+
+
+def _no_constant(name: str) -> Any:
+    raise ValueError(f"{name} is not JSON")
+
+
+def _short_int(text: str) -> int:
+    if len(text) > MAX_DIGITS:
+        raise ValueError("an integer with too many digits")
+    return int(text)
+
+
+def finite(data: Any) -> bool:
+    """Whether every number in parsed JSON is finite (1e999 reads as infinity). Walks with a list, not recursion."""
+    todo = [data]
+    while todo:
+        item = todo.pop()
+        if isinstance(item, float):
+            if not math.isfinite(item):
+                return False
+        elif isinstance(item, dict):
+            todo.extend(item.values())
+        elif isinstance(item, list):
+            todo.extend(item)
+    return True
+
+
 def _loads(raw: bytes) -> Any:
-    """JSON from bytes, or None: a number too big, nesting too deep, bad UTF-8 or a plain syntax error is no data."""
+    """
+    JSON from bytes, or None: NaN, Infinity or a number that overflows to it, an integer of over MAX_DIGITS digits,
+    nesting too deep, bad UTF-8 or a plain syntax error is no data.
+    """
     try:
-        return json.loads(raw.decode("utf-8"))
+        data = json.loads(raw.decode("utf-8"), parse_constant=_no_constant, parse_int=_short_int)
     except (ValueError, RecursionError, MemoryError):
         return None
+    return data if finite(data) else None
 
 
 def _header_ok(header: Any, plan_id: str) -> bool:
@@ -151,11 +196,11 @@ class PlanSaves:
         if not valid_id(plan_id):
             raise SaveError("not_found", "There is no saved plan with that id", 404)
         path = self._path(plan_id)
-        if not os.path.isfile(path):
+        if not os.path.lexists(path):
             raise SaveError("not_found", "There is no saved plan with that id", 404)
         bad = SaveError("unreadable", "That saved plan cannot be read: its file is damaged", 409)
         try:
-            if os.path.getsize(path) > MAX_BYTES:
+            if not _regular(path):
                 raise bad
             with open(path, "rb") as f:
                 head = f.readline(MAX_HEADER + 1)
@@ -242,7 +287,7 @@ class PlanSaves:
             raise SaveError("not_found", "There is no saved plan with that id", 404)
         with self._lock:
             path = self._path(plan_id)
-            if not os.path.isfile(path):
+            if not os.path.lexists(path):
                 raise SaveError("not_found", "There is no saved plan with that id", 404)
             header = self._header(plan_id)
             if header is None:

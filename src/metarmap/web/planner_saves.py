@@ -9,6 +9,7 @@ is when it is asked for: a plan saved when the Chart had other airports is appli
 """
 
 import logging
+import math
 import os
 from typing import Any, Dict, Optional, Tuple
 
@@ -22,20 +23,142 @@ from metarmap.web.services import Services
 
 log = logging.getLogger(__name__)
 
-SHEET_KEYS = (
-    "board",
-    "settings",
-    "pixels",
-    "start",
-    "route",
-    "cuts",
-    "joins",
-    "strings",
-    "shopping",
-    "problems",
-    "power",
-)
-RESULT_LISTS = ("airports", "notes", "left_out")
+
+class _Maybe:
+    """A shape that may also be null."""
+
+    def __init__(self, shape):
+        self.shape = shape
+
+
+class _Opt:
+    """A key that may be missing (older plans, or ones that do not have it); when there it has this shape."""
+
+    def __init__(self, shape):
+        self.shape = shape
+
+
+NUM, INT, STR, BOOL = "num", "int", "str", "bool"  # NUM: a finite number; INT: a whole one; neither is a bool
+ANY_MAP = "map"
+POINT = [NUM]  # a [lat, lon] pair: a list of numbers
+# What planner.js draws and the Applier reads of a result, as the planner makes it (see Planner._plan and
+# buildsheet.build). A key not named here is left alone; one named must be there with this shape (_Opt: or missing).
+PIXEL = {
+    "code": _Maybe(STR),
+    "skipped": BOOL,
+    "x": NUM,
+    "y": NUM,
+    "number": _Opt(INT),
+    "index": _Opt(INT),
+    "string": _Opt(INT),
+    "moved_mm": _Opt(NUM),
+    "orig_x": _Opt(_Maybe(NUM)),
+    "orig_y": _Opt(_Maybe(NUM)),
+    "lat": _Opt(_Maybe(NUM)),
+    "lon": _Opt(_Maybe(NUM)),
+    "orig_lat": _Opt(_Maybe(NUM)),
+    "orig_lon": _Opt(_Maybe(NUM)),
+}
+SHEET = {
+    "board": {"width_mm": NUM, "height_mm": NUM, "width_in": NUM, "height_in": NUM},
+    "settings": {"string_len": INT},
+    "pixels": [PIXEL],
+    "start": _Maybe({"index": INT, "code": _Maybe(STR)}),
+    "route": [
+        {
+            "kind": STR,
+            "status": STR,
+            "from_index": INT,
+            "to_index": INT,
+            "length_mm": NUM,
+            "extension_mm": _Opt(NUM),
+            "slack_mm": _Opt(NUM),
+        }
+    ],
+    "cuts": [{"between": [INT], "string": INT, "codes": [STR], "length_mm": NUM, "how": STR}],
+    "joins": [ANY_MAP],
+    "strings": [{"number": INT, "first": INT, "last": INT, "pixels": INT}],
+    "shopping": {"strings": INT, "pixels": _Opt(INT), "extensions": _Opt(INT)},
+    "problems": {
+        "crowded": [[STR]],
+        "drops": [ANY_MAP],
+        "clipped": [STR],
+        "skips_wanted": _Opt(INT),
+        "skips_note": _Opt(STR),
+    },
+    "power": {
+        "voltage": NUM,
+        "reason": STR,
+        "ma_per_pixel": NUM,
+        "brightness": NUM,
+        "margin": NUM,
+        "estimated_amps": NUM,
+        "supply_amps": NUM,
+        "supply_watts": NUM,
+        "feed_points": [INT],
+        "notes": [STR],
+    },
+}
+RESULT = {
+    "message": STR,
+    "chart": {
+        "name": STR,
+        "kind": STR,
+        "outline": [POINT],
+        "bounds": {"south": NUM, "west": NUM, "north": NUM, "east": NUM},
+    },
+    "sheet": SHEET,
+    "airports": [{"code": STR, "name": STR, "display": BOOL, "skip": BOOL}],
+    "names": {"*": STR},  # every value is text
+    "left_out": [{"code": STR, "reason": STR}],
+    "notes": [STR],
+    "stale": _Opt(BOOL),
+    "fetched_at": _Opt(_Maybe(STR)),
+    "sizes": _Opt(
+        _Maybe(
+            {
+                "best": [{"width_in": NUM, "height_in": NUM, "extensions": INT, "crowded": INT}],
+                "current": {"width_in": NUM, "height_in": NUM, "extensions": INT, "crowded": INT},
+            }
+        )
+    ),
+}
+
+
+def _number(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
+
+def fits(value: Any, shape: Any) -> bool:
+    """Whether `value` has `shape` (see RESULT): a dict has every key its shape names, a list holds only items of its
+    one shape, numbers are finite. Extra keys are allowed."""
+    if isinstance(shape, _Maybe):
+        return value is None or fits(value, shape.shape)
+    if shape == NUM:
+        return _number(value)
+    if shape == INT:
+        return isinstance(value, int) and not isinstance(value, bool)
+    if shape == STR:
+        return isinstance(value, str)
+    if shape == BOOL:
+        return isinstance(value, bool)
+    if shape == ANY_MAP:
+        return isinstance(value, dict)
+    if isinstance(shape, list):
+        return isinstance(value, list) and all(fits(item, shape[0]) for item in value)
+    if isinstance(shape, dict):
+        if not isinstance(value, dict):
+            return False
+        if "*" in shape:
+            return all(isinstance(k, str) and fits(v, shape["*"]) for k, v in value.items())
+        for key, sub in shape.items():
+            if isinstance(sub, _Opt):
+                if key in value and not fits(value[key], sub.shape):
+                    return False
+            elif key not in value or not fits(value[key], sub):
+                return False
+        return True
+    return False
 
 
 def saves_for(services: Services) -> PlanSaves:
@@ -50,29 +173,23 @@ def _unreadable() -> SaveError:
 def check_plan(params: Any, result: Any) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     """
     (params, result) of a saved plan that the page can show and Apply can use: the params go through the same checks as
-    the form's, and the result must have the parts the page draws and Apply reads. Raises SaveError("unreadable").
+    the form's, and the result must have the shapes the page draws and Apply reads (RESULT), as many airports as
+    pixels, and strings x string_len pixels that fit the Chart (at least the pixels, at most MAX_LEDS), so nothing
+    big is ever built from a number in a file. Raises SaveError("unreadable").
     """
     try:
         params = parse(params)
     except Invalid:
         raise _unreadable() from None
-    sheet = result.get("sheet") if isinstance(result, dict) else None
-    if not isinstance(sheet, dict) or not all(k in sheet for k in SHEET_KEYS):
+    if not fits(result, RESULT):
         raise _unreadable()
-    shopping, pixels = sheet["shopping"], sheet["pixels"]
+    pixels, strings = result["sheet"]["pixels"], result["sheet"]["shopping"]["strings"]
     if (
-        not isinstance(result.get("message"), str)
-        or not isinstance(result.get("names"), dict)
-        or not isinstance(result.get("chart"), dict)
-        or not all(isinstance(result.get(k), list) for k in RESULT_LISTS)
-        or not isinstance(shopping, dict)
-        or not isinstance(shopping.get("strings"), int)
-        or isinstance(shopping.get("strings"), bool)
-        or not isinstance(pixels, list)
-        or len(pixels) > MAX_LEDS
-        or not all(isinstance(p, dict) for p in pixels)
+        len(pixels) > MAX_LEDS
         or len(result["airports"]) != len(pixels)
-        or not all(isinstance(a, dict) for a in result["airports"])
+        or not 1 <= strings <= MAX_LEDS
+        or strings * params["string_len"] > MAX_LEDS
+        or strings * params["string_len"] < len(pixels)
     ):
         raise _unreadable()
     return params, result
@@ -112,8 +229,11 @@ class SavedPlans:
     def listing(self):
         return 200, {"saves": self.store.listing(), "limit": saves.MAX_SAVES, "max_name": saves.MAX_NAME}
 
-    def _finished(self):
-        """(params, result, None) of the finished plan the planner holds, or (None, None, SaveError)."""
+    def _finished(self, job_id):
+        """
+        (params, result, None) of the finished plan the planner holds, or (None, None, SaveError). `job_id` is the
+        job the page showed: a different current job (another tab planned or loaded a plan) is "stale".
+        """
         job = self.planner.job
         if job is None:
             return None, None, SaveError("nothing", "There is no plan to save: plan a chart first")
@@ -122,10 +242,20 @@ class SavedPlans:
             return None, None, SaveError("running", "A plan is still running")
         if snap.get("cancelled") or not snap.get("ok") or not snap.get("result") or not snap.get("params"):
             return None, None, SaveError("nothing", "There is no finished plan to save: plan a chart first")
+        if snap["id"] != job_id:
+            return (
+                None,
+                None,
+                SaveError(
+                    "stale",
+                    "The plan on this page is not the Chart's current plan any more (another plan was made or "
+                    "loaded): look at the current plan, then save it",
+                ),
+            )
         return snap["params"], snap["result"], None
 
-    def save(self, name):
-        params, result, err = self._finished()
+    def save(self, name, job_id):
+        params, result, err = self._finished(job_id)
         if err:
             return self._fail(err)
         try:
@@ -150,9 +280,14 @@ class SavedPlans:
 
     def rename(self, plan_id, name):
         try:
-            return 200, {"ok": True, "save": self.store.rename(plan_id, name)}
+            saved = self.store.rename(plan_id, name)
         except SaveError as e:
             return self._fail(e)
+        job = self.planner.job
+        loaded = job.get("loaded") if job is not None else None
+        if loaded and loaded.get("id") == plan_id:  # the banner of a plan loaded from this file says its new name
+            job["loaded"] = {**loaded, "name": saved["name"]}
+        return 200, {"ok": True, "save": saved}
 
     def delete(self, plan_id):
         try:
@@ -182,7 +317,14 @@ def install(routes: PlannerRoutes, app: bottle.Bottle, auth, planner: Planner) -
         return data.get("name")
 
     app.route("/config/planner/saves", "GET", lambda: routes.answer(plans.listing), apply=auth)
-    app.route("/config/planner/saves", "POST", lambda: with_body(lambda d: plans.save(name_of(d))), apply=auth)
+
+    def save(data):
+        job_id = data.get("job")
+        if not isinstance(job_id, int) or isinstance(job_id, bool):
+            return 400, {"error": "The request needs the number of the plan on the page (job)", "reason": "invalid"}
+        return plans.save(name_of(data), job_id)
+
+    app.route("/config/planner/saves", "POST", lambda: with_body(save), apply=auth)
     app.route(
         "/config/planner/saves/<plan_id>/load",
         "POST",
