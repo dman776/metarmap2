@@ -179,9 +179,11 @@ Planning alone never changes the Chart. When a plan has finished, **Apply to thi
 
 **Saved plans.** The **Saved plans** card (above the form) keeps plans on the Chart, in `planner-saves/` next to `config.json`, so they survive a restart and an update. When a plan has finished, **Save this plan** (the first card in the result column, above Apply to this Chart) keeps it under a name you type (it starts as the chart and today's date, such as Houston 2026-11-25; a name that is already taken is refused, up to 50 plans, up to 60 characters). **Load** shows a saved plan at once, with its build map, lists and snippet, with no download and no new plan, and fills the form with the settings it was planned with, so you can change one and plan again with fresh airports; a note says which plan was loaded and when it was saved (it follows a rename of that plan). Save always saves the plan the page shows: if another browser tab has planned or loaded a plan since, the Chart refuses with a message and the page shows the current plan. A loaded plan goes through the same **Apply to this Chart...** as a new one (a preview, a backup and an Undo), checked against the Chart's airports as they are then. **Rename** and **Delete** (which asks first, on the page) change only the saved plan, never the Chart. Load is not offered while a plan is running.
 
+![Saved plans: the card above the form with three saved plans, each with its chart, airports, strings, board size and date, and Load, Rename and Delete](docs/images/config_planner_saved.png)
+
 ![Plan a new chart: the form, here choosing 100 recommended airports](docs/images/config_planner.png)
 
-![Apply this plan to this Chart: the confirmation panel with what changes, the wiring warning, the backup name and the tick box before Apply](docs/images/config_planner_apply.png)
+![Apply this plan to this Chart: the Save this plan card above it, then the confirmation panel with what changes, the wiring warning, the backup name and the tick box before Apply](docs/images/config_planner_apply.png)
 
 ![The plan's build map, a Leaflet map like the Map page: each pixel numbered, the wire green where it fits and red where an extension is needed, a dashed join cable and the start; Background is None](docs/images/config_planner_map.png)
 
