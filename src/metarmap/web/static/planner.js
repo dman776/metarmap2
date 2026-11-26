@@ -365,6 +365,7 @@
         r.left_out.forEach(function (l) { text.appendChild(el('div', {'class': 'muted'}, 'Left out ' + l.code + ': ' + l.reason + '.')); });
         summary.appendChild(text);
 
+        printBtn.disabled = true;
         lastResult = null;  // set only once the lists are drawn: a half-drawn plan can be neither saved nor applied
         resetApply();
         applyChanged();
@@ -372,6 +373,7 @@
         drawLists(r);
         $('pl-snippet').value = snippet(r.airports, sheet.pixels);
         lastResult = r;
+        printBtn.disabled = false;
         saveName.value = suggestName(r);
         sayIn('pl-save-status', '');
         applyChanged();
@@ -657,17 +659,17 @@
 
     function mid(a, b) { return {x: (a.x + b.x) / 2, y: (a.y + b.y) / 2}; }
 
-    // the Board view: the board's own drawing, in millimetres
-    function drawBoard(r) {
+    // the board's own drawing, in millimetres: for the Board view, and (print true) for the printed plan, which adds the
+    // board's dimensions along two edges. Returns the svg and the padding round the board.
+    function boardSvg(r, print) {
         const sheet = r.sheet;
         const W = sheet.board.width_mm, H = sheet.board.height_mm;
         const m = r.chart.margins;
-        const pad = Math.max(W, H) * 0.03;
-        board.pad = pad;
-        const rad = Math.min(Math.max(sheet.settings.min_gap_mm * 0.42, 3), 8.5);
+        const pad = Math.max(W, H) * (print ? 0.045 : 0.03);
+        const rad = Math.min(Math.max((finite(sheet.settings.min_gap_mm) ? sheet.settings.min_gap_mm : 18) * 0.42, 3), 8.5) * (print ? 1.3 : 1);
         const font = rad * 0.95;
         const root = svg('svg', {viewBox: [-pad, -pad, W + 2 * pad, H + 2 * pad].join(' '), role: 'img',
-            'aria-label': 'Build map of ' + sheet.pixels.length + ' pixels on a ' + len(W).split(' / ')[1] + ' wide board', 'class': 'pm'});
+            'aria-label': 'Build map of ' + sheet.pixels.length + ' pixels on a ' + len(W).split(' / ')[1] + ' wide board', 'class': print ? 'pm pr-map' : 'pm'});
         root.appendChild(svg('rect', {x: 0, y: 0, width: W, height: H, 'class': 'pm-board'}));
         root.appendChild(svg('rect', {
             x: W * m.left, y: H * m.top, width: W * (1 - m.left - m.right), height: H * (1 - m.top - m.bottom), 'class': 'pm-area'}));
@@ -675,6 +677,7 @@
 
         px.forEach(function (p) {  // a moved pixel's line to its true place
             if (p.skipped || !p.moved_mm || p.orig_x === null) return;
+            if (print && !(p.moved_mm > MOVED_MM)) return;  // the printed plan draws what its table calls moved
             root.appendChild(svg('line', {x1: p.x, y1: p.y, x2: p.orig_x, y2: p.orig_y, 'class': 'pm-moved'}));
             root.appendChild(svg('circle', {cx: p.orig_x, cy: p.orig_y, r: rad * 0.25, 'class': 'pm-true'}));
         });
@@ -718,6 +721,20 @@
             root.appendChild(g);
         }
 
+        if (print) {
+            const size = pad * 0.5;
+            root.appendChild(svg('text', {x: W / 2, y: -pad * 0.35, 'font-size': size, 'text-anchor': 'middle', 'class': 'pr-dim'}, len(W)));
+            root.appendChild(svg('text', {x: 0, y: 0, 'font-size': size, 'text-anchor': 'middle', 'class': 'pr-dim',
+                transform: 'translate(' + (-pad * 0.35) + ',' + (H / 2) + ') rotate(-90)'}, len(H)));
+        }
+        return {root: root, pad: pad};
+    }
+
+    // the Board view
+    function drawBoard(r) {
+        const built = boardSvg(r, false);
+        const root = built.root;
+        board.pad = built.pad;
         const holder = $('pl-board-svg');
         while (holder.firstChild) holder.removeChild(holder.firstChild);
         holder.appendChild(root);
@@ -751,16 +768,16 @@
         if (lmap && view === 'map') lmap.invalidateSize();  // Leaflet does not see a changed layout by itself
     });
 
-    function drawLegend(r) {
-        const list = $('pl-legend');
-        while (list.firstChild) list.removeChild(list.firstChild);
-        const mark = function (cls, dashed) {
-            const s = svg('svg', {width: 28, height: 10, viewBox: '0 0 28 10', 'aria-hidden': 'true'});
+    // the legend's items, one li each; print true is for the printed plan (its lines are drawn for paper)
+    function legendItems(r, print, where) {
+        const out = [];
+        const mark = function (cls) {
+            const s = svg('svg', {width: 28, height: 10, viewBox: '0 0 28 10', 'aria-hidden': 'true', 'class': print ? 'pr-leg' : ''});
             s.appendChild(svg('line', {x1: 1, y1: 5, x2: 27, y2: 5, 'class': 'pm-wire ' + cls}));
             return s;
         };
         const ring = function (cls) {
-            const s = svg('svg', {width: 18, height: 18, viewBox: '0 0 18 18', 'aria-hidden': 'true'});
+            const s = svg('svg', {width: 18, height: 18, viewBox: '0 0 18 18', 'aria-hidden': 'true', 'class': print ? 'pr-leg' : ''});
             s.appendChild(svg('circle', {cx: 9, cy: 9, r: 6, 'class': 'pm-dot ' + cls, 'stroke-width': 1.5}));
             return s;
         };
@@ -775,11 +792,17 @@
         ].forEach(function (pair) {
             const li = el('li');
             add(li, [pair[0], el('span', null, pair[1])]);
-            list.appendChild(li);
+            out.push(li);
         });
-        const where = view === 'board' ? 'the shaded area is the map' : 'inside the dashed outline is the map';
-        const chart = el('li', {'class': 'muted'}, r.chart.name + ' chart: ' + where + ', the rest its margins.');
-        list.appendChild(chart);
+        out.push(el('li', {'class': 'muted'}, r.chart.name + ' chart: ' + where + ', the rest its margins.'));
+        return out;
+    }
+
+    function drawLegend(r) {
+        const list = $('pl-legend');
+        while (list.firstChild) list.removeChild(list.firstChild);
+        legendItems(r, false, view === 'board' ? 'the shaded area is the map' : 'inside the dashed outline is the map')
+            .forEach(function (li) { list.appendChild(li); });
     }
 
     // ---- the lists --------------------------------------------------------------------------------------------
@@ -807,12 +830,12 @@
         body.appendChild(ul);
     }
 
-    function drawLists(r) {
-        const out = $('pl-lists');
-        Array.prototype.slice.call(out.querySelectorAll('.pl-gen')).forEach(function (old) { out.removeChild(old); });
+    // the generated cards (Shopping list ... Board sizes to try), built fresh each call: the page and the printed plan
+    // each take their own
+    function buildLists(r, print) {
+        const cards = [];
         const sheet = r.sheet, shop = sheet.shopping, pw = sheet.power, prob = sheet.problems;
-        const last = $('pl-snippet-card');  // the generated cards go before the config snippet
-        const stack = function (c) { out.insertBefore(c.card, last); };
+        const stack = function (c) { cards.push(c); };
 
         let c = card('Shopping list');
         kv(c.body, [
@@ -869,10 +892,187 @@
             items(c.body, r.sizes.best.map(function (s) {
                 return s.width_in + ' x ' + s.height_in + ' in: ' + plural(s.extensions, 'extension') + ', ' + plural(s.crowded, 'crowded cluster') + (s.drops ? ', ' + plural(s.drops, 'drop') : '') + '.';
             }), 'No sizes tried.');
-            c.body.appendChild(el('p', {'class': 'muted'}, 'Widths from 90% to 115% of yours, keeping its shape. Set the width and height above and plan again to try one.'));
+            c.body.appendChild(el('p', {'class': 'muted'}, 'Widths from 90% to 115% of yours, keeping its shape.' + (print ? '' : ' Set the width and height above and plan again to try one.')));
             stack(c);
         }
+        return cards;
     }
+
+    function drawLists(r) {
+        const out = $('pl-lists');
+        Array.prototype.slice.call(out.querySelectorAll('.pl-gen')).forEach(function (old) { out.removeChild(old); });
+        const last = $('pl-snippet-card');  // the generated cards go before the config snippet
+        buildLists(r).forEach(function (c) { out.insertBefore(c.card, last); });
+    }
+
+    // ---- the printed plan: Download PDF ---------------------------------------------------------------------------
+    // The browser makes the file: this builds a print-only copy of the plan (header, board map, the airports in wired
+    // order, the lists) at the end of the page, names the document for the file, and opens the print dialog, where
+    // "Save as PDF" does the rest. style.css hides everything else when printing (body.pl-printing).
+
+    const COMPASS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+    const printBtn = $('pl-print-btn');
+    let printTimer = null;
+    let sawPrint = false;  // the print media query has matched since this print began
+    let printTitle = null;  // the page's own title, put back once the dialog closes
+
+    function dateStamp(d) {
+        const two = function (n) { return (n < 10 ? '0' : '') + n; };
+        return d.getFullYear() + '-' + two(d.getMonth() + 1) + '-' + two(d.getDate());
+    }
+
+    // which way a pixel sits from its true place (screen y points down, so north is -y)
+    function compass(dx, dy) {
+        return COMPASS[(Math.round(Math.atan2(dx, -dy) / (Math.PI / 4)) + 8) % 8];
+    }
+
+    function finite(v) { return typeof v === 'number' && isFinite(v); }
+
+    // a length, or a dash when a saved plan lacks it
+    function lenOr(v) { return finite(v) ? len(v) : '-'; }
+
+    function printTable(r) {
+        const sheet = r.sheet;
+        const table = el('table', {'class': 'pr-table'});
+        const head = el('tr');
+        ['Done', 'Pixel', 'Airport', 'Name', 'String', 'Pixel in string', 'Status', 'Wire', 'X from left', 'Y from top'].forEach(function (h) {
+            head.appendChild(el('th', {scope: 'col'}, h));
+        });
+        table.appendChild(add(el('thead'), [head]));
+        const joinAt = {}, cutAt = {};
+        sheet.joins.forEach(function (j) { joinAt[j.between[0]] = j; });
+        sheet.cuts.forEach(function (c) { cutAt[c.between[0]] = c; });
+        const body = el('tbody');
+        sheet.pixels.forEach(function (p, i) {
+            const a = (r.airports && r.airports[i]) || {};
+            const moved = !p.skipped && p.moved_mm > MOVED_MM && finite(p.orig_x) && finite(p.orig_y) && finite(p.x) && finite(p.y);
+            const tr = el('tr', {'class': (p.skipped ? 'pr-skip' : '') + (moved ? ' pr-moved' : '')});
+            const wire = [];
+            if (p.position === 1 && finite(p.string)) wire.push('String ' + p.string + ' starts here');
+            if (cutAt[i]) wire.push('CUT after this pixel: splice in ' + lenOr(cutAt[i].extension_mm) + ' before pixel ' + (i + 2) + ' (gap ' + lenOr(cutAt[i].length_mm) + ')');
+            if (joinAt[i]) wire.push('JOIN after this pixel: cable ' + lenOr(joinAt[i].length_mm) + ' to pixel ' + (joinAt[i].between[1] + 1));
+            let where = 'On target';
+            if (p.skipped) where = 'Skipped: hidden pixel';
+            else if (moved) where = 'Moved ' + lenOr(p.moved_mm) + ' ' + compass(p.x - p.orig_x, p.y - p.orig_y);
+            const cells = [
+                el('td', {'class': 'pr-box'}),
+                el('td', {'class': 'mono'}, String(p.number)),
+                el('td', {'class': 'mono'}, p.skipped ? 'skipped' : p.code),
+                el('td', null, p.skipped ? 'Wired, shows nothing: bridges a gap' : (a.name || names[p.code] || '')),
+                el('td', null, finite(p.string) ? String(p.string) : '-'),
+                el('td', {'class': 'pr-nowrap'}, finite(p.position) ? p.position + ' of ' + sheet.settings.string_len : '-'),
+                el('td', {'class': 'pr-where pr-nowrap'}, where),
+                el('td', null, wire.join('; ')),
+                el('td', {'class': 'mono pr-nowrap'}, lenOr(p.x)),
+                el('td', {'class': 'mono pr-nowrap'}, lenOr(p.y)),
+            ];
+            cells.forEach(function (c) { tr.appendChild(c); });
+            body.appendChild(tr);
+        });
+        table.appendChild(body);
+        return table;
+    }
+
+    function printSection(cls, title) {
+        const s = el('section', {'class': 'pr-sec ' + cls});
+        if (title) s.appendChild(el('h2', null, title));
+        return s;
+    }
+
+    function buildPrint(r, stamp) {
+        const sheet = r.sheet, shop = sheet.shopping, st = sheet.settings, b = sheet.board;
+        const root = el('div', {'class': 'pl-print', id: 'pl-print'});
+
+        const first = printSection('pr-first');
+        first.appendChild(el('h1', null, 'MetarMap plan - ' + r.chart.name));
+        const dl = el('dl', {'class': 'pr-kv'});
+        const rows = [
+            ['Date', stamp],
+            ['Chart', r.chart.name],
+            ['Board', len(b.width_mm) + ' wide x ' + len(b.height_mm) + ' high'],
+            ['Counts', plural(shop.pixels, 'pixel') + ', ' + plural(shop.airports, 'airport') + (shop.skipped ? ', ' + shop.skipped + ' hidden' : '') + ', ' + plural(shop.strings, 'string') + ' of ' + st.string_len],
+            ['Pitch', lenOr(st.pitch_mm) + (finite(st.tolerance) ? ' (tolerance ' + Math.round(st.tolerance * 1000) / 10 + '%)' : '')],
+            ['Minimum gap', lenOr(st.min_gap_mm)],
+            ['Maximum move', lenOr(st.max_move_mm)],
+            ['Start corner', (sheet.start && sheet.start.corner) || 'not set'],
+            ['Hidden pixels', st.allow_skips ? 'allowed' : 'not allowed'],
+        ];
+        rows.forEach(function (row) { add(dl, [el('dt', null, row[0]), el('dd', null, row[1])]); });
+        first.appendChild(dl);
+        root.appendChild(first);
+
+        const mapSec = printSection('pr-map-sec ' + (b.width_mm >= b.height_mm * 1.1 ? 'wide' : 'tall'), 'Board map');
+        mapSec.appendChild(boardSvg(r, true).root);
+        const legend = el('ul', {'class': 'pr-legend'});
+        legendItems(r, true, 'the shaded area is the map').forEach(function (li) { legend.appendChild(li); });
+        mapSec.appendChild(legend);
+        mapSec.appendChild(el('p', {'class': 'pr-note'}, 'Board ' + len(b.width_mm) + ' x ' + len(b.height_mm) + '. Drawn to scale and fitted to the page, so it is not full size: measure from the board\'s top-left corner with the X and Y in the table that follows. A dotted line runs from a moved pixel to the airport\'s true place (the small dot).'));
+        root.appendChild(mapSec);
+
+        const tableSec = printSection('pr-table-sec', 'Airports in wired order');
+        tableSec.appendChild(el('p', {'class': 'pr-note'}, 'Mark the board in this order. Tick Done as each pixel is in. A shaded row with a thick left rule and a bold Status is a pixel moved more than ' + MOVED_MM + ' mm from the airport\'s true place.'));
+        tableSec.appendChild(printTable(r));
+        root.appendChild(tableSec);
+
+        const lists = printSection('pr-lists');
+        buildLists(r, true).forEach(function (c) {
+            const part = el('div', {'class': 'pr-card'});
+            part.appendChild(el('h2', null, c.card.querySelector('h2').textContent));
+            part.appendChild(c.body);
+            lists.appendChild(part);
+        });
+        root.appendChild(lists);
+        return root;
+    }
+
+    // put the tab back as it was: the title, and no print mode or @page rule. The printable copy stays (it is hidden on
+    // screen, and the next print replaces it): iOS may fire afterprint early.
+    function endPrint() {
+        sawPrint = false;
+        if (printTimer !== null) { clearTimeout(printTimer); printTimer = null; }
+        if (printTitle !== null) { document.title = printTitle; printTitle = null; }
+        document.body.classList.remove('pl-printing');
+        document.documentElement.classList.remove('pl-printing');
+        const page = $('pl-print-page');
+        if (page) page.textContent = '';
+    }
+
+    function printPlan() {
+        if (!lastResult) return;
+        const r = lastResult;
+        const stamp = dateStamp(new Date());
+        const old = $('pl-print');
+        if (old) old.parentNode.removeChild(old);
+        document.body.appendChild(buildPrint(r, stamp));
+        const sheet = r.sheet.board;
+        let page = $('pl-print-page');
+        if (!page) {
+            page = el('style', {id: 'pl-print-page'});
+            document.head.appendChild(page);
+        }
+        page.textContent = '@page { size: ' + (sheet.width_mm >= sheet.height_mm * 1.1 ? 'landscape' : 'portrait') + '; margin: 12mm; }';
+        if (printTitle === null) printTitle = document.title;
+        document.title = 'MetarMap plan - ' + r.chart.name + ' - ' + stamp;
+        document.body.classList.add('pl-printing');
+        document.documentElement.classList.add('pl-printing');  // the page margins take the page's background
+        sawPrint = false;
+        window.print();
+        if (printTimer !== null) clearTimeout(printTimer);
+        printTimer = setTimeout(endPrint, 60000);  // in case no event says the dialog closed
+    }
+
+    window.addEventListener('afterprint', endPrint);
+    if (window.matchMedia) {
+        const query = window.matchMedia('print');
+        // only a change back from print that followed a change into it: a browser may re-lay the page out first
+        const closed = function (e) {
+            if (e.matches) sawPrint = true;
+            else if (sawPrint) endPrint();
+        };
+        if (query.addEventListener) query.addEventListener('change', closed);
+        else if (query.addListener) query.addListener(closed);
+    }
+    printBtn.addEventListener('click', printPlan);
 
 
     // ---- apply the plan to this Chart --------------------------------------------------------------------------

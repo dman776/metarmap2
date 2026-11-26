@@ -233,9 +233,12 @@
         <div class="card map-card">
             <div class="card-head">
                 <h2>Build map</h2>
-                <div class="pm-seg" id="pl-view" role="group" aria-label="View">
-                    <button class="chip sm" type="button" data-view="map" aria-pressed="true">Map</button>
-                    <button class="chip sm" type="button" data-view="board" aria-pressed="false">Board</button>
+                <div class="pl-head-tools">
+                    <div class="pm-seg" id="pl-view" role="group" aria-label="View">
+                        <button class="chip sm" type="button" data-view="map" aria-pressed="true">Map</button>
+                        <button class="chip sm" type="button" data-view="board" aria-pressed="false">Board</button>
+                    </div>
+                    <button class="btn sm" type="button" id="pl-print-btn" disabled title="Opens the print dialog: choose Save as PDF" aria-label="Download PDF of the plan (opens the print dialog: choose Save as PDF)">Download PDF</button>
                 </div>
             </div>
             <p class="muted pm-note" id="pl-map-note" hidden></p>
