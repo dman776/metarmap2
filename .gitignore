@@ -18,6 +18,8 @@ planner-cache/
 planner-saves/
 # what Config > Plan a new chart > Apply copies config.json to (it holds the web password), whatever the file is called
 *.before-plan-*
+# config.json's copy while an update runs; kept only if the update dies
+*.update-backup
 
 # editors / OS
 .idea/

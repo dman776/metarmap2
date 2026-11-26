@@ -41,7 +41,7 @@ def repos(tmp_path):
     git(dev, "checkout", "-B", "main")
     (dev / "code.py").write_text("VERSION = 1\n")
     (dev / "config.json").write_text(json.dumps({"from": "repo"}))
-    (dev / "airports.json").write_text(json.dumps({"KHOU": {"display": True}}))
+    (dev / ".gitignore").write_text("airports.json\n*.update-backup\n")  # like the real repo's
     git(dev, "add", "-A")
     git(dev, "commit", "-m", "first")
     git(dev, "push", "-u", "origin", "main")
@@ -72,6 +72,48 @@ def code(repos):
 
 
 # ---- the releases channel ---------------------------------------------------------------------------------------
+
+
+def test_a_crash_mid_update_still_restores_the_settings(repos, monkeypatch):
+    (repos.pi / "config.json").write_text(json.dumps({"from": "user"}))
+    commit(repos, "1.1", "Release v1.1.0", config={"from": "new release"})
+    release(repos, "v1.1.0", code=None)
+    real = update._Update.git
+
+    def dies_on_checkout(self, *args, **kwargs):
+        if "checkout" in args:
+            raise RuntimeError("the Pi lost power, nearly")
+        return real(self, *args, **kwargs)
+
+    monkeypatch.setattr(update._Update, "git", dies_on_checkout)
+    with pytest.raises(RuntimeError):
+        update.update(str(repos.pi), current="1.0.0")
+    assert json.loads((repos.pi / "config.json").read_text()) == {"from": "user"}
+    assert not (repos.pi / "config.json.update-backup").exists()
+
+
+def test_a_copy_left_by_a_dead_update_is_put_back(repos):
+    # the update died after the reset: config.json is the repo's default and the user's copy was left beside it
+    (repos.pi / "config.json").write_text(json.dumps({"from": "repo"}))
+    (repos.pi / "config.json.update-backup").write_text(json.dumps({"from": "user"}))
+    commit(repos, "1.1", "Release v1.1.0")
+    release(repos, "v1.1.0", code=None)
+
+    update.update(str(repos.pi), current="1.0.0")
+
+    assert json.loads((repos.pi / "config.json").read_text()) == {"from": "user"}
+    assert not (repos.pi / "config.json.update-backup").exists()
+
+
+def test_no_copy_is_left_and_airports_json_is_untouched(repos):
+    (repos.pi / "airports.json").write_text(json.dumps({"KGLS": {"display": True}}))
+    commit(repos, "1.1", "Release v1.1.0")
+    release(repos, "v1.1.0", code=None)
+
+    update.update(str(repos.pi), current="1.0.0")
+
+    assert sorted(p.name for p in repos.pi.iterdir() if "backup" in p.name) == []
+    assert json.loads((repos.pi / "airports.json").read_text()) == {"KGLS": {"display": True}}
 
 
 def test_installs_the_newest_release_and_keeps_config(repos):
@@ -802,7 +844,7 @@ def test_root_owned_files_are_given_back(as_root):
     assert str(as_root.repo / "sub" / "file.py") in changed
     assert str(as_root.repo) in changed
     restored = {path for path, uid, gid in as_root.chown}
-    assert restored == {str(as_root.repo / "config.json"), str(as_root.repo / "airports.json")}
+    assert restored == {str(as_root.repo / "config.json")}  # airports.json is ignored by git: never copied
 
 
 def test_no_user_switch_when_not_root(monkeypatch, tmp_path):

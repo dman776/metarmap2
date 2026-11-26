@@ -1,7 +1,7 @@
 """
 Updating the map's code from GitHub: run_update() installs the newest release (or commit, or branch) while keeping
-config.json and airports.json, run_git() is how git runs (as the folder's owner, never asking for a password),
-install_newest_release() is for install.sh, and restart() loads the new code. What's newest is releases.py's.
+config.json (airports.json isn't in git), run_git() is how git runs (as the folder's owner, never asking for a
+password), install_newest_release() is for install.sh, and restart() loads the new code. What's newest is releases.py's.
 """
 
 import json
@@ -10,14 +10,14 @@ import os
 import shutil
 import subprocess
 import sys
-import tempfile
 
 from metarmap.lib import versions
 from metarmap.settings import BRANCH_NAME
 
 log = logging.getLogger(__name__)
 
-CONFIG_FILES = ("config.json", "airports.json")
+CONFIG_FILES = ("config.json", "airports.json")  # what the code-changed check ignores
+BACKUP_SUFFIX = ".update-backup"  # config.json's copy beside it while an update runs
 
 
 def _repo_owner(repo):
@@ -213,34 +213,46 @@ class _Update:
         return True, ["checkout", "-B", branch, f"origin/{branch}"]
 
     def install(self, checkout):
-        """Checks out `checkout` with config.json and airports.json kept as they were. Returns whether it worked."""
+        """Checks out `checkout` with config.json kept as it was. Returns whether it worked."""
         target = self.result.target or "the newest commit"
+        config = os.path.join(self.repo, "config.json")
+        backup = config + BACKUP_SUFFIX
+        # config.json is tracked, so the reset and checkout would overwrite it. The copy sits beside it (a reboot
+        # can't clear it, as it could in /tmp) and goes back in a finally, so even a crash can't lose the settings.
+        # airports.json is ignored by git: nothing here touches it.
         self.step(0.3, "Saving your settings")
-        self.say("saving config files... ")
-        saved = tempfile.mkdtemp(prefix="metarmap-update-")
-        for name in CONFIG_FILES:
-            if os.path.exists(os.path.join(self.repo, name)):
-                shutil.copy2(os.path.join(self.repo, name), saved)
-
-        self.step(0.45, "Resetting local changes")
-        self.say("git reset... ")
-        ok = self.git("reset", "--hard").returncode == 0
-        if ok:
-            self.step(0.6, f"Installing {target}")
-            self.say(f"installing {target}...")
-            ok = self.git(*checkout).returncode == 0
-
-        self.step(0.9, "Restoring your settings")
-        self.say("restoring config files... ")
-        for name in CONFIG_FILES:
-            backup = os.path.join(saved, name)
-            if os.path.exists(backup):
-                restored = os.path.join(self.repo, name)
-                shutil.copy2(backup, restored)
-                if self.as_owner:
-                    os.chown(restored, self.uid, self.gid)
-        shutil.rmtree(saved, ignore_errors=True)
+        self.say("saving config.json... ")
+        self.recover(config, backup)
+        has_config = os.path.exists(config)
+        if has_config:
+            shutil.copy2(config, backup)
+        try:
+            self.step(0.45, "Resetting local changes")
+            self.say("git reset... ")
+            ok = self.git("reset", "--hard").returncode == 0
+            if ok:
+                self.step(0.6, f"Installing {target}")
+                self.say(f"installing {target}...")
+                ok = self.git(*checkout).returncode == 0
+        finally:
+            self.step(0.9, "Restoring your settings")
+            self.say("restoring config.json... ")
+            if has_config:
+                self.restore(config, backup)
         return ok
+
+    def recover(self, config, backup):
+        """A copy left by an update that died before it could restore: those are the settings, so put them back."""
+        if os.path.exists(backup):
+            log.warning("Found %s from an update that didn't finish; restoring it", backup)
+            self.say("restoring the settings an earlier update left behind... ")
+            self.restore(config, backup)
+
+    def restore(self, config, backup):
+        shutil.copy2(backup, config)
+        if self.as_owner:
+            os.chown(config, self.uid, self.gid)
+        os.remove(backup)
 
     def finish(self, ok, before):
         """Fills in the result: whether the code changed, and the message for the web UI."""
@@ -264,8 +276,8 @@ class _Update:
 
 def run_update(repo=None, progress=None, channel="releases", version=None, current=None, branch=None):
     """
-    Updates the map's code from GitHub, keeping config.json and airports.json. Git runs as the owner of the folder,
-    not root, so file ownership stays consistent.
+    Updates the map's code from GitHub, keeping config.json (airports.json isn't in git). Git runs as the owner of the
+    folder, not root, so file ownership stays consistent.
 
     channel "releases": installs the newest release tag (v2.8.4), but only if it's newer than the running version
     (current; default this code's version), so an update never goes backwards. "latest": installs the newest commit
