@@ -105,6 +105,80 @@ def test_a_copy_left_by_a_dead_update_is_put_back(repos):
     assert not (repos.pi / "config.json.update-backup").exists()
 
 
+def test_a_crash_while_resetting_restores_the_settings(repos, monkeypatch):
+    (repos.pi / "config.json").write_text(json.dumps({"from": "user"}))
+    commit(repos, "1.1", "Release v1.1.0")
+    release(repos, "v1.1.0", code=None)
+    real = update._Update.git
+
+    def dies_on_reset(self, *args, **kwargs):
+        if args[0] == "reset":
+            raise RuntimeError("boom")
+        return real(self, *args, **kwargs)
+
+    monkeypatch.setattr(update._Update, "git", dies_on_reset)
+    with pytest.raises(RuntimeError):
+        update.update(str(repos.pi), current="1.0.0")
+    assert json.loads((repos.pi / "config.json").read_text()) == {"from": "user"}
+    assert not (repos.pi / "config.json.update-backup").exists()
+
+
+def test_a_chart_with_no_config_json_updates_without_a_copy(repos):
+    (repos.pi / "config.json").unlink()
+    commit(repos, "1.1", "Release v1.1.0", config={"from": "new release"})
+    release(repos, "v1.1.0", code=None)
+
+    result = update.run_update(str(repos.pi), current="1.0.0")
+
+    assert result.ok and code(repos) == "VERSION = '1.1'\n"
+    assert not (repos.pi / "config.json.update-backup").exists()
+
+
+def test_a_damaged_leftover_copy_is_not_put_back(repos):
+    # a power cut in the middle of writing the copy left half a file
+    (repos.pi / "config.json").write_text(json.dumps({"from": "repo"}))
+    (repos.pi / "config.json.update-backup").write_text('{"from": "us')
+    commit(repos, "1.1", "Release v1.1.0")
+    release(repos, "v1.1.0", code=None)
+
+    update.update(str(repos.pi), current="1.0.0")
+
+    assert json.loads((repos.pi / "config.json").read_text()) == {"from": "repo"}
+    assert not (repos.pi / "config.json.update-backup").exists()  # this update's own whole copy replaced it, then went
+
+
+def test_a_stale_leftover_copy_does_not_overwrite_newer_settings(repos):
+    # the update died before the reset, and the user has changed settings since: config.json is not the repo's
+    (repos.pi / "config.json").write_text(json.dumps({"from": "user, changed later"}))
+    (repos.pi / "config.json.update-backup").write_text(json.dumps({"from": "older copy"}))
+    commit(repos, "1.1", "Release v1.1.0")
+    release(repos, "v1.1.0", code=None)
+
+    update.update(str(repos.pi), current="1.0.0")
+
+    assert json.loads((repos.pi / "config.json").read_text()) == {"from": "user, changed later"}
+    assert not (repos.pi / "config.json.update-backup").exists()  # this update's own copy was made and removed
+
+
+def test_a_failed_restore_says_so_and_keeps_the_copy(repos, monkeypatch):
+    (repos.pi / "config.json").write_text(json.dumps({"from": "user"}))
+    commit(repos, "1.1", "Release v1.1.0")
+    release(repos, "v1.1.0", code=None)
+    real = update._Update.copy_whole
+
+    def fails_into_config(self, source, destination):
+        if destination.endswith("config.json"):
+            raise OSError("disk full")
+        return real(self, source, destination)
+
+    monkeypatch.setattr(update._Update, "copy_whole", fails_into_config)
+
+    result = update.run_update(str(repos.pi), current="1.0.0")
+
+    assert not result.ok and any("config.json.update-backup" in e for e in result.errors)
+    assert json.loads((repos.pi / "config.json.update-backup").read_text()) == {"from": "user"}
+
+
 def test_no_copy_is_left_and_airports_json_is_untouched(repos):
     (repos.pi / "airports.json").write_text(json.dumps({"KGLS": {"display": True}}))
     commit(repos, "1.1", "Release v1.1.0")
@@ -844,7 +918,9 @@ def test_root_owned_files_are_given_back(as_root):
     assert str(as_root.repo / "sub" / "file.py") in changed
     assert str(as_root.repo) in changed
     restored = {path for path, uid, gid in as_root.chown}
-    assert restored == {str(as_root.repo / "config.json")}  # airports.json is ignored by git: never copied
+    # config.json (and its copy) are written beside themselves, then swapped in, and handed over before the swap;
+    # airports.json is ignored by git: never copied
+    assert restored == {str(as_root.repo / "config.json.update-backup.tmp"), str(as_root.repo / "config.json.tmp")}
 
 
 def test_no_user_switch_when_not_root(monkeypatch, tmp_path):

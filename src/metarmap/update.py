@@ -218,14 +218,15 @@ class _Update:
         config = os.path.join(self.repo, "config.json")
         backup = config + BACKUP_SUFFIX
         # config.json is tracked, so the reset and checkout would overwrite it. The copy sits beside it (a reboot
-        # can't clear it, as it could in /tmp) and goes back in a finally, so even a crash can't lose the settings.
-        # airports.json is ignored by git: nothing here touches it.
+        # can't clear it, as it could in /tmp) and goes back in a finally, so an exception can't lose the settings;
+        # if the power fails, the next update puts it back (recover). airports.json is ignored by git: untouched.
         self.step(0.3, "Saving your settings")
         self.say("saving config.json... ")
         self.recover(config, backup)
         has_config = os.path.exists(config)
         if has_config:
-            shutil.copy2(config, backup)
+            self.copy_whole(config, backup)
+        restored = True
         try:
             self.step(0.45, "Resetting local changes")
             self.say("git reset... ")
@@ -238,21 +239,53 @@ class _Update:
             self.step(0.9, "Restoring your settings")
             self.say("restoring config.json... ")
             if has_config:
-                self.restore(config, backup)
-        return ok
+                restored = self.restore(config, backup)
+        return ok and restored
 
-    def recover(self, config, backup):
-        """A copy left by an update that died before it could restore: those are the settings, so put them back."""
-        if os.path.exists(backup):
-            log.warning("Found %s from an update that didn't finish; restoring it", backup)
-            self.say("restoring the settings an earlier update left behind... ")
-            self.restore(config, backup)
+    def copy_whole(self, source, destination):
+        """Copies a file so that `destination` is always whole: written beside it, then swapped in."""
+        partial = destination + ".tmp"
+        shutil.copy2(source, partial)
+        if self.as_owner:
+            os.chown(partial, self.uid, self.gid)
+        os.replace(partial, destination)
 
     def restore(self, config, backup):
-        shutil.copy2(backup, config)
-        if self.as_owner:
-            os.chown(config, self.uid, self.gid)
-        os.remove(backup)
+        """Puts the copy back as config.json and removes it. If that fails the copy stays, and it says so."""
+        try:
+            self.copy_whole(backup, config)
+            os.remove(backup)
+        except OSError as e:
+            self.fail(f"Couldn't put your settings back ({e}); they are in {os.path.basename(backup)}")
+            return False
+        return True
+
+    def recover(self, config, backup):
+        """
+        A copy left by an update that died before it could restore (a power cut). It goes back only if it is whole
+        (valid JSON) and the update really did reset config.json (it is missing or is the repo's own copy): after a
+        power cut right after the copy, config.json is still the user's, and may have changed since.
+        """
+        if not os.path.exists(backup):
+            return
+        try:
+            with open(backup) as f:
+                json.load(f)
+            committed = self.git("show", "HEAD:config.json", quiet=True).stdout
+            if os.path.exists(config):
+                with open(config) as f:
+                    reset = f.read() == committed
+            else:
+                reset = True
+        except (OSError, ValueError):
+            log.warning("Found %s from an update that didn't finish, but it can't be read; leaving it", backup)
+            return
+        if not reset:
+            log.warning("Found %s from an update that didn't finish; config.json has changed since: leaving it", backup)
+            return
+        log.warning("Found %s from an update that didn't finish; restoring it", backup)
+        self.say("restoring the settings an earlier update left behind... ")
+        self.restore(config, backup)
 
     def finish(self, ok, before):
         """Fills in the result: whether the code changed, and the message for the web UI."""
