@@ -16,7 +16,11 @@ import requests
 from metarmap import USER_AGENT, http, remarks
 from metarmap.clock import Clock
 from metarmap.models import Report, SkyLayer
-from metarmap.rawparse import HPA_PER_INHG, parse_raw  # parse_raw stays importable from here (config, atis_spoken)
+from metarmap.rawparse import (  # parse_raw stays importable from here (config, atis_spoken)
+    HPA_PER_INHG,
+    metric_visibility,
+    parse_raw,
+)
 
 log = logging.getLogger(__name__)
 
@@ -128,6 +132,7 @@ def parse_report(metar) -> Report:
         wind_gust_speed=int(num("wgst", 0)),
         visibility_sm=parse_visibility(metar.get("visib")),
         visibility_more="+" in str(metar.get("visib") or ""),  # "10+": more than 10 miles
+        visibility_m=metric_visibility(raw_metar),  # the JSON has only miles: "6+" for 9999
         vert_vis_ft=int(num("vertVis")) * 100 if num("vertVis") is not None else None,  # reported in hundreds of ft
         weather=metar.get("wxString") or "",
         temp_c=int(round(temp_c)) if temp_c is not None else None,

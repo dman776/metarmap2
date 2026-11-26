@@ -96,7 +96,7 @@ def _spoken(metar: Optional[Report], name: str, code: str) -> str:
         sentences.append(f"Weather at {digits(metar.obs_time.strftime('%H%M'))} Zulu.")
     sentences += [
         wind(metar),
-        visibility(metar.visibility_sm, metar.visibility_more),
+        visibility(metar.visibility_sm, metar.visibility_more, metar.visibility_m),
         guarded(runway_visual_range, metar),
         weather(metar.weather),
         lightning(metar),
@@ -227,8 +227,18 @@ def wind(metar: Report) -> str:
     return f"Wind {digits(f'{int(direction):03d}')} at {digits(speed)}{gust}."
 
 
-def visibility(miles: Optional[float], more: bool = False) -> str:
-    """ "Visibility one zero" for a report of 10+ miles, "Visibility one and one half" for 1 1/2."""
+def visibility(miles: Optional[float], more: bool = False, metres: Optional[int] = None) -> str:
+    """
+    "Visibility one zero" for a report of 10+ miles, "Visibility one and one half" for 1 1/2. One reported in metres
+    (metres given) as decode.metres_text writes it: "Visibility six kilometres.", "Visibility eight hundred metres.",
+    "Visibility ten kilometres or more." for 9999, "Visibility less than fifty metres." for 0000.
+    """
+    if metres is not None:
+        qualifier, amount, unit = decode.metres_reading(metres)
+        text = f"{count(amount)} {'kilometres' if unit == 'km' else 'metres'}"
+        if qualifier == "less than":
+            return f"Visibility less than {text}."
+        return f"Visibility {text}{' ' + qualifier if qualifier else ''}."
     if miles is None:
         return "Visibility not reported."
     value = Fraction(miles).limit_denominator(16)

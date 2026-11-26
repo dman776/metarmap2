@@ -53,6 +53,9 @@ class Report:
     wind_gust_speed: int = 0  # knots, 0 for no gusts
     visibility_sm: Optional[float] = None  # statute miles, exact (0.25)
     visibility_more: bool = False  # "10+": more than visibility_sm
+    # the visibility as reported in metres outside the US ("6000"; 9999 for 10 km or more, and for CAVOK), which the
+    # decoded and spoken reports show in place of the miles; None for one reported in miles (or not at all)
+    visibility_m: Optional[int] = None
     vert_vis_ft: Optional[int] = None  # vertical visibility into an obscured sky
     weather: str = ""  # weather codes, e.g. "-RA BR"
     temp_c: Optional[int] = None

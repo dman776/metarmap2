@@ -110,6 +110,46 @@ def test_visibility(miles, more, text):
     assert spoken.visibility(miles, more) == text
 
 
+@pytest.mark.parametrize(
+    "group, text",
+    [
+        ("6000", "Visibility six kilometres."),
+        ("0000", "Visibility less than fifty metres."),
+        ("0800", "Visibility eight hundred metres."),
+        ("1500", "Visibility one thousand five hundred metres."),
+        ("4999", "Visibility four thousand niner hundred ninety niner metres."),
+        ("5000", "Visibility five kilometres."),
+        ("5500", "Visibility five thousand five hundred metres."),
+        ("CAVOK", "Visibility ten kilometres or more."),
+        ("////", "Visibility not reported."),
+        ("9999", "Visibility ten kilometres or more."),
+        ("9999NDV", "Visibility ten kilometres or more."),
+        ("6SM", "Visibility six."),  # miles: as before
+        ("P6SM", "Visibility more than six."),
+    ],
+)
+def test_a_visibility_in_metres_is_said_in_metres(group, text):
+    report = raw_report(f"METAR LTST 110350Z 24008KT {group} FEW040 12/10 Q1012")
+    assert spoken.visibility(report.visibility_sm, report.visibility_more, report.visibility_m) == text
+    assert text in spoken.spoken(report, "", "LTST")
+
+
+@pytest.mark.parametrize(
+    "group, visib, text",
+    [
+        ("6000", 3.73, "Visibility six kilometres."),
+        ("9999", "6+", "Visibility ten kilometres or more."),  # not the JSON's "more than six"
+        ("0800", 0.5, "Visibility eight hundred metres."),
+        ("6SM", 6, "Visibility six."),
+    ],
+)
+def test_a_fetched_report_in_metres_is_said_in_metres(group, visib, text):
+    from metarmap.metar import parse_report
+
+    report = parse_report({"rawOb": f"METAR LTST 110350Z 24008KT {group} FEW040 12/10 Q1012", "visib": visib})
+    assert text in spoken.spoken(report, "", "LTST")
+
+
 def test_weather():
     assert spoken.weather("") is None
     assert spoken.weather("NSW") is None
