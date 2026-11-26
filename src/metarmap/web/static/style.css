@@ -723,6 +723,8 @@ textarea { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--cont
 #pl-undo-card { margin-bottom: 16px; }
 textarea.snippet { display: block; width: calc(100% - 48px); margin: 12px 24px 24px; font-size: 12px; }
 .pm-seg { display: flex; flex-wrap: wrap; }
+.pl-head-tools { display: flex; flex-wrap: wrap; align-items: center; margin-left: auto; }
+.pl-head-tools > * { margin: 2px 0 2px 12px; }
 .pm-seg .chip { margin: 0 8px 0 0; }
 .pm-seg .chip:last-child { margin-right: 0; }
 .pm-controls { display: flex; flex-wrap: wrap; align-items: center; padding: 12px 24px; }
@@ -783,3 +785,86 @@ textarea.snippet { display: block; width: calc(100% - 48px); margin: 12px 24px 2
 }
 .with-unit { white-space: nowrap; }
 .with-unit .muted { margin-left: 6px; }
+
+/* The printed plan (Chart Planner > Download PDF): planner.js adds .pl-print to the page and body.pl-printing, then opens
+   the print dialog. On screen it is never shown; printing hides the page and prints only it. Lines differ by width and
+   dash as well as colour, so the plan reads in grayscale. */
+.pl-print { display: none; }
+@media print {
+    html.pl-printing { background: #fff !important; color-scheme: light; }
+    body.pl-printing { background: #fff !important; color: #000 !important; }
+    body.pl-printing > *:not(.pl-print) { display: none !important; }
+    body.pl-printing .pl-print { display: block; font-family: var(--sans); font-size: 10pt; line-height: 1.35; color: #000; background: #fff; }
+    .pl-print, .pl-print * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .pl-print h1 { font-size: 18pt; margin: 0 0 6pt; }
+    .pl-print h2 { font-size: 13pt; margin: 0 0 6pt; }
+    .pl-print .pr-sec { break-after: page; page-break-after: always; }
+    .pl-print .pr-sec:last-child { break-after: auto; page-break-after: auto; }
+    .pl-print .pr-first { break-after: avoid; page-break-after: avoid; }
+    .pl-print .pr-kv { display: block; margin: 0 0 6pt; -webkit-column-count: 2; column-count: 2; -webkit-column-gap: 10mm; column-gap: 10mm; }
+    .pl-print .pr-kv dt { display: inline-block; width: 28mm; font-weight: 600; margin: 0; }
+    .pl-print .pr-kv dd { display: inline; margin: 0; }
+    .pl-print .pr-kv dd::after { content: ""; display: block; }
+    .pl-print .pr-note { font-size: 9pt; margin: 4pt 0 8pt; }
+    /* the header and the map share the first page */
+    .pl-print .pr-first, .pl-print .pr-map-sec { break-inside: avoid; page-break-inside: avoid; }
+    .pl-print .pr-first { break-after: avoid; page-break-after: avoid; }
+    .pl-print .pr-map-sec svg.pr-map { display: block; width: 100%; height: auto; margin: 0 auto; border: 0.4mm solid #000; box-sizing: border-box; }
+    .pl-print .pr-map-sec.wide svg.pr-map { max-height: 105mm; }
+    .pl-print .pr-map-sec.tall svg.pr-map { max-height: 165mm; }
+    .pl-print .pr-map .pm-board { fill: #fff; stroke: #000; stroke-width: 1.6; }
+    .pl-print .pr-map .pm-area { fill: #ececec; stroke: #444; stroke-width: 1; stroke-dasharray: 10 6; }
+    .pl-print .pr-map .pm-dot { fill: #fff; stroke: #000; stroke-width: 1.4; }
+    .pl-print .pr-map .pm-pixel.skipped .pm-dot { fill: none; stroke-dasharray: 3 2; }
+    .pl-print .pr-map .pm-num { fill: #000; }
+    .pl-print .pr-map .pm-code { fill: #000; stroke: #fff; stroke-width: 2.4px; }
+    .pl-print .pr-map .pm-label { stroke: #fff; }
+    .pl-print .pr-map .pm-label.ext, .pl-print .pr-map .pm-label.join { fill: #000; }
+    .pl-print .pr-map .pm-start path { fill: #000; }
+    .pl-print .pr-map .pm-start text { fill: #000; }
+    .pl-print .pr-map .pm-true { fill: #7b1fa2; }
+    .pl-print .pr-map .pm-cut { stroke: #c62828; stroke-width: 3; }
+    .pl-print .pr-dim { fill: #000; font-family: var(--sans); font-weight: 600; }
+    .pl-print .pm-wire { stroke-linecap: butt; }
+    .pl-print .pm-wire.ok { stroke: #1e7d46; stroke-dasharray: none; }
+    .pl-print .pm-wire.slack { stroke: #b7791f; }
+    .pl-print .pm-wire.extension { stroke: #c62828; stroke-dasharray: none; }
+    .pl-print .pm-wire.join { stroke: #1565c0; }
+    .pl-print .pm-wire.moved, .pl-print .pm-moved { stroke: #7b1fa2; }
+    .pl-print .pr-map .pm-wire.ok { stroke-width: 2.4; }
+    .pl-print .pr-map .pm-wire.slack { stroke-width: 3; stroke-dasharray: 14 5 3 5; }
+    .pl-print .pr-map .pm-wire.extension { stroke-width: 5; }
+    .pl-print .pr-map .pm-wire.join { stroke-width: 3; stroke-dasharray: 10 7; }
+    .pl-print .pr-map .pm-moved { stroke-width: 1.6; stroke-dasharray: 2 4; }
+    .pl-print .pr-leg .pm-wire.ok { stroke-width: 2; }
+    .pl-print .pr-leg .pm-wire.slack { stroke-width: 2.5; stroke-dasharray: 8 3 2 3; }
+    .pl-print .pr-leg .pm-wire.extension { stroke-width: 4.5; }
+    .pl-print .pr-leg .pm-wire.join { stroke-width: 2.5; stroke-dasharray: 6 4; }
+    .pl-print .pr-leg .pm-wire.moved { stroke-width: 1.6; stroke-dasharray: 1.5 3; }
+    .pl-print .pr-leg .pm-dot { fill: #fff; stroke: #000; stroke-width: 1.5; }
+    .pl-print .pr-leg .pm-dot.hollow { fill: none; stroke-dasharray: 3 2; }
+    .pl-print .pr-legend { list-style: none; margin: 8pt 0 0; padding: 0; display: block; font-size: 9pt; color: #000; }
+    .pl-print .pr-legend li { display: inline-block; margin: 2pt 14pt 2pt 0; }
+    .pl-print .pr-legend svg { vertical-align: middle; margin-right: 5pt; }
+    .pl-print .pr-legend .muted { color: #333; display: block; }
+    .pl-print .pr-table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+    .pl-print .pr-table thead { display: table-header-group; }
+    .pl-print .pr-table tr { break-inside: avoid; page-break-inside: avoid; }
+    .pl-print .pr-table th { text-align: left; background: #d9d9d9; border: 0.3mm solid #000; padding: 3pt 4pt; }
+    .pl-print .pr-table td { border: 0.2mm solid #666; padding: 4pt; vertical-align: top; }
+    .pl-print .pr-table .mono { font-family: var(--mono); }
+    .pl-print .pr-nowrap { white-space: nowrap; }
+    .pl-print .pr-box { width: 8mm; }
+    .pl-print .pr-box::before { content: ""; display: block; width: 4.5mm; height: 4.5mm; border: 0.4mm solid #000; }
+    .pl-print .pr-moved td { background: #e4e4e4; }
+    .pl-print .pr-moved td.pr-where { font-weight: 700; }
+    .pl-print .pr-moved td:first-child { border-left: 1.2mm solid #000; }
+    .pl-print .pr-skip td { font-style: italic; color: #333; }
+    .pl-print .pr-card { break-inside: avoid; page-break-inside: avoid; margin: 0 0 12pt; }
+    .pl-print .pr-card .pl-body { padding: 0; }
+    .pl-print .pl-kv { display: block; margin: 0 0 6pt; }
+    .pl-print .pl-kv dt { display: inline-block; width: 36mm; color: #000; font-weight: 600; }
+    .pl-print .pl-kv dd { display: inline; margin: 0; }
+    .pl-print .pl-kv dd::after { content: ""; display: block; }
+    .pl-print .muted { color: #333; }
+}

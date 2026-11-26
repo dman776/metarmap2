@@ -177,13 +177,15 @@ def test_markup_has_a_view_toggle_a_background_control_a_note_and_a_hint(make):
     assert 'id="pl-map-note"' in body and 'id="pl-bg-hint" role="status"' in body  # no-Leaflet note, zoom hint
 
 
-def test_markup_and_source_have_no_print_code(make):
+def test_print_code_is_only_for_the_download_pdf_plan(make):
     client = make()
     body = client("/config/planner")[1]
     css = client("/static/style.css")[1]
     js = client("/static/planner.js")[1]
-    assert "@media print" not in css and "no-print" not in css + body + js
-    assert "pl-print" not in body + js and "window.print" not in js
+    assert "no-print" not in css + body + js
+    assert css.count("@media print") == 1 and "body.pl-printing > *:not(.pl-print)" in css  # nothing prints by itself
+    assert js.count("window.print()") == 1 and "classList.add('pl-printing')" in js
+    assert 'id="pl-print"' not in body  # the printable copy is built by the script, at the end of the page
 
 
 def test_source_planner_js_uses_its_own_storage_keys_and_old_safari_syntax(make):

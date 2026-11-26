@@ -1093,6 +1093,16 @@ PAGES = [
 ]
 
 
+def test_the_planner_page_has_a_download_pdf_button_that_starts_off(client):
+    body = client("/config/planner")[1]
+    button = re.search(r'<button[^>]*id="pl-print-btn"[^>]*>', body).group(0)
+    assert " disabled" in button  # on only once there is a plan
+    assert 'type="button"' in button and "onclick" not in button
+    assert "Download PDF" in body
+    assert "MetarMap plan - " in client("/static/planner.js")[1]  # the document title the PDF is named from
+    assert "body.pl-printing" in client("/static/style.css")[1]  # the print stylesheet
+
+
 @pytest.mark.parametrize("path", PAGES)
 def test_every_page_carries_its_version_and_loads_the_update_check(client, path):
     body = client(path)[1]
