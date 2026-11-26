@@ -1,7 +1,7 @@
 """
 Updating the map's code from GitHub: run_update() installs the newest release (or commit, or branch) while keeping
-config.json and airports.json, run_git() is how git runs (as the folder's owner, never asking for a password),
-install_newest_release() is for install.sh, and restart() loads the new code. What's newest is releases.py's.
+config.json and airports.json, run_git() is how git runs (as the folder's owner, never asking for a
+password), install_newest_release() is for install.sh, and restart() loads the new code. What's newest is releases.py's.
 """
 
 import json
@@ -10,14 +10,14 @@ import os
 import shutil
 import subprocess
 import sys
-import tempfile
 
 from metarmap.lib import versions
 from metarmap.settings import BRANCH_NAME
 
 log = logging.getLogger(__name__)
 
-CONFIG_FILES = ("config.json", "airports.json")
+CONFIG_FILES = ("config.json", "airports.json")  # kept through an update; what the code-changed check ignores
+BACKUP_SUFFIX = ".update-backup"  # a settings file's copy beside it while an update runs
 
 
 def _repo_owner(repo):
@@ -215,32 +215,78 @@ class _Update:
     def install(self, checkout):
         """Checks out `checkout` with config.json and airports.json kept as they were. Returns whether it worked."""
         target = self.result.target or "the newest commit"
+        files = [os.path.join(self.repo, name) for name in CONFIG_FILES]
+        # config.json is tracked, so the reset and checkout would overwrite it; so would airports.json when going
+        # back to a release before v2.4.0 (git has ignored it since). Each copy sits beside its file (a reboot can't
+        # clear it, as it could in /tmp) and goes back in a finally, so an exception can't lose the settings; if
+        # the power fails, the next update puts it back (recover).
         self.step(0.3, "Saving your settings")
         self.say("saving config files... ")
-        saved = tempfile.mkdtemp(prefix="metarmap-update-")
-        for name in CONFIG_FILES:
-            if os.path.exists(os.path.join(self.repo, name)):
-                shutil.copy2(os.path.join(self.repo, name), saved)
+        for path in files:
+            self.recover(path, path + BACKUP_SUFFIX)
+        kept = [path for path in files if os.path.exists(path)]
+        for path in kept:
+            self.copy_whole(path, path + BACKUP_SUFFIX)
+        restored = True
+        try:
+            self.step(0.45, "Resetting local changes")
+            self.say("git reset... ")
+            ok = self.git("reset", "--hard").returncode == 0
+            if ok:
+                self.step(0.6, f"Installing {target}")
+                self.say(f"installing {target}...")
+                ok = self.git(*checkout).returncode == 0
+        finally:
+            self.step(0.9, "Restoring your settings")
+            self.say("restoring config files... ")
+            for path in kept:
+                restored = self.restore(path, path + BACKUP_SUFFIX) and restored
+        return ok and restored
 
-        self.step(0.45, "Resetting local changes")
-        self.say("git reset... ")
-        ok = self.git("reset", "--hard").returncode == 0
-        if ok:
-            self.step(0.6, f"Installing {target}")
-            self.say(f"installing {target}...")
-            ok = self.git(*checkout).returncode == 0
+    def copy_whole(self, source, destination):
+        """Copies a file so that `destination` is always whole: written beside it, then swapped in."""
+        partial = destination + ".tmp"
+        shutil.copy2(source, partial)
+        if self.as_owner:
+            os.chown(partial, self.uid, self.gid)
+        os.replace(partial, destination)
 
-        self.step(0.9, "Restoring your settings")
-        self.say("restoring config files... ")
-        for name in CONFIG_FILES:
-            backup = os.path.join(saved, name)
-            if os.path.exists(backup):
-                restored = os.path.join(self.repo, name)
-                shutil.copy2(backup, restored)
-                if self.as_owner:
-                    os.chown(restored, self.uid, self.gid)
-        shutil.rmtree(saved, ignore_errors=True)
-        return ok
+    def restore(self, config, backup):
+        """Puts the copy back as the settings file and removes it. If that fails the copy stays, and it says so."""
+        try:
+            self.copy_whole(backup, config)
+            os.remove(backup)
+        except OSError as e:
+            self.fail(f"Couldn't put your settings back ({e}); they are in {os.path.basename(backup)}")
+            return False
+        return True
+
+    def recover(self, config, backup):
+        """
+        A copy left by an update that died before it could restore (a power cut). It goes back only if it is whole
+        (valid JSON) and the update really did reset the file (it is missing or is the repo's own copy): after a power
+        cut right after the copy, the file is still the user's, and may have changed since.
+        """
+        if not os.path.exists(backup):
+            return
+        try:
+            with open(backup) as f:
+                json.load(f)
+            committed = self.git("show", f"HEAD:{os.path.basename(config)}", quiet=True).stdout
+            if os.path.exists(config):
+                with open(config) as f:
+                    reset = f.read() == committed
+            else:
+                reset = True
+        except (OSError, ValueError):
+            log.warning("Found %s from an update that didn't finish, but it can't be read; leaving it", backup)
+            return
+        if not reset:
+            log.warning("Found %s from an update that didn't finish; the file has changed since: leaving it", backup)
+            return
+        log.warning("Found %s from an update that didn't finish; restoring it", backup)
+        self.say("restoring the settings an earlier update left behind... ")
+        self.restore(config, backup)
 
     def finish(self, ok, before):
         """Fills in the result: whether the code changed, and the message for the web UI."""
@@ -264,8 +310,8 @@ class _Update:
 
 def run_update(repo=None, progress=None, channel="releases", version=None, current=None, branch=None):
     """
-    Updates the map's code from GitHub, keeping config.json and airports.json. Git runs as the owner of the folder,
-    not root, so file ownership stays consistent.
+    Updates the map's code from GitHub, keeping config.json and airports.json. Git runs as the owner of the
+    folder, not root, so file ownership stays consistent.
 
     channel "releases": installs the newest release tag (v2.8.4), but only if it's newer than the running version
     (current; default this code's version), so an update never goes backwards. "latest": installs the newest commit
