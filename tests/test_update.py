@@ -179,6 +179,21 @@ def test_a_failed_restore_says_so_and_keeps_the_copy(repos, monkeypatch):
     assert json.loads((repos.pi / "config.json.update-backup").read_text()) == {"from": "user"}
 
 
+def test_an_old_release_that_tracks_airports_json_keeps_the_users_file(repos):
+    # releases before v2.4.0 committed a sample airports.json, which a checkout of one overwrites (git ignores it now)
+    (repos.dev / "airports.json").write_text(json.dumps({"sample": True}))
+    git(repos.dev, "add", "-f", "airports.json")
+    commit(repos, "0.9", "Release v0.9.0")
+    release(repos, "v0.9.0", code=None)
+    (repos.pi / "airports.json").write_text(json.dumps({"KGLS": {"display": True}}))
+
+    update.update(str(repos.pi), version="v0.9.0")
+
+    assert code(repos) == "VERSION = '0.9'\n"
+    assert json.loads((repos.pi / "airports.json").read_text()) == {"KGLS": {"display": True}}
+    assert not list(repos.pi.glob("*.update-backup"))
+
+
 def test_no_copy_is_left_and_airports_json_is_untouched(repos):
     (repos.pi / "airports.json").write_text(json.dumps({"KGLS": {"display": True}}))
     commit(repos, "1.1", "Release v1.1.0")
@@ -918,9 +933,9 @@ def test_root_owned_files_are_given_back(as_root):
     assert str(as_root.repo / "sub" / "file.py") in changed
     assert str(as_root.repo) in changed
     restored = {path for path, uid, gid in as_root.chown}
-    # config.json (and its copy) are written beside themselves, then swapped in, and handed over before the swap;
-    # airports.json is ignored by git: never copied
-    assert restored == {str(as_root.repo / "config.json.update-backup.tmp"), str(as_root.repo / "config.json.tmp")}
+    # each settings file and its copy are written beside themselves, then swapped in, and handed over before the swap
+    names = ["config.json", "config.json.update-backup", "airports.json", "airports.json.update-backup"]
+    assert restored == {str(as_root.repo / f"{name}.tmp") for name in names}
 
 
 def test_no_user_switch_when_not_root(monkeypatch, tmp_path):

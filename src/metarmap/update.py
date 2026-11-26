@@ -1,6 +1,6 @@
 """
 Updating the map's code from GitHub: run_update() installs the newest release (or commit, or branch) while keeping
-config.json (airports.json isn't in git), run_git() is how git runs (as the folder's owner, never asking for a
+config.json and airports.json, run_git() is how git runs (as the folder's owner, never asking for a
 password), install_newest_release() is for install.sh, and restart() loads the new code. What's newest is releases.py's.
 """
 
@@ -16,8 +16,8 @@ from metarmap.settings import BRANCH_NAME
 
 log = logging.getLogger(__name__)
 
-CONFIG_FILES = ("config.json", "airports.json")  # what the code-changed check ignores
-BACKUP_SUFFIX = ".update-backup"  # config.json's copy beside it while an update runs
+CONFIG_FILES = ("config.json", "airports.json")  # kept through an update; what the code-changed check ignores
+BACKUP_SUFFIX = ".update-backup"  # a settings file's copy beside it while an update runs
 
 
 def _repo_owner(repo):
@@ -213,19 +213,20 @@ class _Update:
         return True, ["checkout", "-B", branch, f"origin/{branch}"]
 
     def install(self, checkout):
-        """Checks out `checkout` with config.json kept as it was. Returns whether it worked."""
+        """Checks out `checkout` with config.json and airports.json kept as they were. Returns whether it worked."""
         target = self.result.target or "the newest commit"
-        config = os.path.join(self.repo, "config.json")
-        backup = config + BACKUP_SUFFIX
-        # config.json is tracked, so the reset and checkout would overwrite it. The copy sits beside it (a reboot
-        # can't clear it, as it could in /tmp) and goes back in a finally, so an exception can't lose the settings;
-        # if the power fails, the next update puts it back (recover). airports.json is ignored by git: untouched.
+        files = [os.path.join(self.repo, name) for name in CONFIG_FILES]
+        # config.json is tracked, so the reset and checkout would overwrite it; so would airports.json when going
+        # back to a release before v2.4.0 (git has ignored it since). Each copy sits beside its file (a reboot can't
+        # clear it, as it could in /tmp) and goes back in a finally, so an exception can't lose the settings; if
+        # the power fails, the next update puts it back (recover).
         self.step(0.3, "Saving your settings")
-        self.say("saving config.json... ")
-        self.recover(config, backup)
-        has_config = os.path.exists(config)
-        if has_config:
-            self.copy_whole(config, backup)
+        self.say("saving config files... ")
+        for path in files:
+            self.recover(path, path + BACKUP_SUFFIX)
+        kept = [path for path in files if os.path.exists(path)]
+        for path in kept:
+            self.copy_whole(path, path + BACKUP_SUFFIX)
         restored = True
         try:
             self.step(0.45, "Resetting local changes")
@@ -237,9 +238,9 @@ class _Update:
                 ok = self.git(*checkout).returncode == 0
         finally:
             self.step(0.9, "Restoring your settings")
-            self.say("restoring config.json... ")
-            if has_config:
-                restored = self.restore(config, backup)
+            self.say("restoring config files... ")
+            for path in kept:
+                restored = self.restore(path, path + BACKUP_SUFFIX) and restored
         return ok and restored
 
     def copy_whole(self, source, destination):
@@ -251,7 +252,7 @@ class _Update:
         os.replace(partial, destination)
 
     def restore(self, config, backup):
-        """Puts the copy back as config.json and removes it. If that fails the copy stays, and it says so."""
+        """Puts the copy back as the settings file and removes it. If that fails the copy stays, and it says so."""
         try:
             self.copy_whole(backup, config)
             os.remove(backup)
@@ -263,15 +264,15 @@ class _Update:
     def recover(self, config, backup):
         """
         A copy left by an update that died before it could restore (a power cut). It goes back only if it is whole
-        (valid JSON) and the update really did reset config.json (it is missing or is the repo's own copy): after a
-        power cut right after the copy, config.json is still the user's, and may have changed since.
+        (valid JSON) and the update really did reset the file (it is missing or is the repo's own copy): after a power
+        cut right after the copy, the file is still the user's, and may have changed since.
         """
         if not os.path.exists(backup):
             return
         try:
             with open(backup) as f:
                 json.load(f)
-            committed = self.git("show", "HEAD:config.json", quiet=True).stdout
+            committed = self.git("show", f"HEAD:{os.path.basename(config)}", quiet=True).stdout
             if os.path.exists(config):
                 with open(config) as f:
                     reset = f.read() == committed
@@ -281,7 +282,7 @@ class _Update:
             log.warning("Found %s from an update that didn't finish, but it can't be read; leaving it", backup)
             return
         if not reset:
-            log.warning("Found %s from an update that didn't finish; config.json has changed since: leaving it", backup)
+            log.warning("Found %s from an update that didn't finish; the file has changed since: leaving it", backup)
             return
         log.warning("Found %s from an update that didn't finish; restoring it", backup)
         self.say("restoring the settings an earlier update left behind... ")
@@ -309,7 +310,7 @@ class _Update:
 
 def run_update(repo=None, progress=None, channel="releases", version=None, current=None, branch=None):
     """
-    Updates the map's code from GitHub, keeping config.json (airports.json isn't in git). Git runs as the owner of the
+    Updates the map's code from GitHub, keeping config.json and airports.json. Git runs as the owner of the
     folder, not root, so file ownership stays consistent.
 
     channel "releases": installs the newest release tag (v2.8.4), but only if it's newer than the running version
