@@ -80,8 +80,9 @@ def decode(metar: Optional["Report"]):
     add("Report type", report_type(body))
     add("Wind", wind(metar))
     add("Wind variability", wind_varies(body.wind_varies))
-    add("Visibility", visibility(metar.visibility_sm, metar.visibility_more))
-    for label, text in body_visibility(body, shown=metar.visibility_sm is not None):
+    add("Visibility", visibility(metar.visibility_sm, metar.visibility_more, metar.visibility_m))
+    shown = metar.visibility_sm is not None or metar.visibility_m is not None
+    for label, text in body_visibility(body, shown=shown):
         add(label, text)
     add("Weather", weather(metar.weather))
     for label, text in sky(metar, body):
@@ -236,14 +237,43 @@ def wind(metar: "Report"):
     return f"{int(direction):03d}° at {speed} kt{gust}"
 
 
-def visibility(miles, more=False):
-    """ "10+ miles", "6 miles", "1 1/2 miles", "1/4 mile"."""
+def visibility(miles, more=False, metres=None):
+    """
+    "10+ miles", "6 miles", "1 1/2 miles", "1/4 mile"; for one reported in metres (metres given), as metres_text
+    says it: "6 km", "800 m", "10 km or more".
+    """
+    if metres is not None:
+        return metres_text(metres)
     if miles is None:
         return None
     value = Fraction(miles).limit_denominator(16)
     whole, part = divmod(value, 1)
     text = " ".join(t for t in (str(whole) if whole else "", str(part) if part else "") if t) or "0"
     return f"{text}{'+' if more else ''} {'mile' if 0 < value <= 1 and not more else 'miles'}"
+
+
+def metres_reading(metres):
+    """
+    How a visibility reported in metres is read, as (qualifier, amount, unit), for metres_text and spoken.visibility
+    alike: ("less than", 50, "m") for 0000, ("", 800, "m") and ("", 1500, "m") below 5 km (ICAO reports those in
+    steps of 100 m), ("", 6, "km") for whole kilometres from 5 km, ("or more", 10, "km") for 9999.
+    """
+    if metres == 0:
+        return "less than", 50, "m"
+    if metres == 9999:
+        return "or more", 10, "km"
+    if metres >= 5000 and metres % 1000 == 0:
+        return "", metres // 1000, "km"
+    return "", metres, "m"
+
+
+def metres_text(metres):
+    """ "less than 50 m", "800 m", "1,500 m", "6 km", "10 km or more" (metres_reading)."""
+    qualifier, amount, unit = metres_reading(metres)
+    text = f"{amount:,} {unit}"
+    if qualifier == "less than":
+        return f"less than {text}"
+    return f"{text} {qualifier}" if qualifier else text
 
 
 def weather(wx):
@@ -586,7 +616,7 @@ def trend(found: "Trend"):
     if found.cavok:
         parts.append("ceiling and visibility OK")
     elif shown and shown.metres is not None:
-        parts.append("visibility 10 km or more" if shown.metres == 9999 else f"visibility {shown.metres:,} m")
+        parts.append(f"visibility {metres_text(shown.metres)}")
     elif shown:
         parts.append(f"visibility {visibility(shown.miles, shown.more)}")
     parts.extend(weather_group(code) for code in found.weather)

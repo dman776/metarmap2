@@ -478,7 +478,7 @@ def weather_sentences(words: List[str]) -> List[str]:
         s
         for s in (
             spoken.wind(report) if report.wind_speed is not None else None,
-            spoken.visibility(report.visibility_sm, report.visibility_more)
+            spoken.visibility(report.visibility_sm, report.visibility_more, report.visibility_m)
             if report.visibility_sm is not None
             else None,
             spoken.guarded(spoken.runway_visual_range, report),

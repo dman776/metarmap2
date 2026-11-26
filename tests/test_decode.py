@@ -94,6 +94,62 @@ def test_visibility(miles, more, text):
 
 
 @pytest.mark.parametrize(
+    "group, text",
+    [
+        ("6000", "6 km"),
+        ("0000", "less than 50 m"),
+        ("0800", "800 m"),
+        ("1500", "1,500 m"),
+        ("4500", "4,500 m"),
+        ("5000", "5 km"),
+        ("9999", "10 km or more"),
+        ("9999NDV", "10 km or more"),
+        ("CAVOK", "10 km or more"),
+        ("6SM", "6 miles"),  # miles: as before
+        ("P6SM", "6+ miles"),
+        ("1 1/2SM", "1 1/2 miles"),
+    ],
+)
+def test_a_visibility_in_metres_reads_in_metres(group, text):
+    """A mock and a fetched report of the same METAR: metres or km when it came in metres (B80), miles otherwise."""
+    raw = f"METAR LTST 110450Z 24008KT {group} FEW040 12/10 Q1012"
+    visib = {"6SM": 6, "P6SM": "6+", "1 1/2SM": 1.5}.get(group, 3.73)  # the JSON's miles (6000 m: 3.73)
+    for report in (parse_raw(raw, NOV_11), parse_report({"rawOb": raw, "visib": visib})):
+        found = [line for line in lines(report) if line[0] == "Visibility"]
+        assert found[:1] == [("Visibility", text)], report
+
+
+def test_the_metres_a_report_gave_are_kept():
+    assert parse_raw("METAR LTST 110450Z 24008KT 6000 FEW040 12/10 Q1012", NOV_11).visibility_m == 6000
+    assert parse_raw("METAR LTST 110450Z 24008KT 9999NDV FEW040 12/10 Q1012", NOV_11).visibility_m == 9999
+    assert parse_raw("METAR KTST 110353Z 00000KT 10SM CLR 16/15 A3015", NOV_11).visibility_m is None
+    assert parse_report({"rawOb": "METAR LTST 110450Z 24008KT 0800 FG Q1012", "visib": 0.5}).visibility_m == 800
+    assert parse_report({"rawOb": "", "visib": 10}).visibility_m is None
+    assert parse_raw("METAR LTST 110450Z 24008KT 6000 FEW040 12/10 Q1012", NOV_11).visibility_sm == 3.73  # as before
+
+
+def test_a_4_digit_group_before_the_wind_isnt_the_visibility():
+    """COR 1955 (a corrected report's time) in a report in miles: not 1,955 m."""
+    report = parse_raw("METAR KXYZ 101953Z COR 1955 18005KT 10SM CLR 20/10 A3001", NOV_11)
+    assert (report.visibility_m, report.visibility_sm) == (None, 10.0)
+    assert ("Visibility", "10 miles") in lines(report)
+    missing = parse_raw("METAR LTST 110450Z /////KT 6000 FEW040 12/10 Q1012", NOV_11)  # wind not reported: still read
+    assert missing.visibility_m == 6000
+
+
+def test_a_4_digit_group_after_a_visibility_in_miles_isnt_read():
+    report = parse_raw("METAR KTST 110353Z 18005KT 10SM CLR 20/10 A3001 1234", NOV_11)
+    assert (report.visibility_m, report.visibility_sm) == (None, 10.0)
+
+
+def test_a_metric_visibility_not_reported():
+    raw = "METAR LTST 110450Z 24008KT //// FEW040 12/10 Q1012"  # automated: ////
+    for report in (parse_raw(raw, NOV_11), parse_report({"rawOb": raw})):
+        assert report.visibility_m is None and report.visibility_sm is None
+        assert not [line for line in lines(report) if line[0] == "Visibility"]
+
+
+@pytest.mark.parametrize(
     "wx, text",
     [
         ("RA", "Rain"),
@@ -527,7 +583,7 @@ def test_an_international_cavok_report_with_runway_state_and_trend():
     assert lines(fetched("METAR UTAM 110400Z")) == [
         ("Observed", "11 Nov 04:00Z"),
         ("Wind", "050° at 6 kt"),
-        ("Visibility", "6+ miles"),
+        ("Visibility", "10 km or more"),  # CAVOK, not the JSON's "6+" miles
         ("CAVOK", decode.CAVOK),  # in place of the Clouds line, which said Clear
         ("Temperature", "4°C / 39°F"),
         ("Dewpoint", "2°C / 36°F (spread 2°C)"),
@@ -565,7 +621,7 @@ def test_every_body_line_in_order():
         ("Report type", "Special report (unscheduled), corrected"),  # not AUTO
         ("Wind", "240° at 8 kt"),
         ("Wind variability", "Varying between 200° and 280°"),
-        ("Visibility", "1/2 mile"),
+        ("Visibility", "800 m"),  # as reported, not the JSON's 0.5 miles
         ("Lowest visibility", "500 m to the northeast"),
         ("Runway visual range", "Runway 04: more than 2,000 m, no change"),
         ("", "Runway 22 left: varying 550 to 800 m, improving"),
@@ -746,7 +802,7 @@ def test_runway_state(group, text):
     [
         ("NOSIG", "No significant change expected in the next 2 hours"),
         ("TEMPO 4000 RA BKN014", "Temporarily: visibility 4,000 m, rain, broken 1,400 ft"),
-        ("BECMG FM1050 6000 BKN006", "Becoming from 10:50Z: visibility 6,000 m, broken 600 ft"),
+        ("BECMG FM1050 6000 BKN006", "Becoming from 10:50Z: visibility 6 km, broken 600 ft"),
         (
             "TEMPO FM0430 TL0500 4000 TSRA",
             "Temporarily from 04:30Z until 05:00Z: visibility 4,000 m, thunderstorm with rain",
@@ -760,7 +816,7 @@ def test_runway_state(group, text):
         ("BECMG 29012KT", "Becoming: wind 290° at 12 kt"),
         ("BECMG VRB03MPS CAVOK", "Becoming: wind variable at 3 m/s, ceiling and visibility OK"),
         ("BECMG 00000KT", "Becoming: wind calm"),
-        ("TEMPO 8000 RA NSC", "Temporarily: visibility 8,000 m, rain, no significant cloud"),
+        ("TEMPO 8000 RA NSC", "Temporarily: visibility 8 km, rain, no significant cloud"),
         ("TEMPO 0400 FG VV///", "Temporarily: visibility 400 m, fog, sky obscured"),
         ("TEMPO 2SM BR", "Temporarily: visibility 2 miles, mist"),
         ("BECMG P6SM", "Becoming: visibility 6+ miles"),

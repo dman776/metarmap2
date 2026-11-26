@@ -56,6 +56,8 @@ def _read_tokens(tokens: Sequence[str]) -> Dict[str, Any]:
     """The Report fields the body's tokens give, up to a trend."""
     wind_dir, wind_speed, gust = "", None, 0
     visibility: Optional[float] = None
+    visibility_m: Optional[int] = None  # the same, as reported in metres (outside the US)
+    after_wind = False  # a 4-digit visibility comes after the wind: one before it is something else (COR 1955)
     more = False
     wx: List[str] = []
     sky: List[SkyLayer] = []
@@ -72,6 +74,8 @@ def _read_tokens(tokens: Sequence[str]) -> Dict[str, Any]:
         temps = re.fullmatch(r"(M?\d{2})/(M?\d{2})?", t)
         if t in TREND_KINDS:  # the rest is a forecast
             break
+        if t.endswith(("KT", "MPS")):  # the wind group, read or not (/////KT)
+            after_wind = True
         if wind:
             factor = MPS_TO_KT if wind.group(4) == "MPS" else 1
             wind_dir = wind.group(1) if wind.group(1) == "VRB" else str(int(wind.group(1)))  # as the JSON: "80"
@@ -85,11 +89,13 @@ def _read_tokens(tokens: Sequence[str]) -> Dict[str, Any]:
         elif miles:
             visibility = float(_miles(miles.group(2)))
             more = miles.group(1) == "P"
-        elif re.fullmatch(r"\d{4}(?:NDV)?", t) and visibility is None:  # meters, outside the US; 9999: 10 km or more
-            visibility = round(int(t[:4]) / METERS_PER_SM, 2)
+        # meters, outside the US; 9999: 10 km or more
+        elif re.fullmatch(r"\d{4}(?:NDV)?", t) and visibility is None and after_wind:
+            visibility_m = int(t[:4])
+            visibility = round(visibility_m / METERS_PER_SM, 2)
             more = t[:4] == "9999"
-        elif t == "CAVOK":
-            visibility, more = 10.0, True
+        elif t == "CAVOK":  # visibility 10 km or more
+            visibility, visibility_m, more = 10.0, 9999, True
             sky.append(SkyLayer("CAVOK"))
         elif clouds:
             sky.append(SkyLayer(clouds.group(1), int(clouds.group(2)) * 100))
@@ -113,6 +119,7 @@ def _read_tokens(tokens: Sequence[str]) -> Dict[str, Any]:
         "wind_gust_speed": gust,
         "visibility_sm": visibility,
         "visibility_more": more,
+        "visibility_m": visibility_m,
         "vert_vis_ft": vert_vis,
         "weather": " ".join(wx),
         "temp_c": temp_c,
@@ -138,6 +145,17 @@ def parse_raw(raw: Any, now: Optional[datetime]) -> Report:
         obs_time=obs_time,
     )
     return replace(report, flight_category=estimate_category(report))
+
+
+def metric_visibility(raw: Any) -> Optional[int]:
+    """
+    The visibility in metres when the report gave it so ("6000", "9999NDV"; CAVOK as 9999), for a fetched report:
+    the JSON's visib is always in statute miles. None for one in miles (10SM), without one, or not like a METAR.
+    """
+    try:
+        return _read_tokens(_split_header(raw, None)[2])["visibility_m"]
+    except ValueError:
+        return None
 
 
 def _miles(text: str) -> Fraction:
