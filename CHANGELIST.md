@@ -1,5 +1,7 @@
 ### Unreleased
 
+- **The README's first screen leads with the photo, a "Jump to" row and four highlights.** Documentation only; nothing changes on the Chart.
+
 ### dman776 26.11.26 (2026-11-26)
 
 - **The Chart Planner can be told airports to keep that are not in the list.** Under the **Must keep** ticks there is a new box, **More airports to keep**: type airport codes (spaces or commas between, in any case, such as `KBOS KJFK`) and they join the ticked ones, so the plan always includes them. The box shows only for **Recommended** (the one source where the ticks list only your current airports); with Current or Paste it is hidden and nothing typed is sent. With Recommended and no current airports, only the box shows. A code that is not 3 or 4 letters or digits is refused with an error. A typed code the plan cannot place (no known position, or outside the chart) is left out and listed under left out with its reason; typed codes count toward the Chart's pixel limit like ticked ones. A saved or earlier plan puts the kept codes that have no tick back into the box when it is loaded, so it round-trips. The Must keep ticks are now in alphabetical order. No API change (the codes go in the existing `must_keep`).

@@ -5,6 +5,17 @@ A Raspberry Pi turns a wall map into a live weather display: a pixel (an LED) at
 optional small OLED screen cycles through the details for the airports you pick, and a web UI lets you control and
 set up the Chart from your phone.
 
+![The MetarMap2 map on a wall: an FAA sectional chart with a pixel at each airport](docs/images/physical_map.jpg)
+
+**Jump to:** [What you need](#what-you-need) · [Try it without hardware](#try-it-on-your-computer) · [Install](#install) ·
+[Plan a new chart](#plan-a-new-chart) · [Web API and Home Assistant](#web-api-home-assistant-and-metarmap2-copilot) ·
+[Wiki](https://github.com/dman776/metarmap2/wiki)
+
+- **No hardware to start**: run it on your own computer and watch the live map in your browser.
+- **Plan the build**: the Chart Planner picks the airports, lays them out on your board and prints a wiring plan as a PDF.
+- **Control it from any device on your network**: a web UI for your phone, a tablet Cockpit, an HTTP API and a Home Assistant integration.
+- **More than flight categories**: wind, gusts, ceilings, AIRMETs and SIGMETs, TFRs, FAA delays, forecasts and lightning reports.
+
 It comes in five pieces:
 
 | | |
@@ -15,9 +26,7 @@ It comes in five pieces:
 | **MetarMap2 Cockpit** | A remote control for a tablet in kiosk mode, at `/cockpit` |
 | **MetarMap2 Copilot** | An optional 2.8" touchscreen beside the Chart ([metarmap2_remote](https://github.com/dman776/metarmap2_remote)) |
 
-Written from the ground up with a web UI, an API and a Home Assistant integration (see [Credits](#credits)).
-
-![The MetarMap2 map on a wall: an FAA sectional chart with a pixel at each airport](docs/images/physical_map.jpg)
+Written from the ground up (see [Credits](#credits)).
 
 ## Features
 
