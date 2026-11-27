@@ -31,3 +31,6 @@ airports.json
 METARMAP2 ARCHITECTURE
 metarmap2.code-workspace
 uv.lock
+
+# JavaScript tests (dev only)
+node_modules/
