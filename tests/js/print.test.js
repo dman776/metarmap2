@@ -168,3 +168,35 @@ test('the Download PDF button is off until a plan is on the page', async () => {
     assert.ok(!p.calls.some((c) => c.method === 'PRINT'));
     p.close();
 });
+
+// the printed plan's second map is the back view: the same pixels with x flipped across the board's width
+test('the printed plan has a Back view page that mirrors every pixel left to right', async () => {
+    const plan = result();
+    const { p } = await printed(plan);
+    const W = plan.sheet.board.width_mm;
+    const maps = p.document.querySelectorAll('#pl-print svg.pr-map');
+    assert.strictEqual(maps.length, 2);
+    assert.ok(p.document.querySelector('#pl-print .pr-back'));
+    const xs = (svgEl) => Array.from(svgEl.querySelectorAll('circle.pm-dot')).map((c) => parseFloat(c.getAttribute('cx')));
+    const front = xs(maps[0]), back = xs(maps[1]);
+    assert.strictEqual(back.length, front.length);
+    front.forEach((x, i) => assert.ok(Math.abs(back[i] - (W - x)) < 1e-6));
+    assert.ok(/Back view/.test(maps[1].getAttribute('aria-label')));
+    p.close();
+});
+
+test('the Back button redraws the board mirrored and shows its note', async () => {
+    const plan = result();
+    const job = { id: 7, done: true, ok: true, params: { chart: 'Houston' }, result: plan };
+    const p = await loadPlanner(baseRoutes([], { job }));
+    const W = plan.sheet.board.width_mm;
+    p.document.querySelector('#pl-view button[data-view="board"]').click();
+    const front = Array.from(p.document.querySelectorAll('#pl-board-svg circle.pm-dot')).map((c) => parseFloat(c.getAttribute('cx')));
+    assert.ok(p.$('pl-back-note').hidden);
+    p.document.querySelector('#pl-view button[data-view="back"]').click();
+    const back = Array.from(p.document.querySelectorAll('#pl-board-svg circle.pm-dot')).map((c) => parseFloat(c.getAttribute('cx')));
+    assert.ok(!p.$('pl-back-note').hidden);
+    assert.ok(!p.$('pl-board').hidden);
+    front.forEach((x, i) => assert.ok(Math.abs(back[i] - (W - x)) < 1e-6));
+    p.close();
+});

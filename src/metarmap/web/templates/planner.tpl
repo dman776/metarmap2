@@ -244,11 +244,13 @@
                     <div class="pm-seg" id="pl-view" role="group" aria-label="View">
                         <button class="chip sm" type="button" data-view="map" aria-pressed="true">Map</button>
                         <button class="chip sm" type="button" data-view="board" aria-pressed="false">Board</button>
+                        <button class="chip sm" type="button" data-view="back" aria-pressed="false" title="The board seen from behind, flipped left to right: for placing pixels once the holes are drilled">Back</button>
                     </div>
                     <button class="btn sm" type="button" id="pl-print-btn" disabled title="Opens the print dialog: choose Save as PDF" aria-label="Download PDF of the plan (opens the print dialog: choose Save as PDF)">Download PDF</button>
                 </div>
             </div>
             <p class="muted pm-note" id="pl-map-note" hidden></p>
+            <p class="muted pm-note" id="pl-back-note" hidden>Back view: the board seen from behind, flipped left to right, so the wire and pixels sit where your hands are when you place them. The numbers, strings and cuts are the same as the front.</p>
             <div id="pl-map">
                 <div class="pm-controls">
                     <span class="pm-lab" id="pl-bg-label">Background</span>

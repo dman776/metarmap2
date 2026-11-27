@@ -165,7 +165,7 @@ def test_markup_loads_leaflet_before_planner_js_like_the_map_page(make):
 
 def test_markup_has_a_view_toggle_a_background_control_a_note_and_a_hint(make):
     body = make()("/config/planner")[1]
-    for view in ("map", "board"):
+    for view in ("map", "board", "back"):
         assert f'data-view="{view}"' in body
     assert 'id="pl-view" role="group" aria-label="View"' in body
     for bg in ("none", "sectional", "satellite", "street"):
