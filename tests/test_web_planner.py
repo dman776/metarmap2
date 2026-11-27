@@ -1291,3 +1291,28 @@ def test_source_planner_js_sends_and_restores_allow_skips_and_draws_hidden_pixel
     assert "Skipped pixels need Chart support" not in js
     assert "s.hidden" in js  # the Apply confirmation
     assert """ + (hidden ? ', "skip": true' : '')""" in js  # the config snippet row of a hidden pixel
+
+
+def test_typed_must_keep_codes_outside_the_download_are_planned_or_left_out(make):
+    airports = fake_airports(30)
+    client = make(FakeLoad(airports))
+    positions = client.services.metars.positions
+    positions["KEXT"] = {"lat": 29.7, "lon": -95.4, "name": "Extra field"}  # on the chart, not in the download
+    positions["KJFK"] = {"lat": 40.6, "lon": -73.8, "name": "New York"}  # off the chart
+    result = run(client, source="recommended", target=10, start_fresh=True, must_keep=["KEXT", "KJFK", "KZZZ"])[
+        "result"
+    ]
+    assert "KEXT" in {p["code"] for p in result["sheet"]["pixels"]}
+    reasons = {x["code"]: x["reason"] for x in result["left_out"]}
+    assert reasons["KZZZ"] == "no known position"
+    assert "outside" in reasons["KJFK"]
+    assert "KEXT" not in reasons
+
+
+def test_typed_must_keep_codes_count_toward_the_pixel_cap(make):
+    client = make()
+    cap = 1000 - client.services.config.data.led.virtual_count
+    codes = [f"K{n:03d}" for n in range(cap + 1)]
+    status, body = post(client, source="recommended", start_fresh=True, must_keep=codes, target="max")
+    assert status == 400
+    assert str(cap) in str(body)

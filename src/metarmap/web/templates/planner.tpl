@@ -125,13 +125,20 @@
         <div class="set" id="pl-keep-set">
             <div>
                 <span class="t">Must keep</span>
-                <div class="d" id="pl-keep-note">Airports ticked here are never dropped, and the plan keeps them where they are as far as it can.</div>
+                <div class="d" id="pl-keep-note">Airports ticked here, and any you type below, are never dropped, and the plan keeps them where they are as far as it can.</div>
                 <div class="d bad" id="pl-unlocated" hidden></div>
             </div>
+            <div class="keep-col">
             <div class="keep-list" id="pl-keep" role="group" aria-label="Must keep">
                 % for a in current:
                 <label class="keep" data-code="{{a['code']}}" title="{{a['name']}}"><input type="checkbox" value="{{a['code']}}"{{!' data-unlocated="1"' if not a['located'] else ''}}> <span class="mono">{{a['code']}}</span></label>
                 % end
+            </div>
+            <div class="keep-extra">
+                <label class="d" for="pl-keep-extra">More airports to keep</label>
+                <input type="text" id="pl-keep-extra" class="mono" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="KBOS KJFK" aria-describedby="pl-keep-extra-help">
+                <div class="d" id="pl-keep-extra-help">Type airport codes, separated by spaces or commas, to keep them in the plan even when they are not listed above. This is how to add airports you want when you choose Recommended. A code with no known position, or outside the chart, is left out and listed in the result.</div>
+            </div>
             </div>
         </div>
     </section>
