@@ -675,6 +675,9 @@ input.num { width: 110px; min-height: 44px; padding: 0 12px; border-radius: 10px
 input.num:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 textarea { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--control); background: var(--sunken); color: var(--text); font: 500 14px var(--mono); resize: vertical; }
 #pl-codes { width: 280px; max-width: 100%; text-transform: uppercase; }
+.keep-col { max-width: 420px; }
+.keep-extra { margin-top: 8px; }
+.keep-extra input { display: block; box-sizing: border-box; width: 100%; max-width: 280px; min-height: 44px; margin-top: 4px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--control); background: var(--sunken); color: var(--text); font: 500 14px var(--mono); text-transform: uppercase; }
 .keep-list { display: flex; flex-wrap: wrap; max-width: 420px; }
 .keep { display: flex; align-items: center; min-height: 36px; margin: 0 14px 4px 0; font-size: 14px; cursor: pointer; }
 .keep input { accent-color: var(--accent); width: 18px; height: 18px; margin: 0 6px 0 0; }

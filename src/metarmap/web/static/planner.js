@@ -96,18 +96,35 @@
         return currentCodes;
     }
 
-    function keptNow() {
+    function tickedNow() {
         return Array.prototype.filter.call($('pl-keep').querySelectorAll('input'), function (b) { return b.checked; })
             .map(function (b) { return b.value; });
+    }
+
+    // the codes typed in the extra box (spaces, commas or semicolons between), uppercased, each once
+    function extraCodes() {
+        const found = [];
+        if (fields.source.value !== 'recommended') return found;  // only a Recommended plan takes them
+        $('pl-keep-extra').value.toUpperCase().split(/[\s,;]+/).forEach(function (c) {
+            if (c && found.indexOf(c) < 0) found.push(c);
+        });
+        return found;
+    }
+
+    // every airport that must stay: the ticked ones, then the typed ones that are not ticked already
+    function keptNow() {
+        const kept = tickedNow();
+        extraCodes().forEach(function (c) { if (kept.indexOf(c) < 0) kept.push(c); });
+        return kept;
     }
 
     // the must-keep ticks follow the source: the current airports (ticked when recommending, unless start fresh), or
     // the pasted codes
     function buildKeep(ticked) {
         const box = $('pl-keep');
-        const codes = sourceCodes();
+        const codes = sourceCodes().slice().sort();  // alphabetical, whatever order they were pasted in
         const keep = {};
-        (ticked || keptNow()).forEach(function (c) { keep[c] = true; });
+        (ticked || tickedNow()).forEach(function (c) { keep[c] = true; });
         while (box.firstChild) box.removeChild(box.firstChild);
         codes.forEach(function (code) {
             const label = el('label', {'class': 'keep', 'data-code': code});
@@ -118,7 +135,15 @@
             add(label, [input, document.createTextNode(' '), el('span', {'class': 'mono'}, code)]);
             box.appendChild(label);
         });
-        $('pl-keep-set').hidden = !codes.length;
+        const recommended = fields.source.value === 'recommended';
+        $('pl-keep-set').hidden = !codes.length && !recommended;  // the typed box is for Recommended only
+        $('pl-keep').hidden = !codes.length;  // no ticks to show (Recommended with no current airports): the box alone
+        $('pl-keep-extra-wrap').hidden = !recommended;
+        $('pl-keep-note').textContent = recommended && codes.length
+            ? 'Airports ticked here, and any you type below, are never dropped, and the plan keeps them where they are as far as it can.'
+            : recommended
+                ? 'Airports you type below are never dropped.'
+                : 'Airports ticked here are never dropped, and the plan keeps them where they are as far as it can.';
         const bad = $('pl-unlocated');
         const missing = fields.source.value === 'current' ? unlocated : [];
         bad.hidden = !missing.length;
@@ -211,6 +236,10 @@
         fields.ma5.value = p.ma_white_5v;
         fields.ma12.value = p.ma_white_12v;
         ['source', 'target'].forEach(function (k) { fields[k].dispatchEvent(new Event('change')); });
+        // the kept codes that have no tick box (typed in before) go back into the box
+        const shown = sourceCodes();
+        $('pl-keep-extra').value = p.source !== 'recommended' ? '' : (p.must_keep || [])
+            .filter(function (c) { return shown.indexOf(c) < 0; }).join(' ');
         buildKeep(p.must_keep || []);
         boardChanged();
     }
@@ -223,6 +252,7 @@
     fields.strings.addEventListener('input', function () { stringsTouched = fields.strings.value.trim() !== ''; stringsChanged(); });
     fields.len.addEventListener('input', stringsChanged);
     $('pl-keep').addEventListener('change', stringsChanged);
+    $('pl-keep-extra').addEventListener('input', stringsChanged);
     fields.codes.addEventListener('input', function () { buildKeep(); });
     fields.coverage.addEventListener('input', function () { $('pl-coverage-val').textContent = fields.coverage.value; });
     boardChanged();

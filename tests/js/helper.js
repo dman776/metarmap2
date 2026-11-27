@@ -12,7 +12,7 @@ function pageHtml() {
     const tpl = fs.readFileSync(path.join(WEB, 'templates', 'planner.tpl'), 'utf8');
     const body = tpl
         .split('\n')
-        .filter((line) => !/^\s*%/.test(line))
+        .filter((line) => !/^\s*%/.test(line) && !line.includes("data-code=\"{{a['code']}}\""))  // no current airports
         .join('\n')
         .replace(/\{\{!?[^}]*\}\}/g, '');
     return '<!DOCTYPE html><html><head><title>Plan a new chart</title></head><body>' + body + '</body></html>';
