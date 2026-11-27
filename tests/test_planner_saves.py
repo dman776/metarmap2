@@ -164,6 +164,52 @@ def test_a_write_that_fails_leaves_no_file_and_no_temporary(store, monkeypatch):
     assert files(store) == before  # no half file, no .tmp left behind
 
 
+def test_a_save_is_synced_to_disk_the_file_then_its_folder(store, monkeypatch):
+    synced = []
+    real = os.fsync
+
+    def spy(fd):
+        synced.append("folder" if stat.S_ISDIR(os.fstat(fd).st_mode) else "file")
+        real(fd)
+
+    monkeypatch.setattr(saves.os, "fsync", spy)
+    keep(store)
+    assert synced[0] == "file"
+    if hasattr(os, "O_DIRECTORY"):
+        assert synced == ["file", "folder"]
+
+
+def test_the_file_is_synced_before_it_is_moved_into_place(store, monkeypatch):
+    order = []
+    real_fsync, real_replace = os.fsync, os.replace
+    monkeypatch.setattr(saves.os, "fsync", lambda fd: (order.append("fsync"), real_fsync(fd))[1])
+    monkeypatch.setattr(saves.os, "replace", lambda a, b: (order.append("replace"), real_replace(a, b))[1])
+    keep(store)
+    assert order[:2] == ["fsync", "replace"]
+
+
+def test_a_folder_that_cannot_be_synced_is_not_a_failed_save(store, monkeypatch):
+    real = os.fsync
+
+    def folder_fails(fd):
+        if stat.S_ISDIR(os.fstat(fd).st_mode):
+            raise OSError("not supported")
+        real(fd)
+
+    monkeypatch.setattr(saves.os, "fsync", folder_fails)
+    saved = keep(store)
+    assert store.read(saved["id"])[1] == PARAMS
+
+
+def test_a_file_that_cannot_be_synced_leaves_nothing(store, monkeypatch):
+    def broken(fd):
+        raise OSError("io error")
+
+    monkeypatch.setattr(saves.os, "fsync", broken)
+    e = refusal(keep, store, "doomed")
+    assert e.reason == "failed" and files(store) == []
+
+
 def test_a_folder_that_cannot_be_made_is_a_failure_not_a_crash(tmp_path):
     blocker = tmp_path / "planner-saves"
     blocker.write_text("a file where the folder should be")

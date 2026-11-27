@@ -1,0 +1,14 @@
+{
+  "name": "metarmap2-dev",
+  "private": true,
+  "description": "Dev-only: the JavaScript tests for the Web pages. Nothing here ships or runs on the Chart.",
+  "scripts": {
+    "test": "node --test \"tests/js/*.test.js\""
+  },
+  "devDependencies": {
+    "jsdom": "^26.1.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

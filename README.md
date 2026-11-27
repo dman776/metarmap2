@@ -552,6 +552,9 @@ and the web UI (including the live Map page and its Micro window) works as usual
   `print` output, add `-n0`: `.venv/bin/pytest -n0 tests/test_renderer.py -k chase`
 - Check the types: `.venv/bin/mypy`. Every module passes, so a new error fails CI. CI runs it on Python 3.9 with a
   pinned mypy, so a newer Python can report different errors
+- Run the JavaScript tests (the Chart Planner page, in jsdom; needs Node 22 or newer, and is for developers only: the
+  Chart never needs Node): `npm ci && npm test`. They load the real `planner.tpl` and `planner.js` with a fake `fetch`
+  (`tests/js`)
 - Check the code: `.venv/bin/ruff check .`
 - Run the map: `.venv/bin/python -m metarmap --port 8080` (or `.venv/bin/metarmap --port 8080`), from the folder
   with `config.json`. Without `--port` it uses `web_server.port` from `config.json` (80); `--version` prints the

@@ -229,9 +229,12 @@ class PlanSaves:
             handle, temporary = tempfile.mkstemp(dir=self.folder, prefix=".save-", suffix=".tmp")
             with os.fdopen(handle, "wb") as f:
                 f.write(head + b"\n" + body + b"\n")
+                f.flush()
+                os.fsync(f.fileno())  # on disk before the name points at it
             os.chmod(temporary, 0o644)  # mkstemp makes it private
             os.replace(temporary, self._path(plan_id))
             temporary = None
+            self._sync_folder()
         except OSError as e:
             log.warning(f"could not write the saved plan {plan_id}: {e}")
             raise SaveError("failed", "Could not write the saved plan: nothing changed", 500) from None
@@ -239,6 +242,22 @@ class PlanSaves:
             if temporary:
                 with contextlib.suppress(OSError):
                     os.remove(temporary)
+
+    def _sync_folder(self) -> None:
+        """Makes the move itself durable. Best effort: a platform that cannot open a folder (Windows) skips it, and the
+        plan is already written whole, so a failure here is not a failed save."""
+        flag = getattr(os, "O_DIRECTORY", None)
+        if flag is None:
+            return
+        try:
+            fd = os.open(self.folder, os.O_RDONLY | flag)
+        except OSError:
+            return
+        try:
+            with contextlib.suppress(OSError):
+                os.fsync(fd)
+        finally:
+            os.close(fd)
 
     def save(
         self, name: Any, params: Dict[str, Any], result: Dict[str, Any], summary: Dict[str, Any]

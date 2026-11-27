@@ -38,3 +38,17 @@ jobs:
         run: mypy
       - name: Test
         run: pytest
+
+  js:
+    # the Web pages' JavaScript, in jsdom (tests/js); dev-only, nothing here ships to the Chart
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Test
+        run: npm test

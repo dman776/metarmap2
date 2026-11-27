@@ -37,6 +37,8 @@
     const saveName = $('pl-save-name');
     const saveBtn = $('pl-save-btn');
     let savesBusy = false;  // a save, load, rename or delete is on its way
+    let savesFocus = null;  // the row (id) the latest load of the list is about: where focus goes if a late refresh drops it
+    let savesSeq = 0;  // the number of the latest save, load, rename or delete: an older one that finishes late stays quiet
     let shownJob = null;  // the id of the job whose plan is on the page: what Save sends, so a stale tab is refused
     let loadedInfo = null;  // {id, name, saved_at} of the plan on the page when it was loaded
     let savedNames = [];  // the names in the list now, to say a clash before the Chart does
@@ -1446,6 +1448,12 @@
         return !!b;
     }
 
+    // the late refresh rebuilt the list under the newer call's focus: put it on that call's row
+    function keepFocus() {
+        const a = document.activeElement;
+        if ((!a || a === document.body) && savesFocus) focusRow(savesFocus, 'Load');
+    }
+
     function renderSaves(list) {
         const ul = $('pl-saves-list');
         while (ul.firstChild) ul.removeChild(ul.firstChild);
@@ -1485,12 +1493,14 @@
     // one request of the Saved plans: returns {ok, reply}; says what went wrong in `statusId`
     async function savesCall(url, body, statusId, doing) {
         savesBusy = true;
+        if (statusId === 'pl-saves-status') savesSeq += 1;  // only the calls that write that line compete for it
+        const mine = savesSeq;
         savesChanged();
         sayIn(statusId, doing);
-        let result = {ok: false, reply: null};
+        let result = {ok: false, reply: null, seq: mine};
         try {
             const reply = await send(url, 'POST', body || {});
-            result = {ok: reply.status >= 200 && reply.status < 300 && !!reply.data && !!reply.data.ok, reply: reply};
+            result = {ok: reply.status >= 200 && reply.status < 300 && !!reply.data && !!reply.data.ok, reply: reply, seq: mine};
             if (!result.ok) sayIn(statusId, errorText(reply), true);
         } catch (e) {
             sayIn(statusId, 'Could not reach the Chart: ' + e, true);
@@ -1539,6 +1549,8 @@
             restoreForm(job.params);
             finished(job);
             sayIn('pl-saves-status', 'Loaded ' + item.name + '.');
+            savesFocus = item.id;
+            focusRow(item.id, 'Load');
         } catch (e) {
             sayIn('pl-saves-status', 'That saved plan could not be shown: ' + e, true);
         }
@@ -1550,6 +1562,9 @@
             const saved = done.reply.data.save;
             if (loadedInfo && loadedInfo.id === saved.id) { loadedInfo = {id: saved.id, name: saved.name, saved_at: loadedInfo.saved_at}; showLoaded(loadedInfo); }
             await refreshSaves();
+            // the list was being read while the buttons were on: a load or another change that began meanwhile has
+            // the status line and the focus now, so this one does not say "Renamed" over it
+            if (done.seq !== savesSeq) { keepFocus(); return; }
             sayIn('pl-saves-status', 'Renamed to ' + saved.name + '.');
             focusRow(saved.id, 'Rename');
         }
@@ -1562,6 +1577,7 @@
             const at = rows.findIndex(function (li) { return li.dataset.id === item.id; });
             const next = rows[at + 1] || rows[at - 1];  // the row that takes its place, else the one before
             await refreshSaves();
+            if (done.seq !== savesSeq) { keepFocus(); return; }  // see doRename
             sayIn('pl-saves-status', 'Deleted ' + item.name + '.');
             if (next && focusRow(next.dataset.id, 'Load')) return;
             $('pl-saves-title').focus();  // the list is empty now
