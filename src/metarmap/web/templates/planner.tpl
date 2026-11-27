@@ -134,10 +134,10 @@
                 <label class="keep" data-code="{{a['code']}}" title="{{a['name']}}"><input type="checkbox" value="{{a['code']}}"{{!' data-unlocated="1"' if not a['located'] else ''}}> <span class="mono">{{a['code']}}</span></label>
                 % end
             </div>
-            <div class="keep-extra">
+            <div class="keep-extra" id="pl-keep-extra-wrap" hidden>
                 <label class="d" for="pl-keep-extra">More airports to keep</label>
                 <input type="text" id="pl-keep-extra" class="mono" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="KBOS KJFK" aria-describedby="pl-keep-extra-help">
-                <div class="d" id="pl-keep-extra-help">Type airport codes, separated by spaces or commas, to keep them in the plan even when they are not listed above. This is how to add airports you want when you choose Recommended. A code with no known position, or outside the chart, is left out and listed in the result.</div>
+                <div class="d" id="pl-keep-extra-help">Only for Recommended. Type airport codes (3 or 4 letters or digits, like KBOS), separated by spaces or commas, to keep them in the plan even when they are not listed above. A code that is not 3 or 4 letters or digits is refused with an error; a code with no known position, or outside the chart, is left out and listed in the result.</div>
             </div>
             </div>
         </div>

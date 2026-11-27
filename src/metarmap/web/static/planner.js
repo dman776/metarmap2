@@ -104,6 +104,7 @@
     // the codes typed in the extra box (spaces, commas or semicolons between), uppercased, each once
     function extraCodes() {
         const found = [];
+        if (fields.source.value !== 'recommended') return found;  // only a Recommended plan takes them
         $('pl-keep-extra').value.toUpperCase().split(/[\s,;]+/).forEach(function (c) {
             if (c && found.indexOf(c) < 0) found.push(c);
         });
@@ -134,7 +135,15 @@
             add(label, [input, document.createTextNode(' '), el('span', {'class': 'mono'}, code)]);
             box.appendChild(label);
         });
-        $('pl-keep-set').hidden = !codes.length && fields.source.value !== 'recommended';  // the typed box is for Recommended too
+        const recommended = fields.source.value === 'recommended';
+        $('pl-keep-set').hidden = !codes.length && !recommended;  // the typed box is for Recommended only
+        $('pl-keep').hidden = !codes.length;  // no ticks to show (Recommended with no current airports): the box alone
+        $('pl-keep-extra-wrap').hidden = !recommended;
+        $('pl-keep-note').textContent = recommended && codes.length
+            ? 'Airports ticked here, and any you type below, are never dropped, and the plan keeps them where they are as far as it can.'
+            : recommended
+                ? 'Airports you type below are never dropped.'
+                : 'Airports ticked here are never dropped, and the plan keeps them where they are as far as it can.';
         const bad = $('pl-unlocated');
         const missing = fields.source.value === 'current' ? unlocated : [];
         bad.hidden = !missing.length;
@@ -229,7 +238,8 @@
         ['source', 'target'].forEach(function (k) { fields[k].dispatchEvent(new Event('change')); });
         // the kept codes that have no tick box (typed in before) go back into the box
         const shown = sourceCodes();
-        $('pl-keep-extra').value = (p.must_keep || []).filter(function (c) { return shown.indexOf(c) < 0; }).join(' ');
+        $('pl-keep-extra').value = p.source !== 'recommended' ? '' : (p.must_keep || [])
+            .filter(function (c) { return shown.indexOf(c) < 0; }).join(' ');
         buildKeep(p.must_keep || []);
         boardChanged();
     }
