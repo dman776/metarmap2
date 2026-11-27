@@ -200,3 +200,20 @@ test('the Back button redraws the board mirrored and shows its note', async () =
     front.forEach((x, i) => assert.ok(Math.abs(back[i] - (W - x)) < 1e-6));
     p.close();
 });
+
+test('the back view mirrors the margin area, and the Back note hides again on Board', async () => {
+    const plan = result();
+    plan.chart.margins = { left: 0.1, right: 0.3, top: 0, bottom: 0 };
+    const job = { id: 7, done: true, ok: true, params: { chart: 'Houston' }, result: plan };
+    const p = await loadPlanner(baseRoutes([], { job }));
+    const W = plan.sheet.board.width_mm;
+    const area = () => parseFloat(p.document.querySelector('#pl-board-svg rect.pm-area').getAttribute('x'));
+    p.document.querySelector('#pl-view button[data-view="board"]').click();
+    assert.ok(Math.abs(area() - W * 0.1) < 1e-6);
+    p.document.querySelector('#pl-view button[data-view="back"]').click();
+    assert.ok(Math.abs(area() - W * 0.3) < 1e-6);
+    p.document.querySelector('#pl-view button[data-view="board"]').click();
+    assert.ok(p.$('pl-back-note').hidden);
+    assert.ok(Math.abs(area() - W * 0.1) < 1e-6);
+    p.close();
+});

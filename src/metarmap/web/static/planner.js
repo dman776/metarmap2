@@ -647,9 +647,11 @@
             b.setAttribute('aria-pressed', b.dataset.view === which ? 'true' : 'false');
         });
         if (lastResult) {
-            if (fresh || (!onMap && drawnView !== which)) {  // Board and Back share one holder: redraw when switching
+            if (fresh) {
                 drawBoard(lastResult);
                 mapPending = lastResult;
+            } else if (!onMap && drawnView !== which) {  // Board and Back share one holder: redraw when switching
+                drawBoard(lastResult);
             }
             drawLegend(lastResult);  // its last line says what the map area looks like in this view
         }
@@ -769,7 +771,7 @@
     // the Board view
     function drawBoard(r) {
         const built = boardSvg(r, false, view === 'back');
-        drawnView = view;
+        drawnView = view === 'back' ? 'back' : 'board';
         const root = built.root;
         board.pad = built.pad;
         const holder = $('pl-board-svg');
