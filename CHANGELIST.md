@@ -1,5 +1,6 @@
 ### Unreleased
 
+- **The Chart Planner has a Back view.** The **Build map** card's view buttons are now **Map | Board | Back**. Back draws the same plan seen from behind the board, flipped left to right, with the same pixel numbers, strings, cuts and joins, for placing the pixels from the back once the holes are drilled in the front. A note under the buttons says so, and the browser remembers the view. The printed plan (Download PDF) gets a Back view page after the board map; its note says to measure X from the top-right corner on that page. No API change.
 - **The README's first screen leads with the photo, a "Jump to" row and four highlights.** Documentation only; nothing changes on the Chart.
 
 ### dman776 26.11.26 (2026-11-26)

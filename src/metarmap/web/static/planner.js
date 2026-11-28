@@ -434,8 +434,9 @@
     let lmap = null;
     let planLayer = null;
     let bgLayer = null;
+    let drawnView = null;  // 'board' or 'back': what the holder was last drawn as
     let mapPending = null;  // a result waiting for the Map to be on screen: Leaflet cannot lay out a hidden map
-    let view = load(KEYS.view) === 'board' ? 'board' : 'map';
+    let view = ['board', 'back'].indexOf(load(KEYS.view)) >= 0 ? load(KEYS.view) : 'map';
     let background = BACKGROUNDS.indexOf(load(KEYS.background)) >= 0 ? load(KEYS.background) : 'none';
     let opacity = Math.min(Math.max(parseInt(load(KEYS.opacity), 10) || 100, 10), 100);
 
@@ -641,6 +642,7 @@
         const onMap = which === 'map';
         $('pl-map').hidden = !onMap;
         $('pl-board').hidden = onMap;
+        $('pl-back-note').hidden = which !== 'back';
         Array.prototype.forEach.call($('pl-view').querySelectorAll('button'), function (b) {
             b.setAttribute('aria-pressed', b.dataset.view === which ? 'true' : 'false');
         });
@@ -648,6 +650,8 @@
             if (fresh) {
                 drawBoard(lastResult);
                 mapPending = lastResult;
+            } else if (!onMap && drawnView !== which) {  // Board and Back share one holder: redraw when switching
+                drawBoard(lastResult);
             }
             drawLegend(lastResult);  // its last line says what the map area looks like in this view
         }
@@ -693,30 +697,32 @@
 
     // the board's own drawing, in millimetres: for the Board view, and (print true) for the printed plan, which adds the
     // board's dimensions along two edges. Returns the svg and the padding round the board.
-    function boardSvg(r, print) {
+    function boardSvg(r, print, back) {
         const sheet = r.sheet;
         const W = sheet.board.width_mm, H = sheet.board.height_mm;
         const m = r.chart.margins;
+        const fx = back ? function (v) { return W - v; } : function (v) { return v; };  // the back view is the front flipped left to right
         const pad = Math.max(W, H) * (print ? 0.045 : 0.03);
         const rad = Math.min(Math.max((finite(sheet.settings.min_gap_mm) ? sheet.settings.min_gap_mm : 18) * 0.42, 3), 8.5) * (print ? 1.3 : 1);
         const font = rad * 0.95;
         const root = svg('svg', {viewBox: [-pad, -pad, W + 2 * pad, H + 2 * pad].join(' '), role: 'img',
-            'aria-label': 'Build map of ' + sheet.pixels.length + ' pixels on a ' + len(W).split(' / ')[1] + ' wide board', 'class': print ? 'pm pr-map' : 'pm'});
+            'aria-label': (back ? 'Back view, mirrored, of ' : 'Build map of ') + sheet.pixels.length + ' pixels on a ' + len(W).split(' / ')[1] + ' wide board', 'class': print ? 'pm pr-map' : 'pm'});
         root.appendChild(svg('rect', {x: 0, y: 0, width: W, height: H, 'class': 'pm-board'}));
         root.appendChild(svg('rect', {
-            x: W * m.left, y: H * m.top, width: W * (1 - m.left - m.right), height: H * (1 - m.top - m.bottom), 'class': 'pm-area'}));
+            x: W * (back ? m.right : m.left), y: H * m.top, width: W * (1 - m.left - m.right), height: H * (1 - m.top - m.bottom), 'class': 'pm-area'}));
         const px = sheet.pixels;
+        const flip = function (p) { return {x: fx(p.x), y: p.y}; };
 
         px.forEach(function (p) {  // a moved pixel's line to its true place
             if (p.skipped || !p.moved_mm || p.orig_x === null) return;
             if (print && !(p.moved_mm > MOVED_MM)) return;  // the printed plan draws what its table calls moved
-            root.appendChild(svg('line', {x1: p.x, y1: p.y, x2: p.orig_x, y2: p.orig_y, 'class': 'pm-moved'}));
-            root.appendChild(svg('circle', {cx: p.orig_x, cy: p.orig_y, r: rad * 0.25, 'class': 'pm-true'}));
+            root.appendChild(svg('line', {x1: fx(p.x), y1: p.y, x2: fx(p.orig_x), y2: p.orig_y, 'class': 'pm-moved'}));
+            root.appendChild(svg('circle', {cx: fx(p.orig_x), cy: p.orig_y, r: rad * 0.25, 'class': 'pm-true'}));
         });
 
         const labels = [];
         sheet.route.forEach(function (leg) {
-            const a = px[leg.from_index], b = px[leg.to_index];
+            const a = flip(px[leg.from_index]), b = flip(px[leg.to_index]);
             const cls = leg.kind === 'join' ? 'join' : leg.status;
             root.appendChild(svg('line', {x1: a.x, y1: a.y, x2: b.x, y2: b.y, 'class': 'pm-wire ' + cls}));
             const c = mid(a, b);
@@ -735,9 +741,9 @@
             g.appendChild(svg('title', null, p.skipped ? 'Pixel ' + p.number + ': hidden pixel, bridges a gap'
                 : 'Pixel ' + p.number + ': ' + p.code + ' (string ' + p.string + ', position ' + p.position + ')'
                     + (p.moved_mm ? ', moved ' + len(p.moved_mm) : '')));
-            g.appendChild(svg('circle', {cx: p.x, cy: p.y, r: rad, 'class': 'pm-dot'}));
-            g.appendChild(svg('text', {x: p.x, y: p.y + font * 0.35, 'font-size': font, 'text-anchor': 'middle', 'class': 'pm-num'}, String(p.number)));
-            g.appendChild(svg('text', {x: p.x, y: p.y + rad + font * 1.05, 'font-size': font * 0.9, 'text-anchor': 'middle', 'class': 'pm-code'}, p.skipped ? 'hidden' : p.code));
+            g.appendChild(svg('circle', {cx: fx(p.x), cy: p.y, r: rad, 'class': 'pm-dot'}));
+            g.appendChild(svg('text', {x: fx(p.x), y: p.y + font * 0.35, 'font-size': font, 'text-anchor': 'middle', 'class': 'pm-num'}, String(p.number)));
+            g.appendChild(svg('text', {x: fx(p.x), y: p.y + rad + font * 1.05, 'font-size': font * 0.9, 'text-anchor': 'middle', 'class': 'pm-code'}, p.skipped ? 'hidden' : p.code));
             root.appendChild(g);
         });
 
@@ -746,7 +752,7 @@
         });
 
         if (sheet.start) {
-            const s = sheet.start, k = rad * 1.9;
+            const s = {x: fx(sheet.start.x), y: sheet.start.y}, k = rad * 1.9;
             const g = svg('g', {'class': 'pm-start'});
             g.appendChild(svg('path', {d: 'M' + (s.x - k) + ',' + (s.y - k * 1.6) + 'l' + k * 2 + ',0l' + (-k) + ',' + k * 1.1 + 'z'}));
             g.appendChild(svg('text', {x: s.x, y: s.y - k * 1.75, 'font-size': font, 'text-anchor': 'middle'}, 'START'));
@@ -764,7 +770,8 @@
 
     // the Board view
     function drawBoard(r) {
-        const built = boardSvg(r, false);
+        const built = boardSvg(r, false, view === 'back');
+        drawnView = view === 'back' ? 'back' : 'board';
         const root = built.root;
         board.pad = built.pad;
         const holder = $('pl-board-svg');
@@ -833,7 +840,7 @@
     function drawLegend(r) {
         const list = $('pl-legend');
         while (list.firstChild) list.removeChild(list.firstChild);
-        legendItems(r, false, view === 'board' ? 'the shaded area is the map' : 'inside the dashed outline is the map')
+        legendItems(r, false, view !== 'map' ? 'the shaded area is the map' : 'inside the dashed outline is the map')
             .forEach(function (li) { list.appendChild(li); });
     }
 
@@ -1040,6 +1047,14 @@
         mapSec.appendChild(legend);
         mapSec.appendChild(el('p', {'class': 'pr-note'}, 'Board ' + len(b.width_mm) + ' x ' + len(b.height_mm) + '. Drawn to scale and fitted to the page, so it is not full size: measure from the board\'s top-left corner with the X and Y in the table that follows. A dotted line runs from a moved pixel to the airport\'s true place (the small dot).'));
         root.appendChild(mapSec);
+
+        const backSec = printSection('pr-map-sec pr-back ' + (b.width_mm >= b.height_mm * 1.1 ? 'wide' : 'tall'), 'Back view');
+        backSec.appendChild(boardSvg(r, true, true).root);
+        const backLegend = el('ul', {'class': 'pr-legend'});
+        legendItems(r, true, 'the shaded area is the map').forEach(function (li) { backLegend.appendChild(li); });
+        backSec.appendChild(backLegend);
+        backSec.appendChild(el('p', {'class': 'pr-note'}, 'The same plan seen from behind the board, flipped left to right: the front\'s left edge is on the right here. Use it once the holes are drilled and you place the pixels from the back. Measure X from the board\'s top-right corner here (the table\'s X is from the front\'s top-left).'));
+        root.appendChild(backSec);
 
         const tableSec = printSection('pr-table-sec', 'Airports in wired order');
         tableSec.appendChild(el('p', {'class': 'pr-note'}, 'Mark the board in this order. Tick Done as each pixel is in. A shaded row with a thick left rule and a bold Status is a pixel moved more than ' + MOVED_MM + ' mm from the airport\'s true place.'));
