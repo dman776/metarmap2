@@ -1639,8 +1639,11 @@ def test_the_info_tab_offers_awos_with_a_server(client):
     page = client("/cockpit")[1]
     assert info_modes(page) == ["locate", "awos"] and 'id="r-speak-audio"' in page
     codes = [a.code for a in client.services.config.airports if a.code]
-    assert re.findall(r'data-speak="([A-Z0-9]+)"', page) == codes  # each airport, in the map's order
+    assert re.findall(r'data-speak="([A-Z0-9]+)"', page) == sorted(codes)  # each airport, A to Z
     assert page.count('data-call="/locate/') == len(codes)  # Locate is the mode it opens in (cockpit.js)
+    pairs = re.findall(r'data-station="([A-Z0-9]+)"[^>]*?data-pixel="(\d+)"', page, re.S)
+    expected = [(a.code, str(i)) for i, a in enumerate(client.services.config.airports) if a.code]
+    assert pairs == sorted(expected)  # each tile keeps its own pixel; the map's list isn't reordered
 
 
 def test_the_info_tab_offers_atis_with_speech_atis(client):
