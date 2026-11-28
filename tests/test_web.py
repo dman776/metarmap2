@@ -273,7 +273,9 @@ def test_api_traffic(client):
         )
 
     # the fake map fetched no METARs, so it doesn't know where its airports are
-    client.services.traffic = Traffic(lambda: client.services.config.data.geo.map, lambda: [(29.65, -95.28)], get=get)
+    client.services.traffic = Traffic(
+        lambda: client.services.config.data.geo.map, lambda: [(29.65, -95.28)], get=get, spawn=lambda work: None
+    )
     traffic = client.json("/api/traffic")
     assert [a["flight"] for a in traffic["aircraft"]] == ["UCA4878"]
     assert traffic["source"]["name"] == "adsb.fi"
@@ -299,6 +301,22 @@ def test_api_traffic_follows_the_view(client):
     assert len(urls) == 1
 
 
+def test_api_traffic_covers_a_wide_view_with_several_circles(client):
+    urls = []
+
+    def get(url, **kwargs):
+        urls.append(url)
+        return SimpleNamespace(status_code=200, raise_for_status=lambda: None, json=lambda: {"ac": []})
+
+    client.services.traffic = Traffic(
+        lambda: client.services.config.data.geo.map, lambda: [], get=get, spawn=lambda work: None
+    )
+    traffic = client.json("/api/traffic?lat=39&lon=-98&nm=480&dlat=5&dlon=8")
+    assert traffic["too_wide"] is False and traffic["max_view"] == 500
+    assert len(traffic["circles"]) >= 4 and traffic["loading"] is True
+    assert len(urls) == 1  # the others in the background (not run here)
+
+
 @pytest.mark.parametrize(
     "query",
     [
@@ -308,6 +326,13 @@ def test_api_traffic_follows_the_view(client):
         "lat=95&lon=-74&nm=60",
         "lat=40&lon=-74&nm=0",
         "lat=40&lon=-74&nm=nan",
+        "lat=40&lon=-74&nm=400&dlat=4",
+        "dlon=8",
+        "lat=40&lon=-74&nm=400&dlat=x&dlon=8",
+        "lat=40&lon=-74&nm=400&dlat=0&dlon=8",
+        "lat=40&lon=-74&nm=400&dlat=4&dlon=200",
+        "lat=40&lon=-74&nm=400&dlat=nan&dlon=8",
+        "lat=40&lon=-74&nm=400&dlat=4&dlon=inf",
     ],
 )
 def test_api_traffic_refuses_a_bad_view(client, query):

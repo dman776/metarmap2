@@ -476,10 +476,11 @@ def spoken_reports(services: Services):
 
 def traffic_view(query):
     """
-    The view a page sends, (lat, lon, radius in NM), from ?lat=&lon=&nm=; None when it sends none (the airports'
-    circle then). A 400 for a partial or impossible one.
+    The view a page sends, (lat, lon, radius in NM[, half-height, half-width in degrees]), from ?lat=&lon=&nm= and
+    optionally &dlat=&dlon= (both or neither: the view's box, for one wider than one adsb.fi circle); None when it sends
+    none (the airports' circle then). A 400 for a partial or impossible one.
     """
-    if not any(key in query for key in ("lat", "lon", "nm")):
+    if not any(key in query for key in ("lat", "lon", "nm", "dlat", "dlon")):
         return None
     try:
         lat, lon, nm = float(query["lat"]), float(query["lon"]), float(query["nm"])
@@ -487,7 +488,15 @@ def traffic_view(query):
         bottle.abort(400, "lat, lon and nm are all needed, as numbers")
     if not (-90 <= lat <= 90 and -180 <= lon <= 180 and 0 < nm < float("inf")):
         bottle.abort(400, "lat, lon or nm is out of range")
-    return lat, lon, nm
+    if "dlat" not in query and "dlon" not in query:
+        return lat, lon, nm
+    try:
+        dlat, dlon = float(query["dlat"]), float(query["dlon"])
+    except (KeyError, ValueError):
+        bottle.abort(400, "dlat and dlon go together, as numbers")
+    if not (0 < dlat <= 90 and 0 < dlon <= 180):
+        bottle.abort(400, "dlat or dlon is out of range")
+    return lat, lon, nm, dlat, dlon
 
 
 def traffic(services: Services, view=None):
