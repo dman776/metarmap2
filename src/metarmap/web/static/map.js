@@ -1285,7 +1285,7 @@
     let lastAircraft = [];  // what the map last answered, drawn again (only what's in view) when the map moves
     let trafficMoved = false;  // the next request is because the map moved: say "loading…" if it takes a moment
     let trafficRedo = false;  // the map moved while a request was in flight: ask again at once
-    let trafficMax = 250;  // the widest view (NM, center to corner) that gets aircraft: the Chart says (max_view)
+    let trafficMax = 500;  // the widest view (NM, center to corner) that gets aircraft: the Chart says (max_view)
     let trafficWide = false;  // the view is wider than that: nothing is shown, and nothing is asked
     let trafficLoading = false;  // the last answer had nothing yet for this place (the Chart spaces its fetches): ask soon
     let moveTimer = null;
@@ -1408,12 +1408,17 @@
         }
     }
 
-    // the view the map asks traffic for: its center and the radius (NM) of the circle around its corners
+    // the view the map asks traffic for: its center, the radius (NM) of the circle around its corners, and its half
+    // height and width in degrees (a view wider than one adsb.fi circle is covered by a few, laid out on that box)
     function trafficView() {
         const bounds = map.getBounds(), center = bounds.getCenter();
         const meters = Math.max(map.distance(center, bounds.getNorthEast()), map.distance(center, bounds.getSouthWest()));
         // wrapped: dragged past the dateline the map's longitude goes beyond 180, which the Chart refuses
-        return {lat: center.lat, lon: map.wrapLatLng(center).lng, nm: Math.max(1, Math.ceil(meters / 1852))};
+        return {
+            lat: center.lat, lon: map.wrapLatLng(center).lng, nm: Math.max(1, Math.ceil(meters / 1852)),
+            dlat: Math.min(90, Math.max(0.0001, (bounds.getNorth() - bounds.getSouth()) / 2)),
+            dlon: Math.min(180, Math.max(0.0001, (bounds.getEast() - bounds.getWest()) / 2))
+        };
     }
 
     function syncAircraft(list) {
@@ -1521,6 +1526,7 @@
             text = count + ' aircraft near this view · every ' + t.interval + ' s';
         }
         trafficLabel('', text);
+        if (t.loading && !t.error) trafficState.textContent = ', ' + LOADING;  // a wide view: more circles to come
         // a key to the colors: the kinds on the map now, smallest first
         const present = {};
         t.aircraft.forEach(function (a) { present[kindOf(a)] = true; });
@@ -1553,7 +1559,8 @@
             }
             try {
                 const v = trafficView();
-                const res = await fetch('/api/traffic?lat=' + v.lat.toFixed(4) + '&lon=' + v.lon.toFixed(4) + '&nm=' + v.nm, {cache: 'no-store'});
+                const res = await fetch('/api/traffic?lat=' + v.lat.toFixed(4) + '&lon=' + v.lon.toFixed(4) + '&nm=' + v.nm +
+                    '&dlat=' + v.dlat.toFixed(4) + '&dlon=' + v.dlon.toFixed(4), {cache: 'no-store'});
                 if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
                 const t = await res.json();
                 if (!trafficOn) return;  // ticked off while it loaded (finally still clears trafficAsking)
@@ -1562,7 +1569,8 @@
                 // a place with nothing fetched yet answers with no aircraft: keep the ones on the map until it has some
                 if (t.fetched !== null || t.error || t.too_wide) syncAircraft(t.aircraft);
                 trafficStatus(t);
-                trafficLoading = t.fetched === null && !t.error && !t.too_wide;
+                // (or a wide view has some of its circles still to come: the Chart fetches them one a second)
+                trafficLoading = (t.fetched === null || !!t.loading) && !t.error && !t.too_wide;
                 trafficMax = t.max_view || trafficMax;
                 trafficWide = !!t.too_wide;
             } catch (err) {

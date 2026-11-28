@@ -486,18 +486,28 @@ Query (all three together, or none):
 | Parameter | Description |
 |---|---|
 | `lat`, `lon` | The center of the view, in degrees |
-| `nm` | The radius of the view in nautical miles, from its center to a corner. Over 250 (the most one adsb.fi circle covers) the answer has `too_wide: true` and no aircraft \|
+| `nm` | The radius of the view in nautical miles, from its center to a corner. Over 500 (`max_view`) the answer has `too_wide: true` and no aircraft |
+| `dlat`, `dlon` | Optional, both or neither: half the view's height and half its width, in degrees (the Map page sends them). Used only for a view over 250 NM, to lay its circles over the view's box; without them it is taken as a square. Each must be over 0, `dlat` at most 90 and `dlon` at most 180 |
 
-A 400 for a missing or non-numeric value, a `lat` outside -90 to 90, a `lon` outside -180 to 180 (the Map page wraps it), and an `nm` that is 0 or less, or too large to be a number.
+A 400 for a missing or non-numeric value, a `lat` outside -90 to 90, a `lon` outside -180 to 180 (the Map page wraps it), an `nm` that is 0 or less, or too large to be a number, and a `dlat` or `dlon` alone or out of range.
 
 The Chart asks adsb.fi only when this is requested and what it has for that place is older than
-`geo.map.traffic_seconds`. A view is snapped to a 0.25° grid and a circle of 40, 75, 110, 150, 200 or 250 NM that covers it (a view too close to 250 NM to snap gets its own exact circle), so
-pages looking at about the same place share one fetch. Any two fetches are at least 1.1 s apart (adsb.fi allows one a
-second), however many pages are open, and only one place that has not been fetched before starts per `interval`, so a
-page looking somewhere new may get `fetched: null` first and has the aircraft on a later poll. Places nobody asks about
-for 2 minutes are forgotten (at most 4 are kept). Nothing is fetched while
-no page asks. A failed fetch waits longer each time (twice the interval, doubling, at most 5 minutes; at least a minute
-after adsb.fi answers 429, for every place: each one's `error` says so), and keeps the aircraft from the last fetch that worked. adsb.fi's data is
+`geo.map.traffic_seconds`. A view up to 250 NM (the most one adsb.fi request covers) is one circle: it is snapped to a 0.25° grid and a circle of 40, 75, 110, 150, 200 or 250 NM that covers it (a view too close to 250 NM to snap gets its own exact circle), so
+pages looking at about the same place share one fetch. A view over 250 and up to 500 NM is cut into 2 x 2 boxes (3 x 2
+or 2 x 3 where that is not enough, near 500 NM and at high latitudes), each with its own circle of at most 250 NM that
+holds the whole box (snapped like the above where it can be), and the aircraft from them are merged: each one (by `hex`)
+once, at its newest position. Any answer (one circle's too) holds at most 1,500 aircraft: the ones nearest the middle of the circle for one circle, of the view for several. Any two fetches are at least 1.1 s
+apart (adsb.fi allows one a second), however many circles, pages or places: a request fetches at most one circle and
+answers at once with what the Chart has, and for a view of several circles the Chart fetches the others in the
+background, one a second in turn as they come due, circles never fetched first, those of the view asked about last
+first of all (`loading` is `true` until each has an answer or an error, so a page can ask again soon). So a circle is
+fetched again about once an `interval` only while all the circles being looked at fit in it at one a second; with more
+(18 circles take about 20 s) each one is fetched about once a round. Only one view
+with a circle that has not been fetched before starts per `interval`, or sooner once the last view to start has not
+been asked about for 2.5 s (the page has moved on, e.g. panning; a page waiting for a view asks every 1.2 s), so a page
+looking somewhere new may get `fetched: null` first and has the aircraft on a later poll. Circles nobody asks about for 2 minutes are forgotten (at
+most 19 are kept). A circle a page is still asking about (within the interval and 10 s; one never fetched, within 2.5 s) is never dropped to make room, and never-fetched circles are dropped first: when the views being looked at need more than 19 circles, a view that doesn't fit has `loading: true` and nothing fetched until another page stops asking. Nothing is fetched while no page asks. A failed fetch waits longer each time (twice the interval, doubling, at most 5 minutes; at least a minute
+after adsb.fi answers 429, and then nothing is fetched for any circle; the answer's `error` says so), and keeps the aircraft from the last fetch that worked. adsb.fi's data is
 free for personal, non-commercial use, and must be credited.
 
 ```json
@@ -510,7 +520,11 @@ free for personal, non-commercial use, and must be credited.
   "radius": 216,
   "source": { "name": "adsb.fi", "url": "https://adsb.fi/" },
   "too_wide": false,
-  "max_view": 250,
+  "max_view": 500,
+  "circles": [
+    { "center": [30.41495, -93.75705], "radius": 216, "fetched": 1793466896.42, "error": null }
+  ],
+  "loading": false,
   "aircraft": [
     {
       "hex": "a0822c", "flight": "UCA4878", "reg": "N13161", "type": "E45X", "desc": "EMBRAER ERJ-145XR",
@@ -524,12 +538,14 @@ free for personal, non-commercial use, and must be credited.
 
 | Field | Description |
 |---|---|
-| `now`, `fetched` | Unix times on the Chart's clock: now, and the last fetch that worked (`null` before the first) |
+| `now`, `fetched` | Unix times on the Chart's clock: now, and the last fetch that worked (`null` before the first). For a view of several circles, the oldest of their last fetches that worked (`null` until one has) |
 | `interval` | Seconds between fetches: `geo.map.traffic_seconds`, kept between 2 and 60 |
-| `error` | Why the last fetch failed (e.g. `couldn't reach adsb.fi: …`, `no airport positions yet`), else `null` |
-| `center`, `radius` | The circle the aircraft are from: for a view, the snapped circle above; with no query, around every airport plus 25 NM, at most 250 NM (adsb.fi's limit). `null` before the first fetch worked |
-| `too_wide`, `max_view` | `true` when the view's `nm` is over `max_view` (250): no aircraft, and nothing fetched |
-| `aircraft[]` | Aircraft with a position no older than 60 s. Ones on the ground only with `geo.map.traffic_ground` |
+| `error` | Why the last fetch failed (e.g. `couldn't reach adsb.fi: …`, `no airport positions yet`), else `null`. For several circles, only when every circle's last fetch failed (the first one's error); one failing leaves `error` `null` and the other circles' aircraft shown, and `circles[].error` says which. While adsb.fi's 429 wait lasts it is `adsb.fi says too many requests` |
+| `center`, `radius` | The circle the aircraft are from: for a view up to 250 NM, the snapped circle above; with no query, around every airport plus 25 NM, at most 250 NM (adsb.fi's limit). For a view of several circles, a circle around all of them, centered on the view's center (so `radius` can be over 250). `null` before the first fetch worked |
+| `too_wide`, `max_view` | `true` when the view's `nm` is over `max_view` (500), or its `dlat`/`dlon` box is too big for 6 circles: no aircraft, and nothing fetched |
+| `circles[]` | Each adsb.fi circle the view is made of (one up to 250 NM, 4 to 6 over it; none for a view too wide): its `center` and `radius` (NM, at most 250), and its own `fetched` and `error` (as above) |
+| `loading` | `true` while `error` is `null` and a circle of the view has nothing yet and no error of its own (still to be fetched, or waiting for room, see above): the aircraft so far are in `aircraft[]`, and more come on a later poll |
+| `aircraft[]` | Aircraft with a position no older than 60 s, each once (by `hex`) however many circles saw it, at most 1,500 in any answer (one circle's and the airports' too; the ones nearest the circle's own center are kept for one circle, the view's center for several). Ones on the ground only with `geo.map.traffic_ground` |
 | `aircraft[].alt` | Barometric altitude in feet (the GPS one if there's none); `null` on the ground |
 | `aircraft[].gs`, `track`, `vrate` | Ground speed (kt), track (degrees true) and vertical rate (ft/min); `null` when not sent |
 | `aircraft[].category` | The ADS-B emitter category the aircraft sends (`A1` to `A7`, `B1` to `B7`, `C1` to `C3`), `null` if none |

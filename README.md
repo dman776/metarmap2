@@ -123,8 +123,10 @@ mist, a variable ceiling, the pressure tendency and the precipitation totals; th
 
 Tick **Live traffic** to see the aircraft in the map's view from [adsb.fi](https://adsb.fi/), each icon sized and
 colored by the class of aircraft (light, small, large, heavy, helicopter...). It follows the map: pan to New York and you
-see New York's traffic. Zoom out past 250 NM from the center to a corner (the most one adsb.fi request covers) and it
-asks you to zoom in: a whole country holds thousands of aircraft, too many for a Pi Zero to fetch and draw.
+see New York's traffic. It shows the traffic up to about 500 NM from the center to a corner: past 250 NM (the most one
+adsb.fi request covers) the Chart asks for a few areas side by side, about a second apart, so the outer ones fill in over
+a few seconds. Zoom out further and it asks you to zoom in: a whole country holds thousands of aircraft, too many for a
+Pi Zero to fetch and draw.
 
 ![Live traffic on the Map page over radar, with a key to the aircraft classes](docs/images/map_live_traffic.jpg)
 
