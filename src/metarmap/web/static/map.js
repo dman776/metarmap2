@@ -1286,7 +1286,7 @@
     let trafficMoved = false;  // the next request is because the map moved: say "loading…" if it takes a moment
     let trafficRedo = false;  // the map moved while a request was in flight: ask again at once
     let trafficMax = 500;  // the widest view (NM, center to corner) that gets aircraft: the Chart says (max_view)
-    let trafficWide = false;  // the view is wider than that: nothing is shown, and nothing is asked
+    let trafficWide = false;  // the view is wider than that: nothing is asked of adsb.fi, and the aircraft drawn stay (frozen)
     let trafficLoading = false;  // the last answer had nothing yet for this place (the Chart spaces its fetches): ask soon
     let moveTimer = null;
 
@@ -1504,8 +1504,7 @@
         if (!viewSet) return;
         const wide = trafficView().nm > trafficMax;
         if (wide) {
-            trafficLabel(ZOOM_IN);
-            syncAircraft([]);
+            trafficLabel(ZOOM_IN);  // the aircraft already drawn stay where they were (they stop gliding after MAX_GLIDE_S)
         } else if (trafficWide) {
             trafficLabel(LOADING);
         }
@@ -1567,7 +1566,7 @@
                 serverSkew = Date.now() / 1000 - t.now;
                 trafficInterval = Math.max(1, t.interval || trafficInterval);
                 // a place with nothing fetched yet answers with no aircraft: keep the ones on the map until it has some
-                if (t.fetched !== null || t.error || t.too_wide) syncAircraft(t.aircraft);
+                if (t.fetched !== null || t.error) syncAircraft(t.aircraft);  // too wide: the ones drawn stay
                 trafficStatus(t);
                 // (or a wide view has some of its circles still to come: the Chart fetches them one a second)
                 trafficLoading = (t.fetched === null || !!t.loading) && !t.error && !t.too_wide;
@@ -1590,8 +1589,9 @@
     // moved or zoomed: draw what we have for the new view, then ask for it (the Chart shares what it fetched for nearby views)
     // (not while following an aircraft: the map is moved every glide tick, and it isn't looking anywhere new)
     map.on('moveend', function () {
-        if (!trafficOn || followed) return;
-        trafficHint();
+        if (!trafficOn) return;
+        trafficHint();  // also while following: zooming back in must end "zoom in…"
+        if (followed) return;
         clearTimeout(moveTimer);
         moveTimer = setTimeout(function () {
             if (!trafficOn || trafficWide) return;  // nothing is asked while the view is too wide
