@@ -85,6 +85,7 @@ def cockpit(services: Services, site):
         site,
         "cockpit.tpl",
         stations=s,
+        airports=sorted(s, key=lambda a: a["code"]),  # the Info tab's tiles, A to Z (the map keeps its pixel order)
         cats=views.CATEGORIES,
         settings=views.map_settings(services.config.data.geo.map, site.sectionals, s),
         active=views.visualizer(services.renderer),

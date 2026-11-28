@@ -121,7 +121,7 @@
         <p class="muted r-no-atis" id="r-no-atis" hidden>No airport on this Chart has a digital ATIS. Only about 75 large US airports publish one.</p>
         % end
         <div class="r-grid{{' paused' if active['exclusive'] else ''}}">
-            % for s in stations:
+            % for s in airports:
             % cat = s['cat'] if s['cat'] in cats else 'none'
             <button class="r-apt{{' virtual' if s['virtual'] else ''}}" type="button" data-call="/locate/{{s['pixel']}}" data-then="none"
                     data-station="{{s['code']}}" data-speak="{{s['code']}}" data-atis="{{'true' if s['code'] in with_atis else 'false'}}"
